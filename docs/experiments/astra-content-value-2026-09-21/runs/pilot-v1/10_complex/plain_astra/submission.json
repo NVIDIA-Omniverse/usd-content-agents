@@ -1,0 +1,16 @@
+{
+  "claimed_accepted": false,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "All five requested seeded native runs passed motion, the full 5\u20137 s hold, and settled return. Both additional allowed-factor endpoint runs passed loaded hold and settled return but violated the strict full hold-phase 5-degree tolerance: factor 0.98 reached 5.501707 degrees at thumb_ip, t=5.000 s; factor 1.02 reached 5.144587 degrees at ring_dip, t=6.720833 s after load release. Both permitted repairs are used. No full acceptance is claimed.",
+  "repairs_used": 2,
+  "limitations": [
+    "Saved source CAD geometry is preserved; this does not certify real hardware accuracy.",
+    "This is joint-level articulation only; motor, tendon, lead-screw transmission and dexterous grasping are not modeled.",
+    "Mass and inertia use exact cached CAD volume properties at an assumed uniform density of 1200 kg/m3.",
+    "The -2 to 65 degree joint limits and passive linear/angular damping of 4 per second are modeling assumptions.",
+    "Collisions use invisible interior capsules and a palm box, while all 69 source meshes remain intact and visible.",
+    "Native contact reporting was unavailable without an additional report schema; penetration was independently measured from collision-core geometry at every recorded native solver frame.",
+    "The public factor RNG is unspecified. Nominal seeded tests use NumPy default_rng; both 0.98 and 1.02 endpoints were additionally tested."
+  ]
+}

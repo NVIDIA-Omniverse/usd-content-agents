@@ -1,0 +1,225 @@
+{
+  "version": "supplementary_structural_delivery_v1",
+  "case_id": "08_excavator",
+  "arm": "content_agents",
+  "started_utc": "2026-09-22T00:58:17.997768+00:00",
+  "auditor_sha256": "387c6608092d1fe0ad3464c677b62451f983e9151443fa899717be879c79fc22",
+  "qualification_sha256": "e297a618664654c82f9f40361a0705bcb4bd1d2219bdd73664c1a2bfdee46f62",
+  "moving_role_policy": "For scoped public07-10 tasks, every required body role except base is a physically moving link, digit or axis component. Binding moving flags cannot waive the task.",
+  "no_author_assertion_used_as_observed_evidence": true,
+  "original_evaluations_modified": false,
+  "scored_files_modified": false,
+  "source_fidelity_status": "NOT_EVALUATED",
+  "native_physics_status": "NOT_EVALUATED",
+  "schema_counts": {
+    "rigid_bodies": 0,
+    "joints": 0,
+    "colliders": 0,
+    "meshes": 80
+  },
+  "bodies": [],
+  "joints": [],
+  "colliders": [],
+  "checks": [
+    {
+      "name": "required_body_role_exists:base",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/Excavator/base",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_body_role_exists:boom",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/Excavator/boom",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:boom",
+      "passed": false,
+      "evidence": {
+        "path": "/Excavator/boom",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:boom",
+      "passed": false,
+      "evidence": {
+        "path": "/Excavator/boom",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "required_body_role_exists:stick",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/Excavator/stick",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:stick",
+      "passed": false,
+      "evidence": {
+        "path": "/Excavator/stick",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:stick",
+      "passed": false,
+      "evidence": {
+        "path": "/Excavator/stick",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "required_body_role_exists:bucket",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/Excavator/bucket",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:bucket",
+      "passed": false,
+      "evidence": {
+        "path": "/Excavator/bucket",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:bucket",
+      "passed": false,
+      "evidence": {
+        "path": "/Excavator/bucket",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "distinct_required_body_paths",
+      "passed": true,
+      "evidence": [
+        "/Excavator/base",
+        "/Excavator/boom",
+        "/Excavator/stick",
+        "/Excavator/bucket"
+      ]
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:boom_pivot",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "revolute",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:stick_pivot",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "revolute",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:bucket_pivot",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "revolute",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "distinct_required_joint_paths",
+      "passed": true,
+      "evidence": []
+    }
+  ],
+  "concrete_missing_delivery_checks": [
+    "required_moving_body_is_dynamic:boom",
+    "required_moving_body_has_collider:boom",
+    "required_moving_body_is_dynamic:stick",
+    "required_moving_body_has_collider:stick",
+    "required_moving_body_is_dynamic:bucket",
+    "required_moving_body_has_collider:bucket",
+    "required_joint_role_has_enabled_api:boom_pivot",
+    "required_joint_role_has_enabled_api:stick_pivot",
+    "required_joint_role_has_enabled_api:bucket_pivot"
+  ],
+  "supplementary_status": "DECISIVE_NON_DELIVERY",
+  "required_body_roles": [
+    "base",
+    "boom",
+    "stick",
+    "bucket"
+  ],
+  "required_joint_roles": [
+    "boom_pivot",
+    "stick_pivot",
+    "bucket_pivot"
+  ],
+  "joint_kinds": {
+    "boom_pivot": "revolute",
+    "stick_pivot": "revolute",
+    "bucket_pivot": "revolute"
+  },
+  "unresolved_dependencies": [],
+  "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated.",
+  "composed_layer_hashes": [
+    {
+      "path": "runs/pilot-v1/08_excavator/content_agents/final.usd",
+      "sha256": "c10cc875d79cc2fd1e01074176054f4c6fcbf115ff5a07ab5c3ab776cde49759"
+    }
+  ],
+  "finished_utc": "2026-09-22T00:58:18.163143+00:00",
+  "elapsed_seconds": 0.16585328802466393,
+  "inputs_unchanged": true,
+  "inputs": {
+    "output_manifest.json": {
+      "path": "runs/pilot-v1/08_excavator/content_agents/output_manifest.json",
+      "sha256": "25930c9b5c92fbcd770cba67898f71a460c33534e747110a62e87865db39a326"
+    },
+    "submission.json": {
+      "path": "runs/pilot-v1/08_excavator/content_agents/submission.json",
+      "sha256": "b4954bba94d81754d7d191bf2b8a8259e6fa3105b4a5b2a4ae05403780a817ff"
+    },
+    "launch.json": {
+      "path": "runs/pilot-v1/08_excavator/content_agents/launch.json",
+      "sha256": "3fb851d439cbc229cdaa62e8f261821003d49929aa85b8529921a20bc3806ee6"
+    },
+    "public_task": {
+      "path": "protocol/tasks/08_excavator.json",
+      "sha256": "3436b7cd698a058da0bb0285814902aa22b28a5f7c21ffff4ae20db5a32bd25e"
+    },
+    "scene": {
+      "path": "runs/pilot-v1/08_excavator/content_agents/final.usd",
+      "sha256": "c10cc875d79cc2fd1e01074176054f4c6fcbf115ff5a07ab5c3ab776cde49759"
+    },
+    "bindings": {
+      "path": "runs/pilot-v1/08_excavator/content_agents/bindings.json",
+      "sha256": "70de8a031b0d5573e62417aed349845639bc0b4de6201ee7c04b9c247e5899d2"
+    }
+  }
+}

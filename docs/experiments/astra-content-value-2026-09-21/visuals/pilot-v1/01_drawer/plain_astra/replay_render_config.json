@@ -1,0 +1,120 @@
+{
+  "prepared_utc": "2026-09-21T23:15:43.489772+00:00",
+  "ready_for_gpu": true,
+  "renderer": "OVRTX0.4.1.364340",
+  "resolution": [
+    1024,
+    768
+  ],
+  "seed": 11,
+  "report_sha256": "bd2ca01c1c9d756d234c6091cb69e458e652fa24dc3a30038d5cb169ff23feef",
+  "native_trace_sha256": "f7fbe301d51e41afb8e3aa89d851236d7977ef04bf248fcfa643e755ccda026f",
+  "native_scene_sha256": "691fe45869e59d2a09e42a9aa98d6b47c718900781cfb5582b4d5d4411726709",
+  "source_replay_sha256": "67b0286c401805339f16d23483197d3e8655cd0671bd2d6fc7907349a47c3969",
+  "frames": [
+    {
+      "name": "closed_initial",
+      "scene": "/opt/astra-content-value-20260921/visuals/pilot-v1/01_drawer/plain_astra/closed_initial.usda",
+      "scene_sha256": "1d56033c861ea680c7d07b8265c9f8d6a233fd71cc30c207ed6deff2cad4d63f",
+      "trace_step": 167,
+      "time_s": 0.7,
+      "phase": "settle",
+      "drawer_q_m": 5.54695725440979e-06,
+      "drawer_pose": [
+        0.0,
+        -1.1920928955078125e-07,
+        5.54695725440979e-06,
+        -2.2978120057734475e-14,
+        -9.226065820610446e-15,
+        4.995393747091181e-16,
+        1.0
+      ],
+      "payload_pose": [
+        -0.037142928689718246,
+        1.0385000705718994,
+        -4.495680332183838e-05,
+        1.956860842255992e-07,
+        0.017713867127895355,
+        -2.1827545992891828e-07,
+        0.9998431205749512
+      ],
+      "output": "/opt/astra-content-value-20260921/visuals/pilot-v1/01_drawer/plain_astra/closed_initial.png"
+    },
+    {
+      "name": "open_loaded",
+      "scene": "/opt/astra-content-value-20260921/visuals/pilot-v1/01_drawer/plain_astra/open_loaded.usda",
+      "scene_sha256": "fbcbcf1539cac4e39bd4f429634a50666c4dacb36f556129bc88121c83e4891d",
+      "trace_step": 1223,
+      "time_s": 5.1,
+      "phase": "hold_open",
+      "drawer_q_m": 0.24054943025112152,
+      "drawer_pose": [
+        2.8638169169425964e-08,
+        -1.1920928955078125e-07,
+        0.24054943025112152,
+        -2.4711464564073152e-14,
+        -1.0728201503161158e-13,
+        -4.012653839709007e-15,
+        1.0
+      ],
+      "payload_pose": [
+        -0.03714290261268616,
+        1.0385000705718994,
+        0.240498885512352,
+        1.9035067566619546e-07,
+        0.017713861539959908,
+        -1.8607519791657978e-07,
+        0.9998431205749512
+      ],
+      "output": "/opt/astra-content-value-20260921/visuals/pilot-v1/01_drawer/plain_astra/open_loaded.png"
+    },
+    {
+      "name": "closed_returned",
+      "scene": "/opt/astra-content-value-20260921/visuals/pilot-v1/01_drawer/plain_astra/closed_returned.usda",
+      "scene_sha256": "41c20393d6e15cbbbac061c613f61634c3adc58ee658485b2b0c97e54fcfc31f",
+      "trace_step": 2435,
+      "time_s": 10.15,
+      "phase": "hold_closed",
+      "drawer_q_m": 0.00011964701116085052,
+      "drawer_pose": [
+        0.0,
+        0.0,
+        0.00011964701116085052,
+        3.815542581322648e-14,
+        -2.2170439583583251e-13,
+        1.301729720109418e-14,
+        1.0
+      ],
+      "payload_pose": [
+        -0.037142932415008545,
+        1.038500189781189,
+        6.913994729984552e-05,
+        1.8900541931543557e-07,
+        0.01771388202905655,
+        -1.98880115931388e-07,
+        0.9998431205749512
+      ],
+      "output": "/opt/astra-content-value-20260921/visuals/pilot-v1/01_drawer/plain_astra/closed_returned.png"
+    }
+  ],
+  "dependencies": {
+    "assets/drawer_cabinet_diff_1k.jpg": {
+      "source": "/opt/astra-content-value-20260921/runs/pilot-v1/01_drawer/plain_astra/assets/textures/drawer_cabinet_diff_1k.jpg",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "bytes": 150011
+    },
+    "assets/drawer_cabinet_arm_1k.jpg": {
+      "source": "/opt/astra-content-value-20260921/runs/pilot-v1/01_drawer/plain_astra/assets/textures/drawer_cabinet_arm_1k.jpg",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "bytes": 124942
+    },
+    "assets/drawer_cabinet_nor_gl_1k.jpg": {
+      "source": "/opt/astra-content-value-20260921/runs/pilot-v1/01_drawer/plain_astra/assets/textures/drawer_cabinet_nor_gl_1k.jpg",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "bytes": 61593
+    }
+  },
+  "camera": "/__ReplayPresentation/Camera",
+  "provenance": "Each static proof snapshot uses observed native drawer/payload poses from the independently integrated seed11 trace. No submitted animation or author simulation was replayed. Only camera, lights and payload display color are presentation additions. Exact texture bytes are packaged with relative references. The frozen scene, replay, trace, author output and evaluator remain unchanged.",
+  "claim_limit": "Images illustrate observed evidence; acceptance derives from all five frozen physical trials, not these renders."
+}

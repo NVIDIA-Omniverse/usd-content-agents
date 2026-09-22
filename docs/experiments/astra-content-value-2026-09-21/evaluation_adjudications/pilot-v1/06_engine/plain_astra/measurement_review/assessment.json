@@ -1,0 +1,612 @@
+{
+  "schema_version": 1,
+  "version": "06_engine_contract_and_witness_review_v1",
+  "case_id": "06_engine",
+  "arm": "plain_astra",
+  "created_utc": "2026-09-22T00:14:09.222150+00:00",
+  "status": "inconclusive",
+  "accepted": false,
+  "false_pass": false,
+  "assessment_type": "Conservative post-freeze measurement and contract review; cannot promote acceptance",
+  "v1_acceptance_sha256": "9a9efa7db05177a17e2e1993f424b7daa741fb4b68d35c8fb7ac2c456c45961d",
+  "prior_adjudication_sha256": "ada35a4a0a42f44f0ed5032807121970a412175b61d02b8c71f11653907d8ba3",
+  "v1_acceptance": {
+    "path": "evaluations/pilot-v1/06_engine/plain_astra/acceptance.json",
+    "sha256": "9a9efa7db05177a17e2e1993f424b7daa741fb4b68d35c8fb7ac2c456c45961d"
+  },
+  "prior_adjudication": {
+    "path": "evaluation_adjudications/pilot-v1/06_engine/plain_astra/source_distance_v1_1/acceptance.json",
+    "sha256": "ada35a4a0a42f44f0ed5032807121970a412175b61d02b8c71f11653907d8ba3"
+  },
+  "covered_rejection_names": [
+    "moving_body_has_source_geometry:/World/Bodies/beam_slider",
+    "seed11:independent_freefall_witness",
+    "seed23:independent_freefall_witness",
+    "seed47:independent_freefall_witness",
+    "seed83:independent_freefall_witness",
+    "seed131:independent_freefall_witness"
+  ],
+  "remaining_supported_rejections": [],
+  "rejection_analysis": [
+    {
+      "classification": "UNDISCLOSED_ADDITIONAL_BODY_RESTRICTION",
+      "rejection_names": [
+        "moving_body_has_source_geometry:/World/Bodies/beam_slider"
+      ],
+      "finding": "The public contract does not unambiguously require every auxiliary moving body to own source visual geometry. It requires all bodies/joints to be declared, permits invisible collision geometry, and preserves every required source shape. The openly declared invisible beam-slot slider passes all other structural and native checks; retroactively enforcing this additional restriction does not support a demonstrated false pass.",
+      "evidence": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/contract_review.json",
+        "sha256": "f478a0b6c38bf12708da7d87c784ab5a32e1bf674163a384fbc03f344675fc5f"
+      }
+    },
+    {
+      "classification": "EVALUATOR_OWNED_FREEFALL_WITNESS_NUMERICAL_DEFECT",
+      "rejection_names": [
+        "seed11:independent_freefall_witness",
+        "seed23:independent_freefall_witness",
+        "seed47:independent_freefall_witness",
+        "seed83:independent_freefall_witness",
+        "seed131:independent_freefall_witness"
+      ],
+      "finding": "All five native witness velocities match Earth gravity. A synthetic fixture with an unrelated constrained128-iteration TGS body reproduces the exact rejected displacement at1000m; moving only the witness to1m passes unchanged thresholds. Thus these witness displacement failures are numerical sensitivity of the evaluator-owned distant fixture, not a demonstrated submitted-mechanism defect.",
+      "evidence": [
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/results.json",
+          "sha256": "ea7d88c08a6cbd0ccd10913d56e28e9ec64f6b7acf18bcab8ad09180affdf406"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3/results.json",
+          "sha256": "e2b0f10246fec64b35d491146950843746d3e3c75eda71382b5980980b4a11a5"
+        }
+      ]
+    }
+  ],
+  "original_v1_rejection_coverage": {
+    "all_original_rejection_names": [
+      "moving_body_has_source_geometry:/World/Bodies/beam_slider",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/valve_001/valve_/Body004",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/small_wheel_001/small_wheel_/Body011",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/small_beam_001/small_beam_/Body015",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/middle_beam_001/middle_beam_/Body016",
+      "seed11:independent_freefall_witness",
+      "seed23:independent_freefall_witness",
+      "seed47:independent_freefall_witness",
+      "seed83:independent_freefall_witness",
+      "seed131:independent_freefall_witness"
+    ],
+    "source_distance_bug_already_covered_by_prior_adjudication": [
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/valve_001/valve_/Body004",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/small_wheel_001/small_wheel_/Body011",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/small_beam_001/small_beam_/Body015",
+      "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/middle_beam_001/middle_beam_/Body016"
+    ],
+    "other_original_rejections_covered_here": [
+      "moving_body_has_source_geometry:/World/Bodies/beam_slider",
+      "seed11:independent_freefall_witness",
+      "seed23:independent_freefall_witness",
+      "seed47:independent_freefall_witness",
+      "seed83:independent_freefall_witness",
+      "seed131:independent_freefall_witness"
+    ]
+  },
+  "frozen_files_modified": false,
+  "scored_artifacts_modified": false,
+  "v1_or_v1_1_receipts_modified": false,
+  "thresholds_relaxed": false,
+  "acceptance_promoted": false,
+  "author_scene_or_physics_repaired": false,
+  "explanation": "All remaining v1.1 rejection names are covered by an undisclosed auxiliary-body restriction or a reproduced evaluator-owned gravity-witness numerical defect. Preserve both raw FAIL verdicts, conservatively report INCONCLUSIVE, and do not count a demonstrated false pass. The original task traces and source measurements are preserved; no corrected full-scene replay or retroactive PASS is claimed.",
+  "native_physics_completeness": {
+    "loaded_seeds": [
+      {
+        "seed": 11,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_11.json",
+          "sha256": "d3b44d208814d9b14dff74209f7cb763f33a73ef45f82b0109e0a0af5afc0a1c"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880
+      },
+      {
+        "seed": 23,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_23.json",
+          "sha256": "50518367b0ad9433a5b4aea6cf9a5cf636a573ab60212a21f0ada5b50349f380"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880
+      },
+      {
+        "seed": 47,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_47.json",
+          "sha256": "b771cfecea9c9460b3469df20df46798176445e83c7a0ddb5863b4b20424992f"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880
+      },
+      {
+        "seed": 83,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_83.json",
+          "sha256": "4879324d933c3ccd4b598f2a3b92967b649a2cd6cbf70b785e27a4adebf580d8"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880
+      },
+      {
+        "seed": 131,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_131.json",
+          "sha256": "da29823280cc50b7bb46974a74bf2ca72c7a3d16fb08b32f9f65d7ab03ea5c4b"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880
+      }
+    ],
+    "all_five_complete": true,
+    "paired_unloaded": {
+      "evidence": {
+        "path": "evaluations/pilot-v1/06_engine/plain_astra/unloaded_seed11.json",
+        "sha256": "4d1dccf34c468e0b98d962e984e72dac77ffac0b6815bc5714bde97d75e2a170"
+      },
+      "completed_steps": 2880,
+      "expected_steps": 2880
+    },
+    "paired_load_check": {
+      "name": "engine_paired_load_response",
+      "passed": true,
+      "evidence": {
+        "max_angle_change_rad": 0.042420073489375376,
+        "required_rad": 0.0001,
+        "input": "same seed, scene and controller; frozen inertia-normalized external shaft torque removed only in paired baseline"
+      },
+      "failure_class": null
+    },
+    "all_other_native_task_checks_pass": true
+  },
+  "diagnostics": [
+    {
+      "scope": "Synthetic, unscored; no author asset or frozen evaluator used as a solved fixture",
+      "entrypoint": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+        "sha256": "f7bbc0f1b2a1a7c12d18eff210ea10c4392a76b69391079451d86fbb9657101f"
+      },
+      "result": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/results.json",
+        "sha256": "ea7d88c08a6cbd0ccd10913d56e28e9ec64f6b7acf18bcab8ad09180affdf406"
+      },
+      "log": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.log",
+        "sha256": "42f3a59190f95312a1fa1cb61a6442f8dfe85b6a6c8eb848cef705496921a285"
+      },
+      "command": [
+        "env",
+        "TMPDIR=/opt/astra-content-value-20260921/tmp",
+        "UV_NO_CACHE=1",
+        "nice",
+        "-n",
+        "15",
+        "ionice",
+        "-c3",
+        "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py"
+      ],
+      "shell_setting": "ulimit -c 0",
+      "child_commands": [
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "0"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "1"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "2"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "3"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "4"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "5"
+        ]
+      ],
+      "scenes": [
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/near_default.usda",
+          "sha256": "2bcbf1693a3d0760e79dcde0212f5003269b367447dbd4564c8f1931f7bff085"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/far_default.usda",
+          "sha256": "67b0a17b4bc170767f87bccdde1350d05acbb88ef0fd3750d7f021b3a0cabc91"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/near_128.usda",
+          "sha256": "f395ad0800f31465a09c13683d7079f3c2a93947c717eb5f20ae962665a7dadd"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/far_128.usda",
+          "sha256": "3bacaf67f5c2c4f28e312639becd648f50610c47426b8966349b3b797a5273f0"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/far_companion128.usda",
+          "sha256": "5b0598c78c3c6127c3c7231c95b3577e722d25bf9f3fcee6be84710446379b32"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/near_companion128.usda",
+          "sha256": "29d46d3fbb20a89f76329fe668ebf0368ec713e90926de52e2e0965aa21fa9d8"
+        }
+      ],
+      "measurements": [
+        {
+          "name": "near_default",
+          "initial_pose": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": null,
+          "scene_sha256": "2bcbf1693a3d0760e79dcde0212f5003269b367447dbd4564c8f1931f7bff085",
+          "delta_z_m": -0.05109375715255737,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.002043757152557363,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "far_default",
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": null,
+          "scene_sha256": "67b0a17b4bc170767f87bccdde1350d05acbb88ef0fd3750d7f021b3a0cabc91",
+          "delta_z_m": -0.05108642578125,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.0020364257812499897,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "near_128",
+          "initial_pose": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": 128,
+          "companion_position_iterations": null,
+          "scene_sha256": "f395ad0800f31465a09c13683d7079f3c2a93947c717eb5f20ae962665a7dadd",
+          "delta_z_m": -0.05109375715255737,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.002043757152557363,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "far_128",
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": 128,
+          "companion_position_iterations": null,
+          "scene_sha256": "3bacaf67f5c2c4f28e312639becd648f50610c47426b8966349b3b797a5273f0",
+          "delta_z_m": -0.05108642578125,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.0020364257812499897,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "far_companion128",
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": 128,
+          "scene_sha256": "5b0598c78c3c6127c3c7231c95b3577e722d25bf9f3fcee6be84710446379b32",
+          "delta_z_m": -0.05108642578125,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.0020364257812499897,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "near_companion128",
+          "initial_pose": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": 128,
+          "scene_sha256": "29d46d3fbb20a89f76329fe668ebf0368ec713e90926de52e2e0965aa21fa9d8",
+          "delta_z_m": -0.05109375715255737,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.002043757152557363,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        }
+      ]
+    },
+    {
+      "scope": "Synthetic, unscored; no author asset or frozen evaluator used as a solved fixture",
+      "entrypoint": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.py",
+        "sha256": "7719e3ef5e6ced89a3db8aae6a59b45041dd37dba54fbfb89d4cae4ef1858f79"
+      },
+      "result": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3/results.json",
+        "sha256": "e2b0f10246fec64b35d491146950843746d3e3c75eda71382b5980980b4a11a5"
+      },
+      "log": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.log",
+        "sha256": "c260f2d7c3d8c4890851aeb83224160f39dbc80e330544611568298e20aecff6"
+      },
+      "command": [
+        "env",
+        "TMPDIR=/opt/astra-content-value-20260921/tmp",
+        "UV_NO_CACHE=1",
+        "nice",
+        "-n",
+        "15",
+        "ionice",
+        "-c3",
+        "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.py"
+      ],
+      "shell_setting": "ulimit -c 0",
+      "child_commands": [
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.py",
+          "--trial",
+          "0"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.py",
+          "--trial",
+          "1"
+        ]
+      ],
+      "scenes": [
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3/far_constrained128.usda",
+          "sha256": "e1109779ec80ed13a47629bec61468aa8fa6998bd20247900f407cc8a517922a"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3/near_constrained128.usda",
+          "sha256": "45efe9052e64dab1a89e2f6e2f01a9484fc5e7377b4c606a5bec948c036910b0"
+        }
+      ],
+      "measurements": [
+        {
+          "name": "far_constrained128",
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": 128,
+          "scene_sha256": "e1109779ec80ed13a47629bec61468aa8fa6998bd20247900f407cc8a517922a",
+          "delta_z_m": -0.015625,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.03342500000000001,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": false
+        },
+        {
+          "name": "near_constrained128",
+          "initial_pose": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": 128,
+          "scene_sha256": "45efe9052e64dab1a89e2f6e2f01a9484fc5e7377b4c606a5bec948c036910b0",
+          "delta_z_m": -0.05109405517578125,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.0020440551757812397,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        }
+      ]
+    }
+  ],
+  "source_and_script_provenance": {
+    "task": {
+      "path": "protocol/tasks/06_engine.json",
+      "sha256": "c9e74a00fb2c2b7b4a7624d78d2c4ef79586c4d8b6ee14707be3ba09cce167e4"
+    },
+    "source_public_inventory": {
+      "path": "protocol/tasks/06_engine_source_inventory.json",
+      "sha256": "c9998d35871fd1e8d3f58f7a04f25eedbe0cd4dd53419d061414b3017bc2f852"
+    },
+    "submission": {
+      "path": "runs/pilot-v1/06_engine/plain_astra/submission.json",
+      "sha256": "6031f980fb23f1a3a481868093e36d102f91de6e001d6701b99d27a709886870"
+    },
+    "scene": {
+      "path": "runs/pilot-v1/06_engine/plain_astra/final.usd",
+      "sha256": "59afe724de90b04fdc06895bb765b5a32ee6c4f837861c1075427f5375a74b32"
+    },
+    "bindings": {
+      "path": "runs/pilot-v1/06_engine/plain_astra/bindings.json",
+      "sha256": "59fe46ad7701bab8709c63af5aff04592dd9345deb0470d33bfe0fdcce296b63"
+    },
+    "frozen_v1_acceptance": {
+      "path": "evaluations/pilot-v1/06_engine/plain_astra/acceptance.json",
+      "sha256": "9a9efa7db05177a17e2e1993f424b7daa741fb4b68d35c8fb7ac2c456c45961d"
+    },
+    "distance_v1_1_acceptance": {
+      "path": "evaluation_adjudications/pilot-v1/06_engine/plain_astra/source_distance_v1_1/acceptance.json",
+      "sha256": "ada35a4a0a42f44f0ed5032807121970a412175b61d02b8c71f11653907d8ba3"
+    },
+    "runtime_config": {
+      "path": "evaluations/pilot-v1/06_engine/plain_astra/runtime_config.json",
+      "sha256": "cf9cec99a78258a81cee8d8d369b771dd0a795652e444ba94f5a4ed50a2e6e8c"
+    },
+    "frozen_manifest": {
+      "path": "evaluator/general/frozen/06_engine/frozen_manifest.json",
+      "sha256": "3370c473cb5daedf8840324d0383c2a63a96a85502deacc9dce30404ce2d3747"
+    },
+    "frozen_structural": {
+      "path": "evaluator/general/frozen/06_engine/structural.py",
+      "sha256": "04fba0b65c233321950d88bdf38ee483abc741489278f4fcbf76fc8b67549104"
+    },
+    "frozen_observer": {
+      "path": "evaluator/general/frozen/06_engine/evaluate.py",
+      "sha256": "569b60b995d931a2b4af70392bc0667a129493f27425748ae6073ca6a36df8ff"
+    }
+  },
+  "diagnostic_scripts": [
+    {
+      "path": "evaluator/errata/engine_auxiliary_body_review/collect_review.py",
+      "sha256": "995192790313c4a6ff16cf6ff899bbe71e8895c68ea240b2c695234588c27ed2"
+    },
+    {
+      "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe.py",
+      "sha256": "57f29fbfc0a95853033fdb57c88818a5b6519683af62c73323073964be13626c"
+    },
+    {
+      "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+      "sha256": "f7bbc0f1b2a1a7c12d18eff210ea10c4392a76b69391079451d86fbb9657101f"
+    },
+    {
+      "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.py",
+      "sha256": "7719e3ef5e6ced89a3db8aae6a59b45041dd37dba54fbfb89d4cae4ef1858f79"
+    },
+    {
+      "path": "evaluator/errata/engine_auxiliary_body_review/finalize_assessment.py",
+      "sha256": "8cc8192709c666cbe0a20cd2222bd3e45acd8fe9d071e68ce201b934fb912445"
+    }
+  ],
+  "initial_fixture_attempt": {
+    "script": {
+      "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe.py",
+      "sha256": "57f29fbfc0a95853033fdb57c88818a5b6519683af62c73323073964be13626c"
+    },
+    "log": {
+      "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe.log",
+      "sha256": "1d7a38f1b43077d58676521b9a213395972066d98548799577f6e95d6b260f8b"
+    },
+    "outcome": "First single-process multi-SDK attempt failed during SDK reinitialization after its first completed control. Retained as unscored infrastructure evidence; r2/r3 use one SDK lifecycle per subprocess. The generated7,824,588,800-byte own core dump was removed; no benchmark artifact was deleted."
+  },
+  "limitations": [
+    "Conservative review only; passing task-specific motion traces plus source checks do not constitute an automatically promoted full acceptance.",
+    "Witness numerical interaction was reproduced for an isolated fixed-joint body with128 TGS position iterations; the precise native implementation cause is not asserted.",
+    "The global scheduling violation and per-arm author protocol audits remain separate from this physical-measurement review."
+  ]
+}

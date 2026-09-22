@@ -1,0 +1,16 @@
+{
+  "claimed_accepted": false,
+  "final_scene": null,
+  "bindings": null,
+  "reason": "Blocked/inconclusive: the native Asset launcher cannot verify package-owned usd-cli provenance because the supplied repository lacks .git. No articulated physical mechanism was authored or tested. Geometry-only final.usd and partial bindings.json are retained for inspection; they are not submitted as a qualifying scene.",
+  "repairs_used": 2,
+  "limitations": [
+    "The supplied repository has no .git metadata; native Asset launcher could not verify committed in-tree usd-cli provenance and stopped before child launch. No repository or installed-package change was attempted.",
+    "Joint, Physics, and final Validation workflows were not executed. No rigid bodies, joints, mass, inertia, or collision approximations were authored. No physical task acceptance evidence exists.",
+    "final.usd is a geometry-only partial, not a final mechanism. bindings.json preserves all 13 source mappings but has zero actual bodies/joints and is intentionally not submitted as contract-valid mechanism bindings.",
+    "Initial shared-conversion Geometry handoff remains conditional regarding native CAD editability. Repair01 native Geometry failed its triangle budget; that failure is preserved. Repair02 Geometry passed but certifies only Geometry scope.",
+    "Read-only cylinder surface samples, bounds and area comparisons support geometry fidelity; full symmetric sampled-surface and all-vertex coverage acceptance was not established.",
+    "The public conversion workflow exposes no tessellation LOD setting. The task-permitted same usd-convert-cad CLI was used for retained LOD4/LOD3 repairs, followed by native Geometry re-admission; no claim is made that the raw converter is a native workflow receipt.",
+    "Full physical mechanism candidate was never produced. The preserved first candidate and two repairs are geometry-preparation candidates only."
+  ]
+}

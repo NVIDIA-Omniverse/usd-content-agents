@@ -1,0 +1,16 @@
+{
+  "claimed_accepted": false,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "Blocked by frozen native workflow capabilities. Geometry topology validation failed and its native repair was rejected. Native Joint authoring rejected the exact required seven-joint closed linkage because a moving owner is body1 of multiple joints. final.usd preserves a partial 27-mesh source-derived assembly only; no articulated physics mechanism or five-seed task success is claimed.",
+  "repairs_used": 1,
+  "limitations": [
+    "final.usd is a partial geometry/intended-body grouping derivative. It has zero authored rigid bodies, masses, colliders, joints or drives; bindings body entries identify intended source roles only. It does not meet the physical submission contract.",
+    "The native Joint apply command rejected the required graph before authoring: Canonical graph drives one moving owner from multiple joints. Its native checkpoint remains awaiting_decision, output null, and no terminal authoring receipt was emitted.",
+    "The first native Geometry result is fail for a duplicate face and an over-connected edge. The repair certificate is rejected; Scene Optimizer Core and Geogram were unavailable, and cleanup could not edit instance proxies. No repair operation produced a replacement geometry candidate.",
+    "All five seeds (11,23,47,83,131), bounded cam torque, bilateral contact retention, added downward load, and release/drop are not evaluated. Runtime preflight readiness and OVRTX images are not task acceptance.",
+    "The official converter tessellation differs from fine original CAD surfaces by up to 104.107 micrometers on the baseplate and 61.376 micrometers on the fingers. Every part meets the separately measured 0.001-diagonal and 3 percent area checks; the absolute-versus-relative evaluator tolerance combination was not inspected.",
+    "The canonical Joint visual-evidence producer could not verify committed in-tree usd-cli provenance. A real direct local OVRTX diagnostic render was retained, without upgrading this failed canonical disposition.",
+    "Native Validation preserved broad static pass with physics_expected=false and behavior warning. Outer assessment is blocked and unauthorized; review correctly refused because no accepted canonical output exists. No successful Validation terminal receipt is claimed."
+  ]
+}

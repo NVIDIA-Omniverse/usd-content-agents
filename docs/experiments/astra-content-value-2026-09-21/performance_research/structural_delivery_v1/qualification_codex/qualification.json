@@ -1,0 +1,1729 @@
+{
+  "created_utc": "2026-09-22T00:57:27.154619+00:00",
+  "synthetic_only": true,
+  "all_passed": true,
+  "test_count": 15,
+  "tests": [
+    {
+      "name": "positive",
+      "expected_non_delivery": false,
+      "actual_non_delivery": false,
+      "passed": true,
+      "scene_sha256": "c776bff02e36a5c95b1c52662f85d1fdd56206920a52317424a2e4759dc84038",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": [
+                "/World/Moving/Shape"
+              ]
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsRevoluteJoint",
+              "enabled": true
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [],
+        "supplementary_status": "NO_DECISIVE_NON_DELIVERY_FROM_THESE_CHECKS",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/positive.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "geometry_only",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "f03be77f1f20f356838a9b2b1d7e2911484b70d41bbf012e8ee561b5ea3584ca",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 0,
+          "joints": 0,
+          "colliders": 0,
+          "meshes": 0
+        },
+        "bodies": [],
+        "joints": [],
+        "colliders": [],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": false,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": false
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": false,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": []
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": false,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": false,
+              "required_kind": "revolute",
+              "actual_type": null,
+              "enabled": false
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": []
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_moving_body_is_dynamic:moving",
+          "required_moving_body_has_collider:moving",
+          "required_joint_role_has_enabled_api:hinge"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/geometry_only.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "disabled_body",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "3a438309cf5a8908924555e87b6783dfd29edc695392f4a681b7e6ac1961e4a6",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": false,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": false,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": [
+                "/World/Moving/Shape"
+              ]
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsRevoluteJoint",
+              "enabled": true
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_moving_body_is_dynamic:moving"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/disabled_body.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "kinematic_body",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "257f850a80c1d52fb74dcea2ba05b25f1e15a69b25aab371a4932ed9abbbc5af",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": true
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": false,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": [
+                "/World/Moving/Shape"
+              ]
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsRevoluteJoint",
+              "enabled": true
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_moving_body_is_dynamic:moving"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/kinematic_body.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "no_collider",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "8f53d6fa1b3e7d3540f4756d7279927451aa98371d59a97e707c339bf4bac1aa",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 0,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": false,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": []
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsRevoluteJoint",
+              "enabled": true
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_moving_body_has_collider:moving"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/no_collider.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "disabled_collider",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "41baa31b2e6f47a32b61562a9bcb58935843aa067170725bc696fa743503af97",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": false
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": false,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": []
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsRevoluteJoint",
+              "enabled": true
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_moving_body_has_collider:moving"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/disabled_collider.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "wrong_joint_kind",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "959bd1cca4f966809899c6b8f996745fe8c0f099c34e1d063849f72fb53aa24f",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsPrismaticJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": [
+                "/World/Moving/Shape"
+              ]
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": false,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsPrismaticJoint",
+              "enabled": true
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_joint_role_has_enabled_api:hinge"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/wrong_joint_kind.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "disabled_joint",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "f23797de31ec39c40efeb345f98df3e8e5eeb44363e796d795dba7c5bdac3817",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": false,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": [
+                "/World/Moving/Shape"
+              ]
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": false,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsRevoluteJoint",
+              "enabled": false
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_joint_role_has_enabled_api:hinge"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/disabled_joint.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "missing_body_binding",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "c776bff02e36a5c95b1c52662f85d1fdd56206920a52317424a2e4759dc84038",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": false,
+            "evidence": {
+              "binding_count": 0,
+              "path": null,
+              "prim_exists": false
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": false,
+            "evidence": {
+              "path": null,
+              "actual_rigid_body_api": false
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": false,
+            "evidence": {
+              "path": null,
+              "enabled_collider_paths": []
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsRevoluteJoint",
+              "enabled": true
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_body_role_exists:moving",
+          "required_moving_body_is_dynamic:moving",
+          "required_moving_body_has_collider:moving"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/missing_body_binding.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "missing_joint_binding",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "c776bff02e36a5c95b1c52662f85d1fdd56206920a52317424a2e4759dc84038",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": [
+                "/World/Moving/Shape"
+              ]
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": false,
+            "evidence": {
+              "binding_count": 0,
+              "path": null,
+              "actual_joint_api": false,
+              "required_kind": "revolute",
+              "actual_type": null,
+              "enabled": false
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": []
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_joint_role_has_enabled_api:hinge"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/missing_joint_binding.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "fake_body_path",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "c776bff02e36a5c95b1c52662f85d1fdd56206920a52317424a2e4759dc84038",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": false,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Missing",
+              "prim_exists": false
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": false,
+            "evidence": {
+              "path": "/World/Missing",
+              "actual_rigid_body_api": false
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": false,
+            "evidence": {
+              "path": "/World/Missing",
+              "enabled_collider_paths": []
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsRevoluteJoint",
+              "enabled": true
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_body_role_exists:moving",
+          "required_moving_body_is_dynamic:moving",
+          "required_moving_body_has_collider:moving"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/fake_body_path.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "fake_joint_path",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "c776bff02e36a5c95b1c52662f85d1fdd56206920a52317424a2e4759dc84038",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": [
+                "/World/Moving/Shape"
+              ]
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": false,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "actual_joint_api": false,
+              "required_kind": "revolute",
+              "actual_type": "Xform",
+              "enabled": false
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": []
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_joint_role_has_enabled_api:hinge"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/fake_joint_path.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "duplicate_body_role",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "c776bff02e36a5c95b1c52662f85d1fdd56206920a52317424a2e4759dc84038",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": false,
+            "evidence": {
+              "binding_count": 2,
+              "path": null,
+              "prim_exists": false
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": false,
+            "evidence": {
+              "path": null,
+              "actual_rigid_body_api": false
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": false,
+            "evidence": {
+              "path": null,
+              "enabled_collider_paths": []
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Hinge",
+              "actual_joint_api": true,
+              "required_kind": "revolute",
+              "actual_type": "PhysicsRevoluteJoint",
+              "enabled": true
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Hinge"
+            ]
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_body_role_exists:moving",
+          "required_moving_body_is_dynamic:moving",
+          "required_moving_body_has_collider:moving"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/duplicate_body_role.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "duplicate_joint_role",
+      "expected_non_delivery": true,
+      "actual_non_delivery": true,
+      "passed": true,
+      "scene_sha256": "c776bff02e36a5c95b1c52662f85d1fdd56206920a52317424a2e4759dc84038",
+      "observation": {
+        "schema_counts": {
+          "rigid_bodies": 1,
+          "joints": 1,
+          "colliders": 1,
+          "meshes": 0
+        },
+        "bodies": [
+          {
+            "path": "/World/Moving",
+            "enabled": true,
+            "kinematic": false
+          }
+        ],
+        "joints": [
+          {
+            "path": "/World/Hinge",
+            "type": "PhysicsRevoluteJoint",
+            "enabled": true,
+            "body0": [
+              "/World/Base"
+            ],
+            "body1": [
+              "/World/Moving"
+            ]
+          }
+        ],
+        "colliders": [
+          {
+            "path": "/World/Moving/Shape",
+            "enabled": true
+          }
+        ],
+        "checks": [
+          {
+            "name": "required_body_role_exists:base",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Base",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_body_role_exists:moving",
+            "passed": true,
+            "evidence": {
+              "binding_count": 1,
+              "path": "/World/Moving",
+              "prim_exists": true
+            }
+          },
+          {
+            "name": "required_moving_body_is_dynamic:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "actual_rigid_body_api": true
+            }
+          },
+          {
+            "name": "required_moving_body_has_collider:moving",
+            "passed": true,
+            "evidence": {
+              "path": "/World/Moving",
+              "enabled_collider_paths": [
+                "/World/Moving/Shape"
+              ]
+            }
+          },
+          {
+            "name": "distinct_required_body_paths",
+            "passed": true,
+            "evidence": [
+              "/World/Base",
+              "/World/Moving"
+            ]
+          },
+          {
+            "name": "required_joint_role_has_enabled_api:hinge",
+            "passed": false,
+            "evidence": {
+              "binding_count": 2,
+              "path": null,
+              "actual_joint_api": false,
+              "required_kind": "revolute",
+              "actual_type": null,
+              "enabled": false
+            }
+          },
+          {
+            "name": "distinct_required_joint_paths",
+            "passed": true,
+            "evidence": []
+          }
+        ],
+        "concrete_missing_delivery_checks": [
+          "required_joint_role_has_enabled_api:hinge"
+        ],
+        "supplementary_status": "DECISIVE_NON_DELIVERY",
+        "required_body_roles": [
+          "base",
+          "moving"
+        ],
+        "required_joint_roles": [
+          "hinge"
+        ],
+        "joint_kinds": {
+          "hinge": "revolute"
+        },
+        "used_layer_files": [
+          "/opt/astra-content-value-20260921/performance_research/structural_delivery_v1/qualification_codex/duplicate_joint_role.usda"
+        ],
+        "unresolved_dependencies": [],
+        "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated."
+      }
+    },
+    {
+      "name": "unresolved_dependency_not_decisive",
+      "passed": true,
+      "diagnostic": "Unresolved dependencies: ['missing_layer.usda']"
+    }
+  ],
+  "auditor_sha256": "387c6608092d1fe0ad3464c677b62451f983e9151443fa899717be879c79fc22",
+  "qualifier_sha256": "82e5f900ef170640bbf7e3d629e117cc5520eef1fd228524156715b72f8cbedd",
+  "usd_version": [
+    0,
+    25,
+    5
+  ],
+  "python_version": "3.12.14",
+  "gpu_jobs": 0,
+  "proximity_queries": 0,
+  "scope": "Qualifies static necessary-role/API presence observations only. Positive fixture is never called a simulated or source-faithful acceptance."
+}

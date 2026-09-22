@@ -1,0 +1,155 @@
+{
+  "accepted": true,
+  "status": "accepted",
+  "inconclusive_checks": [],
+  "concrete_failures": [],
+  "checks": [
+    {
+      "name": "seed11:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 1.3271998167037964,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 3.48102692504515e-11,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.9311904907226562e-05,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/Slide",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          0.0,
+          0.050000160932540894
+        ],
+        "authored": [
+          0.0,
+          0.05000000074505806
+        ],
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:required_joint_motion:jaw_slide",
+      "passed": true,
+      "evidence": 0.03000020980834961,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:jaw_slide",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.0012691009044647206,
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_return:jaw_slide",
+      "passed": true,
+      "evidence": [
+        2.9802322387695312e-08,
+        2.9802322387695312e-08,
+        2.9802322387695312e-08,
+        2.9802322387695312e-08,
+        2.9802322387695312e-08,
+        2.9802322387695312e-08,
+        2.9802322387695312e-08,
+        2.9802322387695312e-08
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed11:slider_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:slider_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 0.05000000074505806,
+        "observed": 0.050000160932540894
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    }
+  ]
+}

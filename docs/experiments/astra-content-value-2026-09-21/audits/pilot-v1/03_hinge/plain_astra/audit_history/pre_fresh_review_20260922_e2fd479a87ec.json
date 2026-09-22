@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "case_id": "03_hinge",
+  "arm": "plain_astra",
+  "valid": "unknown",
+  "audit_scope": "Post-run protocol audit of extracted executed tool requests, launch/model telemetry, immutable manifests and durable author artifacts. No hidden reasoning read. This is not an OS-level complete access trace or physical acceptance decision.",
+  "created_utc": "2026-09-21T23:13:35.563916+00:00",
+  "checks": [
+    {
+      "criterion": "pinned_model_and_effort",
+      "valid": true,
+      "observed_context_count": 3,
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/plain_astra/launch.json",
+          "sha256": "38a35a506095725d3d3668a2f8b8f23b3c72c55456cb1ee3958679ecf7b6175c"
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/plain_astra/model_usage_audit.json",
+          "sha256": "eb17f2f2a8ed748e573f42568695af0d1356b30daf2058f1a773164b7316e237"
+        }
+      ]
+    },
+    {
+      "criterion": "task_matches_frozen_brief",
+      "valid": true,
+      "task_sha256": "02282a061887e1358e7be6754ac2978e78ee02cdc204b4bf9f94bf173ce327a5"
+    },
+    {
+      "criterion": "wall_time_cap",
+      "valid": true,
+      "elapsed_s": 970.3272501453757,
+      "cap_s": 2400,
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/plain_astra/execution.json",
+          "sha256": "39a6950fe1896224074b67cbd019489449203782c3a55272df2d9745011de23e"
+        }
+      ]
+    },
+    {
+      "criterion": "source_repository_and_outputs_unchanged",
+      "valid": true,
+      "evidence_path": "audits/pilot-v1/03_hinge/independent_hash_verification.json",
+      "details": "Independent read-only verification on original host: 3 source hashes, 2883 pinned repository hashes and all arm output-manifest entries match."
+    },
+    {
+      "criterion": "no_observed_forbidden_reads_or_mutations",
+      "valid": true,
+      "tool_requests_reviewed": 118,
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/03_hinge/plain_astra/tool_calls.private.json",
+          "sha256": "40d6cf56d4606868c2cc325547f6bb9b8eca907225c9b4bc3c7411d3b557fe03"
+        }
+      ],
+      "details": "Reviewed extracted tool requests and author scripts. No access to opposite arm, other-case artifacts or evaluator implementation/evidence was observed; no source/repository/package mutation was observed. Reads of public source inventory and common low-level API documentation are allowed. Private request records remain excluded from public publication."
+    },
+    {
+      "criterion": "repair_chronology_within_two",
+      "valid": true,
+      "declared_repairs": 1,
+      "details": "First candidate sealed at 22:24:26Z; repair1 at 22:24:57Z changes only angular-speed cap from30deg/s to30rad/s. Both candidates, repair script and seals preserved; no second or hidden asset rebuild observed.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/plain_astra/submission.json",
+          "sha256": "1974433bac814a133d98ff73d5ab8e7b3ac6813de2623af7b8752039ce76a9c9"
+        }
+      ],
+      "seal_verification": [
+        {
+          "path": "runs/pilot-v1/03_hinge/plain_astra/candidates/repair_1/seal.json",
+          "mismatches": []
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/plain_astra/candidates/candidate_0/seal.json",
+          "mismatches": []
+        }
+      ]
+    },
+    {
+      "criterion": "treatment_or_control_adherence",
+      "valid": true,
+      "details": "No Content Agents workflow skill, coordinator or decision-helper invocation/read appears in 118 extracted requests. Task-specific authoring uses direct GLB parsing, USD and native OvPhysX.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/plain_astra/submission.json",
+          "sha256": "1974433bac814a133d98ff73d5ab8e7b3ac6813de2623af7b8752039ce76a9c9"
+        }
+      ]
+    },
+    {
+      "criterion": "global_simulator_concurrency_cap",
+      "valid": "unknown",
+      "details": "Cross-lane process timeline is under root review. Plain arm ran four GPU solver workers from2026-09-21T22:27:58.162095Z to2026-09-21T22:30:35.105987Z. Any additional overlapping simulator would violate the global cap4; per-arm absence of model/input/repair violations does not certify global compliance.",
+      "evidence_path": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native/report.json"
+    }
+  ],
+  "limitations": [
+    "Encrypted collaboration message bodies are not decrypted; explicit spawn model/effort metadata and all observed child turn contexts are checked.",
+    "Current-state hashes cannot prove no transient modification-and-restoration; tool requests provide complementary observational evidence.",
+    "Author physics probes can run concurrently on the assigned GPU; shared machine contention remains a pilot timing limitation."
+  ],
+  "physical_evaluation": "Owned by root frozen evaluator workers; not duplicated by this audit."
+}

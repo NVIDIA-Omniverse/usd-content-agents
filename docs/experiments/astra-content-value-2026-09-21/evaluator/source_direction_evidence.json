@@ -1,0 +1,114 @@
+{
+  "method": "Moller-Trumbore ray tests on untouched original cabinet triangle mesh only, no colliders or converted submission",
+  "probes": [
+    {
+      "origin": [
+        -0.32,
+        1.01,
+        0.0
+      ],
+      "positive_z_hits_m": [],
+      "negative_z_hits_m": [
+        0.24185992421504515,
+        0.24765294550701117
+      ]
+    },
+    {
+      "origin": [
+        -0.32,
+        1.03,
+        0.0
+      ],
+      "positive_z_hits_m": [],
+      "negative_z_hits_m": [
+        0.24185992421504515,
+        0.24765294550701117
+      ]
+    },
+    {
+      "origin": [
+        -0.32,
+        1.05,
+        0.0
+      ],
+      "positive_z_hits_m": [],
+      "negative_z_hits_m": [
+        0.24185992421504515,
+        0.24765294550701117
+      ]
+    },
+    {
+      "origin": [
+        0.0,
+        1.01,
+        0.0
+      ],
+      "positive_z_hits_m": [],
+      "negative_z_hits_m": [
+        0.24186003240955048,
+        0.24765305253521913
+      ]
+    },
+    {
+      "origin": [
+        0.0,
+        1.03,
+        0.0
+      ],
+      "positive_z_hits_m": [],
+      "negative_z_hits_m": [
+        0.24186003240955048,
+        0.24765305253521913
+      ]
+    },
+    {
+      "origin": [
+        0.0,
+        1.05,
+        0.0
+      ],
+      "positive_z_hits_m": [],
+      "negative_z_hits_m": [
+        0.24186003240955048,
+        0.24765305253521913
+      ]
+    },
+    {
+      "origin": [
+        0.32,
+        1.01,
+        0.0
+      ],
+      "positive_z_hits_m": [],
+      "negative_z_hits_m": [
+        0.24186014060405578,
+        0.24765315956342707
+      ]
+    },
+    {
+      "origin": [
+        0.32,
+        1.03,
+        0.0
+      ],
+      "positive_z_hits_m": [],
+      "negative_z_hits_m": [
+        0.24186014060405578,
+        0.24765315956342707
+      ]
+    },
+    {
+      "origin": [
+        0.32,
+        1.05,
+        0.0
+      ],
+      "positive_z_hits_m": [],
+      "negative_z_hits_m": [
+        0.24186014060405578,
+        0.24765315956342707
+      ]
+    }
+  ],
+  "positive_Z_is_open": true
+}

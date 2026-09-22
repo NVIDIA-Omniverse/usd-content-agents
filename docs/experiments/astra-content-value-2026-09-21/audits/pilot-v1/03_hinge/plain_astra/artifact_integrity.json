@@ -1,0 +1,13 @@
+{
+  "case_id": "03_hinge",
+  "arm": "plain_astra",
+  "output_manifest_sha256": "24437a3a27f9f25bca756bd6e74e1d45a646615ab4bc02955ab72b3f466540f4",
+  "checked_files": 124,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034788.6665657
+}

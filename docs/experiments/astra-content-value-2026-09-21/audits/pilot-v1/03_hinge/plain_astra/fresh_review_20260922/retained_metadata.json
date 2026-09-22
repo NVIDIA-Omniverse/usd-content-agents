@@ -1,0 +1,205 @@
+{
+  "generated_utc": "2026-09-22T00:31:01.060306+00:00",
+  "case_id": "03_hinge",
+  "arm": "plain_astra",
+  "context_source": {
+    "path": "runs/pilot-v1/03_hinge/plain_astra/model_usage_audit.json",
+    "sha256": "eb17f2f2a8ed748e573f42568695af0d1356b30daf2058f1a773164b7316e237"
+  },
+  "context_checks": [
+    {
+      "session_index": 1,
+      "retained_session_sha256": "08125fcfd72c99ecb4d3f295f143759d4821f88c255d26e734144be9e7665a22",
+      "expected_model": "gpt-6-astra",
+      "expected_reasoning_effort": "ultra",
+      "turn_contexts": [
+        {
+          "timestamp": "2026-09-21T22:16:15.252Z",
+          "model": "gpt-6-astra",
+          "reasoning_effort": "ultra"
+        }
+      ],
+      "all_match": true
+    },
+    {
+      "session_index": 2,
+      "retained_session_sha256": "40e356ae575d6ef2d5620d5db3377b56de1cd7e2cfd8be1a7ea24362a7d0c6b8",
+      "expected_model": "gpt-6-astra",
+      "expected_reasoning_effort": "ultra",
+      "turn_contexts": [
+        {
+          "timestamp": "2026-09-21T22:16:43.551Z",
+          "model": "gpt-6-astra",
+          "reasoning_effort": "ultra"
+        }
+      ],
+      "all_match": true
+    },
+    {
+      "session_index": 3,
+      "retained_session_sha256": "8a0a1d86fcf116f810650baa78589bccc5c63006cbad6b350f346200c8797ca0",
+      "expected_model": "gpt-6-astra",
+      "expected_reasoning_effort": "ultra",
+      "turn_contexts": [
+        {
+          "timestamp": "2026-09-21T22:17:24.140Z",
+          "model": "gpt-6-astra",
+          "reasoning_effort": "ultra"
+        }
+      ],
+      "all_match": true
+    }
+  ],
+  "all_retained_turn_contexts_match": true,
+  "candidate_seals": [
+    {
+      "seal": {
+        "path": "runs/pilot-v1/03_hinge/plain_astra/candidates/candidate_0/seal.json",
+        "sha256": "75eaa5e123fad571c2ee758056fc926ea965566aaa4ab206ec5b6d0baa88d647"
+      },
+      "file_count": 18,
+      "all_match": true,
+      "checks": [
+        {
+          "path": "candidates/candidate_0/final.usd",
+          "expected": "cbc3820977c960aceabb2ff68c188af8a2dadbf32c9f9bffb80c4e489118c900",
+          "actual": "cbc3820977c960aceabb2ff68c188af8a2dadbf32c9f9bffb80c4e489118c900"
+        },
+        {
+          "path": "candidates/candidate_0/bindings.json",
+          "expected": "d9e772e76c0d4da21d4a44f28da9d7be6d890cfc9db01e29f8406c04b9fd2348",
+          "actual": "d9e772e76c0d4da21d4a44f28da9d7be6d890cfc9db01e29f8406c04b9fd2348"
+        },
+        {
+          "path": "candidates/candidate_0/design.json",
+          "expected": "2c973502d7b020321a82a7cba65f5d8321b99c7364c2f019c721fa1e50abc7db",
+          "actual": "2c973502d7b020321a82a7cba65f5d8321b99c7364c2f019c721fa1e50abc7db"
+        },
+        {
+          "path": "candidates/candidate_0/author_snapshot.py",
+          "expected": "f1f5759aa71bd19b4aacede57f373923fd34c9800f053b194a9f6f77a05d60dc",
+          "actual": "f1f5759aa71bd19b4aacede57f373923fd34c9800f053b194a9f6f77a05d60dc"
+        },
+        {
+          "path": "source_geometry.usdc",
+          "expected": "cddb0b138020e48538ae618efa980320e1aa04ece4a975c44c0bc295ddec4b77",
+          "actual": "cddb0b138020e48538ae618efa980320e1aa04ece4a975c44c0bc295ddec4b77"
+        },
+        {
+          "path": "textures/image_00.jpg",
+          "expected": "1925737348cd459d8303921e6be9e9b16635aaf5fce8125e7db06117c71bd8eb",
+          "actual": "1925737348cd459d8303921e6be9e9b16635aaf5fce8125e7db06117c71bd8eb"
+        },
+        {
+          "path": "textures/image_01.jpg",
+          "expected": "d0b525df03fba9552ce834754e42d19fd0176cff1fb8a538326ed09d0710634f",
+          "actual": "d0b525df03fba9552ce834754e42d19fd0176cff1fb8a538326ed09d0710634f"
+        },
+        {
+          "path": "textures/image_02.jpg",
+          "expected": "b2793e05626878830de62fd3d4097f87ffab69803c7ab5f87213411eca70feab",
+          "actual": "b2793e05626878830de62fd3d4097f87ffab69803c7ab5f87213411eca70feab"
+        },
+        {
+          "path": "textures/image_03.jpg",
+          "expected": "58f89caaa43378423dcb59fe42a4112651d0b7bb626fdadfba81298c69e434b2",
+          "actual": "58f89caaa43378423dcb59fe42a4112651d0b7bb626fdadfba81298c69e434b2"
+        },
+        {
+          "path": "textures/image_04.jpg",
+          "expected": "c9671cb9a1fb95d7b7b353413a3203a568087bac9e3f5faa4f8c8dfcea5adbec",
+          "actual": "c9671cb9a1fb95d7b7b353413a3203a568087bac9e3f5faa4f8c8dfcea5adbec"
+        },
+        {
+          "path": "textures/image_05.jpg",
+          "expected": "f2f6b70ee8cd14b8ea8123c84610371ee989ef83aa455f3ee7f542939fa9b356",
+          "actual": "f2f6b70ee8cd14b8ea8123c84610371ee989ef83aa455f3ee7f542939fa9b356"
+        },
+        {
+          "path": "textures/image_06.jpg",
+          "expected": "fef4afd88ed5d7181c0eb22efc931a2d69b227128696e4fea1829c0fb2501d55",
+          "actual": "fef4afd88ed5d7181c0eb22efc931a2d69b227128696e4fea1829c0fb2501d55"
+        },
+        {
+          "path": "textures/image_07.jpg",
+          "expected": "e664d2b81300f6dba944fcf3f11bcf4867ff318ba0ab88d8745cd43dc7db81c0",
+          "actual": "e664d2b81300f6dba944fcf3f11bcf4867ff318ba0ab88d8745cd43dc7db81c0"
+        },
+        {
+          "path": "textures/image_08.jpg",
+          "expected": "369e549907b9ab7e69e89f01dfe8af0c184e6bc5df88c7bdb10db6c651a0a264",
+          "actual": "369e549907b9ab7e69e89f01dfe8af0c184e6bc5df88c7bdb10db6c651a0a264"
+        },
+        {
+          "path": "textures/image_09.jpg",
+          "expected": "55b774cb254b6b1e4c5c83ffb11043f668147cb01a968bff8a1bccddddbe526a",
+          "actual": "55b774cb254b6b1e4c5c83ffb11043f668147cb01a968bff8a1bccddddbe526a"
+        },
+        {
+          "path": "source/CommercialRefrigerator.glb",
+          "expected": "ef8da8b144e650c277ac953e6d9e50ac1689ff1ee88c2c5bd9551ae8bccb6065",
+          "actual": "ef8da8b144e650c277ac953e6d9e50ac1689ff1ee88c2c5bd9551ae8bccb6065"
+        },
+        {
+          "path": "source/README.upstream.md",
+          "expected": "d4ea5fa49f6cfabe1bed7a00cf2594573cd04e3eb739abe474f2900dee4baaaf",
+          "actual": "d4ea5fa49f6cfabe1bed7a00cf2594573cd04e3eb739abe474f2900dee4baaaf"
+        },
+        {
+          "path": "source/screenshot_Large.jpg",
+          "expected": "d8a5964d9f0b19fb53e07e3382156b2426042dc74ab0f2a23041cd921238bc59",
+          "actual": "d8a5964d9f0b19fb53e07e3382156b2426042dc74ab0f2a23041cd921238bc59"
+        }
+      ]
+    },
+    {
+      "seal": {
+        "path": "runs/pilot-v1/03_hinge/plain_astra/candidates/repair_1/seal.json",
+        "sha256": "1aa3aa2ffbed162a6437c4d005fa196bec7e7801eb37a95e7caa15df44ad9147"
+      },
+      "file_count": 5,
+      "all_match": true,
+      "checks": [
+        {
+          "path": "candidates/repair_1/final.usd",
+          "expected": "13d4bbfe821923be6b9b8e17acbd6069ac42942ab9ac392d7dec7089861d4cbf",
+          "actual": "13d4bbfe821923be6b9b8e17acbd6069ac42942ab9ac392d7dec7089861d4cbf"
+        },
+        {
+          "path": "candidates/repair_1/bindings.json",
+          "expected": "d9e772e76c0d4da21d4a44f28da9d7be6d890cfc9db01e29f8406c04b9fd2348",
+          "actual": "d9e772e76c0d4da21d4a44f28da9d7be6d890cfc9db01e29f8406c04b9fd2348"
+        },
+        {
+          "path": "candidates/repair_1/repair.json",
+          "expected": "ec9414c4d8be4d93bfa83ea9cc5309b6ed12aaa165c1e1c9ad22f53ff9ba66da",
+          "actual": "ec9414c4d8be4d93bfa83ea9cc5309b6ed12aaa165c1e1c9ad22f53ff9ba66da"
+        },
+        {
+          "path": "candidates/repair_1/repair_snapshot.py",
+          "expected": "1df89dea77d0bd703fa9c399d64ebbd11d12d57ce9ea0c97a0a371f9eadc62a6",
+          "actual": "1df89dea77d0bd703fa9c399d64ebbd11d12d57ce9ea0c97a0a371f9eadc62a6"
+        },
+        {
+          "path": "source_geometry.usdc",
+          "expected": "cddb0b138020e48538ae618efa980320e1aa04ece4a975c44c0bc295ddec4b77",
+          "actual": "cddb0b138020e48538ae618efa980320e1aa04ece4a975c44c0bc295ddec4b77"
+        }
+      ]
+    }
+  ],
+  "submission": {
+    "path": "runs/pilot-v1/03_hinge/plain_astra/submission.json",
+    "sha256": "1974433bac814a133d98ff73d5ab8e7b3ac6813de2623af7b8752039ce76a9c9"
+  },
+  "declared_repairs": 1,
+  "submitted_scene": "final.usd",
+  "submitted_bindings": "bindings.json",
+  "privacy": "Session JSONL parsed only for turn_context metadata; no model messages, reasoning or auth exported. Retained session identity represented by file hash and ordinal.",
+  "final_matches_repair_1": false,
+  "bindings_match_repair_1": true,
+  "repair": {
+    "path": "runs/pilot-v1/03_hinge/plain_astra/candidates/repair_1/repair.json",
+    "sha256": "ec9414c4d8be4d93bfa83ea9cc5309b6ed12aaa165c1e1c9ad22f53ff9ba66da"
+  }
+}

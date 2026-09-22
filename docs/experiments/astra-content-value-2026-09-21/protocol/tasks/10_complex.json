@@ -1,0 +1,192 @@
+{
+  "schema_version": "astra-content-value-task.v1",
+  "case_id": "10_complex",
+  "frozen": true,
+  "source_root": "assets/10_complex/source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733",
+  "primary_input": "assets/10_complex/source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+  "task": "Using the unchanged original Dextra robotic hand source closure, author a physically simulated articulated USD mechanism that retains the source geometry and component identity. All five source-grounded digits physically flex and reopen: thumb MCP/IP and all four fingers MCP/PIP/DIP (14 rotary joints) move at least 10 degrees, hold +0.26rad offsets within 5 degrees under bounded opposing torques, and return within 5 degrees. Actual joint endpoints must form five branches from the fixed palm; every phalanx is bound to its independently identified cached CAD solid. Every original cached solid remains visible, every distal body moves, and all authored joints maintain anchor/axis closure and finite limits. This is joint-level articulation and load holding, not tendon/motor transmission accuracy or dexterous grasp validation. Required body roles: base, thumb_proximal, thumb_distal, index_proximal, index_middle, index_distal, middle_proximal, middle_middle, middle_distal, ring_proximal, ring_middle, ring_distal, little_proximal, little_middle, little_distal. Required joint roles: thumb_mcp, thumb_ip, index_mcp, index_pip, index_dip, middle_mcp, middle_pip, middle_dip, ring_mcp, ring_pip, ring_dip, little_mcp, little_pip, little_dip. The evaluator applies its own bounded efforts and opens your final scene in a fresh solver; do not rely on your controller script or animation being executed. Read the public source inventory at /opt/astra-content-value-20260921/protocol/tasks/10_complex_source_inventory.json; map every required source_id once. Case-normalizing source filename lookup and reading cached FreeCAD BREP shapes is permitted, but preserve original files and record any derived repair. Independent source reference uses saved source geometry; it does not certify real hardware accuracy.",
+  "submission_contract": "Save final.usd with metersPerUnit=1 and Z up. Retain each required original shape instance as a visible mesh (multiple mesh prims per source_id are permitted); map every instance once in bindings.json. Collision approximations may differ, but mark added collision-only primitives/meshes purpose=proxy/guide or invisible. Intended moving bodies must be dynamic/nonkinematic with finite positive mass and diagonal inertia. Base is static or explicitly kinematic. No time-sampled transforms/mesh points, prescribed pose updates, or substitute visual geometry. Declare ALL rigid bodies and ALL joints. Required joint_body_pairs are ordered: body0 is the listed parent and body1 is the listed child; this order is mandatory for the downstream load controller. Actual USD body0/body1/local frames/limits are read independently. Matrix convention is 4x4 column-vector rigid transform, translation in last column; no scale/shear/reflection. For source_assembly_world references, assembly_from_source is one rigid initial assembly alignment in meters. For part_local_only references, source_to_body is that part's rigid local alignment in meters. Preserve every original dependency. Source-to-body role requirements in public inventory are mandatory. Bindings JSON schema:\n{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"title\":\"Mechanism evaluation bindings; identifiers only, never acceptance evidence\",\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"schema_version\",\"case_id\",\"bodies\",\"joints\",\"source_map\",\"assembly_from_source\"],\"properties\":{\"schema_version\":{\"const\":1},\"case_id\":{\"type\":\"string\"},\"assembly_from_source\":{\"$ref\":\"#/$defs/matrix\"},\"bodies\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\",\"moving\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"},\"moving\":{\"type\":\"boolean\"}}}},\"joints\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"}}}},\"source_map\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"source_id\",\"mesh_paths\",\"body_path\",\"source_to_body\"],\"properties\":{\"source_id\":{\"type\":\"string\"},\"body_path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"mesh_paths\":{\"type\":\"array\",\"minItems\":1,\"uniqueItems\":true,\"items\":{\"type\":\"string\",\"pattern\":\"^/\"}},\"source_to_body\":{\"$ref\":\"#/$defs/matrix\"}}}}},\"$defs\":{\"matrix\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"number\"}}}}}",
+  "public_acceptance": {
+    "scope": "All five source-grounded digits physically flex and reopen: thumb MCP/IP and all four fingers MCP/PIP/DIP (14 rotary joints) move at least 10 degrees, hold +0.26rad offsets within 5 degrees under bounded opposing torques, and return within 5 degrees. Actual joint endpoints must form five branches from the fixed palm; every phalanx is bound to its independently identified cached CAD solid. Every original cached solid remains visible, every distal body moves, and all authored joints maintain anchor/axis closure and finite limits. This is joint-level articulation and load holding, not tendon/motor transmission accuracy or dexterous grasp validation.",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "required_body_roles": [
+      "base",
+      "thumb_proximal",
+      "thumb_distal",
+      "index_proximal",
+      "index_middle",
+      "index_distal",
+      "middle_proximal",
+      "middle_middle",
+      "middle_distal",
+      "ring_proximal",
+      "ring_middle",
+      "ring_distal",
+      "little_proximal",
+      "little_middle",
+      "little_distal"
+    ],
+    "required_joint_roles": [
+      "thumb_mcp",
+      "thumb_ip",
+      "index_mcp",
+      "index_pip",
+      "index_dip",
+      "middle_mcp",
+      "middle_pip",
+      "middle_dip",
+      "ring_mcp",
+      "ring_pip",
+      "ring_dip",
+      "little_mcp",
+      "little_pip",
+      "little_dip"
+    ],
+    "joint_kinds": {
+      "thumb_mcp": "revolute",
+      "thumb_ip": "revolute",
+      "index_mcp": "revolute",
+      "index_pip": "revolute",
+      "index_dip": "revolute",
+      "middle_mcp": "revolute",
+      "middle_pip": "revolute",
+      "middle_dip": "revolute",
+      "ring_mcp": "revolute",
+      "ring_pip": "revolute",
+      "ring_dip": "revolute",
+      "little_mcp": "revolute",
+      "little_pip": "revolute",
+      "little_dip": "revolute"
+    },
+    "common": {
+      "dt_s": 0.004166666666666667,
+      "duration_s": 12.0,
+      "gravity_m_s2": 9.81,
+      "max_linear_speed_m_s": 5.0,
+      "max_angular_speed_rad_s": 30.0,
+      "max_joint_closure_m": 0.002,
+      "max_joint_axis_error_rad": 0.05,
+      "max_penetration_m": 0.003,
+      "max_fixed_base_motion_m": 0.002,
+      "position_tolerance_m": 0.002,
+      "angle_tolerance_rad": 0.08726646259971647,
+      "minimum_source_surface_coverage": 1.0,
+      "max_mesh_surface_error_fraction": 0.001,
+      "max_mesh_surface_error_m": 5e-05
+    },
+    "task_parameters": {
+      "required_joint_body_pairs": {
+        "thumb_mcp": [
+          "base",
+          "thumb_proximal"
+        ],
+        "thumb_ip": [
+          "thumb_proximal",
+          "thumb_distal"
+        ],
+        "index_mcp": [
+          "base",
+          "index_proximal"
+        ],
+        "index_pip": [
+          "index_proximal",
+          "index_middle"
+        ],
+        "index_dip": [
+          "index_middle",
+          "index_distal"
+        ],
+        "middle_mcp": [
+          "base",
+          "middle_proximal"
+        ],
+        "middle_pip": [
+          "middle_proximal",
+          "middle_middle"
+        ],
+        "middle_dip": [
+          "middle_middle",
+          "middle_distal"
+        ],
+        "ring_mcp": [
+          "base",
+          "ring_proximal"
+        ],
+        "ring_pip": [
+          "ring_proximal",
+          "ring_middle"
+        ],
+        "ring_dip": [
+          "ring_middle",
+          "ring_distal"
+        ],
+        "little_mcp": [
+          "base",
+          "little_proximal"
+        ],
+        "little_pip": [
+          "little_proximal",
+          "little_middle"
+        ],
+        "little_dip": [
+          "little_middle",
+          "little_distal"
+        ]
+      },
+      "minimum_each_motion_rad": 0.174532925199,
+      "target_offsets_rad": [
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26
+      ],
+      "end_effector_role": "index_distal",
+      "minimum_end_effector_motion_m": 0.001,
+      "terminal_body_roles": [
+        "thumb_distal",
+        "index_distal",
+        "middle_distal",
+        "ring_distal",
+        "little_distal"
+      ],
+      "minimum_terminal_motion_m": 0.001,
+      "control_default": {
+        "gain_mode": "inertia_scaled",
+        "kp": 36.0,
+        "kd": 6.0,
+        "max_effort": 0.2,
+        "gravity_compensate": true
+      }
+    },
+    "controller_protocol": "12s, dt1/240: settle0-1s; ramp to task target1-5s; hold5-7s with a opposing load min(1% max effort, estimated downstream inertia times 1rad/s2) at5.5-6.5s; return7-9s; settle9-10s; bounded outward upper-limit test10-12s. Engine instead ramps crank through2pi+0.25rad from1-8s and holds; paired zero-load run uses same seed. Only world body forces and torques are applied; source transforms are never prescribed.",
+    "limits": "Mass/inertia/collision/geometry/closure/finite-state gates and native gravity witness apply. Source shape comparison is symmetric sampled surface distance plus all-vertex coverage with 3% area tolerance, not an exact topology equivalence proof.",
+    "decision_policy": "A concrete failed criterion is not accepted. Missing evaluator/import/runtime capability is INCONCLUSIVE, not demonstrated rejection or a false-pass.",
+    "source_inventory_sha256": "c88461c9ff495d8229850da2db25255c10adbee93aca17461fa1b57d58cd962e",
+    "source_inventory_file": "/opt/astra-content-value-20260921/protocol/tasks/10_complex_source_inventory.json",
+    "joint_torque_abstraction": "Normal 9.81m/s2 gravity remains enabled. No per-body weight-cancelling force is applied. For each required revolute joint, Ieff is the sum over reachable dynamic child bodies of maximum native inertia eigenvalue plus m times squared perpendicular COM lever arm at the initial pose. Gravity feed-forward is minus the sum of dot(axis, cross(COM-origin, m*[0,0,-9.81])) over those bodies at the current pose. Command torque is clip(gravity_feedforward + Ieff*(36*(target-q)-6*qdot), -cap, cap) times one seed factor in [0.98,1.02]. Opposing hold torque is -min(0.01*cap,Ieff*1rad/s2) during5.5-6.5s. Equal/opposite axis torques go to joint body1/body0 when dynamic. Thus controller magnitude <=1.02*cap and controller plus hold load <=1.03*cap; the first50ms perturbation is <=0.005*min(cap,Ieff*1rad/s2). This is an abstract bounded joint actuator test. It does not establish native actuator sizing, tendon/lead-screw transmission, physical load ratings, or robot simulation readiness.",
+    "targets": "each required joint gets its corresponding target_offsets_rad relative to initial pose; targets held under opposing torque min(1% max effort, downstream effective inertia times 1rad/s2), return to initial."
+  },
+  "source_inventory_file": "/opt/astra-content-value-20260921/protocol/tasks/10_complex_source_inventory.json",
+  "source_inventory_sha256": "c88461c9ff495d8229850da2db25255c10adbee93aca17461fa1b57d58cd962e",
+  "private_reference_sha256": "520f1189f8d7acbec8a65e93912677fd3b66a8616907d355547df2d8ad347714",
+  "private_evaluator_cases_sha256": "654c7f8424cbd61e3107c4d3cc42ae9ad0df18adaf383d3898ca045a8ebab459",
+  "private_evaluator_snapshot": "/opt/astra-content-value-20260921/evaluator/case08_10/frozen/10_complex",
+  "private_evaluator_snapshot_sha256": "4bd3437cd49dd0c610cad7135424bca1608cd52e626ed67ef541be5d317719f7",
+  "freeze_basis": "Independent source inventory and synthetic positive/negative evaluator fixtures before either arm."
+}

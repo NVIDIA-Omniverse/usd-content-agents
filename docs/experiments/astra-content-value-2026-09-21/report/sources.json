@@ -1,0 +1,384 @@
+[
+  {
+    "case_id": "01_drawer",
+    "title": "Drawer cabinet",
+    "complexity": "simple prismatic",
+    "primary_input": "assets/01_drawer/source/drawer_cabinet_1k.gltf",
+    "primary_sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+    "source_root": "assets/01_drawer/source",
+    "source_closure_sha256": "4f45b00b737a6a3db59cfdb3913cddcc77d0f33586624ba7459c66988fd47d67",
+    "original_source_file_count": 5,
+    "source": {
+      "source_page": "https://polyhaven.com/a/drawer_cabinet",
+      "repository_url": null,
+      "commit": null
+    },
+    "license": {
+      "spdx": "CC0-1.0",
+      "name": "Creative Commons CC0 1.0 Universal",
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "publisher_evidence": "https://polyhaven.com/license",
+      "redistribution_permitted": true,
+      "attribution_required": false
+    },
+    "source_geometry_not_modified_or_physics_removed": true
+  },
+  {
+    "case_id": "02_conveyor",
+    "title": "Circular conveyor",
+    "complexity": "contact transfer",
+    "primary_input": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+    "primary_sha256": "b906c521cba00b8d69d677281a32d07428634bacea4d5e5e466ce78385a600ef",
+    "source_root": "assets/02_conveyor/source_repo/CAD models/conveyor_model",
+    "source_closure_sha256": "1fc37f577f33218a1e82bf0c1042202c9819cff21e240f1bb2b8c8db334940cf",
+    "original_source_file_count": 11,
+    "source": {
+      "repository_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware",
+      "commit": "d9ab21ced0a26e09a213a218249ac1938340bae6",
+      "commit_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/commit/d9ab21ced0a26e09a213a218249ac1938340bae6",
+      "retrieval": "Pinned sparse Git checkout of complete conveyor CAD subtree, conveyor supporting files, and repository root documentation. Full repository filename inventory retained.",
+      "primary_geometry": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "primary_geometry_sha256": "b906c521cba00b8d69d677281a32d07428634bacea4d5e5e466ce78385a600ef",
+      "original_geometry_modified": false
+    },
+    "license": {
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2025 roshbeng",
+      "path": "source_repo/LICENSE",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/LICENSE",
+      "sha256": "6144fd8afc4d2c905690a82f0ab5d0e9a98104f5b357c07fd7907865ed224e65",
+      "scope_evidence": "Repository-root MIT license, no separately stated conveyor license in retrieved files. Preserve LICENSE with redistribution."
+    },
+    "source_geometry_not_modified_or_physics_removed": true
+  },
+  {
+    "case_id": "03_hinge",
+    "title": "Commercial refrigerator",
+    "complexity": "simple revolute",
+    "primary_input": "assets/03_hinge/source/CommercialRefrigerator.glb",
+    "primary_sha256": "ef8da8b144e650c277ac953e6d9e50ac1689ff1ee88c2c5bd9551ae8bccb6065",
+    "source_root": "assets/03_hinge/source",
+    "source_closure_sha256": "01430c44b115dd7d81272badfe3b54b9818869669ed7996b0634572b4852d5da",
+    "original_source_file_count": 3,
+    "source": {
+      "repository": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+      "commit": "c6a6bd13ab2b3c685c7903d03561b8a9392f38b8",
+      "asset_page": "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/c6a6bd13ab2b3c685c7903d03561b8a9392f38b8/Models/CommercialRefrigerator",
+      "original_artist_page": "https://sketchfab.com/3d-models/commercial-fridge-2174e1e4f1f24f1a95aa110ee060f473",
+      "source_kind": "artist-authored e-commerce visualization model, distributed in Khronos sample assets",
+      "retrieved_at_utc": "2026-09-21T21:23:03.725685+00:00",
+      "all_original_source_bytes_preserved": true
+    },
+    "license": {
+      "spdx": "CC-BY-4.0",
+      "url": "https://creativecommons.org/licenses/by/4.0/",
+      "copyright_and_attribution": "2025, Eric Chadwick of Darmstadt Graphics Group GmbH. Based on Commercial Fridge by Sean Thomas (foon).",
+      "evidence": [
+        "source/README.upstream.md#legal",
+        "GLB JSON asset.copyright"
+      ],
+      "source_license_note": "Upstream README Legal explicitly licenses model and textures and all README images CC-BY-4.0; GLB copyright repeats attribution."
+    },
+    "source_geometry_not_modified_or_physics_removed": true
+  },
+  {
+    "case_id": "04_gripper",
+    "title": "Linkage servo gripper",
+    "complexity": "closed linkage",
+    "primary_input": "assets/04_gripper/source_repo/Step/Gripper.step",
+    "primary_sha256": "ca60203cde2481b9485bcd5afe89d6fadc9789ba607bc8195ed3a07a1a8cba77",
+    "source_root": "assets/04_gripper/source_repo",
+    "source_closure_sha256": "bd4d5fae63c27e93c7ecf774fd23e50bfd1ace7e3fd39488fb85324bdf3157e6",
+    "original_source_file_count": 69,
+    "source": {
+      "repository_url": "https://github.com/ThorstenBrach/ST3215-Servo-Gripper",
+      "commit": "91f71325998e0dc2523ccd79aedf11246419d86d",
+      "source_page": "https://github.com/ThorstenBrach/ST3215-Servo-Gripper/tree/91f71325998e0dc2523ccd79aedf11246419d86d",
+      "primary_geometry": "source_repo/Step/Gripper.step"
+    },
+    "license": {
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2026 Thorsten Brach",
+      "path": "source_repo/LICENSE",
+      "pinned_url": "https://github.com/ThorstenBrach/ST3215-Servo-Gripper/blob/91f71325998e0dc2523ccd79aedf11246419d86d/LICENSE",
+      "redistribution_basis": "Repository-wide README and LICENSE declare MIT; preserve copyright and permission notice with copied or substantially included content.",
+      "scope_limit": "Repository declaration verified. Individual authorship or upstream permission of modeled commercial servo/rail geometry was not independently established."
+    },
+    "source_geometry_not_modified_or_physics_removed": true
+  },
+  {
+    "case_id": "05_vise",
+    "title": "Machine vise",
+    "complexity": "slider and lead screw",
+    "primary_input": "assets/05_vise/source/Machine Vice  Assembly.STEP",
+    "primary_sha256": "0300d68d082e5d7b1d6cfa47a789dbf624bc59f2cf23934ea15d2858bbf3b766",
+    "source_root": "assets/05_vise/source",
+    "source_closure_sha256": "b8deaf61903a35d5324b649b3ba2efbfad0a6304fdccf1641fe66e21e8007aef",
+    "original_source_file_count": 25,
+    "source": {
+      "source_page": "https://github.com/Amir-souhail/Digital-CADD-Certification-Course/tree/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209",
+      "repository_url": "https://github.com/Amir-souhail/Digital-CADD-Certification-Course",
+      "commit": "5f00c8e02457a010b3950491153832fd039e40ac"
+    },
+    "license": {
+      "declared": "MIT",
+      "evidence": "source/Readme.md, License section",
+      "evidence_url": "https://github.com/Amir-souhail/Digital-CADD-Certification-Course/blob/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Readme.md#license",
+      "attribution": "Amir Souhail (GitHub: Amir-souhail), Machine Vice Assembly, Digital-CADD-Certification-Course, Chapter 12/Number 9.",
+      "caveat": "README explicitly declares MIT but links to a LICENSE file that is absent from the repository. No missing license text has been invented. Original JPG technical drawings visibly carry DigitalCADD Solutions, Satara branding; retain as provenance/reference, not experiment input, and do not assume independent drawing rights from the CAD author declaration."
+    },
+    "source_geometry_not_modified_or_physics_removed": true
+  },
+  {
+    "case_id": "06_engine",
+    "title": "Miniature beam steam engine",
+    "complexity": "closed-chain crank mechanism",
+    "primary_input": "assets/06_engine/original/steam_engine_mechanism.FCStd",
+    "primary_sha256": "f035c5d2380310654b9ec82a2c13e342f9773a03543f8729a06eb34c7ec487f9",
+    "source_root": "assets/06_engine/original",
+    "source_closure_sha256": "f9ad3415a9dd4dd5ccca7c97fe9882782bb9352a4dd08abefda4bc33f93655f9",
+    "original_source_file_count": 4,
+    "source": {
+      "repository": "https://github.com/KenFilms/Miniature-Beam-Steam-Engine-CAD",
+      "commit": "beb82855052bd7834a9dafa2d2e318763f27ee25",
+      "author": "Ken Friedl (KenFilms)",
+      "primary_geometry": "original/steam_engine_mechanism.FCStd",
+      "format": "FreeCAD FCStd ZIP with parametric model, embedded OpenCascade BREP and Assembly4 placement expressions",
+      "source_claim": "CAD reconstructed from the author's measurements of a real miniature beam steam engine originally designed by Lutz Hielscher; author explicitly says inaccurate and missing some parts; educational video model."
+    },
+    "license": {
+      "repository_license": "MIT",
+      "copyright": "Copyright (c) 2023 Ken Friedl",
+      "license_file": "original/LICENSE",
+      "license_url": "https://github.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/blob/beb82855052bd7834a9dafa2d2e318763f27ee25/LICENSE",
+      "obligation": "Retain the copyright and permission notice with copies or substantial portions.",
+      "embedded_document_license": "All rights reserved",
+      "metadata_discrepancy": "FCStd Document.xml retains All rights reserved while the public repository supplies an explicit MIT LICENSE. Both evidence items are preserved; the curation does not silently rewrite or resolve that discrepancy.",
+      "physical_original_design_note": "README credits original physical miniature engine design to Lutz Hielscher; the CAD is the repository author's measurement-based reconstruction."
+    },
+    "source_geometry_not_modified_or_physics_removed": true
+  },
+  {
+    "case_id": "07_robot_arm",
+    "title": "Thor six-axis robot arm",
+    "complexity": "serial six-axis articulation",
+    "primary_input": "assets/07_robot_arm/source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/freecad-src/Assembly.FCStd",
+    "primary_sha256": "5ee729246229e7494466010ab68e2c2367ba4ec1361b7701df21c0f8b00c2c1b",
+    "source_root": "assets/07_robot_arm/source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159",
+    "source_closure_sha256": "071742b16a5c3840d795a475d8de524b4149790a04e8ba90491f084b6404e977",
+    "original_source_file_count": 236,
+    "source": {
+      "publisher": "AngelLM / \u00c1ngel L.M. and contributors",
+      "repository_url": "https://github.com/AngelLM/Thor",
+      "commit": "286b081fe6f056d87c379b884781ef77ff6a0159",
+      "commit_date": "2025-05-09T14:25:28Z",
+      "commit_url": "https://github.com/AngelLM/Thor/commit/286b081fe6f056d87c379b884781ef77ff6a0159",
+      "archive_download_url": "https://codeload.github.com/AngelLM/Thor/zip/286b081fe6f056d87c379b884781ef77ff6a0159",
+      "archive_path": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159.zip",
+      "archive_bytes": 204521555,
+      "archive_sha256": "2b7f578f7909867efeb0b98d3495969c980636b2ac82b5a2373381e113eb0aa0",
+      "extracted_repository": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159",
+      "all_repository_files_preserved": true,
+      "source_modified": false,
+      "download_access": "Public download without sign-in",
+      "origin_class": "Original manufacturer/maker mechanical CAD repository, not a simulation-description export"
+    },
+    "license": {
+      "declared": "CC-BY-SA-4.0",
+      "license_path": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/LICENSE",
+      "license_sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297",
+      "license_url": "https://github.com/AngelLM/Thor/blob/286b081fe6f056d87c379b884781ef77ff6a0159/LICENSE",
+      "readme_license_statement": "README states all source files are published under CC-BY-SA-4.0.",
+      "attribution": "Thor by \u00c1ngel L.M. / AngelLM and contributors, https://github.com/AngelLM/Thor, commit 286b081fe6f056d87c379b884781ef77ff6a0159, licensed CC BY-SA 4.0. Original files unchanged.",
+      "redistribution_notes": [
+        "Retain attribution and the supplied license. Mark derivative changes and comply with ShareAlike when distributing adaptations."
+      ],
+      "embedded_metadata_caveat": "Native FreeCAD assembly documents contain an All rights reserved document-property value despite the repository-wide LICENSE and explicit README statement. Both are preserved; this discrepancy is disclosed rather than silently edited."
+    },
+    "source_geometry_not_modified_or_physics_removed": true
+  },
+  {
+    "case_id": "08_excavator",
+    "title": "Mini RC excavator",
+    "complexity": "boom-stick-bucket-cylinder mechanism",
+    "primary_input": "assets/08_excavator/source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+    "primary_sha256": "e1c8f66df634762c77ecb0e6e9af607e88a52518a4021035e8f3dc4633644954",
+    "source_root": "assets/08_excavator/source/\u673a\u68b0\u90e8\u5206",
+    "source_closure_sha256": "53238df9856c66666a295b81060f20ec71283632679229820b9e837fe380a88f",
+    "original_source_file_count": 72,
+    "source": {
+      "repository_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator",
+      "repository_owner": "eyhxh",
+      "default_branch_at_acquisition": "main",
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "commit_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/commit/9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "snapshot_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/tree/9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "archive_url": "https://codeload.github.com/eyhxh/3Dprint-mini-RC-excavator/zip/9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "commit_verification": [
+        "git ls-remote returned this HEAD commit",
+        "GitHub ZIP archive comment equals this full 40-character commit"
+      ],
+      "primary_cad_entrypoint": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "primary_cad_source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%AF%95%E8%A3%851.SLDASM",
+      "source_format": "SolidWorks 2016 .SLDASM and .SLDPRT, as specified in upstream README",
+      "preservation": "Downloaded original full repository ZIP; extracted all mechanical files, README, LICENSE, and six original illustrations without byte changes. Original names, case, Chinese filenames, and directory layout are retained below source/. The ZIP also preserves electronics/firmware, which were not executed."
+    },
+    "license": {
+      "spdx_id": "MIT",
+      "name": "MIT License",
+      "copyright_notice": "Copyright (c) 2022 eyhxh",
+      "attribution": "3Dprint-mini-RC-excavator by eyhxh, commit 9449de3aa9573c41aeeb058bc6b3c115c6bd2339, https://github.com/eyhxh/3Dprint-mini-RC-excavator",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/LICENSE",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/LICENSE",
+      "local_file": "source/LICENSE",
+      "scope_evidence": "The repository root includes an explicit MIT LICENSE; README identifies the mechanical SolidWorks and STL files as open-source materials updated in this same repository. No alternate license or CAD exclusion was found in the downloaded snapshot.",
+      "redistribution_condition": "Retain the copyright and permission notice with copies or substantial portions.",
+      "commercial_use": "Allowed under the repository MIT license; no noncommercial restriction.",
+      "uncertainty": "This records the publisher's repository-wide license grant. Independent provenance of every modeled commodity component is not separately documented."
+    },
+    "source_geometry_not_modified_or_physics_removed": true
+  },
+  {
+    "case_id": "09_printer",
+    "title": "Voron0.2r1 CoreXY printer",
+    "complexity": "complex coupled gantry and Z axis",
+    "primary_input": "assets/09_printer/extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step",
+    "primary_sha256": "d5a9d40db82c55eee20203608a5a4e784b54b87ae339861af577c5aeb182d61f",
+    "source_root": "assets/09_printer/extracted",
+    "source_closure_sha256": "1111842c4ccb28c0770ee463957ebcc3458fca2886b74e013347dc9489c00018",
+    "original_source_file_count": 1,
+    "source": {
+      "owner": "VoronDesign",
+      "project": "Voron-0",
+      "repository_url": "https://github.com/VoronDesign/Voron-0",
+      "commit_sha": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "commit_url": "https://github.com/VoronDesign/Voron-0/commit/a53fc87562fd630c846af38d7de850c894dc3d85",
+      "branch_at_retrieval": "Voron0.2r1",
+      "release_designation": "V0.2r1",
+      "primary_cad_export_timestamp": "2023-06-14T07:18:16-07:00",
+      "original_hardware_source": true,
+      "ready_simulation_model": false,
+      "revision_evidence": "provenance/source_revision.json",
+      "selection_rationale": "Official hardware author repository; compact 120 x 120 x 120 mm CoreXY machine with two belt drives, X/Y gantry and linear rails, integrated Z lead screw and bed, geared extruder, enclosure hinges and detailed hardware. Neutral full assembly and original separate parts fit below 300 MB, including preserved ZIP and documentation.",
+      "discovery_urls": [
+        "https://github.com/VoronDesign/Voron-0",
+        "https://docs.vorondesign.com/"
+      ],
+      "pinned_primary_download_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/CAD/V0.2R1_Master_Assembly_STEP.zip",
+      "selection_scope": "One full original master STEP archive and its unchanged extracted member; three original standalone STEP files; twelve original printed motion-part STLs; assembly manual; license; READMEs; one unmodified firmware configuration retained only as documentary evidence.",
+      "not_selected": {
+        "native_fusion_cad_url": "https://github.com/VoronDesign/Voron-0/blob/a53fc87562fd630c846af38d7de850c894dc3d85/CAD/V0.2R1_Master_Assembly.f3d",
+        "other_content": "Remaining alternative CAD, STLs, DXFs, drawings, firmware variants and slicer profiles were not downloaded."
+      },
+      "downloaded_original_file_count": 22
+    },
+    "license": {
+      "declared_name": "GNU General Public License, Version 3, 29 June 2007",
+      "upstream_github_label": "GPL-3.0",
+      "spdx_expression": null,
+      "version_qualifier_note": "The repository includes the full GPLv3 text. A project-specific only-versus-or-later grant was not established; no narrower SPDX expression is asserted.",
+      "applies_as": "Repository license published with the original hardware/CAD source; not a claim of separate OSHWA certification.",
+      "attribution": "Voron Design and the contributors to VoronDesign/Voron-0; Voron 0.2r1.",
+      "license_file": "original/LICENSE",
+      "license_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/LICENSE",
+      "license_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "attribution_evidence": [
+        "original/README.md",
+        "original/LICENSE",
+        "https://github.com/VoronDesign/Voron-0"
+      ],
+      "preservation": "Unmodified source files and license are retained. The STEP exporter has empty author/organization fields; credit is established from the official upstream project, not from those fields.",
+      "uncertainty": "Third-party vendor-branded component geometry is included upstream; this curation did not audit separate vendor model licenses or trademark rights."
+    },
+    "source_geometry_not_modified_or_physics_removed": true,
+    "scored_input_scope": "Only the unchanged full master assembly STEP is in the frozen scored source closure. Extra source documentation and alternate exports were curation evidence, outside the author input root."
+  },
+  {
+    "case_id": "10_complex",
+    "title": "Dextra robotic hand",
+    "complexity": "very complex multi-finger tendon mechanism",
+    "primary_input": "assets/10_complex/source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+    "primary_sha256": "62fc1bafe7b91b362549b1c24e61f12f2da75bd2c85bb8cad40369923f3ffdfe",
+    "source_root": "assets/10_complex/source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733",
+    "source_closure_sha256": "110b75a5eb990457f95b888dba32b8d3d41d0a5168a4e4c7868f47f3fd78a1b7",
+    "original_source_file_count": 60,
+    "source": {
+      "author": "Alvaro Villoslada (Alvipe / alvipe)",
+      "repository_url": "https://github.com/Alvipe/Dextra",
+      "author_project_url": "https://hackaday.io/project/9890-dextra",
+      "commit": "33203e128c3d3c4292f41d32275cb336cd211733",
+      "commit_url": "https://github.com/Alvipe/Dextra/commit/33203e128c3d3c4292f41d32275cb336cd211733",
+      "commit_timestamp_utc": "2016-09-06T18:24:48Z",
+      "commit_message": "Added assembly instructions",
+      "git_tree_sha1": "98929d687efa2dcf86325306f3c33d68f4a196b9",
+      "commit_signature_verified": false,
+      "archive": {
+        "url": "https://codeload.github.com/Alvipe/Dextra/zip/33203e128c3d3c4292f41d32275cb336cd211733",
+        "path": "downloads/Dextra-33203e128c3d3c4292f41d32275cb336cd211733.zip",
+        "bytes": 51925164,
+        "sha256": "e6194ece382fb73a27fa420a203f5cfee3c797b97ce529f4f054713fc002a8c2",
+        "retrieved_at_utc": "2026-09-21T21:38:30.696969+00:00"
+      },
+      "primary_cad_raw_url": "https://raw.githubusercontent.com/Alvipe/Dextra/33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD%20files/Assembly/dextra.fcstd",
+      "primary_cad_browser_url": "https://github.com/Alvipe/Dextra/blob/33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD%20files/Assembly/dextra.fcstd",
+      "expanded_snapshot_path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733",
+      "entire_snapshot_retained": true,
+      "source_files": 60,
+      "expanded_source_bytes": 53695319,
+      "all_source_git_blob_sha1_verified": true,
+      "per_file_sha256_and_commit_urls": {
+        "path": "provenance/file_inventory.json",
+        "bytes": 37953,
+        "sha256": "5be92a04dfdf06a175f6743d6e9c2ca891cffffbb42ea626957f4820ebb2a8af"
+      },
+      "retrieval_record": {
+        "path": "provenance/downloads.json",
+        "bytes": 4280,
+        "sha256": "be94e28c092af1d9dfba557686ac5e6c205a29df4a0010e014f2c7de4aade3d0"
+      },
+      "originality": "Author-authored FreeCAD manufacturing/design source and authored companion STL exports. No simulator input was stripped or used to generate this source.",
+      "source_changes": []
+    },
+    "license": {
+      "cad_and_documentation_spdx": "CC-BY-SA-4.0",
+      "explicit_grant": {
+        "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/README.md",
+        "repository_path": "README.md",
+        "bytes": 3816,
+        "sha256": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83",
+        "git_blob_sha1": "2bd826923d9c30e8fa657ae0bfb27bad81a10781",
+        "git_blob_verified": true,
+        "raw_url": "https://raw.githubusercontent.com/Alvipe/Dextra/33203e128c3d3c4292f41d32275cb336cd211733/README.md",
+        "browser_url": "https://github.com/Alvipe/Dextra/blob/33203e128c3d3c4292f41d32275cb336cd211733/README.md"
+      },
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "legalcode_url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode.en",
+      "retained_license_text": {
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/CC-BY-SA-4.0.txt",
+        "resolved_url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/CC-BY-SA-4.0.txt",
+        "path": "provenance/CC-BY-SA-4.0.txt",
+        "bytes": 18375,
+        "sha256": "cde7883b9050a1104f4ac19a1572aafd6e5d7323b68351aaf51fbf4beba54966",
+        "retrieved_at_utc": "2026-09-21T21:41:19.971490+00:00"
+      },
+      "commercial_use_permitted_under_license": true,
+      "obligations": [
+        "Credit Alvaro Villoslada / Dextra and retain source and license links.",
+        "Indicate modifications; source files in this curation are unmodified.",
+        "Share adaptations under CC BY-SA 4.0 or a compatible license and do not impose additional restrictions."
+      ],
+      "code": "Repository declares GPL v3; this does not change the separate CAD license.",
+      "third_party_code": [
+        {
+          "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/MsTimer2",
+          "license": "LGPL-2.1-or-later",
+          "evidence": "Notice in original MsTimer2.cpp and MsTimer2.h retained; LGPL text also retained."
+        }
+      ],
+      "native_metadata_caveat": "17 of 19 source FreeCAD documents contain the string All rights reserved; 2 specify CreativeCommons Attribution-ShareAlike with the CC BY-SA 4.0 URL. This conflicts with the repository-wide explicit CAD grant; it is preserved and disclosed, not silently rewritten.",
+      "third_party_geometry_caveat": "Pololu gearmotor and Turnigy servo geometry is retained as published by the project under its CAD grant. Separate manufacturer model provenance/permission is not established by this read-only curation.",
+      "attribution": "Dextra by Alvaro Villoslada, https://github.com/Alvipe/Dextra, CC BY-SA 4.0. Original CAD unmodified; curation inventory and inspection reports added."
+    },
+    "source_geometry_not_modified_or_physics_removed": true
+  }
+]

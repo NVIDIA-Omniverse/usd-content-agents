@@ -1,0 +1,26 @@
+{
+  "measurement_owner": "harness_bounded_attempt_closeout",
+  "frozen_evaluator_emitted_no_verdict": true,
+  "assessment": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/timeout_assessment.json",
+    "sha256": "34b0efae107478c16b3720fbb98f764056a06b0f225bc6d0364466a58bf49ab5",
+    "bytes": 8000
+  },
+  "acceptance_wrapper": {
+    "path": "evaluations/pilot-v1/09_printer/plain_astra/acceptance.json",
+    "sha256": "0515ab25c8defc1ef1c9d257baa1acf40eaaf40997f903206eb9768d836185cc",
+    "bytes": 8249
+  },
+  "closeout_script": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/closeout.py",
+    "sha256": "73be392ac4585ca7712f41cb02939fc88c2727a16ca2035bc73832a9b76a4ba2",
+    "bytes": 6058
+  },
+  "original_timeout_error": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/original_timeout_error.json",
+    "sha256": "f9a9e6cef9bc0af5033449a69c9cca1eee166b40a047784a5d48c46ec34b9fc0",
+    "bytes": 2419
+  },
+  "frozen_code_unchanged": true,
+  "author_artifacts_unchanged": true
+}

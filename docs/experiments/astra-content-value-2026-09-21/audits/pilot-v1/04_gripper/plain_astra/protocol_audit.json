@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "case_id": "04_gripper",
+  "arm": "plain_astra",
+  "valid": true,
+  "status": "VALID_PROTOCOL_OBSERVED",
+  "audited_utc": "2026-09-21T23:32:29.563007+00:00",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All three recorded completed sessions used gpt-6-astra ultra. Per-response usage reconciles with final counters; no missing session.",
+      "evidence": [
+        "usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "frozen_task_and_immutable_outputs",
+      "valid": true,
+      "finding": "All184 watchdog-manifest files unchanged and launch task hash unchanged. Final scene and bindings unchanged across independent v1 evaluation.",
+      "evidence": [
+        "artifact_integrity.json",
+        "../../../../evaluations/pilot-v1/04_gripper/dispatch_plain_astra.json"
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All69 copied source closure files match originals; native OCP STEP extraction retained all27 solid instances. Source visual acceptance is adjudicated separately under the distance erratum.",
+      "evidence": [
+        "../../../../evaluations/pilot-v1/04_gripper/protocol_audit_plain_astra.json",
+        "../../../../runs/pilot-v1/04_gripper/plain_astra/extract_source_geometry.py",
+        "../../../../runs/pilot-v1/04_gripper/plain_astra/source_geometry.json"
+      ]
+    },
+    {
+      "id": "control_treatment_separation",
+      "valid": true,
+      "finding": "Reviewed all126 captured tool requests across root and both children. Executable requests use public source/task, low-level usd-cli docs/source, installed OvPhysX API/docs/samples, and own code. No Content Agents workflow skill, orchestration entrypoint, or workflow implementation access observed.",
+      "evidence": [
+        "private_tool_metadata_digest"
+      ]
+    },
+    {
+      "id": "no_forbidden_access_observed",
+      "valid": true,
+      "finding": "No captured executable request reads/runs hidden evaluator code/evidence, opposite arm, another case output, private auth, or other author logs. Own protocol implementation and payload placement use the public task specification.",
+      "evidence": [
+        "private_tool_metadata_digest"
+      ],
+      "qualification": "Captured-tool audit, not proof against unrecorded activity; opaque collaboration message bodies not decoded."
+    },
+    {
+      "id": "no_frozen_environment_mutation_observed",
+      "valid": true,
+      "finding": "No package install, original source/repository/evaluator edit, alternative provider/model, or GPU override observed. CUDA_VISIBLE_DEVICES references read or verify the assigned UUID; they do not change it. Runtime helper tuning changes author-owned test harness only.",
+      "evidence": [
+        "private_tool_metadata_digest",
+        "../../../../runs/pilot-v1/04_gripper/plain_astra/runtime_helper.py"
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "1487.7091016322374 seconds below2400-second hard wall cap. Child work finished within root interval.",
+      "evidence": [
+        "../../../../runs/pilot-v1/04_gripper/plain_astra/execution.json",
+        "usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "Zero scene repair iterations: final scene and bindings are byte-identical to preserved first candidate. Test harness, temporary payload trials, plotting, and inspection-camera adjustments did not change either submitted artifact.",
+      "evidence": [
+        "../../../../runs/pilot-v1/04_gripper/plain_astra/candidates/first/scene.usd",
+        "../../../../runs/pilot-v1/04_gripper/plain_astra/candidates/first/bindings.json",
+        "../../../../runs/pilot-v1/04_gripper/plain_astra/repairs/README.md"
+      ]
+    },
+    {
+      "id": "claim_before_independent_evaluation",
+      "valid": true,
+      "finding": "Author claimed_accepted=true before independent v1 started. Own CPU/GPU tests are separate from evaluator-owned five-seed results. Raw v1 source-distance-only rejection is affected by the numerical erratum and is not a demonstrated false pass.",
+      "evidence": [
+        "../../../../runs/pilot-v1/04_gripper/plain_astra/submission.json",
+        "../../../../evaluations/pilot-v1/04_gripper/dispatch_plain_astra.json"
+      ]
+    }
+  ],
+  "violations": [],
+  "unknowns": [
+    "No claim is made about unrecorded activity or opaque collaboration message text. Captured executable requests and all child model contexts are covered."
+  ],
+  "repair_counting": {
+    "declared_repairs": 0,
+    "verified_scene_repair_iterations": 0,
+    "first_final_scene_sha256": "1a45ff81e67bed881520a626cc0fcebdde4c62061be7ec9559cdcd8042c8faa6",
+    "first_final_bindings_sha256": "7d0086cf6b03eb589b8b6184ec597467b9fc4404c56ecb9fbf4941a706e8cd92",
+    "limit": 2,
+    "harness_changes_count_as_scene_repairs": false
+  },
+  "coverage": {
+    "tool_requests": 126,
+    "tool_counts": {
+      "exec": 98,
+      "spawn_agent": 2,
+      "send_message": 23,
+      "followup_task": 1,
+      "sleep": 2
+    },
+    "first_tool_utc": "2026-09-21T22:51:49.603Z",
+    "last_tool_utc": "2026-09-21T23:16:21.686Z",
+    "private_request_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "private_tool_metadata_digest": {
+    "path": "tool_calls.private.json",
+    "sha256": "8911f6180e2d40439285330bf778ff8460649776de072da8faf1130837fffffa",
+    "publish": false
+  },
+  "detailed_report": {
+    "path": "evaluations/pilot-v1/04_gripper/protocol_audit_plain_astra.json",
+    "sha256": "d1a8fc67de209b8aca14833a0c6214e22da8c2f065ad894a967cfd0b97b58c39",
+    "note": "Original outer-only report retained; this126-request audit adds all child requests."
+  },
+  "usage_reconciled_sha256": "1fbe5210f6fa820d1c291229d5285ef95777cf39d65f197b056ff211fbce3f5c",
+  "artifact_integrity_sha256": "2b0548fee2084c85da2c2ed0a11be39be99be7bd13a1620d051edaf744d6073a",
+  "no_scored_output_repaired": true
+}

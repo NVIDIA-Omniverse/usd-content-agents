@@ -1,0 +1,5 @@
+{
+  "scope": "Only response items corresponding to process-inspection execution requests; no model reasoning or inter-agent payloads read into this evidence.",
+  "arm": "content_agents",
+  "records": []
+}

@@ -1,0 +1,424 @@
+{
+  "version": "independent_pair_closeout10_v1",
+  "observed_utc": "2026-09-22T01:39:24.610179+00:00",
+  "case_id": "10_complex",
+  "arm": "plain_astra",
+  "scored_or_frozen_files_modified": false,
+  "corrected_receipt_ready": true,
+  "all_integrity_checks_passed": true,
+  "checks": [
+    {
+      "name": "task_frozen_snapshot_binding",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:case_hooks.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:evaluate.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:structural.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:cases.json",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:geometry.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:common.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:solver.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:bindings.schema.json",
+      "passed": true
+    },
+    {
+      "name": "reference_inventory_frozen_binding",
+      "passed": true
+    },
+    {
+      "name": "author_manifest:scene",
+      "passed": true
+    },
+    {
+      "name": "author_manifest:bindings",
+      "passed": true
+    },
+    {
+      "name": "frozen_scene_binding",
+      "passed": true
+    },
+    {
+      "name": "frozen_bindings_binding",
+      "passed": true
+    },
+    {
+      "name": "frozen_inventory_binding",
+      "passed": true
+    },
+    {
+      "name": "seed_complete:11",
+      "passed": true
+    },
+    {
+      "name": "seed_finite:11",
+      "passed": true
+    },
+    {
+      "name": "seed_complete:23",
+      "passed": true
+    },
+    {
+      "name": "seed_finite:23",
+      "passed": true
+    },
+    {
+      "name": "seed_complete:47",
+      "passed": true
+    },
+    {
+      "name": "seed_finite:47",
+      "passed": true
+    },
+    {
+      "name": "seed_complete:83",
+      "passed": true
+    },
+    {
+      "name": "seed_finite:83",
+      "passed": true
+    },
+    {
+      "name": "seed_complete:131",
+      "passed": true
+    },
+    {
+      "name": "seed_finite:131",
+      "passed": true
+    },
+    {
+      "name": "all_frozen_non_distance_checks_pass",
+      "passed": true
+    },
+    {
+      "name": "corrected_v1_binding",
+      "passed": true
+    },
+    {
+      "name": "corrected_worker_binding",
+      "passed": true
+    },
+    {
+      "name": "corrected_qualified_worker_binding",
+      "passed": true
+    },
+    {
+      "name": "corrected_qualification_binding",
+      "passed": true
+    },
+    {
+      "name": "qualification_passed",
+      "passed": true
+    },
+    {
+      "name": "corrected_scene_binding",
+      "passed": true
+    },
+    {
+      "name": "corrected_bindings_binding",
+      "passed": true
+    },
+    {
+      "name": "corrected_inventory_binding",
+      "passed": true
+    },
+    {
+      "name": "corrected_frozen_binding",
+      "passed": true
+    },
+    {
+      "name": "corrected_no_changes",
+      "passed": true
+    },
+    {
+      "name": "corrected_native_complete",
+      "passed": true
+    },
+    {
+      "name": "corrected_reused_native_hash:evaluations/pilot-v1/10_complex/plain_astra/runtime_config.json",
+      "passed": true
+    },
+    {
+      "name": "corrected_reused_native_hash:evaluations/pilot-v1/10_complex/plain_astra/instrumented.usda",
+      "passed": true
+    },
+    {
+      "name": "corrected_reused_native_hash:evaluations/pilot-v1/10_complex/plain_astra/seed_11.json",
+      "passed": true
+    },
+    {
+      "name": "corrected_reused_native_hash:evaluations/pilot-v1/10_complex/plain_astra/seed_23.json",
+      "passed": true
+    },
+    {
+      "name": "corrected_reused_native_hash:evaluations/pilot-v1/10_complex/plain_astra/seed_47.json",
+      "passed": true
+    },
+    {
+      "name": "corrected_reused_native_hash:evaluations/pilot-v1/10_complex/plain_astra/seed_83.json",
+      "passed": true
+    },
+    {
+      "name": "corrected_reused_native_hash:evaluations/pilot-v1/10_complex/plain_astra/seed_131.json",
+      "passed": true
+    },
+    {
+      "name": "corrected_non_distance_checks_exact",
+      "passed": true
+    }
+  ],
+  "frozen_status": "not_accepted",
+  "frozen_failures_only_source_distance": true,
+  "frozen_non_distance_checks": 962,
+  "native_seeds": [
+    {
+      "seed": 11,
+      "completed_steps": 2880,
+      "expected_steps": 2880,
+      "complete": true,
+      "finite_states_and_contacts": true,
+      "only_control_writes": [
+        "RIGID_BODY_FORCE",
+        "RIGID_BODY_WRENCH"
+      ],
+      "max_joint_closure_m": 1.3521074887046014e-06,
+      "max_joint_axis_error_rad": 6.992430186699519e-05,
+      "max_contact_penetration_m": 3.650784492492676e-07
+    },
+    {
+      "seed": 23,
+      "completed_steps": 2880,
+      "expected_steps": 2880,
+      "complete": true,
+      "finite_states_and_contacts": true,
+      "only_control_writes": [
+        "RIGID_BODY_FORCE",
+        "RIGID_BODY_WRENCH"
+      ],
+      "max_joint_closure_m": 2.1222571900425773e-06,
+      "max_joint_axis_error_rad": 5.923727001966953e-05,
+      "max_contact_penetration_m": 1.1641532182693481e-07
+    },
+    {
+      "seed": 47,
+      "completed_steps": 2880,
+      "expected_steps": 2880,
+      "complete": true,
+      "finite_states_and_contacts": true,
+      "only_control_writes": [
+        "RIGID_BODY_FORCE",
+        "RIGID_BODY_WRENCH"
+      ],
+      "max_joint_closure_m": 1.026544036073221e-06,
+      "max_joint_axis_error_rad": 5.833313591438618e-05,
+      "max_contact_penetration_m": 1.7136335372924805e-07
+    },
+    {
+      "seed": 83,
+      "completed_steps": 2880,
+      "expected_steps": 2880,
+      "complete": true,
+      "finite_states_and_contacts": true,
+      "only_control_writes": [
+        "RIGID_BODY_FORCE",
+        "RIGID_BODY_WRENCH"
+      ],
+      "max_joint_closure_m": 1.3358008294123487e-06,
+      "max_joint_axis_error_rad": 6.706993121842093e-05,
+      "max_contact_penetration_m": 1.1827796697616577e-07
+    },
+    {
+      "seed": 131,
+      "completed_steps": 2880,
+      "expected_steps": 2880,
+      "complete": true,
+      "finite_states_and_contacts": true,
+      "only_control_writes": [
+        "RIGID_BODY_FORCE",
+        "RIGID_BODY_WRENCH"
+      ],
+      "max_joint_closure_m": 1.7874957840676769e-06,
+      "max_joint_axis_error_rad": 6.012062723931305e-05,
+      "max_contact_penetration_m": 1.2759119272232056e-07
+    }
+  ],
+  "native_evidence": [
+    {
+      "path": "evaluations/pilot-v1/10_complex/plain_astra/seed_11.json",
+      "sha256": "8a95ffd350331f11a334dcc65470e0b43a407a9c58a18a51f9f94f8cccaba96a",
+      "bytes": 3594366
+    },
+    {
+      "path": "evaluations/pilot-v1/10_complex/plain_astra/seed_23.json",
+      "sha256": "0489d1852a84f3883333431f03b1f0d8ae59bc33159a5ec835d84474c7be97a2",
+      "bytes": 3591903
+    },
+    {
+      "path": "evaluations/pilot-v1/10_complex/plain_astra/seed_47.json",
+      "sha256": "9091d08e1560f4f1c673b99746a4e6683cc407413d87cdf42f6f66895f7fcd51",
+      "bytes": 3591737
+    },
+    {
+      "path": "evaluations/pilot-v1/10_complex/plain_astra/seed_83.json",
+      "sha256": "5b27874a06ff46c1a0e9f2e3c2a58bcaaa1dda59de68702c79571327f3bbed5c",
+      "bytes": 3593522
+    },
+    {
+      "path": "evaluations/pilot-v1/10_complex/plain_astra/seed_131.json",
+      "sha256": "090d24a8dbde000601cf413ab914e6bd2a0ea03eff6d20e6e3532d89c5a8de56",
+      "bytes": 3592325
+    },
+    {
+      "path": "evaluations/pilot-v1/10_complex/plain_astra/runtime_config.json",
+      "sha256": "faeadfbd106353a63921f48dddbc1a521cd791ea02f5940067c815e967305167",
+      "bytes": 27904
+    },
+    {
+      "path": "evaluations/pilot-v1/10_complex/plain_astra/instrumented.usda",
+      "sha256": "677753f52483c96878682810c6e17ff1a1bc642b1093db7ce83ae4904bf4ed22",
+      "bytes": 151082323
+    }
+  ],
+  "inputs": [
+    {
+      "path": "runs/pilot-v1/10_complex/plain_astra/output_manifest.json",
+      "sha256": "345e9511bce07ff8b037189f1e673be154476c1b9d92eacf58f8d9e32cbf2ecc",
+      "bytes": 65442
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/plain_astra/submission.json",
+      "sha256": "f9cce195ac4dabf3f9bd14525d13e66276140dbebbed085e13ae036d87334d22",
+      "bytes": 1501
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/plain_astra/final.usd",
+      "sha256": "b60986a7f6d6c6d0282dec202cbdee5807358429df5f581cb3f20730278a8248",
+      "bytes": 29634781
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/plain_astra/bindings.json",
+      "sha256": "c131c020ca0e7f374d22b4b5195f57434ccc3e08cd86371f255b4aafc946bb40",
+      "bytes": 51915
+    },
+    {
+      "path": "protocol/tasks/10_complex.json",
+      "sha256": "8252d6cb86a9d22f92c2e865d9c270af6c23278121077d4c0fa8f7c7235518fc",
+      "bytes": 12599
+    },
+    {
+      "path": "evaluator/case08_10/frozen/10_complex/frozen_manifest.json",
+      "sha256": "4bd3437cd49dd0c610cad7135424bca1608cd52e626ed67ef541be5d317719f7",
+      "bytes": 1080
+    },
+    {
+      "path": "evaluator/case08_10/references/10_complex/source_inventory.json",
+      "sha256": "520f1189f8d7acbec8a65e93912677fd3b66a8616907d355547df2d8ad347714",
+      "bytes": 91505
+    },
+    {
+      "path": "evaluations/pilot-v1/10_complex/plain_astra/acceptance.json",
+      "sha256": "0405f787cb8f8a18e0bcb257b78f7820398e4158dd5822f79d33ebefdee34b3c",
+      "bytes": 289267
+    },
+    {
+      "path": "evaluations/pilot-v1/10_complex/plain_astra/evaluation_launch.json",
+      "sha256": "cfe3e33771b3a67ffbaddf0a77a75aaa781f8b2e5324afd722af221114415ced",
+      "bytes": 1527
+    }
+  ],
+  "frozen_code": [
+    {
+      "path": "evaluator/case08_10/frozen/10_complex/case_hooks.py",
+      "sha256": "bc73524830314e305c067e5b0aa9a2494c2e0c9fb3d3b0ca288c370aaca85611",
+      "bytes": 2272
+    },
+    {
+      "path": "evaluator/case08_10/frozen/10_complex/evaluate.py",
+      "sha256": "f8263ceb3a0390651862e225e6efb2067b2fc6664336c4d2883cf298da6813c8",
+      "bytes": 12456
+    },
+    {
+      "path": "evaluator/case08_10/frozen/10_complex/structural.py",
+      "sha256": "3b06984cfb911f8c9685b5f17f3e7ea730a031dbf111837fa5a4bc157cb608bd",
+      "bytes": 13820
+    },
+    {
+      "path": "evaluator/case08_10/frozen/10_complex/cases.json",
+      "sha256": "654c7f8424cbd61e3107c4d3cc42ae9ad0df18adaf383d3898ca045a8ebab459",
+      "bytes": 4563
+    },
+    {
+      "path": "evaluator/case08_10/frozen/10_complex/geometry.py",
+      "sha256": "4c8949f782a7eda10aa870cb31a1a29fda141241498f4ecdd370cb706ad3dd5f",
+      "bytes": 13531
+    },
+    {
+      "path": "evaluator/case08_10/frozen/10_complex/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+      "bytes": 3505
+    },
+    {
+      "path": "evaluator/case08_10/frozen/10_complex/solver.py",
+      "sha256": "3231719b868a882a937eda05fb9f8ed9ed87daf1f43a767328112072747e1240",
+      "bytes": 11560
+    },
+    {
+      "path": "evaluator/case08_10/frozen/10_complex/bindings.schema.json",
+      "sha256": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b",
+      "bytes": 1422
+    }
+  ],
+  "corrected": {
+    "status": "accepted",
+    "accepted": true,
+    "false_pass": false,
+    "source_surface_checks_replaced": 69,
+    "geometry_passed": 69,
+    "native_physics_origin": "unchanged_frozen_v1_results",
+    "all_five_native_complete": true,
+    "concrete_failures": [],
+    "inconclusive_checks": [],
+    "acceptance": {
+      "path": "evaluation_adjudications/pilot-v1/10_complex/plain_astra/source_distance_v1_1/acceptance.json",
+      "sha256": "382566007ee71f8e82520fea1feaebc464a1def89d185f53282ad0849ea04366",
+      "bytes": 333106
+    },
+    "provenance": {
+      "path": "evaluation_adjudications/pilot-v1/10_complex/plain_astra/source_distance_v1_1/provenance.json",
+      "sha256": "0e5812970898823e098c3bb575b4333d153cea3920797434e7f75a6a1aab6895",
+      "bytes": 3037
+    },
+    "qualification": {
+      "path": "evaluator/errata/source_distance_v1_1/qualification_r2.json",
+      "sha256": "692d21ef3ce06902aa8c189930d6f66b02586295fc96fc39a28a110fa9e28424",
+      "bytes": 14533
+    },
+    "worker": {
+      "path": "evaluator/errata/source_distance_v1_1/worker.py",
+      "sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84",
+      "bytes": 22446
+    }
+  },
+  "scope": "Read-only byte, configuration, complete-native-trajectory and acceptance-chain verification. No scoring or physics rerun."
+}

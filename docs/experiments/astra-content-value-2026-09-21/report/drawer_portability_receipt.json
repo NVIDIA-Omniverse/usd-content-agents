@@ -1,0 +1,67 @@
+{
+  "schema_version": "drawer-submission-portability.v1",
+  "checked_utc": "2026-09-21T23:49:32.910274+00:00",
+  "passed": true,
+  "source": "/opt/astra-content-value-20260921/runs/pilot-v1/01_drawer/plain_astra",
+  "relocation": "/opt/astra-content-value-20260921/repro-check/drawer-portability-v1",
+  "copied_bytes_unchanged": [
+    {
+      "path": "final.usd",
+      "sha256": "f375fa700f5bec4913e5c5deeb327d3a5073e89591c773a0e4b3017ba496d505",
+      "bytes": 701847
+    },
+    {
+      "path": "bindings.json",
+      "sha256": "5f7b86cc3fb038c254ead97dffe340aa69802b483dfe298e2770f1a3958dfeac",
+      "bytes": 667
+    },
+    {
+      "path": "assets/textures/drawer_cabinet_arm_1k.jpg",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "bytes": 124942
+    },
+    {
+      "path": "assets/textures/drawer_cabinet_diff_1k.jpg",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "bytes": 150011
+    },
+    {
+      "path": "assets/textures/drawer_cabinet_nor_gl_1k.jpg",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "bytes": 61593
+    }
+  ],
+  "asset_attributes": [
+    {
+      "attribute": "/World/Materials/OriginalWood/Color.inputs:file",
+      "authored_path": "assets/textures/drawer_cabinet_diff_1k.jpg",
+      "relative": true,
+      "resolved_inside_relocation": true,
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb"
+    },
+    {
+      "attribute": "/World/Materials/OriginalWood/ARM.inputs:file",
+      "authored_path": "assets/textures/drawer_cabinet_arm_1k.jpg",
+      "relative": true,
+      "resolved_inside_relocation": true,
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c"
+    },
+    {
+      "attribute": "/World/Materials/OriginalWood/Normal.inputs:file",
+      "authored_path": "assets/textures/drawer_cabinet_nor_gl_1k.jpg",
+      "relative": true,
+      "resolved_inside_relocation": true,
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa"
+    }
+  ],
+  "external_dependencies": [
+    "assets/textures/drawer_cabinet_arm_1k.jpg",
+    "assets/textures/drawer_cabinet_diff_1k.jpg",
+    "assets/textures/drawer_cabinet_nor_gl_1k.jpg"
+  ],
+  "unresolved_dependencies": [],
+  "binding_scene_resolves": true,
+  "wrapper_needed": false,
+  "publication_layout": "Keep final.usd and bindings.json beside the complete assets/textures directory. The original scored USD and binding bytes need no rewrite.",
+  "scope": "USD dependency resolution of exact relocated bytes, not a new physical evaluation or render."
+}

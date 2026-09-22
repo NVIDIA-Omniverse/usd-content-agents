@@ -1,0 +1,15 @@
+{
+  "created_utc": "2026-09-22T01:01:05.858423+00:00",
+  "reviewer": "Independent parallel Astra Ultra experiment audit agent",
+  "auditor_sha256": "387c6608092d1fe0ad3464c677b62451f983e9151443fa899717be879c79fc22",
+  "code_read": true,
+  "independent_execution": false,
+  "blocking_findings": [],
+  "assessment": "Direct USD schema reads, frozen public role requirements, submitted layer closure and before/after input hashes support the explicitly necessary-condition-only scope.",
+  "limits": [
+    "An enabled collider beneath a nested separate rigid owner could satisfy descendant presence for the wrong body; this is a potential missed rejection, not an unsound decisive failure.",
+    "Malformed binding/parser/assertion errors must remain audit errors or INCONCLUSIVE and cannot be promoted to decisive physical rejection.",
+    "Positive static presence never establishes physical or source-fidelity acceptance."
+  ],
+  "case_application": "All four completed receipts observe zero rigid bodies, joints and colliders and do not depend on the noted ownership subtleties."
+}

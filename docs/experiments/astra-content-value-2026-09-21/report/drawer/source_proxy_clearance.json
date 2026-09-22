@@ -1,0 +1,64 @@
+{
+  "scope": "Unscored source/proxy diagnostic at three declared positions, not a new acceptance rule or a full collider-fidelity certification.",
+  "inputs_sha256": {
+    "evaluator/drawer_evaluate.py": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+    "evaluator/drawer_acceptance.json": "cef4474f7bee05ce3be6c1e7bfa294ebfced78b62e99aace7aebc50cb14bb85d",
+    "evaluator/reference/drawer_cabinet_1k.gltf": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+    "evaluator/reference/drawer_cabinet.bin": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+    "runs/pilot-v1/01_drawer/plain_astra/final.usd": "f375fa700f5bec4913e5c5deeb327d3a5073e89591c773a0e4b3017ba496d505",
+    "runs/pilot-v1/01_drawer/plain_astra/bindings.json": "5f7b86cc3fb038c254ead97dffe340aa69802b483dfe298e2770f1a3958dfeac"
+  },
+  "diagnostic_code_sha256": "4d30e46a47256d1c73d5b9d90116cb8e50e12730cb6041e1192c77600e983837",
+  "inputs_unchanged": true,
+  "frozen_evaluator_or_thresholds_modified": false,
+  "scored_artifacts_modified": false,
+  "frozen_payload_bottom_y_m": 1.005,
+  "baseline_floor_collider_path": "/World/drawer_cabinet_drawer_01/Collisions/floor",
+  "baseline_floor_bounds_min_m": [
+    -0.5193020004653931,
+    0.9543709996234178,
+    -0.18753599811649324
+  ],
+  "baseline_floor_bounds_max_m": [
+    0.514547000465393,
+    1.008500000376582,
+    0.2107889981164932
+  ],
+  "baseline_initial_proxy_overlap_m": 0.0035000003765821575,
+  "samples": [
+    {
+      "x_m": 0,
+      "z_m": 0,
+      "source_intersection_y_m": [
+        0.9543714803897327,
+        1.0129997730255127
+      ],
+      "source_floor_top_y_m": 1.0129997730255127,
+      "source_floor_above_payload_bottom_m": 0.007999773025512802,
+      "source_floor_above_proxy_top_m": 0.0044997726489306444
+    },
+    {
+      "x_m": -0.05,
+      "z_m": -0.035,
+      "source_intersection_y_m": [
+        0.9543714751392153,
+        1.0129997730255127
+      ],
+      "source_floor_top_y_m": 1.0129997730255127,
+      "source_floor_above_payload_bottom_m": 0.007999773025512802,
+      "source_floor_above_proxy_top_m": 0.0044997726489306444
+    },
+    {
+      "x_m": 0.05,
+      "z_m": 0.035,
+      "source_intersection_y_m": [
+        0.9543714856402501,
+        1.0129997730255127
+      ],
+      "source_floor_top_y_m": 1.0129997730255127,
+      "source_floor_above_payload_bottom_m": 0.007999773025512802,
+      "source_floor_above_proxy_top_m": 0.0044997726489306444
+    }
+  ],
+  "interpretation": "The frozen task measures contacts against authored collision approximations. Its payload starts about8mm below the original visible floor at these samples; the accepted baseline proxy floor is about4.50mm below that visible floor and initially overlaps the payload by3.50mm. The frozen5mm penetration gate therefore does not certify exact contact fidelity to the original rendered floor."
+}

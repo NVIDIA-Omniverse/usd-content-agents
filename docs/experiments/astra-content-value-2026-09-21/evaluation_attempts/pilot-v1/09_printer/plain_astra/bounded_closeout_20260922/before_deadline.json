@@ -1,0 +1,203 @@
+{
+  "version": "bounded_evaluation_before_deadline_v1",
+  "observed_utc": "2026-09-22T01:41:18.259505+00:00",
+  "case_id": "09_printer",
+  "arm": "plain_astra",
+  "worker_status": {
+    "status": "evaluating",
+    "current": "09_printer/plain_astra",
+    "completed": [
+      "02_conveyor/content_agents",
+      "02_conveyor/plain_astra",
+      "05_vise/plain_astra",
+      "06_engine/content_agents",
+      "05_vise/content_agents",
+      "06_engine/plain_astra"
+    ],
+    "updated_unix": 1790036167.714067
+  },
+  "existing_bound_seconds": 5400,
+  "reported_started_utc": "2026-09-22T00:16:07Z",
+  "reported_deadline_utc": "2026-09-22T01:46:07Z",
+  "checks": [
+    {
+      "name": "frozen_code:evaluate.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:structural.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:cases.json",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:geometry.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:common.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:case09_placement.json",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:case09_payload_contract.json",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:case09_payload.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:solver.py",
+      "passed": true
+    },
+    {
+      "name": "frozen_code:bindings.schema.json",
+      "passed": true
+    },
+    {
+      "name": "task_frozen_snapshot_binding",
+      "passed": true
+    },
+    {
+      "name": "author_manifest:final_scene",
+      "passed": true
+    },
+    {
+      "name": "author_manifest:bindings",
+      "passed": true
+    }
+  ],
+  "all_integrity_checks_passed": true,
+  "input_and_frozen_files": [
+    {
+      "path": "evaluator/general/frozen/09_printer/evaluate.py",
+      "sha256": "f7822febe17e612bd808c5612506d4554d0a872a3eda18677d4a16418d2e771b",
+      "bytes": 13589
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/structural.py",
+      "sha256": "12859b0886d79f73a218abcab9a586c8cede8200300e0dd7ce8f417b65bafaf9",
+      "bytes": 16908
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/cases.json",
+      "sha256": "f2d41de2ed85fc4ff7a03289a6b0c7b856343ff2320dd7e410f154392cf7eb05",
+      "bytes": 7794
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/geometry.py",
+      "sha256": "8ed38f600d338cca30a3d4d6bcbe7a511922e41598b1189f4dde823ef6e464f1",
+      "bytes": 14407
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+      "bytes": 3505
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/case09_placement.json",
+      "sha256": "12a3a51078fbfbd812ff49ba70b2dded4f7e8b3a508ca4d0ec4d526a4086fa3b",
+      "bytes": 8701
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/case09_payload_contract.json",
+      "sha256": "cb843047b5f74cac6af037d8db04194b34ba3217e58d6d29b50ca5e0f0bc6096",
+      "bytes": 1279
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/case09_payload.py",
+      "sha256": "2a6c20b761f7ad4aa0f6cabddebc73b20697bb03e7b7ae44bd39832821296d0d",
+      "bytes": 8448
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/solver.py",
+      "sha256": "ad24b111295c99ba5d2f228110d1ffb91167cabd9d7effc78cafc6ec868c0554",
+      "bytes": 13011
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/bindings.schema.json",
+      "sha256": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b",
+      "bytes": 1422
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/plain_astra/output_manifest.json",
+      "sha256": "9562da0bd1288e92079b6c677fec0aa75ab88326ba8bd3f3c42a63bc5e758fbe",
+      "bytes": 550609
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/plain_astra/submission.json",
+      "sha256": "63d2cba3d38f03c16aa359425fdb1597f772ac91eb74be8e8cf7f412b8ba5e9e",
+      "bytes": 1588
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/plain_astra/final.usd",
+      "sha256": "c51eadb4c57ece0f1a5a29b051d1139580fc480fc7e2899e870589c030bf65a4",
+      "bytes": 974
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/plain_astra/bindings.json",
+      "sha256": "f2f8bee9521a473f74e02a43108ed062d5dca2ff868430129a820dba0e77e900",
+      "bytes": 1880679
+    },
+    {
+      "path": "protocol/tasks/09_printer.json",
+      "sha256": "7573fe13b6a67b1a8e87aee8e608f81ccb027278e5afc31701a088441d1e4c13",
+      "bytes": 14108
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/frozen_manifest.json",
+      "sha256": "1c423f97dd7e671a810aefc123eeba9208bb72ca919951c1b29c3e65e26fa61b",
+      "bytes": 1283
+    },
+    {
+      "path": "evaluator/general/references/09_printer/source_inventory.json",
+      "sha256": "92937c66acf4a6f70259b7f0f12b202fa77a45784f1d2995f025aedf7d38a962",
+      "bytes": 2975181
+    },
+    {
+      "path": "scripts/evaluate_finished.py",
+      "sha256": "5224e90f80fd3a4869427492306d2510048a994a2f9897b4eb31187e907e1455",
+      "bytes": 5343
+    },
+    {
+      "path": "evidence/pair-evaluation-worker.json",
+      "sha256": "82ff86d8a7d4abe316aac5f56724385fdf6229c6f64ba29fa354fd34295eab43",
+      "bytes": 309
+    }
+  ],
+  "processes": [
+    {
+      "pid": 164822,
+      "cmdline": "/opt/astra-content-value-20260921/repo/.venv/bin/python /opt/astra-content-value-20260921/evaluator/general/frozen/09_printer/evaluate.py --usd /opt/astra-content-value-20260921/runs/pilot-v1/09_printer/plain_astra/final.usd --bindings /opt/astra-content-value-20260921/runs/pilot-v1/09_printer/plain_astra/bindings.json --inventory /opt/astra-content-value-20260921/evaluator/general/references/09_printer/source_inventory.json --case 09_printer --output /opt/astra-content-value-20260921/evaluations/pilot-v1/09_printer/plain_astra",
+      "stat": "164822 (python) R 70147 70147 70147 0 -1 4194560 43274999 0 307 0 1326149 26408 0 0 35 15 255 0 1720194471 18821476352 794094 18446744073709551615 4329472 32326404 140731812368752 0 0 0 0 16781316 2 0 0 0 17 91 0 0 0 0 0 23068672 32326404 36470784 140731812375191 140731812375725 140731812375725 140731812376512 0",
+      "cwd": "/opt/astra-content-value-20260921"
+    },
+    {
+      "pid": 70147,
+      "cmdline": "/opt/astra-content-value-20260921/repo/.venv/bin/python /opt/astra-content-value-20260921/scripts/evaluate_finished.py --worker pair --cases 02_conveyor 05_vise 06_engine 09_printer 10_complex",
+      "stat": "70147 (python) S 1 70147 70147 0 -1 1077936384 7342 4655280 0 221 153 83 379009 527886 20 0 1 0 1719691750 46256128 6093 18446744073709551615 4329472 32326404 140737150558176 0 0 0 0 16781316 2 1 0 0 17 15 0 0 0 0 0 23068672 32326404 51970048 140737150565448 140737150565641 140737150565641 140737150566336 0",
+      "cwd": "/opt/astra-content-value-20260921"
+    },
+    {
+      "pid": 124238,
+      "cmdline": "/opt/astra-content-value-20260921/repo/.venv/bin/python /opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/dispatcher.py --cases 02_conveyor 05_vise 06_engine 09_printer 10_complex --label pair_r2_20260921 --wait-seconds 14400",
+      "stat": "124238 (python) S 124213 124238 124238 0 -1 1077936384 18107 8509958 0 175 403 14 372497 2944 35 15 127 0 1719984579 5629710336 27962 18446744073709551615 4329472 32326404 140735072553872 0 0 0 0 16781316 2 0 0 0 17 65 0 0 0 0 0 23068672 32326404 55431168 140735072562138 140735072562386 140735072562386 140735072563136 0",
+      "cwd": "/home/horde"
+    }
+  ],
+  "preserved_log": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/pre_timeout_log.txt",
+    "sha256": "5c6906095c73fbff5c4ec7f94df7ae32187b6c028ec4c68d0b8c6687d59d9b16",
+    "bytes": 213
+  },
+  "native_config_exists": false,
+  "acceptance_exists": false,
+  "scored_or_frozen_files_modified": false,
+  "expensive_evaluation_restarted": false
+}

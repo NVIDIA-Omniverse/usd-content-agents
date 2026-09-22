@@ -1,0 +1,12 @@
+{
+  "generated_utc": "2026-09-22T00:31:00.767858+00:00",
+  "manifest": {
+    "path": "protocol/repository_source_hashes.json",
+    "sha256": "fd919f5ff3b769552e3e26ed0e349c1793a2970ebd15515e07b4095a033bd3b8"
+  },
+  "commit": "a96faf9cb2f5c1f655fe0d60c0ccf57e3477b1aa",
+  "file_count": 2883,
+  "all_match": true,
+  "mismatches": [],
+  "verification": "Every manifest-listed original repository file hashed on original execution host. Unlisted runtime/generated files not claimed immutable."
+}

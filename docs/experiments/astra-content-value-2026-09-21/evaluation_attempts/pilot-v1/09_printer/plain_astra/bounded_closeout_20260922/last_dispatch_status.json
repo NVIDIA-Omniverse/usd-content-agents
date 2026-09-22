@@ -1,0 +1,193 @@
+{
+  "scope": "Sequential host scheduling for versioned post-freeze adjudications",
+  "label": "pair_r2_20260921",
+  "cases": [
+    "02_conveyor",
+    "05_vise",
+    "06_engine",
+    "09_printer",
+    "10_complex"
+  ],
+  "started_utc": "2026-09-21T23:41:09.534025+00:00",
+  "worker_sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84",
+  "qualification_sha256": "692d21ef3ce06902aa8c189930d6f66b02586295fc96fc39a28a110fa9e28424",
+  "dispatcher_sha256": "49f6e270969f9921b81d4a93aca0a24446e4b8d242bbfc01e16e05d0d0e883e7",
+  "jobs": [
+    {
+      "case": "02_conveyor",
+      "arm": "content_agents",
+      "started_utc": "2026-09-21T23:41:09.534838+00:00",
+      "command": [
+        "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/worker.py",
+        "--root",
+        "/opt/astra-content-value-20260921",
+        "--run-id",
+        "pilot-v1",
+        "--case",
+        "02_conveyor",
+        "--arm",
+        "content_agents",
+        "--qualification",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/qualification_r2.json",
+        "--fresh-conveyor-if-needed"
+      ],
+      "returncode": 0,
+      "finished_utc": "2026-09-21T23:41:24.347808+00:00",
+      "status": "completed",
+      "receipt_sha256": "b978c3f913af5ea5e28acdd96d68434d4097a6342efae80a5210454e7ecff0f1"
+    },
+    {
+      "case": "02_conveyor",
+      "arm": "plain_astra",
+      "started_utc": "2026-09-21T23:41:24.348698+00:00",
+      "command": [
+        "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/worker.py",
+        "--root",
+        "/opt/astra-content-value-20260921",
+        "--run-id",
+        "pilot-v1",
+        "--case",
+        "02_conveyor",
+        "--arm",
+        "plain_astra",
+        "--qualification",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/qualification_r2.json",
+        "--fresh-conveyor-if-needed"
+      ],
+      "returncode": 0,
+      "finished_utc": "2026-09-21T23:41:50.794419+00:00",
+      "status": "completed",
+      "receipt_sha256": "2499fbb4e7b296c3b69fb270abe1a5731e794c8c1b29904fb007e3f84df3ec44"
+    },
+    {
+      "case": "05_vise",
+      "arm": "content_agents",
+      "started_utc": "2026-09-21T23:41:50.798500+00:00",
+      "command": [
+        "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/worker.py",
+        "--root",
+        "/opt/astra-content-value-20260921",
+        "--run-id",
+        "pilot-v1",
+        "--case",
+        "05_vise",
+        "--arm",
+        "content_agents",
+        "--qualification",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/qualification_r2.json",
+        "--fresh-conveyor-if-needed"
+      ],
+      "returncode": 0,
+      "finished_utc": "2026-09-21T23:41:51.604942+00:00",
+      "status": "completed",
+      "receipt_sha256": "630c82071c33423e5764c89557902bfb7baedd69e8056c83d210f886338cc4b5"
+    },
+    {
+      "case": "05_vise",
+      "arm": "plain_astra",
+      "started_utc": "2026-09-21T23:41:51.605645+00:00",
+      "command": [
+        "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/worker.py",
+        "--root",
+        "/opt/astra-content-value-20260921",
+        "--run-id",
+        "pilot-v1",
+        "--case",
+        "05_vise",
+        "--arm",
+        "plain_astra",
+        "--qualification",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/qualification_r2.json",
+        "--fresh-conveyor-if-needed"
+      ],
+      "returncode": 0,
+      "finished_utc": "2026-09-21T23:43:13.072462+00:00",
+      "status": "completed",
+      "receipt_sha256": "4bfcb6cbdbb2281209d84f63b0893b8ea7d152201a7f2850ef9a8652bd7073c1"
+    },
+    {
+      "case": "06_engine",
+      "arm": "content_agents",
+      "started_utc": "2026-09-21T23:43:13.073308+00:00",
+      "command": [
+        "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/worker.py",
+        "--root",
+        "/opt/astra-content-value-20260921",
+        "--run-id",
+        "pilot-v1",
+        "--case",
+        "06_engine",
+        "--arm",
+        "content_agents",
+        "--qualification",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/qualification_r2.json",
+        "--fresh-conveyor-if-needed"
+      ],
+      "returncode": 0,
+      "finished_utc": "2026-09-21T23:45:54.192810+00:00",
+      "status": "completed",
+      "receipt_sha256": "6416b3848a974d47a56ee537f22bfdf5294613e6405604a7e60ae922dec592bb"
+    },
+    {
+      "case": "06_engine",
+      "arm": "plain_astra",
+      "started_utc": "2026-09-22T00:01:24.712454+00:00",
+      "command": [
+        "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/worker.py",
+        "--root",
+        "/opt/astra-content-value-20260921",
+        "--run-id",
+        "pilot-v1",
+        "--case",
+        "06_engine",
+        "--arm",
+        "plain_astra",
+        "--qualification",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/qualification_r2.json",
+        "--fresh-conveyor-if-needed"
+      ],
+      "returncode": 0,
+      "finished_utc": "2026-09-22T00:02:36.224875+00:00",
+      "status": "completed",
+      "receipt_sha256": "ada35a4a0a42f44f0ed5032807121970a412175b61d02b8c71f11653907d8ba3"
+    },
+    {
+      "case": "10_complex",
+      "arm": "plain_astra",
+      "started_utc": "2026-09-22T01:24:08.612925+00:00",
+      "command": [
+        "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/worker.py",
+        "--root",
+        "/opt/astra-content-value-20260921",
+        "--run-id",
+        "pilot-v1",
+        "--case",
+        "10_complex",
+        "--arm",
+        "plain_astra",
+        "--qualification",
+        "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/qualification_r2.json",
+        "--fresh-conveyor-if-needed"
+      ],
+      "returncode": 0,
+      "finished_utc": "2026-09-22T01:39:00.052062+00:00",
+      "status": "completed",
+      "receipt_sha256": "382566007ee71f8e82520fea1feaebc464a1def89d185f53282ad0849ea04366"
+    }
+  ],
+  "status": "running",
+  "pid": 124238,
+  "pending": [
+    "09_printer/content_agents",
+    "09_printer/plain_astra",
+    "10_complex/content_agents"
+  ],
+  "updated_utc": "2026-09-22T01:39:00.052631+00:00"
+}

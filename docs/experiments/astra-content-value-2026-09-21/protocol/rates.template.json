@@ -1,0 +1,10 @@
+{
+  "currency": "USD",
+  "input_usd_per_million": null,
+  "cached_input_usd_per_million": null,
+  "output_usd_per_million": null,
+  "gpu_usd_per_hour": null,
+  "rate_source": null,
+  "effective_date": null,
+  "note": "Provide approved rates. The experiment never assumes a subscription or internal allocation has zero economic cost. Output tokens already include reasoning tokens where the provider reports them that way."
+}

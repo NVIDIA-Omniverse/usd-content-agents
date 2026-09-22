@@ -1,0 +1,54 @@
+[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin.
+[Error] [omni.physx.cooking.plugin] registry is false.
+Status: in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe/near_default.usda' for read
+Status: in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdShade/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdMtlx/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/OmniUsdPhysicsDeformableSchema/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdUI/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdRi/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usd/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdSemantics/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdGeom/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdPhysics/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdVol/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdLux/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdSkel/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdHydra/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdRender/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdProc/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/PhysxSchema/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdMedia/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/PhysxSchemaAddition/resources/generatedSchema.usda' for read
+{"name": "near_default", "initial_pose": [1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0], "position_iterations": null, "companion_position_iterations": null, "scene_sha256": "2bcbf1693a3d0760e79dcde0212f5003269b367447dbd4564c8f1931f7bff085", "delta_z_m": -0.05109375715255737, "vz_m_s": -0.9810003042221069, "expected_continuous_delta_z_m": -0.04905000000000001, "expected_vz_m_s": -0.981, "position_error_m": 0.002043757152557363, "velocity_error_m_s": 3.0422210695046914e-07, "frozen_witness_threshold_pass": true}
+[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service
+[Warning] [omni.physx.plugin] GPU broadphase requires a CUDA context manager; falling back to ePABP.
+[Warning] [omni_physx_sdk] [UNLOAD #1] Return address 0x7f05181e7fc8 (symbol resolution unavailable)
+[Warning] [omni_physx_sdk] [UNLOAD #1] Call stack (most recent call first):
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/lib/libovphysx.so(+0x39e84) [0x7f05181e2e84]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/lib/libovphysx.so(+0x3efd0) [0x7f05181e7fd0]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/lib/libovphysx.so(ovphysx_remove_usd+0x214) [0x7f05181ed7f4]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x84c052]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x84ab56]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x84a82a]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x761daf]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x7604c5]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python(_PyEval_EvalFrameDefault+0x2fa8) [0x1815ee8]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python(PyEval_EvalCode+0xde) [0x1897ea0]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x18ac109]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x1a2f8c5]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python(_PyRun_SimpleFileObject+0x106) [0x1a2f686]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python(_PyRun_AnyFileObject+0x4a) [0x1a2f40a]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x1a2f390]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x1a2f29d]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x1ae2ca3]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x198c198]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python() [0x198bfac]
+[Warning] [omni_physx_sdk]     /usr/lib/x86_64-linux-gnu/libc.so.6(+0x29d90) [0x7f05bb14dd90]
+[Warning] [omni_physx_sdk]     /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x80) [0x7f05bb14de40]
+[Warning] [omni_physx_sdk]     /opt/astra-content-value-20260921/ovphysx-venv/bin/python(_start+0x29) [0x19a9269]
+[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin.
+[Error] [omni.physx.cooking.plugin] registry is false.
+Status: in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe/far_default.usda' for read
+[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service
+[Error] [usdrt.population.plugin] DerivedDataLookup not initialized for setStageId.
+Warning: in SdfPath at line 129 of ./conan/src/0.25.11.kit.3/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: :1:1: parse error matching ovInternal_v0_25_11__pxrReserved__::Sdf_PathParser::Path

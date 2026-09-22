@@ -1,0 +1,12 @@
+{
+  "elapsed_seconds": 1548.6232794560492,
+  "errors": [],
+  "evaluation": "pending_independent_evaluator",
+  "exit_code": 0,
+  "gpu_allocation_seconds": 1548.6232794560492,
+  "human_interventions": 0,
+  "human_review_seconds": null,
+  "human_review_timing_note": "No human review occurred during autonomous run; report review labour separately if measured.",
+  "nested_usage_requires_separate_aggregation": false,
+  "timed_out": false
+}

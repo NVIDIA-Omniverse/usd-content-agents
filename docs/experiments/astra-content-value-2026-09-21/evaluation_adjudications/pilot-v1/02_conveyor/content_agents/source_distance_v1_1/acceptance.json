@@ -1,0 +1,707 @@
+{
+  "accepted": false,
+  "status": "not_accepted",
+  "concrete_failures": [
+    "finite_rigid_transform:/conveyor_model_v1/conveyor_model/tn__rail1_gA",
+    "body_collider:/conveyor_model_v1/conveyor_model/tn__rail1_gA",
+    "finite_rigid_transform:/conveyor_model_v1/conveyor_model/tn__box1_j8",
+    "body_collider:/conveyor_model_v1/conveyor_model/tn__box1_j8",
+    "finite_rigid_transform:/conveyor_model_v1/conveyor_model/tn__support1_XG",
+    "body_collider:/conveyor_model_v1/conveyor_model/tn__support1_XG",
+    "finite_rigid_transform:/conveyor_model_v1/conveyor_model/tn__part1_gA",
+    "body_collider:/conveyor_model_v1/conveyor_model/tn__part1_gA",
+    "required_joint_roles",
+    "exactly_one_physics_scene",
+    "source_inherits_correct_body:/conveyor_model_v1/conveyor_model/tn__rail1_gA/Body1/Mesh",
+    "source_inherits_correct_body:/conveyor_model_v1/conveyor_model/tn__box1_j8/Body1/Mesh",
+    "source_inherits_correct_body:/conveyor_model_v1/conveyor_model/tn__part1_gA/Body1/Mesh",
+    "free_carrier_and_payload"
+  ],
+  "inconclusive_checks": [
+    "evaluator_completed",
+    "v1_1_complete_native_physics_required"
+  ],
+  "checks": [
+    {
+      "name": "frozen_evaluator:common.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:structural.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:geometry.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:bindings.schema.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:solver.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:evaluate.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:contract.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_source_inventory",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "case_identity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "original_initial_world_frame",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "usd_stage_load",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "meters_and_z_up",
+      "passed": true,
+      "evidence": {
+        "meters_per_unit": 1.0,
+        "up_axis": "Z"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "no_prescribed_time_sampled_motion_or_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "frozen_source_coverage_complete",
+      "passed": true,
+      "evidence": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor individual components in step format/base_and_support v3.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor individual components in step format/box v2.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor individual components in step format/pick v2.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor individual components in step format/rail v2.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/box.ipt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/conveyor_model.iam",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/part.ipt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/rail.ipt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/support.ipt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1.f3d",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unique_body_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "required_body_roles",
+      "passed": true,
+      "evidence": {
+        "required": [
+          "base",
+          "rail",
+          "carrier",
+          "payload"
+        ],
+        "given": {
+          "rail": "/conveyor_model_v1/conveyor_model/tn__rail1_gA",
+          "carrier": "/conveyor_model_v1/conveyor_model/tn__box1_j8",
+          "base": "/conveyor_model_v1/conveyor_model/tn__support1_XG",
+          "payload": "/conveyor_model_v1/conveyor_model/tn__part1_gA"
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/conveyor_model_v1/conveyor_model/tn__rail1_gA",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/conveyor_model_v1/conveyor_model/tn__rail1_gA",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/conveyor_model_v1/conveyor_model/tn__rail1_gA",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/conveyor_model_v1/conveyor_model/tn__rail1_gA",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_collider:/conveyor_model_v1/conveyor_model/tn__rail1_gA",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/conveyor_model_v1/conveyor_model/tn__box1_j8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/conveyor_model_v1/conveyor_model/tn__box1_j8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/conveyor_model_v1/conveyor_model/tn__box1_j8",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/conveyor_model_v1/conveyor_model/tn__box1_j8",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_collider:/conveyor_model_v1/conveyor_model/tn__box1_j8",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/conveyor_model_v1/conveyor_model/tn__support1_XG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/conveyor_model_v1/conveyor_model/tn__support1_XG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/conveyor_model_v1/conveyor_model/tn__support1_XG",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/conveyor_model_v1/conveyor_model/tn__support1_XG",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_collider:/conveyor_model_v1/conveyor_model/tn__support1_XG",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/conveyor_model_v1/conveyor_model/tn__part1_gA",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/conveyor_model_v1/conveyor_model/tn__part1_gA",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/conveyor_model_v1/conveyor_model/tn__part1_gA",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/conveyor_model_v1/conveyor_model/tn__part1_gA",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_collider:/conveyor_model_v1/conveyor_model/tn__part1_gA",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "all_rigid_bodies_observed",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "unique_joint_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "all_joints_declared",
+      "passed": true,
+      "evidence": {
+        "undeclared": [],
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "required_joint_roles",
+      "passed": false,
+      "evidence": {},
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_parts_mapped_once",
+      "passed": true,
+      "evidence": {
+        "required": 4,
+        "mapped": 4,
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "assembly_alignment_is_rigid",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00010478149863335416,
+        "final_to_source_max_sample_distance_m": 0.00010468780444603806,
+        "area_ratio": 0.999707409184067,
+        "bounds_error_m": 1.2409457305240235e-05,
+        "tolerance_m": 0.00024615516170434877,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 8.461569223072729e-10,
+        "final_to_source_max_sample_distance_m": 8.461569223072729e-10,
+        "area_ratio": 1.0000000309837465,
+        "bounds_error_m": 8.461569223072729e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00010804185694640468,
+        "final_to_source_max_sample_distance_m": 0.00010401140303463174,
+        "area_ratio": 0.9990441332279177,
+        "bounds_error_m": 4.304218315098751e-09,
+        "tolerance_m": 0.0002757403122656282,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.8531431332346192e-05,
+        "final_to_source_max_sample_distance_m": 1.9441468216833424e-05,
+        "area_ratio": 0.9998139835278675,
+        "bounds_error_m": 6.628036487710265e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_visual_meshes_unique",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_unmapped_visible_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "exactly_one_physics_scene",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_role:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_inherits_correct_body:/conveyor_model_v1/conveyor_model/tn__rail1_gA/Body1/Mesh",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_role:carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_inherits_correct_body:/conveyor_model_v1/conveyor_model/tn__box1_j8/Body1/Mesh",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_role:base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_inherits_correct_body:/conveyor_model_v1/conveyor_model/tn__support1_XG/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_role:payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_inherits_correct_body:/conveyor_model_v1/conveyor_model/tn__part1_gA/Body1/Mesh",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "exact_mechanism_bodies",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "free_carrier_and_payload",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "evaluator_completed",
+      "passed": false,
+      "evidence": {
+        "error": "KeyError('rail_rotation')",
+        "traceback": "Traceback (most recent call last):\n  File \"/opt/astra-content-value-20260921/evaluator/conveyor/evaluate.py\", line 40, in evaluate\n    joint=config['joints'][config['joint_roles']['rail_rotation']]\n                           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\nKeyError: 'rail_rotation'\n"
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "v1_1_complete_native_physics_required",
+      "passed": false,
+      "evidence": "Five complete independent native seed results are required; geometry correction alone never establishes acceptance.",
+      "failure_class": "evaluator_insufficient"
+    }
+  ],
+  "version": "source_distance_v1_1",
+  "case_id": "02_conveyor",
+  "arm": "content_agents",
+  "started_utc": "2026-09-21T23:41:10.233878+00:00",
+  "finished_utc": "2026-09-21T23:41:24.241861+00:00",
+  "worker_sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84",
+  "qualification_sha256": "692d21ef3ce06902aa8c189930d6f66b02586295fc96fc39a28a110fa9e28424",
+  "frozen_snapshot_manifest_sha256": "75a10220affc5155ceab06613f1ab9f63b2840653e27d28b7b70dd2632edbf9f",
+  "frozen_code_sha256": {
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "structural.py": "3b06984cfb911f8c9685b5f17f3e7ea730a031dbf111837fa5a4bc157cb608bd",
+    "geometry.py": "4c8949f782a7eda10aa870cb31a1a29fda141241498f4ecdd370cb706ad3dd5f",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b",
+    "solver.py": "51f9b5186dc0394ae3a640c76212925a8359bd3695f228a3afe8b1dc307a8417",
+    "evaluate.py": "ff09f8ac53c843bc6f21c383db6720bfac0ee3db4ecd49028b917f333234186c",
+    "contract.json": "2119c39f274497f29f7f38918b9e39a46262d96f28ad78d25ac19ed2d5a1c8dc"
+  },
+  "v1_acceptance_sha256": "85f2436421b75eb4575a2084406047cf790b558bb361d62b00dd672297c49782",
+  "input_scene_sha256": "8aa2f8a3792dab576e923add85e6272cc59d9e3db6a8a45de90426f0d8a06d2d",
+  "bindings_sha256": "68cb66fadb4d20055df2aedc6143fc0a0d66312796a1fafb063961601ad5994a",
+  "source_inventory_sha256": "86c694f6d012bf8e787cc640af12742b385e15f3264b1f0d650de36f1f4f1ff1",
+  "tolerances_changed": false,
+  "frozen_files_modified": false,
+  "scored_artifacts_modified": false,
+  "uniform_length_scale": 1000,
+  "source_surface_checks_replaced": 4,
+  "geometry_parts": [
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "v1_passed": true,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00015667116369398766,
+      "v1_1_distance_m": 0.00010478149863335416,
+      "tolerance_m": 0.00024615516170434877,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 1.2409457305240235e-05,
+      "independent_meter_area_ratio": 0.999707409184067,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "v1_passed": true,
+      "v1_1_passed": true,
+      "v1_distance_m": 5.353037625231068e-09,
+      "v1_1_distance_m": 8.461569223072729e-10,
+      "tolerance_m": 5e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 8.461569223072729e-10,
+      "independent_meter_area_ratio": 1.0000000309837465,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "v1_passed": true,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00010804185694639976,
+      "v1_1_distance_m": 0.00010804185694640468,
+      "tolerance_m": 0.0002757403122656282,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 4.304218315098751e-09,
+      "independent_meter_area_ratio": 0.9990441332279177,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00023929302540990596,
+      "v1_1_distance_m": 1.9441468216833424e-05,
+      "tolerance_m": 5e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 6.628036487710265e-10,
+      "independent_meter_area_ratio": 0.9998139835278675,
+      "non_distance_values_identical": true
+    }
+  ],
+  "native_physics": {
+    "all_five_complete": false,
+    "seeds": [
+      {
+        "seed": 11,
+        "complete": false,
+        "missing": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/content_agents/seed_11/report.json"
+      },
+      {
+        "seed": 23,
+        "complete": false,
+        "missing": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/content_agents/seed_23/report.json"
+      },
+      {
+        "seed": 47,
+        "complete": false,
+        "missing": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/content_agents/seed_47/report.json"
+      },
+      {
+        "seed": 83,
+        "complete": false,
+        "missing": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/content_agents/seed_83/report.json"
+      },
+      {
+        "seed": 131,
+        "complete": false,
+        "missing": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/content_agents/seed_131/report.json"
+      }
+    ],
+    "configuration_and_result_hashes": {
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/content_agents/runtime_config.json": "f37143a447f5ae4d06a6b742f93ad792ab9078658b764d2bba6dbe29f134004f",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/content_agents/instrumented.usda": "204aa04e2730305625e512ebb0a5f3b02af59da543c7fb2c1a296f4106696436"
+    }
+  },
+  "native_physics_origin": "unchanged_frozen_v1_results",
+  "native_physics_directory": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/content_agents",
+  "v1_native_config_and_results_unchanged": true,
+  "claimed_accepted": false,
+  "false_pass": false
+}

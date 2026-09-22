@@ -1,0 +1,17 @@
+{
+  "claimed_accepted": false,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "Partial submission, not physically accepted. Native Geometry failed with handoff_ready=no. Native Geometry Repair then rejected the render role: no approved automatic worker targeted measured topology defects, and its450-second repair budget elapsed. The enclosing public workflow was interrupted at its700-second cutoff. No failed handoff was promoted to Joint or Physics authoring. final.usd retains all69original visible shape instances but has zero rigid bodies and zero joints.",
+  "repairs_used": 2,
+  "limitations": [
+    "All14-joint flexion, bounded-load holding, return, closure and dynamic mass/inertia requirements remain unmet; no physical articulation was authored.",
+    "First native Geometry preflight reported72 degenerate faces,10 duplicate faces,66 boundary edges,76 over-connected edges and a triangle-budget violation at1638104triangles.",
+    "Two repair invocations were preserved. Repair1 was cancelled during intake to enforce the attempt cap. Repair2 returned native outcome=rejected with operations_applied=[] and render_geometry_changed=false; its enclosing Geometry wrapper timed out during normal authoring.",
+    "The native repair certificate reports no approved automatic worker for degenerate faces, duplicate faces, inverted shells or over-connected edges; seam analysis could not guarantee exact source face/surface preservation.",
+    "The public Joint graph admits cardinal world axes only; exact source thumb hinge shafts are10degrees from the nearest supported axis. No approximate joint was authored.",
+    "Pinned OvPhysX/OVRTX prerequisites and an SDK tooling smoke passed, but the required native torque test was not run because no articulated candidate was available.",
+    "Native focused Validation of the exact saved candidate failed static physics. Its runtime operation warned without usable physical behavior evidence; the outer rejection was not authorized for accepted publication.",
+    "No independent evaluator implementation, hidden evidence, opposite-arm output or evaluator results were accessed."
+  ]
+}

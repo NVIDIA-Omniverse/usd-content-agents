@@ -1,0 +1,15 @@
+{
+  "claimed_accepted": true,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "Own fresh native OvPhysX paired runs physically integrated a full crank cycle with 8.349 mm piston stroke, 0.540 rad beam swing, 0.00652 mm maximum joint closure error, 0.0117 mm piston repeat error, and a measurable 0.203 rad/s shaft-load speed response. All 24 required source instances are retained and mapped once; native gravity, masses/inertias, base stability, finite state, and a no-feedforward sensitivity run pass. No independent evaluator result was read.",
+  "repairs_used": 0,
+  "limitations": [
+    "Own native tests follow the public protocol; the independent evaluator and its exact seeded controller were not run or inspected. The claim is not independent certification.",
+    "Invisible collision hulls and filtered internal mechanism pairs are used. Native contact penetration is zero for these approximations; original-CAD contact realism and real hardware accuracy are not certified.",
+    "An invisible internal slider models the original beam slot. Source master-sketch anchors idealize omitted pins in the educational CAD model.",
+    "The required connecting_rod source is the wheel shaft, retained dynamically and fixed to the crank; the original small_beam is the separate physical beam_coupler.",
+    "Physics evidence uses pinned native OvPhysX CPU simulation on this Horde host; OVRTX rendering uses the assigned GPU. CUDA_VISIBLE_DEVICES was preserved.",
+    "Four base shapes use denser native BREP tessellation; the other thirteen unique shapes reproduce inventory mesh metrics exactly. Source files and analytic geometry remain unchanged."
+  ]
+}

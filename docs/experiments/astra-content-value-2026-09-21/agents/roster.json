@@ -1,0 +1,98 @@
+[
+  {
+    "asset_index": 1,
+    "task_name": "asset01_drawer",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "collaboration.spawn_agent",
+    "status": "curation complete"
+  },
+  {
+    "asset_index": 2,
+    "task_name": "asset02_conveyor",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "collaboration.spawn_agent",
+    "status": "curation complete"
+  },
+  {
+    "asset_index": 3,
+    "task_name": "asset03_hinge",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "collaboration.spawn_agent",
+    "status": "curation complete"
+  },
+  {
+    "asset_index": 4,
+    "task_name": "asset04_scissors",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "collaboration.spawn_agent",
+    "status": "curation complete"
+  },
+  {
+    "asset_index": 5,
+    "task_name": "asset05_vise",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "collaboration.spawn_agent",
+    "status": "curation complete"
+  },
+  {
+    "asset_index": 6,
+    "task_name": "asset06_engine",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "collaboration.spawn_agent",
+    "status": "curation complete"
+  },
+  {
+    "asset_index": 7,
+    "task_name": "asset07_robot_arm",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "collaboration.spawn_agent",
+    "status": "curation complete"
+  },
+  {
+    "asset_index": 8,
+    "task_name": "asset08_excavator",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "pinned_codex_cli",
+    "status": "curation complete",
+    "launch_receipt": "agents/08_launch.json",
+    "events": "agents/08_events.jsonl"
+  },
+  {
+    "asset_index": 9,
+    "task_name": "asset09_printer",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "pinned_codex_cli",
+    "status": "curation complete",
+    "launch_receipt": "agents/09_launch.json",
+    "events": "agents/09_events.jsonl"
+  },
+  {
+    "asset_index": 10,
+    "task_name": "asset10_complex",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "role": "source curator",
+    "launch_mechanism": "pinned_codex_cli",
+    "status": "curation complete",
+    "launch_receipt": "agents/10_launch.json",
+    "events": "agents/10_events.jsonl"
+  }
+]

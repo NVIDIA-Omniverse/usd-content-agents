@@ -1,0 +1,15 @@
+{
+  "claimed_accepted": true,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "All four original source shapes and assembly-world placements are retained. Own native CPU OvPhysX0.4.13 trials passed all provided physical thresholds for all five seeds, with both reference-speed PD and damping-only PD under uniform8/4 solver iterations. Exactly one standalone rail joint; carrier and payload are free and move by contacts. First candidate retained unchanged; no scene repairs. Evidence: evidence/acceptance_summary.json.",
+  "repairs_used": 0,
+  "limitations": [
+    "Rotary-annulus contact-transfer abstraction only; individual rollers and belt mechanics are not simulated. The invisible annulus fills inter-roller gaps while retaining the central opening and all original visual triangles.",
+    "Original STEP target intersects the carrier and rail initially. Target collision omits the interfering bottom plate and clips lower-wall collisions to the carrier floor; all source visual geometry and initial placements remain unchanged. Small upper-post proxy extensions are quantified in the contract report.",
+    "Masses, diagonal inertias and friction are simulation assumptions, not measured real-hardware properties.",
+    "Native OvPhysX step_sync contact tensor responses required signed-impulse interpretation; original observer outputs and the correction probe are preserved.",
+    "An unrelated process command line appeared incidentally in one broad process diagnostic; no unrelated artifacts or evaluator evidence were opened or used. See evidence/protocol_notes.json.",
+    "This acceptance claim is based on our own tests, before independent evaluation."
+  ]
+}

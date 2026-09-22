@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "common": {
+    "dt_s": 0.004166666666666667,
+    "duration_s": 12.0,
+    "gravity_m_s2": 9.81,
+    "max_linear_speed_m_s": 5.0,
+    "max_angular_speed_rad_s": 30.0,
+    "max_joint_closure_m": 0.002,
+    "max_joint_axis_error_rad": 0.05,
+    "max_penetration_m": 0.003,
+    "max_fixed_base_motion_m": 0.002,
+    "position_tolerance_m": 0.002,
+    "angle_tolerance_rad": 0.08726646259971647,
+    "minimum_source_surface_coverage": 1.0,
+    "max_mesh_surface_error_fraction": 0.001,
+    "max_mesh_surface_error_m": 5e-05
+  },
+  "cases": {
+    "08_excavator": {
+      "observer": "arm",
+      "required_body_roles": [
+        "base",
+        "boom",
+        "stick",
+        "bucket"
+      ],
+      "required_joint_roles": [
+        "boom_pivot",
+        "stick_pivot",
+        "bucket_pivot"
+      ],
+      "joint_kinds": {
+        "boom_pivot": "revolute",
+        "stick_pivot": "revolute",
+        "bucket_pivot": "revolute"
+      },
+      "required_joint_body_pairs": {
+        "boom_pivot": [
+          "base",
+          "boom"
+        ],
+        "stick_pivot": [
+          "boom",
+          "stick"
+        ],
+        "bucket_pivot": [
+          "stick",
+          "bucket"
+        ]
+      },
+      "minimum_each_motion_rad": 0.174532925199,
+      "target_offsets_rad": [
+        0.26,
+        0.26,
+        0.26
+      ],
+      "end_effector_role": "bucket",
+      "minimum_end_effector_motion_m": 0.001,
+      "terminal_body_roles": [
+        "bucket"
+      ],
+      "minimum_terminal_motion_m": 0.001,
+      "control_default": {
+        "gain_mode": "inertia_scaled",
+        "kp": 36.0,
+        "kd": 6.0,
+        "max_effort": 5.0,
+        "gravity_compensate": true
+      },
+      "acceptance": "All three source-grounded boom, stick and bucket pivots physically flex at least 10 degrees, hold +0.26rad offsets within 5 degrees under bounded opposing torques, then return within 5 degrees. All authored joint anchors and axes remain closed, base remains fixed, and all finite authored ranges are obeyed. All 80 visible mesh instances from the frozen independent native SolidWorks conversion must remain. This tests articulated motion and load holding; digging, terrain, hydraulic/lead-screw actuation and native SolidWorks assembly completeness are outside scope."
+    }
+  }
+}

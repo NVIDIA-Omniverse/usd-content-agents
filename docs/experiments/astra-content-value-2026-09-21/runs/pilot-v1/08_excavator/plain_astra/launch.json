@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "/opt/astra-content-value-20260921/repo/agentic/packages/content_workflow_cli/node_modules/.bin/codex",
+    "exec",
+    "--ignore-user-config",
+    "--skip-git-repo-check",
+    "-C",
+    "/opt/astra-content-value-20260921/runs/pilot-v1/08_excavator/plain_astra",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"ultra\"",
+    "-c",
+    "approval_policy=\"never\"",
+    "-s",
+    "danger-full-access",
+    "--json",
+    "-o",
+    "/opt/astra-content-value-20260921/runs/pilot-v1/08_excavator/plain_astra/last_message.txt",
+    "-"
+  ],
+  "arm": "plain_astra",
+  "budget_seconds": 2400,
+  "case": "08_excavator",
+  "gpu_index": 1,
+  "model": "gpt-6-astra",
+  "prompt_sha256": "ffabd16338cdfbead77931dc07bca7e5f89c7c0973e9c5715b0adfd64e0c2a08",
+  "reasoning_effort": "ultra",
+  "scored": true,
+  "start_unix": 1790033557.0699193,
+  "task_file": "/opt/astra-content-value-20260921/protocol/tasks/08_excavator.json",
+  "task_sha256": "3436b7cd698a058da0bb0285814902aa22b28a5f7c21ffff4ae20db5a32bd25e"
+}

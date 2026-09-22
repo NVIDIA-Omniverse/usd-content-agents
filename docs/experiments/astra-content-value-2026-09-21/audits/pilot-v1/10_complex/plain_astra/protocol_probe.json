@@ -1,0 +1,2201 @@
+{
+  "case_id": "10_complex",
+  "arm": "plain_astra",
+  "generated_utc": "2026-09-22T01:04:11.191180+00:00",
+  "source_checks": [
+    {
+      "path": ".travis.yml",
+      "expected": "9ff9aa7a03ca733d366c2252bd466f4f9f7ddfd3f948d7eb3345002a7ed81254",
+      "actual": "9ff9aa7a03ca733d366c2252bd466f4f9f7ddfd3f948d7eb3345002a7ed81254"
+    },
+    {
+      "path": "Control/DextraControl.py",
+      "expected": "e52eccfd22ba5b268e50d837ed20a701a4f1598a6e0c1c28f445c3d2aac90473",
+      "actual": "e52eccfd22ba5b268e50d837ed20a701a4f1598a6e0c1c28f445c3d2aac90473"
+    },
+    {
+      "path": "Control/dextracontrol.kv",
+      "expected": "bdd8e02b30a8982b7bf51c5d9c076dcf31e9ebb13d3bd87ca2ae5e68c77255db",
+      "actual": "bdd8e02b30a8982b7bf51c5d9c076dcf31e9ebb13d3bd87ca2ae5e68c77255db"
+    },
+    {
+      "path": "Control/readme.md",
+      "expected": "347060ea7fbd74b86987d0231c887807271ac61b8072daca5221b76535e06e2e",
+      "actual": "347060ea7fbd74b86987d0231c887807271ac61b8072daca5221b76535e06e2e"
+    },
+    {
+      "path": "Firmware/Teensy31/.gitignore",
+      "expected": "ce09a09c8aedb9e47b71322f1e716e5a796a4a3252ebdda394bef9b186442285",
+      "actual": "ce09a09c8aedb9e47b71322f1e716e5a796a4a3252ebdda394bef9b186442285"
+    },
+    {
+      "path": "Firmware/Teensy31/lib/Finger/Finger.cpp",
+      "expected": "89e0158e4cb444f0bd07b56a60122e12f16db37e86c617d7a778a477439f0128",
+      "actual": "89e0158e4cb444f0bd07b56a60122e12f16db37e86c617d7a778a477439f0128"
+    },
+    {
+      "path": "Firmware/Teensy31/lib/Finger/Finger.h",
+      "expected": "9fca789cc5e4eead41b7d7b228b504444cc918bfcdaf29d02c22f3ae82fd480c",
+      "actual": "9fca789cc5e4eead41b7d7b228b504444cc918bfcdaf29d02c22f3ae82fd480c"
+    },
+    {
+      "path": "Firmware/Teensy31/lib/MsTimer2/MsTimer2.cpp",
+      "expected": "f0ea221e5436a05a78f5c4ef2d209f179f0ed7fa01997bd5f379af4a9eecfcb7",
+      "actual": "f0ea221e5436a05a78f5c4ef2d209f179f0ed7fa01997bd5f379af4a9eecfcb7"
+    },
+    {
+      "path": "Firmware/Teensy31/lib/MsTimer2/MsTimer2.h",
+      "expected": "115e7d86a2eacb9491d23d9dd387160a27c2fc13a8b253ae3943643b8536738a",
+      "actual": "115e7d86a2eacb9491d23d9dd387160a27c2fc13a8b253ae3943643b8536738a"
+    },
+    {
+      "path": "Firmware/Teensy31/lib/Synapse/Synapse.cpp",
+      "expected": "585f8edc169ba0d833b4ef8f38f4c74ff1234f14c3beba00b513f86dd848ecdc",
+      "actual": "585f8edc169ba0d833b4ef8f38f4c74ff1234f14c3beba00b513f86dd848ecdc"
+    },
+    {
+      "path": "Firmware/Teensy31/lib/Synapse/Synapse.h",
+      "expected": "acca24a0a62a0320a393e5ff8af953168457335a1802666559203e784fa6536c",
+      "actual": "acca24a0a62a0320a393e5ff8af953168457335a1802666559203e784fa6536c"
+    },
+    {
+      "path": "Firmware/Teensy31/lib/readme.txt",
+      "expected": "c7c1abda90e4c24775dec470ff4bdb176b89b6db77d79288d26a0230cdfc7919",
+      "actual": "c7c1abda90e4c24775dec470ff4bdb176b89b6db77d79288d26a0230cdfc7919"
+    },
+    {
+      "path": "Firmware/Teensy31/platformio.ini",
+      "expected": "34a6a62a5e0212efeda845200467b884752c6b268e0b73c829bc4cbe856a5078",
+      "actual": "34a6a62a5e0212efeda845200467b884752c6b268e0b73c829bc4cbe856a5078"
+    },
+    {
+      "path": "Firmware/Teensy31/src/main.ino",
+      "expected": "885fcdcd68c905528ca6d3e93b6236f3dff8bb6e88ef26075e9116b627921a1c",
+      "actual": "885fcdcd68c905528ca6d3e93b6236f3dff8bb6e88ef26075e9116b627921a1c"
+    },
+    {
+      "path": "Firmware/readme.md",
+      "expected": "3dfcedbf94ffb5e8a6bcb174bd16ee574a2c02c61d2c884816b9e9967fe59183",
+      "actual": "3dfcedbf94ffb5e8a6bcb174bd16ee574a2c02c61d2c884816b9e9967fe59183"
+    },
+    {
+      "path": "Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "expected": "62fc1bafe7b91b362549b1c24e61f12f2da75bd2c85bb8cad40369923f3ffdfe",
+      "actual": "62fc1bafe7b91b362549b1c24e61f12f2da75bd2c85bb8cad40369923f3ffdfe"
+    },
+    {
+      "path": "Parts/FreeCAD files/Assembly/finger_module.fcstd",
+      "expected": "cf3e994895bc1085292b661a1dec2c1c45d80462618a8398c5ea61391321fce1",
+      "actual": "cf3e994895bc1085292b661a1dec2c1c45d80462618a8398c5ea61391321fce1"
+    },
+    {
+      "path": "Parts/FreeCAD files/Assembly/thumb.fcstd",
+      "expected": "d7a4102f794edcc0f6389a0a97dd2897727cd87a6f82e9e3f4e135b2a89cb7ab",
+      "actual": "d7a4102f794edcc0f6389a0a97dd2897727cd87a6f82e9e3f4e135b2a89cb7ab"
+    },
+    {
+      "path": "Parts/FreeCAD files/Assembly/thumb_module.fcstd",
+      "expected": "8dbe7d5613e47919400a05d56983711fd5ce120767fb9b797e695721e71b748e",
+      "actual": "8dbe7d5613e47919400a05d56983711fd5ce120767fb9b797e695721e71b748e"
+    },
+    {
+      "path": "Parts/FreeCAD files/Turnigy TGY-EX5252.FCStd",
+      "expected": "c9d567bc8e7d946ae3e6cd0945a0ba6cd5b526e93f3f23c2036a3053aac20557",
+      "actual": "c9d567bc8e7d946ae3e6cd0945a0ba6cd5b526e93f3f23c2036a3053aac20557"
+    },
+    {
+      "path": "Parts/FreeCAD files/abductor.fcstd",
+      "expected": "07b8191a79bdf5054289d26d457a0bee44bf624527f9d981c3206fd071d4fa33",
+      "actual": "07b8191a79bdf5054289d26d457a0bee44bf624527f9d981c3206fd071d4fa33"
+    },
+    {
+      "path": "Parts/FreeCAD files/distal.fcstd",
+      "expected": "59121d14cae9fed21ed4a0c89b44dbf939e7c6920903f7bea0f1a537cba36656",
+      "actual": "59121d14cae9fed21ed4a0c89b44dbf939e7c6920903f7bea0f1a537cba36656"
+    },
+    {
+      "path": "Parts/FreeCAD files/distal_thumb.fcstd",
+      "expected": "826a7fdb7e743d39e89e7b3310f8f4c8c80ab5081e6050a841b43185c83be6a5",
+      "actual": "826a7fdb7e743d39e89e7b3310f8f4c8c80ab5081e6050a841b43185c83be6a5"
+    },
+    {
+      "path": "Parts/FreeCAD files/dorsal.fcstd",
+      "expected": "f59ffc78f2ed1830341d7bf466e61b07a492825e48ee302fa5859628dd63f56b",
+      "actual": "f59ffc78f2ed1830341d7bf466e61b07a492825e48ee302fa5859628dd63f56b"
+    },
+    {
+      "path": "Parts/FreeCAD files/encoder_disc.fcstd",
+      "expected": "9ce27a61cb59098c98e4d36c55f540f520fb7017ab9040cfce0000e23f69ae7b",
+      "actual": "9ce27a61cb59098c98e4d36c55f540f520fb7017ab9040cfce0000e23f69ae7b"
+    },
+    {
+      "path": "Parts/FreeCAD files/middle.fcstd",
+      "expected": "12cb6bcfcc3d96866796afe96ab3e509f05fccbc2cf7e7665b514370f1ca67c7",
+      "actual": "12cb6bcfcc3d96866796afe96ab3e509f05fccbc2cf7e7665b514370f1ca67c7"
+    },
+    {
+      "path": "Parts/FreeCAD files/motor_holder.fcstd",
+      "expected": "3747bc040fcfd84230fecac673ce5b068a2bf43f14eeae39340b0bf41ff8102a",
+      "actual": "3747bc040fcfd84230fecac673ce5b068a2bf43f14eeae39340b0bf41ff8102a"
+    },
+    {
+      "path": "Parts/FreeCAD files/motor_holder_thumb.fcstd",
+      "expected": "81206f784345e59216331bb9daa450cca2d55dbbda81b1a359679befe6a5ab64",
+      "actual": "81206f784345e59216331bb9daa450cca2d55dbbda81b1a359679befe6a5ab64"
+    },
+    {
+      "path": "Parts/FreeCAD files/palm.fcstd",
+      "expected": "c7147b59aaed905fac08167bba771cd1686b83dc671075520c79c220b296ffd3",
+      "actual": "c7147b59aaed905fac08167bba771cd1686b83dc671075520c79c220b296ffd3"
+    },
+    {
+      "path": "Parts/FreeCAD files/pololu_motor_10001.fcstd",
+      "expected": "3eec3fa2dcca7575a7c2972632fefe4a7a8d74bf578e3080de313748d54c69ae",
+      "actual": "3eec3fa2dcca7575a7c2972632fefe4a7a8d74bf578e3080de313748d54c69ae"
+    },
+    {
+      "path": "Parts/FreeCAD files/proximal.fcstd",
+      "expected": "4dea743ed4d2e0f2828654acd569828eb7f938deeec3a689aaec81f023b88dce",
+      "actual": "4dea743ed4d2e0f2828654acd569828eb7f938deeec3a689aaec81f023b88dce"
+    },
+    {
+      "path": "Parts/FreeCAD files/proximal_thumb.fcstd",
+      "expected": "47bc7f2596831ead2c46fa663384456c621954d2fe9be023cbeb9410b0dcf314",
+      "actual": "47bc7f2596831ead2c46fa663384456c621954d2fe9be023cbeb9410b0dcf314"
+    },
+    {
+      "path": "Parts/FreeCAD files/servo_horn.fcstd",
+      "expected": "375b0268d498f8858e5deac2e5f747044ef323bc11f2e1bb9bf8dd3ea5d7a612",
+      "actual": "375b0268d498f8858e5deac2e5f747044ef323bc11f2e1bb9bf8dd3ea5d7a612"
+    },
+    {
+      "path": "Parts/FreeCAD files/spool.fcstd",
+      "expected": "b02876620a7629a14c2278f5a17f376d99a412ec84ba3594f965e69df7830826",
+      "actual": "b02876620a7629a14c2278f5a17f376d99a412ec84ba3594f965e69df7830826"
+    },
+    {
+      "path": "Parts/abductor.stl",
+      "expected": "39a1a697677c0bebd6d7ab6f0fd02d67f4834bae758d2c99c071b6554233b3c6",
+      "actual": "39a1a697677c0bebd6d7ab6f0fd02d67f4834bae758d2c99c071b6554233b3c6"
+    },
+    {
+      "path": "Parts/distal.stl",
+      "expected": "cdf9d6c737e3224257326ad5881c43cd5a70863dc746db8f34579f296c2bb4a7",
+      "actual": "cdf9d6c737e3224257326ad5881c43cd5a70863dc746db8f34579f296c2bb4a7"
+    },
+    {
+      "path": "Parts/distal_thumb.stl",
+      "expected": "4d18170ac5d26fd37a593d0f3bb58640a2304756dfdc0d0e201de31e08bce949",
+      "actual": "4d18170ac5d26fd37a593d0f3bb58640a2304756dfdc0d0e201de31e08bce949"
+    },
+    {
+      "path": "Parts/dorsal.stl",
+      "expected": "66cdefd3a1f063cedb9cc9f5cab5f559c16d2ff470cdce074cb5702d383a6814",
+      "actual": "66cdefd3a1f063cedb9cc9f5cab5f559c16d2ff470cdce074cb5702d383a6814"
+    },
+    {
+      "path": "Parts/middle.stl",
+      "expected": "4a4e8fbaeb7b3a0f210ac696f1a0a711440fcc1ce43bbe4ed5d75fd56d6c9912",
+      "actual": "4a4e8fbaeb7b3a0f210ac696f1a0a711440fcc1ce43bbe4ed5d75fd56d6c9912"
+    },
+    {
+      "path": "Parts/motor_holder.stl",
+      "expected": "21ca35b4aedb91c175df70f3861d4d0e8e0e1192b6ac6d79428ade7431eb8292",
+      "actual": "21ca35b4aedb91c175df70f3861d4d0e8e0e1192b6ac6d79428ade7431eb8292"
+    },
+    {
+      "path": "Parts/motor_holder_thumb.stl",
+      "expected": "e9e915df4bf089b8b10714fc76eaea9d42342e9227f138539748c0c87fb0a393",
+      "actual": "e9e915df4bf089b8b10714fc76eaea9d42342e9227f138539748c0c87fb0a393"
+    },
+    {
+      "path": "Parts/palm.stl",
+      "expected": "8477069ece047cd0719ddaf5f3ece66ab966a09adccf0071f7d8c0a52ab61ee9",
+      "actual": "8477069ece047cd0719ddaf5f3ece66ab966a09adccf0071f7d8c0a52ab61ee9"
+    },
+    {
+      "path": "Parts/proximal.stl",
+      "expected": "29bda4115e28ffcc89a699a59049a18fb3f99976442a0fcd4588aad8c2caf36b",
+      "actual": "29bda4115e28ffcc89a699a59049a18fb3f99976442a0fcd4588aad8c2caf36b"
+    },
+    {
+      "path": "Parts/proximal_thumb.stl",
+      "expected": "e14682802557e874f581abbbba4c96295f638a5e26aa148b5cb2a697c98f49c9",
+      "actual": "e14682802557e874f581abbbba4c96295f638a5e26aa148b5cb2a697c98f49c9"
+    },
+    {
+      "path": "Parts/spool.stl",
+      "expected": "28c0f99624013363f66b108eaf6c4e77bb4d8181221fa83fb206b0735ac7c228",
+      "actual": "28c0f99624013363f66b108eaf6c4e77bb4d8181221fa83fb206b0735ac7c228"
+    },
+    {
+      "path": "README.md",
+      "expected": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83",
+      "actual": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83"
+    },
+    {
+      "path": "doc/data.json",
+      "expected": "9dc1588e134bb09a87745cbbd20a6df6b57b2f038f8d065210ffcc00554a9d15",
+      "actual": "9dc1588e134bb09a87745cbbd20a6df6b57b2f038f8d065210ffcc00554a9d15"
+    },
+    {
+      "path": "doc/dextra_assembly_instructions.pdf",
+      "expected": "8fb7b19aa409f0fed333a29d586138c868b3d4d9fcfea46746e3fd99dea13d13",
+      "actual": "8fb7b19aa409f0fed333a29d586138c868b3d4d9fcfea46746e3fd99dea13d13"
+    },
+    {
+      "path": "doc/images/dextra/dextra1.jpg",
+      "expected": "7917123de6051986fa10c470c34a7a0153ad99893218916d270a4ae21593eaa7",
+      "actual": "7917123de6051986fa10c470c34a7a0153ad99893218916d270a4ae21593eaa7"
+    },
+    {
+      "path": "doc/images/dextra/dextra2.jpg",
+      "expected": "ec058a26d036232902337f8c279d11ba66e29806728b5f2db7c27ce8b26cd9de",
+      "actual": "ec058a26d036232902337f8c279d11ba66e29806728b5f2db7c27ce8b26cd9de"
+    },
+    {
+      "path": "doc/images/dextra/dextra3.jpg",
+      "expected": "f64a5a56be8e5c19563768721930a6413486017ec1d656d70bc29ef77b061f88",
+      "actual": "f64a5a56be8e5c19563768721930a6413486017ec1d656d70bc29ef77b061f88"
+    },
+    {
+      "path": "doc/images/dextra/palmar_pinch_grasp.jpg",
+      "expected": "81c1cd92135e349b8518b6f8b08662817908eb90ecd9d5c09c8185f9118a8ebc",
+      "actual": "81c1cd92135e349b8518b6f8b08662817908eb90ecd9d5c09c8185f9118a8ebc"
+    },
+    {
+      "path": "doc/images/dextra.png",
+      "expected": "5c571c09d88e765498709c1d060e03b4eca6aee21ac722cf4ec7d2e0e54b972e",
+      "actual": "5c571c09d88e765498709c1d060e03b4eca6aee21ac722cf4ec7d2e0e54b972e"
+    },
+    {
+      "path": "doc/images/gui/gui1.png",
+      "expected": "0944f84b467afea274b7f6c3dc439e438255e99aa067261c6afbde0f42e896c4",
+      "actual": "0944f84b467afea274b7f6c3dc439e438255e99aa067261c6afbde0f42e896c4"
+    },
+    {
+      "path": "doc/images/gui/gui2.png",
+      "expected": "7a6e8bc0001b60ab93be8f449b918f7f0f46b174e217bf76cd5cb2690194b91b",
+      "actual": "7a6e8bc0001b60ab93be8f449b918f7f0f46b174e217bf76cd5cb2690194b91b"
+    },
+    {
+      "path": "doc/images/gui/gui3.png",
+      "expected": "0c9a1fabee15729f07f84d8e401178c13331dfb0d3e82064098dd9d19d14d6be",
+      "actual": "0c9a1fabee15729f07f84d8e401178c13331dfb0d3e82064098dd9d19d14d6be"
+    },
+    {
+      "path": "doc/images/gui/gui4.png",
+      "expected": "43aea7089c8b59533a015333fd9aca0a9fbfe1ad1d9c1ed1aa2816d1765ca96d",
+      "actual": "43aea7089c8b59533a015333fd9aca0a9fbfe1ad1d9c1ed1aa2816d1765ca96d"
+    },
+    {
+      "path": "doc/images/gui/gui5.png",
+      "expected": "f2696a7607a46dcdd6919f72b32c583d3d4dcb3aa96d956d813e47a8ad1d7016",
+      "actual": "f2696a7607a46dcdd6919f72b32c583d3d4dcb3aa96d956d813e47a8ad1d7016"
+    },
+    {
+      "path": "doc/images/gui/gui6.png",
+      "expected": "3b70343f584a6adcb6647d1dd34f5577c3b2b7beb7a808ecfa9058a78c229652",
+      "actual": "3b70343f584a6adcb6647d1dd34f5577c3b2b7beb7a808ecfa9058a78c229652"
+    },
+    {
+      "path": "doc/images/gui/gui7.png",
+      "expected": "0657a20efbbe1a7f4977c0c6be55c9c72f2258e23c59b53345ebdb8fde778ea3",
+      "actual": "0657a20efbbe1a7f4977c0c6be55c9c72f2258e23c59b53345ebdb8fde778ea3"
+    }
+  ],
+  "output_checks": [
+    {
+      "path": "README.md",
+      "expected": "1ebb5e9b346c1ea41d9c7e309d318ca0e488e54b48e4666ec255014c65f302e3",
+      "actual": "1ebb5e9b346c1ea41d9c7e309d318ca0e488e54b48e4666ec255014c65f302e3"
+    },
+    {
+      "path": "audit/PartShape.brp",
+      "expected": "ec6d1659b56c64805a506ca9f648c65bd8b0718dc8d791620686709cf50c6456",
+      "actual": "ec6d1659b56c64805a506ca9f648c65bd8b0718dc8d791620686709cf50c6456"
+    },
+    {
+      "path": "audit/PartShape1.brp",
+      "expected": "94c01ed0879001908438a883abaa4e15a86a39b5c15278ff825d19f3f87c3f85",
+      "actual": "94c01ed0879001908438a883abaa4e15a86a39b5c15278ff825d19f3f87c3f85"
+    },
+    {
+      "path": "audit/PartShape2.brp",
+      "expected": "6ab01d02f5de9020bde3b06406d3761ad9e20d2a2a0c4ef00214d1a46df0a4fa",
+      "actual": "6ab01d02f5de9020bde3b06406d3761ad9e20d2a2a0c4ef00214d1a46df0a4fa"
+    },
+    {
+      "path": "audit/PartShape3.brp",
+      "expected": "d6d8c0ae77197d398a900adf54c0676a75af6d620ce17a14208b7682d368127d",
+      "actual": "d6d8c0ae77197d398a900adf54c0676a75af6d620ce17a14208b7682d368127d"
+    },
+    {
+      "path": "audit/PartShape4.brp",
+      "expected": "299b934621153272d3c846fb6056730a2341b0bed3a923b7e52138f5081adb27",
+      "actual": "299b934621153272d3c846fb6056730a2341b0bed3a923b7e52138f5081adb27"
+    },
+    {
+      "path": "audit/PartShape5.brp",
+      "expected": "9add4520fea45ca3411608476eaa1d31ff5bf7168bcd031d826208f89d4b83c1",
+      "actual": "9add4520fea45ca3411608476eaa1d31ff5bf7168bcd031d826208f89d4b83c1"
+    },
+    {
+      "path": "audit/PartShape6.brp",
+      "expected": "654bc5e880b66a0fad381282b15657398db178c6c4967d72f707e599fae0e4dd",
+      "actual": "654bc5e880b66a0fad381282b15657398db178c6c4967d72f707e599fae0e4dd"
+    },
+    {
+      "path": "audit/PartShape7.brp",
+      "expected": "1c315c095aef0bc8c9ec92be8a2410d92ea2df7c25978c13ba0e2ca3d7e17c44",
+      "actual": "1c315c095aef0bc8c9ec92be8a2410d92ea2df7c25978c13ba0e2ca3d7e17c44"
+    },
+    {
+      "path": "audit/PartShape8.brp",
+      "expected": "719bfb16f15ecb69327d88d86cb713abf26641ba776d096f9296885688eac9f8",
+      "actual": "719bfb16f15ecb69327d88d86cb713abf26641ba776d096f9296885688eac9f8"
+    },
+    {
+      "path": "audit/README.md",
+      "expected": "85d1b3c277f27e21acd3533e05d91b28061c3d2c353ec9a1f68c2a7edb06d991",
+      "actual": "85d1b3c277f27e21acd3533e05d91b28061c3d2c353ec9a1f68c2a7edb06d991"
+    },
+    {
+      "path": "audit/audit_summary.json",
+      "expected": "0c1f2fd13045cc3e96dc8246cd0b105e3115e271caf110336243d350d87dc364",
+      "actual": "0c1f2fd13045cc3e96dc8246cd0b105e3115e271caf110336243d350d87dc364"
+    },
+    {
+      "path": "audit/brep_surface_audit.py",
+      "expected": "011549ac3ebbf4130c075d501fabd9a4c276ca37314454ca6cddfdb05002b419",
+      "actual": "011549ac3ebbf4130c075d501fabd9a4c276ca37314454ca6cddfdb05002b419"
+    },
+    {
+      "path": "audit/brep_surface_report.json",
+      "expected": "57e21e8fe555713adfb01565f274f7a0cbe1393c6edc5b126e48c8f5eb73d8ea",
+      "actual": "57e21e8fe555713adfb01565f274f7a0cbe1393c6edc5b126e48c8f5eb73d8ea"
+    },
+    {
+      "path": "audit/brep_surface_stdout.txt",
+      "expected": "9187409e263998d2beadb4f5626361e4bd08ab9d5ccb0498ea42f72555008c8f",
+      "actual": "9187409e263998d2beadb4f5626361e4bd08ab9d5ccb0498ea42f72555008c8f"
+    },
+    {
+      "path": "audit/candidate_0_hinge_source_report.json",
+      "expected": "4398a9681a871ca7d4f0b439e51cac6e85a123cc87ba3d88655a7bac2adfd52b",
+      "actual": "4398a9681a871ca7d4f0b439e51cac6e85a123cc87ba3d88655a7bac2adfd52b"
+    },
+    {
+      "path": "audit/candidate_0_structural_report.json",
+      "expected": "6869aec2b92b08bdbb75f08e215b7dff9148138806560737883bfeaa82b13532",
+      "actual": "6869aec2b92b08bdbb75f08e215b7dff9148138806560737883bfeaa82b13532"
+    },
+    {
+      "path": "audit/candidate_0_structural_stdout.txt",
+      "expected": "b50564b03b37d50ca44f167ce981bd10afc5178c30554e417a5f41f6bc7dbebf",
+      "actual": "b50564b03b37d50ca44f167ce981bd10afc5178c30554e417a5f41f6bc7dbebf"
+    },
+    {
+      "path": "audit/hinge_PartShape.brp",
+      "expected": "ec6d1659b56c64805a506ca9f648c65bd8b0718dc8d791620686709cf50c6456",
+      "actual": "ec6d1659b56c64805a506ca9f648c65bd8b0718dc8d791620686709cf50c6456"
+    },
+    {
+      "path": "audit/hinge_PartShape1.brp",
+      "expected": "94c01ed0879001908438a883abaa4e15a86a39b5c15278ff825d19f3f87c3f85",
+      "actual": "94c01ed0879001908438a883abaa4e15a86a39b5c15278ff825d19f3f87c3f85"
+    },
+    {
+      "path": "audit/hinge_PartShape2.brp",
+      "expected": "6ab01d02f5de9020bde3b06406d3761ad9e20d2a2a0c4ef00214d1a46df0a4fa",
+      "actual": "6ab01d02f5de9020bde3b06406d3761ad9e20d2a2a0c4ef00214d1a46df0a4fa"
+    },
+    {
+      "path": "audit/hinge_PartShape3.brp",
+      "expected": "d6d8c0ae77197d398a900adf54c0676a75af6d620ce17a14208b7682d368127d",
+      "actual": "d6d8c0ae77197d398a900adf54c0676a75af6d620ce17a14208b7682d368127d"
+    },
+    {
+      "path": "audit/hinge_PartShape4.brp",
+      "expected": "299b934621153272d3c846fb6056730a2341b0bed3a923b7e52138f5081adb27",
+      "actual": "299b934621153272d3c846fb6056730a2341b0bed3a923b7e52138f5081adb27"
+    },
+    {
+      "path": "audit/hinge_PartShape5.brp",
+      "expected": "9add4520fea45ca3411608476eaa1d31ff5bf7168bcd031d826208f89d4b83c1",
+      "actual": "9add4520fea45ca3411608476eaa1d31ff5bf7168bcd031d826208f89d4b83c1"
+    },
+    {
+      "path": "audit/hinge_PartShape6.brp",
+      "expected": "654bc5e880b66a0fad381282b15657398db178c6c4967d72f707e599fae0e4dd",
+      "actual": "654bc5e880b66a0fad381282b15657398db178c6c4967d72f707e599fae0e4dd"
+    },
+    {
+      "path": "audit/hinge_PartShape7.brp",
+      "expected": "1c315c095aef0bc8c9ec92be8a2410d92ea2df7c25978c13ba0e2ca3d7e17c44",
+      "actual": "1c315c095aef0bc8c9ec92be8a2410d92ea2df7c25978c13ba0e2ca3d7e17c44"
+    },
+    {
+      "path": "audit/hinge_PartShape8.brp",
+      "expected": "719bfb16f15ecb69327d88d86cb713abf26641ba776d096f9296885688eac9f8",
+      "actual": "719bfb16f15ecb69327d88d86cb713abf26641ba776d096f9296885688eac9f8"
+    },
+    {
+      "path": "audit/hinge_source_audit.py",
+      "expected": "296673c9d479b27cdde61b4c803d161de76d34a3fa06eac0d01d82137288a125",
+      "actual": "296673c9d479b27cdde61b4c803d161de76d34a3fa06eac0d01d82137288a125"
+    },
+    {
+      "path": "audit/repair_1_geometry_equivalence_report.json",
+      "expected": "a2764a90b2e20dbf7b39e07d21eabbeb5613f872188d173c58514af832ab6010",
+      "actual": "a2764a90b2e20dbf7b39e07d21eabbeb5613f872188d173c58514af832ab6010"
+    },
+    {
+      "path": "audit/repair_1_hinge_source_report.json",
+      "expected": "bdd8b9628a882cae26a39c89cf2ea57b6935c719da4587cdcff72aa165756049",
+      "actual": "bdd8b9628a882cae26a39c89cf2ea57b6935c719da4587cdcff72aa165756049"
+    },
+    {
+      "path": "audit/repair_1_structural_report.json",
+      "expected": "bca7823ab1c06fe7e7e20ac4900828cf56d9aa8583d1761287c384d30479bf64",
+      "actual": "bca7823ab1c06fe7e7e20ac4900828cf56d9aa8583d1761287c384d30479bf64"
+    },
+    {
+      "path": "audit/repair_1_structural_stdout.txt",
+      "expected": "1ee632c1dfb91989d2bacf944089fc73292180fd39216a835deeb2e002ba10f8",
+      "actual": "1ee632c1dfb91989d2bacf944089fc73292180fd39216a835deeb2e002ba10f8"
+    },
+    {
+      "path": "audit/repair_2_geometry_equivalence_report.json",
+      "expected": "6dee3e3b52403c48bb796959b204898463814aab1c639c09ab8a258450364b25",
+      "actual": "6dee3e3b52403c48bb796959b204898463814aab1c639c09ab8a258450364b25"
+    },
+    {
+      "path": "audit/repair_2_geometry_equivalence_stdout.txt",
+      "expected": "0ef0fd29c8d9499041804b2b14f8ffd142900f1a50dc7f6234f204139d96140a",
+      "actual": "0ef0fd29c8d9499041804b2b14f8ffd142900f1a50dc7f6234f204139d96140a"
+    },
+    {
+      "path": "audit/repair_2_hinge_source_report.json",
+      "expected": "cd683cfcdc49148c301cf01b800e577e0a564401218e311c6aa13629b1c6280b",
+      "actual": "cd683cfcdc49148c301cf01b800e577e0a564401218e311c6aa13629b1c6280b"
+    },
+    {
+      "path": "audit/repair_2_hinge_source_stdout.txt",
+      "expected": "a7623383d4425592b955c86f1135534fd5c8cc49740ff5796860ba5c7eb979df",
+      "actual": "a7623383d4425592b955c86f1135534fd5c8cc49740ff5796860ba5c7eb979df"
+    },
+    {
+      "path": "audit/repair_2_parameter_audit.py",
+      "expected": "64fd477167d87ca1d75a845055d6c0b0782e83094cc0efb1b5e5b310672f1c1c",
+      "actual": "64fd477167d87ca1d75a845055d6c0b0782e83094cc0efb1b5e5b310672f1c1c"
+    },
+    {
+      "path": "audit/repair_2_parameter_report.json",
+      "expected": "58367c055df02b6ee7b991507f7d31dbab4b200a0928a4ddc769e98709916957",
+      "actual": "58367c055df02b6ee7b991507f7d31dbab4b200a0928a4ddc769e98709916957"
+    },
+    {
+      "path": "audit/repair_2_structural_report.json",
+      "expected": "11932db352a91d35a7ad1d04194945ddefac88bbca9a0cac33c934e6ca06e73d",
+      "actual": "11932db352a91d35a7ad1d04194945ddefac88bbca9a0cac33c934e6ca06e73d"
+    },
+    {
+      "path": "audit/repair_2_structural_stdout.txt",
+      "expected": "a74f99c007d54a9ab687c4277b30ef5cffdafad3b4302500e62854d74564ac68",
+      "actual": "a74f99c007d54a9ab687c4277b30ef5cffdafad3b4302500e62854d74564ac68"
+    },
+    {
+      "path": "audit/repair_geometry_equivalence.py",
+      "expected": "2b365e463ef1eee503a89c34c4b5fad5faade6b643cd35c9fcee4f5eed7ee1aa",
+      "actual": "2b365e463ef1eee503a89c34c4b5fad5faade6b643cd35c9fcee4f5eed7ee1aa"
+    },
+    {
+      "path": "audit/source_files_integrity_report.json",
+      "expected": "e20fa171516edb18184543bd5934933d2f10e9f24cd504c2e06c7717973067a7",
+      "actual": "e20fa171516edb18184543bd5934933d2f10e9f24cd504c2e06c7717973067a7"
+    },
+    {
+      "path": "audit/source_integrity_audit.py",
+      "expected": "553b15ddac90b9cabbfde610dd938f12d651ca1f26d921fc4208bcd02e744907",
+      "actual": "553b15ddac90b9cabbfde610dd938f12d651ca1f26d921fc4208bcd02e744907"
+    },
+    {
+      "path": "audit/structural_audit.py",
+      "expected": "079a753d76abece6729ad94efde380b7fb36e80f94f6c6624849a1f9f9d0fedc",
+      "actual": "079a753d76abece6729ad94efde380b7fb36e80f94f6c6624849a1f9f9d0fedc"
+    },
+    {
+      "path": "audit/summarize_audit.py",
+      "expected": "73e40bca0cb17023c149e90f935eb15ba23c149d17081fc75bf54fd9b7ccfd28",
+      "actual": "73e40bca0cb17023c149e90f935eb15ba23c149d17081fc75bf54fd9b7ccfd28"
+    },
+    {
+      "path": "authoring/__pycache__/build_scene.cpython-312.pyc",
+      "expected": "0a632f51a26862cc0d4e9777e6fc49dfbb054efd35992613abee4c7ce5406b14",
+      "actual": "0a632f51a26862cc0d4e9777e6fc49dfbb054efd35992613abee4c7ce5406b14"
+    },
+    {
+      "path": "authoring/build_scene.py",
+      "expected": "9e85d5c76b8224141d2c536eb46b3b57aa69b6d27c2c30f7a5f11a00fc8fa50a",
+      "actual": "9e85d5c76b8224141d2c536eb46b3b57aa69b6d27c2c30f7a5f11a00fc8fa50a"
+    },
+    {
+      "path": "authoring/orient_repair.py",
+      "expected": "4464a2ac8e44f37ca39e70853ab158a70579258e900c2b5e006a365639b8c707",
+      "actual": "4464a2ac8e44f37ca39e70853ab158a70579258e900c2b5e006a365639b8c707"
+    },
+    {
+      "path": "bindings.json",
+      "expected": "c131c020ca0e7f374d22b4b5195f57434ccc3e08cd86371f255b4aafc946bb40",
+      "actual": "c131c020ca0e7f374d22b4b5195f57434ccc3e08cd86371f255b4aafc946bb40"
+    },
+    {
+      "path": "candidate_0/authoring_report.json",
+      "expected": "85a6afbc9f165123513d72a95cc4da1cd1d8d0ba6bc536500e857d47896833a8",
+      "actual": "85a6afbc9f165123513d72a95cc4da1cd1d8d0ba6bc536500e857d47896833a8"
+    },
+    {
+      "path": "candidate_0/bindings.json",
+      "expected": "f6f27a6a28d2e92efb4d4c64d737e4db93e753521371f88abf66c0a734dcca48",
+      "actual": "f6f27a6a28d2e92efb4d4c64d737e4db93e753521371f88abf66c0a734dcca48"
+    },
+    {
+      "path": "candidate_0/build.log",
+      "expected": "662641a0f769c9c95f55e2d711ca53dc819d63130332289dc5f1d42b024768cd",
+      "actual": "662641a0f769c9c95f55e2d711ca53dc819d63130332289dc5f1d42b024768cd"
+    },
+    {
+      "path": "candidate_0/build_scene.py",
+      "expected": "9e85d5c76b8224141d2c536eb46b3b57aa69b6d27c2c30f7a5f11a00fc8fa50a",
+      "actual": "9e85d5c76b8224141d2c536eb46b3b57aa69b6d27c2c30f7a5f11a00fc8fa50a"
+    },
+    {
+      "path": "candidate_0/scene.usd",
+      "expected": "23c3ae032d16d5b3f5d35ebc26322ac005da430c4f3a3cedcffd79c404c6346e",
+      "actual": "23c3ae032d16d5b3f5d35ebc26322ac005da430c4f3a3cedcffd79c404c6346e"
+    },
+    {
+      "path": "events.jsonl",
+      "expected": "17b397a31adb60852ed311c4c8b43d493f05c6a25f40122db062c31ba9975785",
+      "actual": "17b397a31adb60852ed311c4c8b43d493f05c6a25f40122db062c31ba9975785"
+    },
+    {
+      "path": "evidence/artifact_sha256.json",
+      "expected": "4effae6f9d9b325be970f60c0e9ed0c842c3ceab519401bf5329da654673f3d4",
+      "actual": "4effae6f9d9b325be970f60c0e9ed0c842c3ceab519401bf5329da654673f3d4"
+    },
+    {
+      "path": "evidence/candidate_0_collision_output.txt",
+      "expected": "2e62606e7a5449195d5c677053b6456190b4ff52228baa517cc7530bd6751712",
+      "actual": "2e62606e7a5449195d5c677053b6456190b4ff52228baa517cc7530bd6751712"
+    },
+    {
+      "path": "evidence/candidate_0_full_render.png",
+      "expected": "07343c3df4eaa6dff8f7bf6785be731eb0d9f94da29598f58305ee63943f8ac3",
+      "actual": "07343c3df4eaa6dff8f7bf6785be731eb0d9f94da29598f58305ee63943f8ac3"
+    },
+    {
+      "path": "evidence/candidate_0_render.png",
+      "expected": "f518119604c285dc458e8a2b4d635f46a1ea5b22ef43e4181e32650c867484c3",
+      "actual": "f518119604c285dc458e8a2b4d635f46a1ea5b22ef43e4181e32650c867484c3"
+    },
+    {
+      "path": "evidence/candidate_0_seed11_collisions.json",
+      "expected": "2e62606e7a5449195d5c677053b6456190b4ff52228baa517cc7530bd6751712",
+      "actual": "2e62606e7a5449195d5c677053b6456190b4ff52228baa517cc7530bd6751712"
+    },
+    {
+      "path": "evidence/collection_progress.json",
+      "expected": "f46caf180d6f301fe97b53d0e3b7c941438e34f102f10629d3840abd26534cbe",
+      "actual": "f46caf180d6f301fe97b53d0e3b7c941438e34f102f10629d3840abd26534cbe"
+    },
+    {
+      "path": "evidence/experiment_record.json",
+      "expected": "4759005959ab79e2d554e29b46636571210b991c6494c58b7f199d6d9126863d",
+      "actual": "4759005959ab79e2d554e29b46636571210b991c6494c58b7f199d6d9126863d"
+    },
+    {
+      "path": "evidence/final_delivery_check.json",
+      "expected": "1cb5ecfb5b37868c38aca759425287dd98494b06740ffa6c8e191b16790ea99a",
+      "actual": "1cb5ecfb5b37868c38aca759425287dd98494b06740ffa6c8e191b16790ea99a"
+    },
+    {
+      "path": "evidence/full_render_result.txt",
+      "expected": "9b82703ee980f11681dce0bd8323fece9aef405c6daae042422b33579d804ff7",
+      "actual": "9b82703ee980f11681dce0bd8323fece9aef405c6daae042422b33579d804ff7"
+    },
+    {
+      "path": "evidence/native_validation_summary.json",
+      "expected": "f46caf180d6f301fe97b53d0e3b7c941438e34f102f10629d3840abd26534cbe",
+      "actual": "f46caf180d6f301fe97b53d0e3b7c941438e34f102f10629d3840abd26534cbe"
+    },
+    {
+      "path": "evidence/per_joint_results.csv",
+      "expected": "c34b61a581839c72dabb9f7e29f6268997197b08fcde521f4ce595901014bfaf",
+      "actual": "c34b61a581839c72dabb9f7e29f6268997197b08fcde521f4ce595901014bfaf"
+    },
+    {
+      "path": "evidence/render_result.txt",
+      "expected": "73e0c89784ea779df9763a3c7691148c7571594b6156cf20e78c9c9252ae54ea",
+      "actual": "73e0c89784ea779df9763a3c7691148c7571594b6156cf20e78c9c9252ae54ea"
+    },
+    {
+      "path": "evidence/repair_1_build.txt",
+      "expected": "9f7508bfdb92ae0fded69a48a416a88e3296938ab72e0719dd8cad015dac4d4d",
+      "actual": "9f7508bfdb92ae0fded69a48a416a88e3296938ab72e0719dd8cad015dac4d4d"
+    },
+    {
+      "path": "evidence/repair_1_collision_output.txt",
+      "expected": "4fd32ca49a2b1a2de7a702df27ac49e61c8efed22697b83a49371d93a9ff8eeb",
+      "actual": "4fd32ca49a2b1a2de7a702df27ac49e61c8efed22697b83a49371d93a9ff8eeb"
+    },
+    {
+      "path": "evidence/repair_1_render.png",
+      "expected": "b078566cb1580a167300b5d2809ddd9e9f690473103665799602bdb06fe25188",
+      "actual": "b078566cb1580a167300b5d2809ddd9e9f690473103665799602bdb06fe25188"
+    },
+    {
+      "path": "evidence/repair_1_render_result.txt",
+      "expected": "0de13c4236629b0e4c5944632c5efe191da880696da60a1844ac26b71cb8010d",
+      "actual": "0de13c4236629b0e4c5944632c5efe191da880696da60a1844ac26b71cb8010d"
+    },
+    {
+      "path": "evidence/repair_1_seed11_collisions.json",
+      "expected": "4fd32ca49a2b1a2de7a702df27ac49e61c8efed22697b83a49371d93a9ff8eeb",
+      "actual": "4fd32ca49a2b1a2de7a702df27ac49e61c8efed22697b83a49371d93a9ff8eeb"
+    },
+    {
+      "path": "evidence/repair_2_build.txt",
+      "expected": "01487c582c7a26b758ae0b1ae2bfe461ac0e269595b0706e5b86cac39c32052d",
+      "actual": "01487c582c7a26b758ae0b1ae2bfe461ac0e269595b0706e5b86cac39c32052d"
+    },
+    {
+      "path": "evidence/repair_2_factor098_collision_output.txt",
+      "expected": "7608e26f78321edf70f0415d7f14ebac8a5167b408edb2d589d3fdec02470562",
+      "actual": "7608e26f78321edf70f0415d7f14ebac8a5167b408edb2d589d3fdec02470562"
+    },
+    {
+      "path": "evidence/repair_2_factor098_collisions.json",
+      "expected": "7608e26f78321edf70f0415d7f14ebac8a5167b408edb2d589d3fdec02470562",
+      "actual": "7608e26f78321edf70f0415d7f14ebac8a5167b408edb2d589d3fdec02470562"
+    },
+    {
+      "path": "evidence/repair_2_factor102_collision_output.txt",
+      "expected": "c6ed8bcc8c779cf224832315e50d7700b14062ca1ef659f47561f1ee2388325a",
+      "actual": "c6ed8bcc8c779cf224832315e50d7700b14062ca1ef659f47561f1ee2388325a"
+    },
+    {
+      "path": "evidence/repair_2_factor102_collisions.json",
+      "expected": "c6ed8bcc8c779cf224832315e50d7700b14062ca1ef659f47561f1ee2388325a",
+      "actual": "c6ed8bcc8c779cf224832315e50d7700b14062ca1ef659f47561f1ee2388325a"
+    },
+    {
+      "path": "evidence/repair_2_render.png",
+      "expected": "f0ef8fdc4be86d1daf225784d518eb68dba0d4a7ef43b6d3ed8e7bc450f8c8ac",
+      "actual": "f0ef8fdc4be86d1daf225784d518eb68dba0d4a7ef43b6d3ed8e7bc450f8c8ac"
+    },
+    {
+      "path": "evidence/repair_2_render_result.txt",
+      "expected": "b2e0b41f2bfb2515e2c996c00619aa5087408b89e583961aa7bc5ffb3d79570b",
+      "actual": "b2e0b41f2bfb2515e2c996c00619aa5087408b89e583961aa7bc5ffb3d79570b"
+    },
+    {
+      "path": "evidence/repair_2_seed11_collision_output.txt",
+      "expected": "d1fd6f9f46177d78627af9f180acdc2c119e0d6c60eee25520db956a3b943840",
+      "actual": "d1fd6f9f46177d78627af9f180acdc2c119e0d6c60eee25520db956a3b943840"
+    },
+    {
+      "path": "evidence/repair_2_seed11_collisions.json",
+      "expected": "d1fd6f9f46177d78627af9f180acdc2c119e0d6c60eee25520db956a3b943840",
+      "actual": "d1fd6f9f46177d78627af9f180acdc2c119e0d6c60eee25520db956a3b943840"
+    },
+    {
+      "path": "evidence/repair_2_seed131_collision_output.txt",
+      "expected": "1821a30281c2465f5d159c90d6c3aad33d02146784b3b7225061e9096c5db60a",
+      "actual": "1821a30281c2465f5d159c90d6c3aad33d02146784b3b7225061e9096c5db60a"
+    },
+    {
+      "path": "evidence/repair_2_seed131_collisions.json",
+      "expected": "1821a30281c2465f5d159c90d6c3aad33d02146784b3b7225061e9096c5db60a",
+      "actual": "1821a30281c2465f5d159c90d6c3aad33d02146784b3b7225061e9096c5db60a"
+    },
+    {
+      "path": "evidence/repair_2_seed23_collision_output.txt",
+      "expected": "50e4516d4024d96e89636e7640e28bf4182b4b6afa801f3d065aba77318ec4ac",
+      "actual": "50e4516d4024d96e89636e7640e28bf4182b4b6afa801f3d065aba77318ec4ac"
+    },
+    {
+      "path": "evidence/repair_2_seed23_collisions.json",
+      "expected": "50e4516d4024d96e89636e7640e28bf4182b4b6afa801f3d065aba77318ec4ac",
+      "actual": "50e4516d4024d96e89636e7640e28bf4182b4b6afa801f3d065aba77318ec4ac"
+    },
+    {
+      "path": "evidence/repair_2_seed47_collision_output.txt",
+      "expected": "ce457e96467c809b81bb0cd0f20e203c6bf78520c30dcfc5e4d4bf81a4ee7274",
+      "actual": "ce457e96467c809b81bb0cd0f20e203c6bf78520c30dcfc5e4d4bf81a4ee7274"
+    },
+    {
+      "path": "evidence/repair_2_seed47_collisions.json",
+      "expected": "ce457e96467c809b81bb0cd0f20e203c6bf78520c30dcfc5e4d4bf81a4ee7274",
+      "actual": "ce457e96467c809b81bb0cd0f20e203c6bf78520c30dcfc5e4d4bf81a4ee7274"
+    },
+    {
+      "path": "evidence/repair_2_seed83_collision_output.txt",
+      "expected": "b026a88f8e0a7d407e3dff2c01efdd7de0b78c9addb56c2d6027c5a580652fd4",
+      "actual": "b026a88f8e0a7d407e3dff2c01efdd7de0b78c9addb56c2d6027c5a580652fd4"
+    },
+    {
+      "path": "evidence/repair_2_seed83_collisions.json",
+      "expected": "b026a88f8e0a7d407e3dff2c01efdd7de0b78c9addb56c2d6027c5a580652fd4",
+      "actual": "b026a88f8e0a7d407e3dff2c01efdd7de0b78c9addb56c2d6027c5a580652fd4"
+    },
+    {
+      "path": "evidence/seed11_joint_angles.png",
+      "expected": "9077777f0ac489a95183a247cf2fe11d5153f579fcd6f8c1153e9fcc8432cdfd",
+      "actual": "9077777f0ac489a95183a247cf2fe11d5153f579fcd6f8c1153e9fcc8432cdfd"
+    },
+    {
+      "path": "execution.json",
+      "expected": "4be7714fdd20a94d84cd2a1261476842dad0e2a9482ac8f663713c218f39a5b0",
+      "actual": "4be7714fdd20a94d84cd2a1261476842dad0e2a9482ac8f663713c218f39a5b0"
+    },
+    {
+      "path": "final.usd",
+      "expected": "b60986a7f6d6c6d0282dec202cbdee5807358429df5f581cb3f20730278a8248",
+      "actual": "b60986a7f6d6c6d0282dec202cbdee5807358429df5f581cb3f20730278a8248"
+    },
+    {
+      "path": "geometry/PartShape.brp",
+      "expected": "ec6d1659b56c64805a506ca9f648c65bd8b0718dc8d791620686709cf50c6456",
+      "actual": "ec6d1659b56c64805a506ca9f648c65bd8b0718dc8d791620686709cf50c6456"
+    },
+    {
+      "path": "geometry/PartShape1.brp",
+      "expected": "94c01ed0879001908438a883abaa4e15a86a39b5c15278ff825d19f3f87c3f85",
+      "actual": "94c01ed0879001908438a883abaa4e15a86a39b5c15278ff825d19f3f87c3f85"
+    },
+    {
+      "path": "geometry/PartShape2.brp",
+      "expected": "6ab01d02f5de9020bde3b06406d3761ad9e20d2a2a0c4ef00214d1a46df0a4fa",
+      "actual": "6ab01d02f5de9020bde3b06406d3761ad9e20d2a2a0c4ef00214d1a46df0a4fa"
+    },
+    {
+      "path": "geometry/PartShape3.brp",
+      "expected": "d6d8c0ae77197d398a900adf54c0676a75af6d620ce17a14208b7682d368127d",
+      "actual": "d6d8c0ae77197d398a900adf54c0676a75af6d620ce17a14208b7682d368127d"
+    },
+    {
+      "path": "geometry/PartShape4.brp",
+      "expected": "299b934621153272d3c846fb6056730a2341b0bed3a923b7e52138f5081adb27",
+      "actual": "299b934621153272d3c846fb6056730a2341b0bed3a923b7e52138f5081adb27"
+    },
+    {
+      "path": "geometry/PartShape5.brp",
+      "expected": "9add4520fea45ca3411608476eaa1d31ff5bf7168bcd031d826208f89d4b83c1",
+      "actual": "9add4520fea45ca3411608476eaa1d31ff5bf7168bcd031d826208f89d4b83c1"
+    },
+    {
+      "path": "geometry/PartShape6.brp",
+      "expected": "654bc5e880b66a0fad381282b15657398db178c6c4967d72f707e599fae0e4dd",
+      "actual": "654bc5e880b66a0fad381282b15657398db178c6c4967d72f707e599fae0e4dd"
+    },
+    {
+      "path": "geometry/PartShape7.brp",
+      "expected": "1c315c095aef0bc8c9ec92be8a2410d92ea2df7c25978c13ba0e2ca3d7e17c44",
+      "actual": "1c315c095aef0bc8c9ec92be8a2410d92ea2df7c25978c13ba0e2ca3d7e17c44"
+    },
+    {
+      "path": "geometry/PartShape8.brp",
+      "expected": "719bfb16f15ecb69327d88d86cb713abf26641ba776d096f9296885688eac9f8",
+      "actual": "719bfb16f15ecb69327d88d86cb713abf26641ba776d096f9296885688eac9f8"
+    },
+    {
+      "path": "geometry/README.md",
+      "expected": "9b7b6d1a6d11fc29456a9dae096fba37110c9abc6352ad92e846b72e5f020a38",
+      "actual": "9b7b6d1a6d11fc29456a9dae096fba37110c9abc6352ad92e846b72e5f020a38"
+    },
+    {
+      "path": "geometry/Turnigy_TGY_EX5252_01__shell_000.npz",
+      "expected": "3a5e4e9d7aca0aaf2b8d9e91066cc719995b01d832d1951f66dfb3d759babc89",
+      "actual": "3a5e4e9d7aca0aaf2b8d9e91066cc719995b01d832d1951f66dfb3d759babc89"
+    },
+    {
+      "path": "geometry/cad_constraints.json",
+      "expected": "98e5ef1b7a18df6941dd943dc893ef416e851ff5969814f74800dc4f259ee9a8",
+      "actual": "98e5ef1b7a18df6941dd943dc893ef416e851ff5969814f74800dc4f259ee9a8"
+    },
+    {
+      "path": "geometry/derive_hinges.py",
+      "expected": "3f6a03e4d64eb6db55d938c151d5f1ec8cd50965d37bdc27ed820a68e5870408",
+      "actual": "3f6a03e4d64eb6db55d938c151d5f1ec8cd50965d37bdc27ed820a68e5870408"
+    },
+    {
+      "path": "geometry/dorsal_01__shell_000.npz",
+      "expected": "1db83d6bb6edca158023b404a953b1a45b25a29327743c6c15f3a9e0e73130c0",
+      "actual": "1db83d6bb6edca158023b404a953b1a45b25a29327743c6c15f3a9e0e73130c0"
+    },
+    {
+      "path": "geometry/extract_geometry.py",
+      "expected": "bdd61cafd664d7ed5894ba4054d3e58156f39cf0ab7770af79224c228b269cf7",
+      "actual": "bdd61cafd664d7ed5894ba4054d3e58156f39cf0ab7770af79224c228b269cf7"
+    },
+    {
+      "path": "geometry/extraction.log",
+      "expected": "74e8fc70c0f0c2a3b6d89211833730b2be5343956c0e5ee9f5da25c945f32467",
+      "actual": "74e8fc70c0f0c2a3b6d89211833730b2be5343956c0e5ee9f5da25c945f32467"
+    },
+    {
+      "path": "geometry/finger_hinges.json",
+      "expected": "b6b42bcbc33f516515a7ae13560c5c3a7adfdde08a5f04940d8a945e9d369cba",
+      "actual": "b6b42bcbc33f516515a7ae13560c5c3a7adfdde08a5f04940d8a945e9d369cba"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_000.npz",
+      "expected": "ff3fbfbf302e178addd8a2d62bdc817d1041175de5fe6391d009f7edbcfd2a98",
+      "actual": "ff3fbfbf302e178addd8a2d62bdc817d1041175de5fe6391d009f7edbcfd2a98"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_001.npz",
+      "expected": "b80fbcf4c059b8684b05cb12292174baf7ecb9253cd36fea10aae509bb4c4c49",
+      "actual": "b80fbcf4c059b8684b05cb12292174baf7ecb9253cd36fea10aae509bb4c4c49"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_002.npz",
+      "expected": "0caba88efcb6b83ab39763433b2485c3cacdc21bff5991d0bf5cb945cda07f32",
+      "actual": "0caba88efcb6b83ab39763433b2485c3cacdc21bff5991d0bf5cb945cda07f32"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_003.npz",
+      "expected": "b45baf0b7f0c3816a78fe1d4fc38c503f1f26e2e40d4e5dda78f181d45d4598c",
+      "actual": "b45baf0b7f0c3816a78fe1d4fc38c503f1f26e2e40d4e5dda78f181d45d4598c"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_004.npz",
+      "expected": "66f02b8c1cce317d3c05abd31fbbe73f631e6018834010f14b5f0e7139b62536",
+      "actual": "66f02b8c1cce317d3c05abd31fbbe73f631e6018834010f14b5f0e7139b62536"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_005.npz",
+      "expected": "d26d983685b4163c1f914b8ee08c53880be5e703f500abd41cba385cb7f99477",
+      "actual": "d26d983685b4163c1f914b8ee08c53880be5e703f500abd41cba385cb7f99477"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_006.npz",
+      "expected": "c794577d18c4c0411cd4366164e8456dbbc4367ac9f58c954feb18b943bbca2c",
+      "actual": "c794577d18c4c0411cd4366164e8456dbbc4367ac9f58c954feb18b943bbca2c"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_007.npz",
+      "expected": "591bed98fad7b8a6349d9ffaa0b80f1f797b8f738724a512b44646c5b3e3ce40",
+      "actual": "591bed98fad7b8a6349d9ffaa0b80f1f797b8f738724a512b44646c5b3e3ce40"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_008.npz",
+      "expected": "6d661f984974a4048bfe27b6ccf24cb0678244d69fea894ba04ddfe1d7e3724a",
+      "actual": "6d661f984974a4048bfe27b6ccf24cb0678244d69fea894ba04ddfe1d7e3724a"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_009.npz",
+      "expected": "047a9bc6a43cb872aa7233381776b213d3fd1f8561f9af07ab8a0914399d773f",
+      "actual": "047a9bc6a43cb872aa7233381776b213d3fd1f8561f9af07ab8a0914399d773f"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_010.npz",
+      "expected": "1b2dac4c481aa6bca9ce0b17649f666a0e40b7dc1ce48c64e210d15c51fc17fb",
+      "actual": "1b2dac4c481aa6bca9ce0b17649f666a0e40b7dc1ce48c64e210d15c51fc17fb"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_011.npz",
+      "expected": "b6ce4d4359bfa58f4cce31b89344986ec853f289032a80d925a3bc502e6f4ba3",
+      "actual": "b6ce4d4359bfa58f4cce31b89344986ec853f289032a80d925a3bc502e6f4ba3"
+    },
+    {
+      "path": "geometry/finger_module_01__shell_012.npz",
+      "expected": "69974946afb31373ee5f0b95e71d05da79ffa7f6184b8c4e7516b6ba8f69b304",
+      "actual": "69974946afb31373ee5f0b95e71d05da79ffa7f6184b8c4e7516b6ba8f69b304"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_000.npz",
+      "expected": "abb2eb21a541afa3ec54232c6ea21d5e28f860e01d071b3067423c69c66ffc48",
+      "actual": "abb2eb21a541afa3ec54232c6ea21d5e28f860e01d071b3067423c69c66ffc48"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_001.npz",
+      "expected": "fdcc0b590694359ec3e991016561853532961d8cf215007166027cba95797dc1",
+      "actual": "fdcc0b590694359ec3e991016561853532961d8cf215007166027cba95797dc1"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_002.npz",
+      "expected": "42e40c26e3a7f91a4746b6f7af7ad251e8ffb2493e17e50d4b7ada419278ec90",
+      "actual": "42e40c26e3a7f91a4746b6f7af7ad251e8ffb2493e17e50d4b7ada419278ec90"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_003.npz",
+      "expected": "bcdbddeb63720822fa9f14822fb0b32ad27fb707cc2246cfbd41d673be825b7d",
+      "actual": "bcdbddeb63720822fa9f14822fb0b32ad27fb707cc2246cfbd41d673be825b7d"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_004.npz",
+      "expected": "90fa382b760a9d95aa84a2efbd5ed9533942814c204fe34fe2ac78ed6a76813e",
+      "actual": "90fa382b760a9d95aa84a2efbd5ed9533942814c204fe34fe2ac78ed6a76813e"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_005.npz",
+      "expected": "5fc4d41fd37fc7ebbd8dad73f3aef8458c07e72f2408aea7498ba6493aa325d1",
+      "actual": "5fc4d41fd37fc7ebbd8dad73f3aef8458c07e72f2408aea7498ba6493aa325d1"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_006.npz",
+      "expected": "a291d27dfb7ffbe257e04feb145a163f4cb8c30e28b385014ff68d2a31e7e9fb",
+      "actual": "a291d27dfb7ffbe257e04feb145a163f4cb8c30e28b385014ff68d2a31e7e9fb"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_007.npz",
+      "expected": "1aadc6a50f69338171ab17e2351f6c70d1e17545ba4bddb6beadf79de61878f3",
+      "actual": "1aadc6a50f69338171ab17e2351f6c70d1e17545ba4bddb6beadf79de61878f3"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_008.npz",
+      "expected": "8fa76158077b3f1cc69b8c7bd5b2d5c5432e48bfc1c2891e80520b72f5bd1a0c",
+      "actual": "8fa76158077b3f1cc69b8c7bd5b2d5c5432e48bfc1c2891e80520b72f5bd1a0c"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_009.npz",
+      "expected": "0f86efc1d3c8e6a88e140676aa1c2b14bdfb13befab6f2c80e3bd02145ddface",
+      "actual": "0f86efc1d3c8e6a88e140676aa1c2b14bdfb13befab6f2c80e3bd02145ddface"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_010.npz",
+      "expected": "c23a9c32a60e1e4d6009f59cb4125d710e1f8bd4b3ea9ce2d66bbb703bcd3823",
+      "actual": "c23a9c32a60e1e4d6009f59cb4125d710e1f8bd4b3ea9ce2d66bbb703bcd3823"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_011.npz",
+      "expected": "7333410584c801d7bef59c84c9d8a1b2a75a1244754dca38d0247ca9c0a1d30f",
+      "actual": "7333410584c801d7bef59c84c9d8a1b2a75a1244754dca38d0247ca9c0a1d30f"
+    },
+    {
+      "path": "geometry/finger_module_02__shell_012.npz",
+      "expected": "78d5830a0df64ba9fece6eecd5c8cdcf763761b6bb0f5bcc72003a379a504c06",
+      "actual": "78d5830a0df64ba9fece6eecd5c8cdcf763761b6bb0f5bcc72003a379a504c06"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_000.npz",
+      "expected": "41a05736ba675a9250af38f7937241e69f35e3b5c6eeb4856d0b8ac13769666a",
+      "actual": "41a05736ba675a9250af38f7937241e69f35e3b5c6eeb4856d0b8ac13769666a"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_001.npz",
+      "expected": "ed39907dcb45cb4e2492eb523be540f6ac0e08fa2cc27770828e7d26e7182810",
+      "actual": "ed39907dcb45cb4e2492eb523be540f6ac0e08fa2cc27770828e7d26e7182810"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_002.npz",
+      "expected": "75a55e77f6642ef06535e303b358b258d34cfc3879caf1e6f45696941b5e20e5",
+      "actual": "75a55e77f6642ef06535e303b358b258d34cfc3879caf1e6f45696941b5e20e5"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_003.npz",
+      "expected": "8d37f689ca6075016c448eccf782e1cc2ef23d708ccfe6876d0f0df598ba2746",
+      "actual": "8d37f689ca6075016c448eccf782e1cc2ef23d708ccfe6876d0f0df598ba2746"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_004.npz",
+      "expected": "05ef10788de6f42a800205ff73eb1dab2961453d8b2107b5aa11f7ce0f84c3d0",
+      "actual": "05ef10788de6f42a800205ff73eb1dab2961453d8b2107b5aa11f7ce0f84c3d0"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_005.npz",
+      "expected": "ad7a12a656e57f79f6eebe3bf0d7a4676da42250b21b8b9891140e35007197b7",
+      "actual": "ad7a12a656e57f79f6eebe3bf0d7a4676da42250b21b8b9891140e35007197b7"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_006.npz",
+      "expected": "1d08322bb9e40e1e8d895d8bc3ad4349491d01b5c71cb66642d048bed8b20977",
+      "actual": "1d08322bb9e40e1e8d895d8bc3ad4349491d01b5c71cb66642d048bed8b20977"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_007.npz",
+      "expected": "0b02fa4ea95b625cd5a2070d5cb5e6e647e8b57b0b4186c8483ccac9d27e9f9e",
+      "actual": "0b02fa4ea95b625cd5a2070d5cb5e6e647e8b57b0b4186c8483ccac9d27e9f9e"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_008.npz",
+      "expected": "7d87397b7581a2d722047feecb7bd73f31ff2c5cdd0258dfc51ee83ccf9ea218",
+      "actual": "7d87397b7581a2d722047feecb7bd73f31ff2c5cdd0258dfc51ee83ccf9ea218"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_009.npz",
+      "expected": "063bd50d5ff6ca558f961d2fa25fe3fedf3877243c3c9f97ded0ef585a2e93c9",
+      "actual": "063bd50d5ff6ca558f961d2fa25fe3fedf3877243c3c9f97ded0ef585a2e93c9"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_010.npz",
+      "expected": "a89571711e9b97d8b764764ae253141e2d0756355c3fa0aded3df5ac760d7070",
+      "actual": "a89571711e9b97d8b764764ae253141e2d0756355c3fa0aded3df5ac760d7070"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_011.npz",
+      "expected": "8039c366a4e892c4512e48fcd114558031bfc5138136e68f496a7b93761f5c58",
+      "actual": "8039c366a4e892c4512e48fcd114558031bfc5138136e68f496a7b93761f5c58"
+    },
+    {
+      "path": "geometry/finger_module_03__shell_012.npz",
+      "expected": "37e7c1224a61a6b9c7482e6495b0d9d222600583a20cca022b70916b2195fb76",
+      "actual": "37e7c1224a61a6b9c7482e6495b0d9d222600583a20cca022b70916b2195fb76"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_000.npz",
+      "expected": "6bf79e597f0cf891062bfc567adccba312524266ed7cefd1e3eadac366cec07f",
+      "actual": "6bf79e597f0cf891062bfc567adccba312524266ed7cefd1e3eadac366cec07f"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_001.npz",
+      "expected": "5efc5f8d5b2d57289e2c99d39c119925c39de1b259082f07945e69e4b4b402a8",
+      "actual": "5efc5f8d5b2d57289e2c99d39c119925c39de1b259082f07945e69e4b4b402a8"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_002.npz",
+      "expected": "ed806da857dd624d9142e946277e6fc9fae75960f24f912cc9c74055f494b9b0",
+      "actual": "ed806da857dd624d9142e946277e6fc9fae75960f24f912cc9c74055f494b9b0"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_003.npz",
+      "expected": "42600e18718775f677a00b989de4dbde38dcab51e8efc645a1aac4d33927e6e6",
+      "actual": "42600e18718775f677a00b989de4dbde38dcab51e8efc645a1aac4d33927e6e6"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_004.npz",
+      "expected": "4abe6fd371e70a7c417a3720fa7534aa0162ddce1e837afe239ce7d221cf027e",
+      "actual": "4abe6fd371e70a7c417a3720fa7534aa0162ddce1e837afe239ce7d221cf027e"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_005.npz",
+      "expected": "f1bce12d003bc634ecc2d864c1b40bc60ffd6677942795508e1c1acda54241c0",
+      "actual": "f1bce12d003bc634ecc2d864c1b40bc60ffd6677942795508e1c1acda54241c0"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_006.npz",
+      "expected": "2eb4f572ced489b62f1e08dab157b9be824519cf1c7e9cb63d5d6aada809151a",
+      "actual": "2eb4f572ced489b62f1e08dab157b9be824519cf1c7e9cb63d5d6aada809151a"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_007.npz",
+      "expected": "5b6e9a33828beaeeec3cc4507eb60710bb5954d406f3ab427ffb2d579fe65bc6",
+      "actual": "5b6e9a33828beaeeec3cc4507eb60710bb5954d406f3ab427ffb2d579fe65bc6"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_008.npz",
+      "expected": "1e82af30343f6b8634e103e85aad97f2ae0a13b5bc674e1fa7e23d4c12b3956e",
+      "actual": "1e82af30343f6b8634e103e85aad97f2ae0a13b5bc674e1fa7e23d4c12b3956e"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_009.npz",
+      "expected": "70a0211e8ced3e06f9c52d5a5bc36f24b550929ce9dae20fd366c0e2244a2eda",
+      "actual": "70a0211e8ced3e06f9c52d5a5bc36f24b550929ce9dae20fd366c0e2244a2eda"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_010.npz",
+      "expected": "21148869c63b7021f96a0d715114e90aecfb22814eca1566d1481b863410a32c",
+      "actual": "21148869c63b7021f96a0d715114e90aecfb22814eca1566d1481b863410a32c"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_011.npz",
+      "expected": "b810ec1b0b3f77afcb3da0d1823a9c1e3a2d11144b180f7a5bca448041dee4d3",
+      "actual": "b810ec1b0b3f77afcb3da0d1823a9c1e3a2d11144b180f7a5bca448041dee4d3"
+    },
+    {
+      "path": "geometry/finger_module_04__shell_012.npz",
+      "expected": "bbda2ae78e1fbe39ea58611ad749a3a716ff8030e025e1887b43bdef1817eecb",
+      "actual": "bbda2ae78e1fbe39ea58611ad749a3a716ff8030e025e1887b43bdef1817eecb"
+    },
+    {
+      "path": "geometry/joints.json",
+      "expected": "eeed6cc1edebc48d3dcb1a87fac68016380d25baf32c022ff45ffc7e5cf25114",
+      "actual": "eeed6cc1edebc48d3dcb1a87fac68016380d25baf32c022ff45ffc7e5cf25114"
+    },
+    {
+      "path": "geometry/orientation_analysis.json",
+      "expected": "b9aa561e1b956ebcf8b77f24f457e348fd00af9926043dd8affcbf150319fba9",
+      "actual": "b9aa561e1b956ebcf8b77f24f457e348fd00af9926043dd8affcbf150319fba9"
+    },
+    {
+      "path": "geometry/orientation_final.json",
+      "expected": "b355286a98dd2134d996d56f104e250441bfefdc2ea10a0242126bdb975f3332",
+      "actual": "b355286a98dd2134d996d56f104e250441bfefdc2ea10a0242126bdb975f3332"
+    },
+    {
+      "path": "geometry/orientation_final_dense_check.json",
+      "expected": "0c75d05c7b0874d8657cdd5fd1d09d2fd770fe32531c5452733054e85ecee028",
+      "actual": "0c75d05c7b0874d8657cdd5fd1d09d2fd770fe32531c5452733054e85ecee028"
+    },
+    {
+      "path": "geometry/orientation_nonlinear.json",
+      "expected": "7d5354a3e7aefc699a765b676e32deedf363fbc948bba6da935670c5eaca7ec7",
+      "actual": "7d5354a3e7aefc699a765b676e32deedf363fbc948bba6da935670c5eaca7ec7"
+    },
+    {
+      "path": "geometry/orientation_nonlinear.log",
+      "expected": "f178ef73ae45de0d78221a1b3cd6f861afd874b8ecdcdd895eb6b06824aa1a04",
+      "actual": "f178ef73ae45de0d78221a1b3cd6f861afd874b8ecdcdd895eb6b06824aa1a04"
+    },
+    {
+      "path": "geometry/orientation_nonlinear.py",
+      "expected": "d3afe24fcc6d41abb6f682e5b2982b21c171d9697e0ecca0e2fae00296a63572",
+      "actual": "d3afe24fcc6d41abb6f682e5b2982b21c171d9697e0ecca0e2fae00296a63572"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_final.json",
+      "expected": "fe5caa834d2bb84234868b05eceb42b012966a76ee296ca3856ac850762f88a5",
+      "actual": "fe5caa834d2bb84234868b05eceb42b012966a76ee296ca3856ac850762f88a5"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_final.log",
+      "expected": "c572aeb32147978818ddf406c04102cef09b28bfc33291c861e9475001599405",
+      "actual": "c572aeb32147978818ddf406c04102cef09b28bfc33291c861e9475001599405"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_final.py",
+      "expected": "5dd7426ad4a53cacdaeec12020ba44e6422c61a921a9afac23c8452a2600f407",
+      "actual": "5dd7426ad4a53cacdaeec12020ba44e6422c61a921a9afac23c8452a2600f407"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_free.json",
+      "expected": "ecd4280d667bfdfbd4a71f8ac4b2db33b9565bf4699b26d973630ac0287d6f36",
+      "actual": "ecd4280d667bfdfbd4a71f8ac4b2db33b9565bf4699b26d973630ac0287d6f36"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_free.log",
+      "expected": "94469a2a5be39b5122f1e51af5218e1988e1ab0a136a72b67d767a0529d15cd9",
+      "actual": "94469a2a5be39b5122f1e51af5218e1988e1ab0a136a72b67d767a0529d15cd9"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_free.py",
+      "expected": "c5f2ec13539cb24009fd83e1f8d1d53cfc5b78075ce3903c64e5bef6c0d0fe7f",
+      "actual": "c5f2ec13539cb24009fd83e1f8d1d53cfc5b78075ce3903c64e5bef6c0d0fe7f"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_guard3.json",
+      "expected": "3d3e7d382fc41d15186381cc4e3d95327e5ce04867e340790355ca47964a8042",
+      "actual": "3d3e7d382fc41d15186381cc4e3d95327e5ce04867e340790355ca47964a8042"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_guard3.log",
+      "expected": "6bba169c0a75f6670280a51407b0b9435d8cf8e61c5baca70a1b2da87e41c9a0",
+      "actual": "6bba169c0a75f6670280a51407b0b9435d8cf8e61c5baca70a1b2da87e41c9a0"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_guard3.py",
+      "expected": "2f43da2f41fb0c792000d9fe984f29c0bcb8638fab1d26b13b0aa1bf48eafd2f",
+      "actual": "2f43da2f41fb0c792000d9fe984f29c0bcb8638fab1d26b13b0aa1bf48eafd2f"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_guard3_flipped.json",
+      "expected": "e41414371dd5933a009c58a415072b56246775630e15557653765d0ad942d1b5",
+      "actual": "e41414371dd5933a009c58a415072b56246775630e15557653765d0ad942d1b5"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_guard3_flipped.log",
+      "expected": "2578937d02062d978c3bedb2c2362990d1a68aa68b0d58834da9768e13dd8c52",
+      "actual": "2578937d02062d978c3bedb2c2362990d1a68aa68b0d58834da9768e13dd8c52"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_guard3_flipped.py",
+      "expected": "74d41f36d0133f89fc1e6b54ba2413ffdc907ca3c6874cb890927ac64812dd9e",
+      "actual": "74d41f36d0133f89fc1e6b54ba2413ffdc907ca3c6874cb890927ac64812dd9e"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust.json",
+      "expected": "8a3c2ac5048c5e45912646cb20a064ce472ce686aec4b20e42a4dca8a6e5f2ec",
+      "actual": "8a3c2ac5048c5e45912646cb20a064ce472ce686aec4b20e42a4dca8a6e5f2ec"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust.log",
+      "expected": "08efb6eafd3ca86a675b552ea93aceaec9270c908fcb646042f373c4d314c0f8",
+      "actual": "08efb6eafd3ca86a675b552ea93aceaec9270c908fcb646042f373c4d314c0f8"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust.py",
+      "expected": "560b822b1d566bebbc7d3215cba0cb88583fdb0034f0777455f4dcb5f05b4b40",
+      "actual": "560b822b1d566bebbc7d3215cba0cb88583fdb0034f0777455f4dcb5f05b4b40"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust_guard2.json",
+      "expected": "d559596c7de2caa1e7fba58435fe5f88425674bea06ea0f05cb55473958b9586",
+      "actual": "d559596c7de2caa1e7fba58435fe5f88425674bea06ea0f05cb55473958b9586"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust_guard2.log",
+      "expected": "dbb5343bd99dd5c003b56b50bdf07308f0ee15790cae09dfb6a62e4a0f9b4714",
+      "actual": "dbb5343bd99dd5c003b56b50bdf07308f0ee15790cae09dfb6a62e4a0f9b4714"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust_guard2.py",
+      "expected": "4e2dcf65df0d3f922a6ad50411da52233968e1afa4c0e2c71a95f47e1ae40c1c",
+      "actual": "4e2dcf65df0d3f922a6ad50411da52233968e1afa4c0e2c71a95f47e1ae40c1c"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust_guard2_flipped.json",
+      "expected": "fe81de042a0f1da7381a0ff08832bb8025ac72bec8c3d14a2199f0ce74218c86",
+      "actual": "fe81de042a0f1da7381a0ff08832bb8025ac72bec8c3d14a2199f0ce74218c86"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust_guard2_flipped.log",
+      "expected": "ce6cc8838fab29b3e136a4c89a8fc4fabf37db58c8d7720bfe0f99d8e9b81d1a",
+      "actual": "ce6cc8838fab29b3e136a4c89a8fc4fabf37db58c8d7720bfe0f99d8e9b81d1a"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust_guard2_flipped.py",
+      "expected": "95f59a40a0862d9d5a891234aa8d6af1ad3c1b01ab53b48d95284a628b3afd79",
+      "actual": "95f59a40a0862d9d5a891234aa8d6af1ad3c1b01ab53b48d95284a628b3afd79"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust_guard2_holdprio.json",
+      "expected": "88c03469dd8937f5b71c2b77b637b469f4933311e93944f85a08daba0c732808",
+      "actual": "88c03469dd8937f5b71c2b77b637b469f4933311e93944f85a08daba0c732808"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust_guard2_holdprio.log",
+      "expected": "84eb16840bf1bcc76ec866453d1a075d1a075f4e51311418c859f47812428ee5",
+      "actual": "84eb16840bf1bcc76ec866453d1a075d1a075f4e51311418c859f47812428ee5"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_robust_guard2_holdprio.py",
+      "expected": "424cd3a0d28556e308c342f6756d7ed47381a9df07d4805e71ce5c03efa6ce14",
+      "actual": "424cd3a0d28556e308c342f6756d7ed47381a9df07d4805e71ce5c03efa6ce14"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_stops.json",
+      "expected": "c0777186f75ce69f39788363289e55597ce74823d11043946bbee08d827e62c9",
+      "actual": "c0777186f75ce69f39788363289e55597ce74823d11043946bbee08d827e62c9"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_stops.log",
+      "expected": "3f3f24450bf6f3ba0469304d983bb01501d240083d396bc13bffcafd7957e639",
+      "actual": "3f3f24450bf6f3ba0469304d983bb01501d240083d396bc13bffcafd7957e639"
+    },
+    {
+      "path": "geometry/orientation_nonlinear_stops.py",
+      "expected": "6b81c1cf2037594333db7174d66dc93e9b462b5a372e8d89e32a9dc9e27ddac1",
+      "actual": "6b81c1cf2037594333db7174d66dc93e9b462b5a372e8d89e32a9dc9e27ddac1"
+    },
+    {
+      "path": "geometry/orientation_optimize.py",
+      "expected": "f783c357e4bd15f74bd107bd66ddd75f2acac1b46c0ca72d3694d5563a55c369",
+      "actual": "f783c357e4bd15f74bd107bd66ddd75f2acac1b46c0ca72d3694d5563a55c369"
+    },
+    {
+      "path": "geometry/palm_01__shell_000.npz",
+      "expected": "648d04de31d961f9d602b03bc1d83da68a2a5f459fc62ba5b261db59223bfd06",
+      "actual": "648d04de31d961f9d602b03bc1d83da68a2a5f459fc62ba5b261db59223bfd06"
+    },
+    {
+      "path": "geometry/servo_horn_01__shell_000.npz",
+      "expected": "b548872799586d2104c70ddf618d4f2f67b4dd201b4a05840aba0cc5c24a7532",
+      "actual": "b548872799586d2104c70ddf618d4f2f67b4dd201b4a05840aba0cc5c24a7532"
+    },
+    {
+      "path": "geometry/shell_metadata.json",
+      "expected": "25704a282fb772f066ca37b30fd561cff2fa0d9424575cdefeed3ce49743a782",
+      "actual": "25704a282fb772f066ca37b30fd561cff2fa0d9424575cdefeed3ce49743a782"
+    },
+    {
+      "path": "geometry/source_closure_manifest.json",
+      "expected": "c31cd5bb45ad2cfb3d48e991153b65921743e67f96ebd729d9c62120e59e2576",
+      "actual": "c31cd5bb45ad2cfb3d48e991153b65921743e67f96ebd729d9c62120e59e2576"
+    },
+    {
+      "path": "geometry/source_inventory.json",
+      "expected": "c88461c9ff495d8229850da2db25255c10adbee93aca17461fa1b57d58cd962e",
+      "actual": "c88461c9ff495d8229850da2db25255c10adbee93aca17461fa1b57d58cd962e"
+    },
+    {
+      "path": "geometry/thumb_01__shell_000.npz",
+      "expected": "9d2e929277e4fef72be1a97496abda2ea65c05f585e51af393e9b9984bad3f4b",
+      "actual": "9d2e929277e4fef72be1a97496abda2ea65c05f585e51af393e9b9984bad3f4b"
+    },
+    {
+      "path": "geometry/thumb_01__shell_001.npz",
+      "expected": "dd95ec9a12f9108255fbfbd7f4354aabd797905e81e65bb1eb0db873df4bbfd5",
+      "actual": "dd95ec9a12f9108255fbfbd7f4354aabd797905e81e65bb1eb0db873df4bbfd5"
+    },
+    {
+      "path": "geometry/thumb_01__shell_002.npz",
+      "expected": "ddd562291f4ec31de2519c630cd1dd4baca42e37627b15ada54a1c211371bf45",
+      "actual": "ddd562291f4ec31de2519c630cd1dd4baca42e37627b15ada54a1c211371bf45"
+    },
+    {
+      "path": "geometry/thumb_01__shell_003.npz",
+      "expected": "d195ea7e9ea092c6714af6d5df546b1b858cae6df719d54e03286da7ccae1970",
+      "actual": "d195ea7e9ea092c6714af6d5df546b1b858cae6df719d54e03286da7ccae1970"
+    },
+    {
+      "path": "geometry/thumb_01__shell_004.npz",
+      "expected": "831e8a68061102c9454d14810698d624ae02f54c4c0a2f325ccee1bbfc73b5ae",
+      "actual": "831e8a68061102c9454d14810698d624ae02f54c4c0a2f325ccee1bbfc73b5ae"
+    },
+    {
+      "path": "geometry/thumb_01__shell_005.npz",
+      "expected": "6bdb14c003b01703ff3ce54e748b2f84a950f7da89a2e1ef696a91cc4afa1ccd",
+      "actual": "6bdb14c003b01703ff3ce54e748b2f84a950f7da89a2e1ef696a91cc4afa1ccd"
+    },
+    {
+      "path": "geometry/thumb_01__shell_006.npz",
+      "expected": "6f3a29b68729262f5331656acefd3737b8a7b28cc3ac716c7264b653927d05e9",
+      "actual": "6f3a29b68729262f5331656acefd3737b8a7b28cc3ac716c7264b653927d05e9"
+    },
+    {
+      "path": "geometry/thumb_01__shell_007.npz",
+      "expected": "19b9c5b31125a79e9351bcf47476459e9a03da906727ac60da67f0557a36cd9d",
+      "actual": "19b9c5b31125a79e9351bcf47476459e9a03da906727ac60da67f0557a36cd9d"
+    },
+    {
+      "path": "geometry/thumb_01__shell_008.npz",
+      "expected": "9b6dbd8337204014a3818f1fad5832d0d95882e49d04a42f5ee61e23f98c58a5",
+      "actual": "9b6dbd8337204014a3818f1fad5832d0d95882e49d04a42f5ee61e23f98c58a5"
+    },
+    {
+      "path": "geometry/thumb_01__shell_009.npz",
+      "expected": "013d7e38ce7ea800870605745df01fdbb7558e234bc8f7d48eadeaefc4655319",
+      "actual": "013d7e38ce7ea800870605745df01fdbb7558e234bc8f7d48eadeaefc4655319"
+    },
+    {
+      "path": "geometry/thumb_01__shell_010.npz",
+      "expected": "5b3b9529d2fe572f57f89dc38e65002990f036f9bb16621b8437bb173cad08a0",
+      "actual": "5b3b9529d2fe572f57f89dc38e65002990f036f9bb16621b8437bb173cad08a0"
+    },
+    {
+      "path": "geometry/thumb_01__shell_011.npz",
+      "expected": "f55e817c4c5cfe5aeb5b1f836474d89ef01c7a6ad8d42304a3880247fa2b2060",
+      "actual": "f55e817c4c5cfe5aeb5b1f836474d89ef01c7a6ad8d42304a3880247fa2b2060"
+    },
+    {
+      "path": "geometry/thumb_01__shell_012.npz",
+      "expected": "63e855c57fe234f398e1861cb67fee0938498e66a0ceb557c8d8d671481afcae",
+      "actual": "63e855c57fe234f398e1861cb67fee0938498e66a0ceb557c8d8d671481afcae"
+    },
+    {
+      "path": "geometry/validate_geometry.py",
+      "expected": "3bd5cde90484d1e34475a58958b2f2ae04aed85fc4f718e843895b73ba327005",
+      "actual": "3bd5cde90484d1e34475a58958b2f2ae04aed85fc4f718e843895b73ba327005"
+    },
+    {
+      "path": "geometry/validation.json",
+      "expected": "3bfa138b7574c09a01d8971f7e197858463b79ce50f5f5564371434b8f1c32d7",
+      "actual": "3bfa138b7574c09a01d8971f7e197858463b79ce50f5f5564371434b8f1c32d7"
+    },
+    {
+      "path": "gpu_samples.jsonl",
+      "expected": "09a3706f32491c6c3d8379d7b1dce8303a832555ce339cc168c96b886caeec5f",
+      "actual": "09a3706f32491c6c3d8379d7b1dce8303a832555ce339cc168c96b886caeec5f"
+    },
+    {
+      "path": "last_message.txt",
+      "expected": "61a7ff070c73652b819f7941c9ec7c8afd6c1af0d9dd1e326fd183e030507b96",
+      "actual": "61a7ff070c73652b819f7941c9ec7c8afd6c1af0d9dd1e326fd183e030507b96"
+    },
+    {
+      "path": "launch.json",
+      "expected": "7c06a17e3eaf067a7c1d81e24b165e864e6fa8f3a20dbb1bcc159178f402c2f0",
+      "actual": "7c06a17e3eaf067a7c1d81e24b165e864e6fa8f3a20dbb1bcc159178f402c2f0"
+    },
+    {
+      "path": "model_usage_audit.json",
+      "expected": "5242d5787932aa1d32efb93c1a029d30d46731f6a40c93a89f9c67e479b1c3c1",
+      "actual": "5242d5787932aa1d32efb93c1a029d30d46731f6a40c93a89f9c67e479b1c3c1"
+    },
+    {
+      "path": "prompt.txt",
+      "expected": "004867abadbf891ce5d0731989e57e92a732e1ea9bf932ad54386c37aad1168f",
+      "actual": "004867abadbf891ce5d0731989e57e92a732e1ea9bf932ad54386c37aad1168f"
+    },
+    {
+      "path": "repair_1/bindings.json",
+      "expected": "52844e78d261d7f12417649156b2c09a9ab043e7b0050d501381e4a4c065ad8b",
+      "actual": "52844e78d261d7f12417649156b2c09a9ab043e7b0050d501381e4a4c065ad8b"
+    },
+    {
+      "path": "repair_1/orient_repair.py",
+      "expected": "64c9bcf5df512d1acaa8f2871c36140fbbbde5f3242014f8498a0b194b6d1a44",
+      "actual": "64c9bcf5df512d1acaa8f2871c36140fbbbde5f3242014f8498a0b194b6d1a44"
+    },
+    {
+      "path": "repair_1/repair.json",
+      "expected": "9f7508bfdb92ae0fded69a48a416a88e3296938ab72e0719dd8cad015dac4d4d",
+      "actual": "9f7508bfdb92ae0fded69a48a416a88e3296938ab72e0719dd8cad015dac4d4d"
+    },
+    {
+      "path": "repair_1/scene.usd",
+      "expected": "bafc0b2906c454f78b332ec6f6d4c6d6288ef1589118008c0fce796a5379ab9a",
+      "actual": "bafc0b2906c454f78b332ec6f6d4c6d6288ef1589118008c0fce796a5379ab9a"
+    },
+    {
+      "path": "repair_2/bindings.json",
+      "expected": "c131c020ca0e7f374d22b4b5195f57434ccc3e08cd86371f255b4aafc946bb40",
+      "actual": "c131c020ca0e7f374d22b4b5195f57434ccc3e08cd86371f255b4aafc946bb40"
+    },
+    {
+      "path": "repair_2/orient_repair.py",
+      "expected": "4464a2ac8e44f37ca39e70853ab158a70579258e900c2b5e006a365639b8c707",
+      "actual": "4464a2ac8e44f37ca39e70853ab158a70579258e900c2b5e006a365639b8c707"
+    },
+    {
+      "path": "repair_2/orientation_analysis.json",
+      "expected": "b355286a98dd2134d996d56f104e250441bfefdc2ea10a0242126bdb975f3332",
+      "actual": "b355286a98dd2134d996d56f104e250441bfefdc2ea10a0242126bdb975f3332"
+    },
+    {
+      "path": "repair_2/repair.json",
+      "expected": "01487c582c7a26b758ae0b1ae2bfe461ac0e269595b0706e5b86cac39c32052d",
+      "actual": "01487c582c7a26b758ae0b1ae2bfe461ac0e269595b0706e5b86cac39c32052d"
+    },
+    {
+      "path": "repair_2/scene.usd",
+      "expected": "b60986a7f6d6c6d0282dec202cbdee5807358429df5f581cb3f20730278a8248",
+      "actual": "b60986a7f6d6c6d0282dec202cbdee5807358429df5f581cb3f20730278a8248"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/.travis.yml",
+      "expected": "9ff9aa7a03ca733d366c2252bd466f4f9f7ddfd3f948d7eb3345002a7ed81254",
+      "actual": "9ff9aa7a03ca733d366c2252bd466f4f9f7ddfd3f948d7eb3345002a7ed81254"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Control/DextraControl.py",
+      "expected": "e52eccfd22ba5b268e50d837ed20a701a4f1598a6e0c1c28f445c3d2aac90473",
+      "actual": "e52eccfd22ba5b268e50d837ed20a701a4f1598a6e0c1c28f445c3d2aac90473"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Control/dextracontrol.kv",
+      "expected": "bdd8e02b30a8982b7bf51c5d9c076dcf31e9ebb13d3bd87ca2ae5e68c77255db",
+      "actual": "bdd8e02b30a8982b7bf51c5d9c076dcf31e9ebb13d3bd87ca2ae5e68c77255db"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Control/readme.md",
+      "expected": "347060ea7fbd74b86987d0231c887807271ac61b8072daca5221b76535e06e2e",
+      "actual": "347060ea7fbd74b86987d0231c887807271ac61b8072daca5221b76535e06e2e"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/.gitignore",
+      "expected": "ce09a09c8aedb9e47b71322f1e716e5a796a4a3252ebdda394bef9b186442285",
+      "actual": "ce09a09c8aedb9e47b71322f1e716e5a796a4a3252ebdda394bef9b186442285"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/Finger/Finger.cpp",
+      "expected": "89e0158e4cb444f0bd07b56a60122e12f16db37e86c617d7a778a477439f0128",
+      "actual": "89e0158e4cb444f0bd07b56a60122e12f16db37e86c617d7a778a477439f0128"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/Finger/Finger.h",
+      "expected": "9fca789cc5e4eead41b7d7b228b504444cc918bfcdaf29d02c22f3ae82fd480c",
+      "actual": "9fca789cc5e4eead41b7d7b228b504444cc918bfcdaf29d02c22f3ae82fd480c"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/MsTimer2/MsTimer2.cpp",
+      "expected": "f0ea221e5436a05a78f5c4ef2d209f179f0ed7fa01997bd5f379af4a9eecfcb7",
+      "actual": "f0ea221e5436a05a78f5c4ef2d209f179f0ed7fa01997bd5f379af4a9eecfcb7"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/MsTimer2/MsTimer2.h",
+      "expected": "115e7d86a2eacb9491d23d9dd387160a27c2fc13a8b253ae3943643b8536738a",
+      "actual": "115e7d86a2eacb9491d23d9dd387160a27c2fc13a8b253ae3943643b8536738a"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/Synapse/Synapse.cpp",
+      "expected": "585f8edc169ba0d833b4ef8f38f4c74ff1234f14c3beba00b513f86dd848ecdc",
+      "actual": "585f8edc169ba0d833b4ef8f38f4c74ff1234f14c3beba00b513f86dd848ecdc"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/Synapse/Synapse.h",
+      "expected": "acca24a0a62a0320a393e5ff8af953168457335a1802666559203e784fa6536c",
+      "actual": "acca24a0a62a0320a393e5ff8af953168457335a1802666559203e784fa6536c"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/readme.txt",
+      "expected": "c7c1abda90e4c24775dec470ff4bdb176b89b6db77d79288d26a0230cdfc7919",
+      "actual": "c7c1abda90e4c24775dec470ff4bdb176b89b6db77d79288d26a0230cdfc7919"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/platformio.ini",
+      "expected": "34a6a62a5e0212efeda845200467b884752c6b268e0b73c829bc4cbe856a5078",
+      "actual": "34a6a62a5e0212efeda845200467b884752c6b268e0b73c829bc4cbe856a5078"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/src/main.ino",
+      "expected": "885fcdcd68c905528ca6d3e93b6236f3dff8bb6e88ef26075e9116b627921a1c",
+      "actual": "885fcdcd68c905528ca6d3e93b6236f3dff8bb6e88ef26075e9116b627921a1c"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/readme.md",
+      "expected": "3dfcedbf94ffb5e8a6bcb174bd16ee574a2c02c61d2c884816b9e9967fe59183",
+      "actual": "3dfcedbf94ffb5e8a6bcb174bd16ee574a2c02c61d2c884816b9e9967fe59183"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "expected": "62fc1bafe7b91b362549b1c24e61f12f2da75bd2c85bb8cad40369923f3ffdfe",
+      "actual": "62fc1bafe7b91b362549b1c24e61f12f2da75bd2c85bb8cad40369923f3ffdfe"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/finger_module.fcstd",
+      "expected": "cf3e994895bc1085292b661a1dec2c1c45d80462618a8398c5ea61391321fce1",
+      "actual": "cf3e994895bc1085292b661a1dec2c1c45d80462618a8398c5ea61391321fce1"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/thumb.fcstd",
+      "expected": "d7a4102f794edcc0f6389a0a97dd2897727cd87a6f82e9e3f4e135b2a89cb7ab",
+      "actual": "d7a4102f794edcc0f6389a0a97dd2897727cd87a6f82e9e3f4e135b2a89cb7ab"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/thumb_module.fcstd",
+      "expected": "8dbe7d5613e47919400a05d56983711fd5ce120767fb9b797e695721e71b748e",
+      "actual": "8dbe7d5613e47919400a05d56983711fd5ce120767fb9b797e695721e71b748e"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Turnigy TGY-EX5252.FCStd",
+      "expected": "c9d567bc8e7d946ae3e6cd0945a0ba6cd5b526e93f3f23c2036a3053aac20557",
+      "actual": "c9d567bc8e7d946ae3e6cd0945a0ba6cd5b526e93f3f23c2036a3053aac20557"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/abductor.fcstd",
+      "expected": "07b8191a79bdf5054289d26d457a0bee44bf624527f9d981c3206fd071d4fa33",
+      "actual": "07b8191a79bdf5054289d26d457a0bee44bf624527f9d981c3206fd071d4fa33"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/distal.fcstd",
+      "expected": "59121d14cae9fed21ed4a0c89b44dbf939e7c6920903f7bea0f1a537cba36656",
+      "actual": "59121d14cae9fed21ed4a0c89b44dbf939e7c6920903f7bea0f1a537cba36656"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/distal_thumb.fcstd",
+      "expected": "826a7fdb7e743d39e89e7b3310f8f4c8c80ab5081e6050a841b43185c83be6a5",
+      "actual": "826a7fdb7e743d39e89e7b3310f8f4c8c80ab5081e6050a841b43185c83be6a5"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/dorsal.fcstd",
+      "expected": "f59ffc78f2ed1830341d7bf466e61b07a492825e48ee302fa5859628dd63f56b",
+      "actual": "f59ffc78f2ed1830341d7bf466e61b07a492825e48ee302fa5859628dd63f56b"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/encoder_disc.fcstd",
+      "expected": "9ce27a61cb59098c98e4d36c55f540f520fb7017ab9040cfce0000e23f69ae7b",
+      "actual": "9ce27a61cb59098c98e4d36c55f540f520fb7017ab9040cfce0000e23f69ae7b"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/middle.fcstd",
+      "expected": "12cb6bcfcc3d96866796afe96ab3e509f05fccbc2cf7e7665b514370f1ca67c7",
+      "actual": "12cb6bcfcc3d96866796afe96ab3e509f05fccbc2cf7e7665b514370f1ca67c7"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/motor_holder.fcstd",
+      "expected": "3747bc040fcfd84230fecac673ce5b068a2bf43f14eeae39340b0bf41ff8102a",
+      "actual": "3747bc040fcfd84230fecac673ce5b068a2bf43f14eeae39340b0bf41ff8102a"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/motor_holder_thumb.fcstd",
+      "expected": "81206f784345e59216331bb9daa450cca2d55dbbda81b1a359679befe6a5ab64",
+      "actual": "81206f784345e59216331bb9daa450cca2d55dbbda81b1a359679befe6a5ab64"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/palm.fcstd",
+      "expected": "c7147b59aaed905fac08167bba771cd1686b83dc671075520c79c220b296ffd3",
+      "actual": "c7147b59aaed905fac08167bba771cd1686b83dc671075520c79c220b296ffd3"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/pololu_motor_10001.fcstd",
+      "expected": "3eec3fa2dcca7575a7c2972632fefe4a7a8d74bf578e3080de313748d54c69ae",
+      "actual": "3eec3fa2dcca7575a7c2972632fefe4a7a8d74bf578e3080de313748d54c69ae"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/proximal.fcstd",
+      "expected": "4dea743ed4d2e0f2828654acd569828eb7f938deeec3a689aaec81f023b88dce",
+      "actual": "4dea743ed4d2e0f2828654acd569828eb7f938deeec3a689aaec81f023b88dce"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/proximal_thumb.fcstd",
+      "expected": "47bc7f2596831ead2c46fa663384456c621954d2fe9be023cbeb9410b0dcf314",
+      "actual": "47bc7f2596831ead2c46fa663384456c621954d2fe9be023cbeb9410b0dcf314"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/servo_horn.fcstd",
+      "expected": "375b0268d498f8858e5deac2e5f747044ef323bc11f2e1bb9bf8dd3ea5d7a612",
+      "actual": "375b0268d498f8858e5deac2e5f747044ef323bc11f2e1bb9bf8dd3ea5d7a612"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/spool.fcstd",
+      "expected": "b02876620a7629a14c2278f5a17f376d99a412ec84ba3594f965e69df7830826",
+      "actual": "b02876620a7629a14c2278f5a17f376d99a412ec84ba3594f965e69df7830826"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/abductor.stl",
+      "expected": "39a1a697677c0bebd6d7ab6f0fd02d67f4834bae758d2c99c071b6554233b3c6",
+      "actual": "39a1a697677c0bebd6d7ab6f0fd02d67f4834bae758d2c99c071b6554233b3c6"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/distal.stl",
+      "expected": "cdf9d6c737e3224257326ad5881c43cd5a70863dc746db8f34579f296c2bb4a7",
+      "actual": "cdf9d6c737e3224257326ad5881c43cd5a70863dc746db8f34579f296c2bb4a7"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/distal_thumb.stl",
+      "expected": "4d18170ac5d26fd37a593d0f3bb58640a2304756dfdc0d0e201de31e08bce949",
+      "actual": "4d18170ac5d26fd37a593d0f3bb58640a2304756dfdc0d0e201de31e08bce949"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/dorsal.stl",
+      "expected": "66cdefd3a1f063cedb9cc9f5cab5f559c16d2ff470cdce074cb5702d383a6814",
+      "actual": "66cdefd3a1f063cedb9cc9f5cab5f559c16d2ff470cdce074cb5702d383a6814"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/middle.stl",
+      "expected": "4a4e8fbaeb7b3a0f210ac696f1a0a711440fcc1ce43bbe4ed5d75fd56d6c9912",
+      "actual": "4a4e8fbaeb7b3a0f210ac696f1a0a711440fcc1ce43bbe4ed5d75fd56d6c9912"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/motor_holder.stl",
+      "expected": "21ca35b4aedb91c175df70f3861d4d0e8e0e1192b6ac6d79428ade7431eb8292",
+      "actual": "21ca35b4aedb91c175df70f3861d4d0e8e0e1192b6ac6d79428ade7431eb8292"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/motor_holder_thumb.stl",
+      "expected": "e9e915df4bf089b8b10714fc76eaea9d42342e9227f138539748c0c87fb0a393",
+      "actual": "e9e915df4bf089b8b10714fc76eaea9d42342e9227f138539748c0c87fb0a393"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/palm.stl",
+      "expected": "8477069ece047cd0719ddaf5f3ece66ab966a09adccf0071f7d8c0a52ab61ee9",
+      "actual": "8477069ece047cd0719ddaf5f3ece66ab966a09adccf0071f7d8c0a52ab61ee9"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/proximal.stl",
+      "expected": "29bda4115e28ffcc89a699a59049a18fb3f99976442a0fcd4588aad8c2caf36b",
+      "actual": "29bda4115e28ffcc89a699a59049a18fb3f99976442a0fcd4588aad8c2caf36b"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/proximal_thumb.stl",
+      "expected": "e14682802557e874f581abbbba4c96295f638a5e26aa148b5cb2a697c98f49c9",
+      "actual": "e14682802557e874f581abbbba4c96295f638a5e26aa148b5cb2a697c98f49c9"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/spool.stl",
+      "expected": "28c0f99624013363f66b108eaf6c4e77bb4d8181221fa83fb206b0735ac7c228",
+      "actual": "28c0f99624013363f66b108eaf6c4e77bb4d8181221fa83fb206b0735ac7c228"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/README.md",
+      "expected": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83",
+      "actual": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/data.json",
+      "expected": "9dc1588e134bb09a87745cbbd20a6df6b57b2f038f8d065210ffcc00554a9d15",
+      "actual": "9dc1588e134bb09a87745cbbd20a6df6b57b2f038f8d065210ffcc00554a9d15"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/dextra_assembly_instructions.pdf",
+      "expected": "8fb7b19aa409f0fed333a29d586138c868b3d4d9fcfea46746e3fd99dea13d13",
+      "actual": "8fb7b19aa409f0fed333a29d586138c868b3d4d9fcfea46746e3fd99dea13d13"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra/dextra1.jpg",
+      "expected": "7917123de6051986fa10c470c34a7a0153ad99893218916d270a4ae21593eaa7",
+      "actual": "7917123de6051986fa10c470c34a7a0153ad99893218916d270a4ae21593eaa7"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra/dextra2.jpg",
+      "expected": "ec058a26d036232902337f8c279d11ba66e29806728b5f2db7c27ce8b26cd9de",
+      "actual": "ec058a26d036232902337f8c279d11ba66e29806728b5f2db7c27ce8b26cd9de"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra/dextra3.jpg",
+      "expected": "f64a5a56be8e5c19563768721930a6413486017ec1d656d70bc29ef77b061f88",
+      "actual": "f64a5a56be8e5c19563768721930a6413486017ec1d656d70bc29ef77b061f88"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra/palmar_pinch_grasp.jpg",
+      "expected": "81c1cd92135e349b8518b6f8b08662817908eb90ecd9d5c09c8185f9118a8ebc",
+      "actual": "81c1cd92135e349b8518b6f8b08662817908eb90ecd9d5c09c8185f9118a8ebc"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra.png",
+      "expected": "5c571c09d88e765498709c1d060e03b4eca6aee21ac722cf4ec7d2e0e54b972e",
+      "actual": "5c571c09d88e765498709c1d060e03b4eca6aee21ac722cf4ec7d2e0e54b972e"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui1.png",
+      "expected": "0944f84b467afea274b7f6c3dc439e438255e99aa067261c6afbde0f42e896c4",
+      "actual": "0944f84b467afea274b7f6c3dc439e438255e99aa067261c6afbde0f42e896c4"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui2.png",
+      "expected": "7a6e8bc0001b60ab93be8f449b918f7f0f46b174e217bf76cd5cb2690194b91b",
+      "actual": "7a6e8bc0001b60ab93be8f449b918f7f0f46b174e217bf76cd5cb2690194b91b"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui3.png",
+      "expected": "0c9a1fabee15729f07f84d8e401178c13331dfb0d3e82064098dd9d19d14d6be",
+      "actual": "0c9a1fabee15729f07f84d8e401178c13331dfb0d3e82064098dd9d19d14d6be"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui4.png",
+      "expected": "43aea7089c8b59533a015333fd9aca0a9fbfe1ad1d9c1ed1aa2816d1765ca96d",
+      "actual": "43aea7089c8b59533a015333fd9aca0a9fbfe1ad1d9c1ed1aa2816d1765ca96d"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui5.png",
+      "expected": "f2696a7607a46dcdd6919f72b32c583d3d4dcb3aa96d956d813e47a8ad1d7016",
+      "actual": "f2696a7607a46dcdd6919f72b32c583d3d4dcb3aa96d956d813e47a8ad1d7016"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui6.png",
+      "expected": "3b70343f584a6adcb6647d1dd34f5577c3b2b7beb7a808ecfa9058a78c229652",
+      "actual": "3b70343f584a6adcb6647d1dd34f5577c3b2b7beb7a808ecfa9058a78c229652"
+    },
+    {
+      "path": "source_closure/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui7.png",
+      "expected": "0657a20efbbe1a7f4977c0c6be55c9c72f2258e23c59b53345ebdb8fde778ea3",
+      "actual": "0657a20efbbe1a7f4977c0c6be55c9c72f2258e23c59b53345ebdb8fde778ea3"
+    },
+    {
+      "path": "stderr.log",
+      "expected": "dc855fd91599f213d4b2c05d470154b6b9bf944fb242b5509b93404d5cf0f085",
+      "actual": "dc855fd91599f213d4b2c05d470154b6b9bf944fb242b5509b93404d5cf0f085"
+    },
+    {
+      "path": "submission.json",
+      "expected": "f9cce195ac4dabf3f9bd14525d13e66276140dbebbed085e13ae036d87334d22",
+      "actual": "f9cce195ac4dabf3f9bd14525d13e66276140dbebbed085e13ae036d87334d22"
+    },
+    {
+      "path": "validation/README.md",
+      "expected": "0242832998c9f0ecb336100369d083901365532053d09b340be4e43109727063",
+      "actual": "0242832998c9f0ecb336100369d083901365532053d09b340be4e43109727063"
+    },
+    {
+      "path": "validation/audit_collision_cores.py",
+      "expected": "94559934cda3491041303138ebb30f2475d11b832122de2a494fcbca6201d8d6",
+      "actual": "94559934cda3491041303138ebb30f2475d11b832122de2a494fcbca6201d8d6"
+    },
+    {
+      "path": "validation/candidate_0_global11/native_properties.json",
+      "expected": "d71fc68729aad2daed0ac39222830bb975a95256b45116ac899f6a82ef3b972a",
+      "actual": "d71fc68729aad2daed0ac39222830bb975a95256b45116ac899f6a82ef3b972a"
+    },
+    {
+      "path": "validation/candidate_0_global11/summary.json",
+      "expected": "eb835ceb2f65055a4bc2aad57035022947330719157489a1fc2a1afd222eafef",
+      "actual": "eb835ceb2f65055a4bc2aad57035022947330719157489a1fc2a1afd222eafef"
+    },
+    {
+      "path": "validation/candidate_0_global11/trace.npz",
+      "expected": "988a043ccbf0f0960d9ac6867c84711a5ca2fc244624fe1a4ab70af5c1712106",
+      "actual": "988a043ccbf0f0960d9ac6867c84711a5ca2fc244624fe1a4ab70af5c1712106"
+    },
+    {
+      "path": "validation/candidate_0_global11.log",
+      "expected": "f05bad7fc5c66635675de4472cf9c01ced9ff58aa2e39a488bc084087b782473",
+      "actual": "f05bad7fc5c66635675de4472cf9c01ced9ff58aa2e39a488bc084087b782473"
+    },
+    {
+      "path": "validation/candidate_0_metadata.json",
+      "expected": "8e601e2d7d9af328c2cd586d15b9d6a615bbe63e3f448e5666902894ed0ed276",
+      "actual": "8e601e2d7d9af328c2cd586d15b9d6a615bbe63e3f448e5666902894ed0ed276"
+    },
+    {
+      "path": "validation/candidate_0_seed11/native_properties.json",
+      "expected": "0348fed5330ed50a5e92b1cc1aa68d01ddf2f7d3093d745ed8f9b4ae7237a0bf",
+      "actual": "0348fed5330ed50a5e92b1cc1aa68d01ddf2f7d3093d745ed8f9b4ae7237a0bf"
+    },
+    {
+      "path": "validation/candidate_0_seed11/summary.json",
+      "expected": "f4f43f5b81a6bda7ccde38427e42e1f037786a6ae04d18bd27d4510bacf5519f",
+      "actual": "f4f43f5b81a6bda7ccde38427e42e1f037786a6ae04d18bd27d4510bacf5519f"
+    },
+    {
+      "path": "validation/candidate_0_seed11/trace.npz",
+      "expected": "b180915f3be885eb49f0b18f9e8be4ac66e54cdc0da229763358e66b4b06533d",
+      "actual": "b180915f3be885eb49f0b18f9e8be4ac66e54cdc0da229763358e66b4b06533d"
+    },
+    {
+      "path": "validation/candidate_0_seed11.log",
+      "expected": "0778d3cde9a686e45b6be3e16d513628f624e7c698f206694173189540e18a81",
+      "actual": "0778d3cde9a686e45b6be3e16d513628f624e7c698f206694173189540e18a81"
+    },
+    {
+      "path": "validation/collect_evidence.py",
+      "expected": "f880770610d492e48bc6e1b20f2ef8ba4eae85ff9b620feebee6c7709eb07a5c",
+      "actual": "f880770610d492e48bc6e1b20f2ef8ba4eae85ff9b620feebee6c7709eb07a5c"
+    },
+    {
+      "path": "validation/final_gravity_observation.json",
+      "expected": "0d6a35cc2520df6819381d7a16f7db2bd34932887d24035f385624f3a68a5eea",
+      "actual": "0d6a35cc2520df6819381d7a16f7db2bd34932887d24035f385624f3a68a5eea"
+    },
+    {
+      "path": "validation/final_gravity_only/native_properties.json",
+      "expected": "0cef1199eccf9ee50984b5e0262e7d8b2bcd2ff33459afc0c36001c7e1b63e01",
+      "actual": "0cef1199eccf9ee50984b5e0262e7d8b2bcd2ff33459afc0c36001c7e1b63e01"
+    },
+    {
+      "path": "validation/final_gravity_only/summary.json",
+      "expected": "98a6bccc2e58e48118f2559c47b79d63918f52feb984fec5edaa1626dd3e1e80",
+      "actual": "98a6bccc2e58e48118f2559c47b79d63918f52feb984fec5edaa1626dd3e1e80"
+    },
+    {
+      "path": "validation/final_gravity_only/trace.npz",
+      "expected": "dcd360bb5997f5bea6f7d5fe0b5c572b81ca9c831fdcc6b90da942b2f16b4848",
+      "actual": "dcd360bb5997f5bea6f7d5fe0b5c572b81ca9c831fdcc6b90da942b2f16b4848"
+    },
+    {
+      "path": "validation/final_gravity_only.log",
+      "expected": "eb20ef91f8ca5b8638d45978bcd40d73a4fd349bc9cf44937fe4d59e85afeb1e",
+      "actual": "eb20ef91f8ca5b8638d45978bcd40d73a4fd349bc9cf44937fe4d59e85afeb1e"
+    },
+    {
+      "path": "validation/final_metadata.json",
+      "expected": "4bcbaae3a8cd893d86a20d73b2bcc291882425b85f27285d641e403cd892d9ee",
+      "actual": "4bcbaae3a8cd893d86a20d73b2bcc291882425b85f27285d641e403cd892d9ee"
+    },
+    {
+      "path": "validation/final_zero_seed11/native_properties.json",
+      "expected": "0cef1199eccf9ee50984b5e0262e7d8b2bcd2ff33459afc0c36001c7e1b63e01",
+      "actual": "0cef1199eccf9ee50984b5e0262e7d8b2bcd2ff33459afc0c36001c7e1b63e01"
+    },
+    {
+      "path": "validation/final_zero_seed11/summary.json",
+      "expected": "6dba8f680458df516953a2ae2db0a7a23bc9d483d21b3e745e982eb1398821d3",
+      "actual": "6dba8f680458df516953a2ae2db0a7a23bc9d483d21b3e745e982eb1398821d3"
+    },
+    {
+      "path": "validation/final_zero_seed11/trace.npz",
+      "expected": "59c8b197c2d4984a9fcad3aa1e109e6232b6e294cb18dcb3a0b3207c1d71849d",
+      "actual": "59c8b197c2d4984a9fcad3aa1e109e6232b6e294cb18dcb3a0b3207c1d71849d"
+    },
+    {
+      "path": "validation/final_zero_seed11.log",
+      "expected": "18e6952f728dbe9e95589176e2471a0d8ea5009e1493fb027cd5d13e45274b21",
+      "actual": "18e6952f728dbe9e95589176e2471a0d8ea5009e1493fb027cd5d13e45274b21"
+    },
+    {
+      "path": "validation/full_hold_failures.png",
+      "expected": "410faf24205812df6f9be5fc4503b8b70ca2ef359625531b70ffc14927d6f6f0",
+      "actual": "410faf24205812df6f9be5fc4503b8b70ca2ef359625531b70ffc14927d6f6f0"
+    },
+    {
+      "path": "validation/gravity_witness.json",
+      "expected": "58564013385bddaddb328c2b3f383f090b083620b8d123b48041c6fb266eab7b",
+      "actual": "58564013385bddaddb328c2b3f383f090b083620b8d123b48041c6fb266eab7b"
+    },
+    {
+      "path": "validation/gravity_witness.log",
+      "expected": "3f6e309b1a2a7b2585a755a151feca12cdd9cd61c7ea1843fd4a5b45e996edf6",
+      "actual": "3f6e309b1a2a7b2585a755a151feca12cdd9cd61c7ea1843fd4a5b45e996edf6"
+    },
+    {
+      "path": "validation/gravity_witness.py",
+      "expected": "ef50eeafb5a1b768f29094f6eb382cd88ab45a6580cce146f072d14c52a38958",
+      "actual": "ef50eeafb5a1b768f29094f6eb382cd88ab45a6580cce146f072d14c52a38958"
+    },
+    {
+      "path": "validation/gravity_witness.usda",
+      "expected": "2f97e9ea881f62bc9d49355f77dde7766b3010493c5684154cdf36cb423bd62e",
+      "actual": "2f97e9ea881f62bc9d49355f77dde7766b3010493c5684154cdf36cb423bd62e"
+    },
+    {
+      "path": "validation/inspect_scene.py",
+      "expected": "fc4321bc038a4c6aeedc0453e13ea9cdca01359b42c2da2a4766354ade1f5045",
+      "actual": "fc4321bc038a4c6aeedc0453e13ea9cdca01359b42c2da2a4766354ade1f5045"
+    },
+    {
+      "path": "validation/loaded_observations.json",
+      "expected": "9f755c1ed76d3c5390b9ad974e0ead485400659fa6049c5fd704ae7a9a0528b8",
+      "actual": "9f755c1ed76d3c5390b9ad974e0ead485400659fa6049c5fd704ae7a9a0528b8"
+    },
+    {
+      "path": "validation/optimize_gravity.py",
+      "expected": "72be0750778185260fcc72b3a9d6d3b5b6084f003a5eb58c6c4da5567820491a",
+      "actual": "72be0750778185260fcc72b3a9d6d3b5b6084f003a5eb58c6c4da5567820491a"
+    },
+    {
+      "path": "validation/orientation_repair_analysis.json",
+      "expected": "0a196be8087964bfd70e4d09541f13f3e25ce0dbe84a9c42625ac8bea34548d0",
+      "actual": "0a196be8087964bfd70e4d09541f13f3e25ce0dbe84a9c42625ac8bea34548d0"
+    },
+    {
+      "path": "validation/paired_seed11_observation.json",
+      "expected": "f8afacfe209e44404777e472fb7a865269fd2ce6f10d1e4cac44fbd65d616be1",
+      "actual": "f8afacfe209e44404777e472fb7a865269fd2ce6f10d1e4cac44fbd65d616be1"
+    },
+    {
+      "path": "validation/repair_1_metadata.json",
+      "expected": "9fdc341061889bbf24769849fd243717145b6a074ada8b2c5d99e286857e2368",
+      "actual": "9fdc341061889bbf24769849fd243717145b6a074ada8b2c5d99e286857e2368"
+    },
+    {
+      "path": "validation/repair_1_seed11/native_properties.json",
+      "expected": "3e7cb7cc83228d5d6965ada5db256df61beb3890d0f21e5e665f8412bc5b6286",
+      "actual": "3e7cb7cc83228d5d6965ada5db256df61beb3890d0f21e5e665f8412bc5b6286"
+    },
+    {
+      "path": "validation/repair_1_seed11/summary.json",
+      "expected": "32ae84845b8bacdae13c9bae62a53201b0a15aede78711dfe262e9c76559b4e6",
+      "actual": "32ae84845b8bacdae13c9bae62a53201b0a15aede78711dfe262e9c76559b4e6"
+    },
+    {
+      "path": "validation/repair_1_seed11/trace.npz",
+      "expected": "d8e5822afeec1105529a6b123d98ac1a61f3d10063713aa9edc58f708c6da887",
+      "actual": "d8e5822afeec1105529a6b123d98ac1a61f3d10063713aa9edc58f708c6da887"
+    },
+    {
+      "path": "validation/repair_1_seed11.log",
+      "expected": "0456846ade01467a51b2d8c7abef739e5e3c12559be8515e6f30605ccc1d58a2",
+      "actual": "0456846ade01467a51b2d8c7abef739e5e3c12559be8515e6f30605ccc1d58a2"
+    },
+    {
+      "path": "validation/repair_2_batch.log",
+      "expected": "6cca1575eedd823994c781e34d0f429c390338f89d43ab28a5a41825029627cb",
+      "actual": "6cca1575eedd823994c781e34d0f429c390338f89d43ab28a5a41825029627cb"
+    },
+    {
+      "path": "validation/repair_2_batch_summary.json",
+      "expected": "e132774198bded95749ebf90b07b0583a7802232152e16a617b47bded64fe747",
+      "actual": "e132774198bded95749ebf90b07b0583a7802232152e16a617b47bded64fe747"
+    },
+    {
+      "path": "validation/repair_2_factor098/native_properties.json",
+      "expected": "ad5db795613dfb5df7fc333dccc81c62fa3da34146bd52e4884664f5863eb886",
+      "actual": "ad5db795613dfb5df7fc333dccc81c62fa3da34146bd52e4884664f5863eb886"
+    },
+    {
+      "path": "validation/repair_2_factor098/summary.json",
+      "expected": "844e747ecda5bd6e77e9a020e5f112f000da0b55ec4d54b307262c67288dc3c4",
+      "actual": "844e747ecda5bd6e77e9a020e5f112f000da0b55ec4d54b307262c67288dc3c4"
+    },
+    {
+      "path": "validation/repair_2_factor098/trace.npz",
+      "expected": "7d17da3e4444e00d3b1f99ec2bf0ff36ff52e798254d96f8b7473d106e621782",
+      "actual": "7d17da3e4444e00d3b1f99ec2bf0ff36ff52e798254d96f8b7473d106e621782"
+    },
+    {
+      "path": "validation/repair_2_factor098.log",
+      "expected": "afffa4df361bced0ef3f95df627efd6b0f86c07df816b4f042a1ddfcf4ce6f14",
+      "actual": "afffa4df361bced0ef3f95df627efd6b0f86c07df816b4f042a1ddfcf4ce6f14"
+    },
+    {
+      "path": "validation/repair_2_factor102/native_properties.json",
+      "expected": "d81d99151c3b30f76a6a3b97fa4078a9ef5cb3648435a4325816764f142c7b46",
+      "actual": "d81d99151c3b30f76a6a3b97fa4078a9ef5cb3648435a4325816764f142c7b46"
+    },
+    {
+      "path": "validation/repair_2_factor102/summary.json",
+      "expected": "2da8a4d7d16e30e1c81d77f4844ee68336d2e0262a90717be84ed752d7493abe",
+      "actual": "2da8a4d7d16e30e1c81d77f4844ee68336d2e0262a90717be84ed752d7493abe"
+    },
+    {
+      "path": "validation/repair_2_factor102/trace.npz",
+      "expected": "dce6d46873fb67761607321b7379290bfe1f122b2e82ddd06a5a1e0876aeb089",
+      "actual": "dce6d46873fb67761607321b7379290bfe1f122b2e82ddd06a5a1e0876aeb089"
+    },
+    {
+      "path": "validation/repair_2_factor102.log",
+      "expected": "86ffa98d5c83423745eef7eccdcb8801896ac0f84373a77711401cfd1facc5f5",
+      "actual": "86ffa98d5c83423745eef7eccdcb8801896ac0f84373a77711401cfd1facc5f5"
+    },
+    {
+      "path": "validation/repair_2_metadata.json",
+      "expected": "371371a5d5a84ba244feffc694bc8e05e98d1e16cc58795c1f9053fef5cbebfe",
+      "actual": "371371a5d5a84ba244feffc694bc8e05e98d1e16cc58795c1f9053fef5cbebfe"
+    },
+    {
+      "path": "validation/repair_2_runner_sha256.txt",
+      "expected": "fb13e47f2c3b0e74721ee85a2b960f40aa25ab31e8bcea56abeae306585b72ea",
+      "actual": "fb13e47f2c3b0e74721ee85a2b960f40aa25ab31e8bcea56abeae306585b72ea"
+    },
+    {
+      "path": "validation/repair_2_seed11/native_properties.json",
+      "expected": "0cef1199eccf9ee50984b5e0262e7d8b2bcd2ff33459afc0c36001c7e1b63e01",
+      "actual": "0cef1199eccf9ee50984b5e0262e7d8b2bcd2ff33459afc0c36001c7e1b63e01"
+    },
+    {
+      "path": "validation/repair_2_seed11/summary.json",
+      "expected": "ef12e9a9866e91d711b2fe9e962e56a81938c5069a6da774c0d09d6707001f81",
+      "actual": "ef12e9a9866e91d711b2fe9e962e56a81938c5069a6da774c0d09d6707001f81"
+    },
+    {
+      "path": "validation/repair_2_seed11/trace.npz",
+      "expected": "a5091262e877e48416955e2411e4f87ae21d607a1088fb4c126094ba6c64c33a",
+      "actual": "a5091262e877e48416955e2411e4f87ae21d607a1088fb4c126094ba6c64c33a"
+    },
+    {
+      "path": "validation/repair_2_seed11.log",
+      "expected": "547e72e1d73ea2f329a7d71484755bc1300a7f07101f754dc4ae50fbd553d1e6",
+      "actual": "547e72e1d73ea2f329a7d71484755bc1300a7f07101f754dc4ae50fbd553d1e6"
+    },
+    {
+      "path": "validation/repair_2_seed131/native_properties.json",
+      "expected": "91f67eb99fecd638b2d679dfdb4a04085b2ce840da98f8bd33edec68a2ba357f",
+      "actual": "91f67eb99fecd638b2d679dfdb4a04085b2ce840da98f8bd33edec68a2ba357f"
+    },
+    {
+      "path": "validation/repair_2_seed131/summary.json",
+      "expected": "771976d103e39d3cfcbc371687785b8a8f8703e9ef7949d417f321826c3b668c",
+      "actual": "771976d103e39d3cfcbc371687785b8a8f8703e9ef7949d417f321826c3b668c"
+    },
+    {
+      "path": "validation/repair_2_seed131/trace.npz",
+      "expected": "5ec27a10819263369625611902bad754087d87ac876fed93480a59968b0b0068",
+      "actual": "5ec27a10819263369625611902bad754087d87ac876fed93480a59968b0b0068"
+    },
+    {
+      "path": "validation/repair_2_seed131.log",
+      "expected": "8729e3abdf5dae9e18926b950ce6be2e45dd5b3110e0025edffe54f2aa88ae8d",
+      "actual": "8729e3abdf5dae9e18926b950ce6be2e45dd5b3110e0025edffe54f2aa88ae8d"
+    },
+    {
+      "path": "validation/repair_2_seed23/native_properties.json",
+      "expected": "1144f3abac818473b76f7e8e1ca1a030ca358a0e7e69d3f5515d07e4d1abc807",
+      "actual": "1144f3abac818473b76f7e8e1ca1a030ca358a0e7e69d3f5515d07e4d1abc807"
+    },
+    {
+      "path": "validation/repair_2_seed23/summary.json",
+      "expected": "4c7eee68dee2a5db2189ff65ae7492ba5726e2a2a26b0fff1c8297a4329c0e06",
+      "actual": "4c7eee68dee2a5db2189ff65ae7492ba5726e2a2a26b0fff1c8297a4329c0e06"
+    },
+    {
+      "path": "validation/repair_2_seed23/trace.npz",
+      "expected": "ffc1daae53a08d2a3a1cb5d33d59004fddca6cedd732ff51e932a9c26c487d86",
+      "actual": "ffc1daae53a08d2a3a1cb5d33d59004fddca6cedd732ff51e932a9c26c487d86"
+    },
+    {
+      "path": "validation/repair_2_seed23.log",
+      "expected": "2818eb892b82578dbf5262dbb870260a0d3b2b74b84781b2e8c9d5a4dd05ad52",
+      "actual": "2818eb892b82578dbf5262dbb870260a0d3b2b74b84781b2e8c9d5a4dd05ad52"
+    },
+    {
+      "path": "validation/repair_2_seed47/native_properties.json",
+      "expected": "b1ce53a884c9c1d49076629afd32c5487a7a89450b90209490312e146d74b19a",
+      "actual": "b1ce53a884c9c1d49076629afd32c5487a7a89450b90209490312e146d74b19a"
+    },
+    {
+      "path": "validation/repair_2_seed47/summary.json",
+      "expected": "2633f09a3d86c82d98bbdf4552117fa5e0ab34e5e45de62c9497cca8d3d4085f",
+      "actual": "2633f09a3d86c82d98bbdf4552117fa5e0ab34e5e45de62c9497cca8d3d4085f"
+    },
+    {
+      "path": "validation/repair_2_seed47/trace.npz",
+      "expected": "03d1afcd460ce88214e8ef0007d83ad627c406b1690e5543ed9cc49a9a6af882",
+      "actual": "03d1afcd460ce88214e8ef0007d83ad627c406b1690e5543ed9cc49a9a6af882"
+    },
+    {
+      "path": "validation/repair_2_seed47.log",
+      "expected": "943aef7cda9be31c9b6f32ccff79656ccf47e2fb5b5c9c7eb8d6ce45e51b2ec2",
+      "actual": "943aef7cda9be31c9b6f32ccff79656ccf47e2fb5b5c9c7eb8d6ce45e51b2ec2"
+    },
+    {
+      "path": "validation/repair_2_seed83/native_properties.json",
+      "expected": "63c53bdc63d9ed1493f4cd90d949e8d6621f11bc0b7c6c6efbfb2845b530ee29",
+      "actual": "63c53bdc63d9ed1493f4cd90d949e8d6621f11bc0b7c6c6efbfb2845b530ee29"
+    },
+    {
+      "path": "validation/repair_2_seed83/summary.json",
+      "expected": "48bb7dee486a653ba15a8e5c588bc89d3131e483aedcc34bbfc3995ddabe36a9",
+      "actual": "48bb7dee486a653ba15a8e5c588bc89d3131e483aedcc34bbfc3995ddabe36a9"
+    },
+    {
+      "path": "validation/repair_2_seed83/trace.npz",
+      "expected": "5523d064cc0a1b219ac55b4e0e3c42b68d70198acc274da43b40c8f9e1c6046e",
+      "actual": "5523d064cc0a1b219ac55b4e0e3c42b68d70198acc274da43b40c8f9e1c6046e"
+    },
+    {
+      "path": "validation/repair_2_seed83.log",
+      "expected": "5ec0a0b1706006f603ad1006dd2795ad1f1cec71a37bf4e0c63fdf618c860916",
+      "actual": "5ec0a0b1706006f603ad1006dd2795ad1f1cec71a37bf4e0c63fdf618c860916"
+    },
+    {
+      "path": "validation/run_batch.py",
+      "expected": "8ff4d9c428217fac8234e44aaee77914fa9d6c3f53ddd06571a356cde750e1a6",
+      "actual": "8ff4d9c428217fac8234e44aaee77914fa9d6c3f53ddd06571a356cde750e1a6"
+    },
+    {
+      "path": "validation/simulate.py",
+      "expected": "7750145f039b4a7632fcc557bc097ae5cd50cd9f97df69f9b25951e6cd84ef34",
+      "actual": "7750145f039b4a7632fcc557bc097ae5cd50cd9f97df69f9b25951e6cd84ef34"
+    },
+    {
+      "path": "validation/simulate_repair_2_frozen.py",
+      "expected": "7750145f039b4a7632fcc557bc097ae5cd50cd9f97df69f9b25951e6cd84ef34",
+      "actual": "7750145f039b4a7632fcc557bc097ae5cd50cd9f97df69f9b25951e6cd84ef34"
+    },
+    {
+      "path": "validation/summarize_observations.py",
+      "expected": "b651a06efe5a5d72e97702daa1731423297c5a11c73ed73939f7447c65df0098",
+      "actual": "b651a06efe5a5d72e97702daa1731423297c5a11c73ed73939f7447c65df0098"
+    }
+  ],
+  "source_unchanged": true,
+  "outputs_unchanged": true,
+  "frozen_checks": {
+    "case_hooks.py": true,
+    "evaluate.py": true,
+    "structural.py": true,
+    "cases.json": true,
+    "geometry.py": true,
+    "common.py": true,
+    "solver.py": true,
+    "bindings.schema.json": true,
+    "reference_inventory": true
+  },
+  "task_unchanged": true,
+  "matched_pair_fields": {
+    "model": true,
+    "reasoning_effort": true,
+    "budget_seconds": true,
+    "task_sha256": true
+  },
+  "contexts": [
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra"
+    },
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra"
+    },
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra"
+    },
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra"
+    }
+  ],
+  "all_context_sessions_available": true,
+  "tool_calls_sha256": "f3043dc4cbf09d1f0a639ca940e3976470126aaed8e0654dafedd9b171a96253",
+  "tool_count": 207,
+  "access_pattern_hits": [],
+  "candidate_files": [],
+  "declared_repairs": 2,
+  "submission_sha256": "f9cce195ac4dabf3f9bd14525d13e66276140dbebbed085e13ae036d87334d22",
+  "execution": {
+    "elapsed_seconds": 2303.147261828184,
+    "errors": [],
+    "evaluation": "pending_independent_evaluator",
+    "exit_code": 0,
+    "gpu_allocation_seconds": 2303.147261828184,
+    "human_interventions": 0,
+    "human_review_seconds": null,
+    "human_review_timing_note": "No human review occurred during autonomous run; report review labour separately if measured.",
+    "nested_usage_requires_separate_aggregation": false,
+    "timed_out": false
+  },
+  "privacy": "Reviewed executed command/edit/read requests across captured sessions and retained public run evidence. Non-execution inter-agent message payloads were excluded. No raw rollout, reasoning, auth or private messages copied. Private review files are not public publication inputs.",
+  "excluded_non_execution_tool_types": {
+    "spawn_agent": 3,
+    "send_message": 73,
+    "followup_task": 2,
+    "wait_agent": 5
+  },
+  "execution_command_calls_sha256": "9f128dd74e17a62b5f2a17d3bcc4bd5a31f597bc59f340ec5d71e78790c63878",
+  "recorded_session_count": 4,
+  "extracted_tool_session_count": 4
+}

@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "/opt/astra-content-value-20260921/repo/agentic/packages/content_workflow_cli/node_modules/.bin/codex",
+    "exec",
+    "--ignore-user-config",
+    "--skip-git-repo-check",
+    "-C",
+    "/opt/astra-content-value-20260921/runs/pilot-v1/03_hinge/content_agents",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"ultra\"",
+    "-c",
+    "approval_policy=\"never\"",
+    "-s",
+    "danger-full-access",
+    "--json",
+    "-o",
+    "/opt/astra-content-value-20260921/runs/pilot-v1/03_hinge/content_agents/last_message.txt",
+    "-"
+  ],
+  "arm": "content_agents",
+  "budget_seconds": 2400,
+  "case": "03_hinge",
+  "gpu_index": 0,
+  "model": "gpt-6-astra",
+  "prompt_sha256": "bf6aabd3cbc0f6ecbc3c4eadfff596610758547f2487a8e140f11619a0138b63",
+  "reasoning_effort": "ultra",
+  "scored": true,
+  "start_unix": 1790029941.7039094,
+  "task_file": "/opt/astra-content-value-20260921/protocol/tasks/03_hinge.json",
+  "task_sha256": "02282a061887e1358e7be6754ac2978e78ee02cdc204b4bf9f94bf173ce327a5"
+}

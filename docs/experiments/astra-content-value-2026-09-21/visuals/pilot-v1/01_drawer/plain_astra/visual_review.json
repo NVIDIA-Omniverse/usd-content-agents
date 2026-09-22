@@ -1,0 +1,28 @@
+{
+  "reviewed_utc": "2026-09-22T00:03:38.056065+00:00",
+  "review_method": "Opened all three actual PNG files with image viewer; human-readable visual assessment by independent evaluator agent.",
+  "passed_presentation_check": true,
+  "frames": [
+    {
+      "name": "closed_initial",
+      "sha256": "aa01e5515466b568939e9de4ab6610f1961909ee7b2b943794dc3b25dbc22a1d",
+      "observation": "Original textured cabinet and closed top drawer visible."
+    },
+    {
+      "name": "open_loaded",
+      "sha256": "e07ca44f194e0d7b52dcf7688d51a01e77d29d8263bdb2ed1b8713e46370caae",
+      "observation": "Top drawer visibly extended; orange free evaluator payload visible inside the drawer."
+    },
+    {
+      "name": "closed_returned",
+      "sha256": "08dca9998ae36f1bd88fe1f7d52bfa277dfdb0d20f7f6b830822724bcf603641",
+      "observation": "Top drawer visibly returned closed, consistent with the observed trace."
+    }
+  ],
+  "limitations": [
+    "Static selected trace poses, not a continuous animation or a new physics run.",
+    "The framing emphasizes the cabinet and drawer; some extreme frame/leg edges meet the image border.",
+    "Images illustrate the already measured five-seed result; they do not independently prove dynamics or payload retention through all intervening steps."
+  ],
+  "scored_artifacts_or_evaluator_modified": false
+}

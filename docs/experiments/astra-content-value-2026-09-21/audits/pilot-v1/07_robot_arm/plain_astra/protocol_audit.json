@@ -1,0 +1,211 @@
+{
+  "schema_version": "astra-content-value-protocol-audit.v1",
+  "case_id": "07_robot_arm",
+  "arm": "plain_astra",
+  "valid": false,
+  "audited_utc": "2026-09-21T23:38:34.160744+00:00",
+  "checks": [
+    {
+      "name": "original_source_unchanged",
+      "valid": true,
+      "evidence": {
+        "source_files": 236,
+        "details": "protocol_probe.json#/source_checks"
+      },
+      "note": null
+    },
+    {
+      "name": "completed_outputs_unchanged",
+      "valid": true,
+      "evidence": {
+        "files": 1847,
+        "details": "protocol_probe.json#/output_checks",
+        "manifest": {
+          "path": "runs/pilot-v1/07_robot_arm/plain_astra/output_manifest.json",
+          "sha256": "7b0018bbde42bd4efb7c0e91134121f38a08a88a7c468cad5fa010dd4ab889eb"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "frozen_evaluator_and_task_unchanged",
+      "valid": true,
+      "evidence": {
+        "evaluate.py": true,
+        "structural.py": true,
+        "cases.json": true,
+        "geometry.py": true,
+        "common.py": true,
+        "solver.py": true,
+        "bindings.schema.json": true,
+        "reference_inventory": true
+      },
+      "note": null
+    },
+    {
+      "name": "matched_model_effort_task_budget_host_gpu",
+      "valid": true,
+      "evidence": {
+        "pair_fields": {
+          "model": true,
+          "reasoning_effort": true,
+          "budget_seconds": true,
+          "task_sha256": true
+        },
+        "contexts": [
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          }
+        ],
+        "launch": {
+          "path": "runs/pilot-v1/07_robot_arm/plain_astra/launch.json",
+          "sha256": "590dff78c6785631d2a1c2f2092b07c4e908a42c41637a291dc8d595110aa214"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "within_wall_time_budget",
+      "valid": true,
+      "evidence": {
+        "elapsed_seconds": 1548.6232794560492,
+        "budget_seconds": 2400,
+        "execution": {
+          "path": "runs/pilot-v1/07_robot_arm/plain_astra/execution.json",
+          "sha256": "6f32ccfec1bcd2ac9987356526959b67a0194974adbc3e222d885bca4ca06009"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "no_observed_direct_evaluator_or_opposite07_arm_file_reads",
+      "valid": true,
+      "evidence": {
+        "execution_tool_requests_reviewed": 169,
+        "captured_sessions": 4,
+        "execution_request_metadata_sha256": "cb22e981bb3d264323fd5c1c3ebada5406e67bc7e4702a25576e8f28679cdc41",
+        "access_pattern_hits": []
+      },
+      "note": "Direct file-access review is distinct from incidental content exposure in process output, which failed the isolation requirement below. No syscall enforcement is claimed."
+    },
+    {
+      "name": "plain_arm_no_content_agents_workflow_use",
+      "valid": true,
+      "evidence": {
+        "execution_tool_requests_reviewed": 169,
+        "workflow_path_or_entrypoint_hits": []
+      },
+      "note": "Common low-level tool/runtime documentation was allowed; no Content Agents workflow skill, coordinator or entrypoint execution was observed."
+    },
+    {
+      "name": "two_repair_limit_and_candidate_preservation",
+      "valid": true,
+      "evidence": {
+        "declared_repairs": 2,
+        "observed_complete_scene_writes": 3,
+        "observed_post_first_repairs": 2,
+        "candidates": [
+          {
+            "candidate": "first",
+            "scene_sha256": "d05da2b7191a94e11f20622dd4732463914da6a131d3e21ead2086bf7295429e",
+            "freeze_manifest_sha256": "79122a07e468bf431cb0c5cd7004cdeb9b0c2dead1f28af433d714c83f50247b",
+            "freeze_files_match": {
+              "scene.usd": true,
+              "bindings.json": true,
+              "authoring_report.json": true,
+              "author_scene.py": true
+            }
+          },
+          {
+            "candidate": "repair_1",
+            "scene_sha256": "9f44a88b6726988c04e3a956113de616c4d806ff778336e4d2676bc488768911",
+            "freeze_manifest_sha256": "4a2cafe21b4f9e7fc91470d1f6fc85c693f1d1bbcd865df0bf6026840bbc84d0",
+            "freeze_files_match": {
+              "scene.usd": true,
+              "bindings.json": true,
+              "authoring_report.json": true,
+              "author_scene.py": true
+            }
+          },
+          {
+            "candidate": "repair_2",
+            "scene_sha256": "e4bf30f23c61a7cf0f165ebf51392bffcaa2f271fec1cdcd1a0ba9abfe8db03e",
+            "freeze_manifest_sha256": "f74ff4f8045e72dd6b8b932eaa0e31e39958c128a8b65cc678cf0acd95d1f210",
+            "freeze_files_match": {
+              "scene.usd": true,
+              "bindings.json": true,
+              "authoring_report.json": true,
+              "author_scene.py": true
+            }
+          }
+        ],
+        "final_matches_repair2": true,
+        "chronology": [
+          {
+            "event_line": 65,
+            "item_id": "item_33",
+            "action": "First complete candidate authored successfully."
+          },
+          {
+            "event_line": 100,
+            "item_id": "item_52",
+            "action": "Repair1 added native contact reporting and viscous body damping."
+          },
+          {
+            "event_line": 111,
+            "item_id": "item_58",
+            "action": "Repair2 corrected API-token preservation while keeping the intended repair1 parameters."
+          },
+          {
+            "event_line": 116,
+            "item_id": "item_61",
+            "action": "Final scene copied from frozen repair2; byte-identical at independent audit."
+          }
+        ]
+      },
+      "note": null
+    },
+    {
+      "name": "isolated_from_other_case_outputs",
+      "valid": false,
+      "evidence": {
+        "event_file": {
+          "path": "runs/pilot-v1/07_robot_arm/plain_astra/events.jsonl",
+          "sha256": "f92a25da66225d13b4f239f77db1b15fb2446ae3e8986f940332f9e93382bb6c"
+        },
+        "event_line": 87,
+        "item_id": "item_45",
+        "output_character_count": 8691,
+        "output_sha256": "109308c2925941c91cb3986f2a13e7f97c4c9572e4b03ff4bba7bc0682124011",
+        "exposure_kind": "An overbroad process listing returned inline Python source of a concurrent gripper author simulation script, including its controller and observation code. It also returned03 evaluator process paths/arguments, without evaluator source contents.",
+        "subsequent_scope_note": {
+          "path": "runs/pilot-v1/07_robot_arm/plain_astra/evidence/process_listing_scope_note.json",
+          "sha256": "1d33a87c86a72fd3fbd96930fbd222637750e601214015d4443868b74c2d3fd8"
+        },
+        "frozen_prompt": {
+          "path": "runs/pilot-v1/07_robot_arm/plain_astra/prompt.txt",
+          "sha256": "9f34396ec1e4c63e39524b0f508d27b80da58ccff901d6c41d87b54572dc584d"
+        }
+      },
+      "note": "The prompt prohibited reading any other case output. Exposure of actual other-case source code violates that boundary even though incidental. The author recorded a scope correction and asserted non-use; causal influence/non-use cannot be independently established. No exposed code or private message is reproduced in this sanitized receipt."
+    }
+  ],
+  "invalid_reason": "Observed cross-case author source-code exposure through process-list output.",
+  "independent_physical_result_separate": true,
+  "physical_result_policy": "Do not overwrite independent physical acceptance. Protocol invalidity excludes this run from a clean paired workflow comparison; it is not a physical rejection or demonstrated false pass.",
+  "scope_limit": "Captured execution-request and public-output audit with source/output/code hash checks; not OS-level isolation. Non-execution inter-agent payloads, raw rollouts and private reasoning were excluded.",
+  "sanitized": true
+}

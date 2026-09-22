@@ -1,0 +1,11 @@
+{
+  "command": "open",
+  "ok": true,
+  "schema_version": "1",
+  "summary": {
+    "stage": "/opt/astra-content-value-20260921/visuals/pilot-v1/01_drawer/plain_astra/closed_initial.usda",
+    "prims": 36,
+    "up_axis": "Y",
+    "active_camera": "/__ReplayPresentation/Camera"
+  }
+}

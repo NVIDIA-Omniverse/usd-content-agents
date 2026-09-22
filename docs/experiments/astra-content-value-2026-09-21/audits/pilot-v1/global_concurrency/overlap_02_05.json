@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "scope": "Global experiment concurrency, separate from per-arm protocol and independent physical acceptance",
+  "status": "FAIL",
+  "declared_limit": 4,
+  "observed_minimum_native_processes": 5,
+  "observation_utc": "2026-09-21T23:04:52+00:00",
+  "conveyor": {
+    "case_id": "02_conveyor",
+    "arm": "plain_astra",
+    "pids": [
+      84799,
+      84800,
+      84801,
+      84802
+    ],
+    "seeds": [
+      83,
+      131,
+      47,
+      23
+    ],
+    "request_utc": "2026-09-21T23:04:51.701Z",
+    "request_line": 302,
+    "response_line": 305,
+    "private_response_sha256": "21a162ad20ac5bd2957f0f794d1386461e30779f3c039dafeef206117f1a7af4",
+    "decoded_output_sha256": "30469931eb837f8e2ece69660f1489ca7e06975056de2ff9c5cb1045595d05d6",
+    "finding": "Four distinct native OvPhysX CPU workers simultaneously listed, with elapsed01:23 and nonzero CPU activity."
+  },
+  "vise": {
+    "case_id": "05_vise",
+    "arm": "plain_astra",
+    "pid": null,
+    "seed": 47,
+    "load_N": 0,
+    "device": "gpu",
+    "metrics_path": "runs/pilot-v1/05_vise/plain_astra/runtime_probe/candidate_01/seed_47_zero_load/metrics.json",
+    "metrics_sha256": "a3d9984b01198719593d7baeb21281ef568a4d0ff224b9d4da26a605217fe6a8",
+    "metrics_remote_mtime_ns": 1790031983399535460,
+    "reported_monotonic_elapsed_s": 168.90821966156363,
+    "estimated_worker_start_utc": "2026-09-21T23:03:34.491316+00:00",
+    "metrics_written_utc": "2026-09-21T23:06:23.399535+00:00",
+    "overlap": true,
+    "seconds_from_estimated_start": 77.5086841583252,
+    "seconds_until_metrics_write": 91.39953541755676,
+    "worker_path": "runs/pilot-v1/05_vise/plain_astra/runtime_probe/test_vise.py",
+    "worker_sha256": "acece63f76f00e4baddddcf6e0e864ab9a86c10d85af773da2d2493220e7d76d",
+    "timing_evidence_lines": [
+      37,
+      41,
+      110,
+      114,
+      115
+    ],
+    "command_path": "runs/pilot-v1/05_vise/plain_astra/runtime_probe/candidate_01/seed_47_zero_load/command.json",
+    "command_sha256": "a1f9fc2c0c0343e496ef660c4ffee0718341bab36105acc4c41ccef13d21f40c"
+  },
+  "limitations": [
+    "05 worker PID was not retained in this snapshot. Its overlapping lifetime is reconstructed from unchanged saved metrics, remote file timestamp and the inspected monotonic timer/write order; this is not a simultaneous five-PID snapshot.",
+    "No exact lifetime reconstruction is claimed for every other process or instant. The confirmed lower bound is sufficient to exceed4."
+  ],
+  "frozen_evaluators_changed": false,
+  "independent_physics_verdicts_changed": false,
+  "raw_inline_code_or_model_reasoning_included": false
+}

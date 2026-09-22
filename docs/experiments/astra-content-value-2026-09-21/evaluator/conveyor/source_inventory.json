@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "case_id": "02_conveyor",
+  "source_root": "/opt/astra-content-value-20260921/assets/02_conveyor",
+  "source_files": [
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor individual components in step format/base_and_support v3.step",
+      "sha256": "2b03446f045574681860127ec6a44f4d9e9c69b11edabeee1df59e860ed88a01"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor individual components in step format/box v2.step",
+      "sha256": "c6050776b8b6b3fda5c480e27257aa73176b967902b8203f0102c87bd435da37"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor individual components in step format/pick v2.step",
+      "sha256": "deb16f424479f104647ee5cee59d439014aecb0039031f400117c0fec18ca07b"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor individual components in step format/rail v2.step",
+      "sha256": "e4a0d2c5f2d3d26bdc0098cd0c58890a7dc4f8c5ebb1a682d669a4038289423e"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/box.ipt",
+      "sha256": "59829490a42a4391027f42ef8b0ba321ba8fa023a011b06c646fdedee41f1965"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/conveyor_model.iam",
+      "sha256": "a2db0b7a6cda924b1e01ec182b663071242003576cdd3d2085779f8ab768f2a3"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/part.ipt",
+      "sha256": "72aee9aa6f6f40f926ef4b043ffabd38767a5f14e48cb20fea57f2a20d4aa427"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/rail.ipt",
+      "sha256": "83cc80e7be6475e0ea25dead62e184234e03e1b1793c02400deb1c6b033b2a46"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/support.ipt",
+      "sha256": "586f196475c215347b4002106c11a790bfd8ebc352f7525746217aadb9b3cdf7"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1.f3d",
+      "sha256": "9032c584d5f4a5d4455abf81f95ade6358c71b7da0eb0045a4bb435a2b51e675"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "sha256": "b906c521cba00b8d69d677281a32d07428634bacea4d5e5e466ce78385a600ef"
+    }
+  ],
+  "length_scale_to_m": 0.001,
+  "parts": [
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "source_file": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0000.npz",
+      "geometry_sha256": "a595755d9903e97f31af05ce41bdde1d85a5c23563638e0294d0d72e58d8a772",
+      "required": true,
+      "vertices": 24852,
+      "triangles": 24912,
+      "bounds_m": [
+        [
+          -0.012,
+          -0.08698759054269477,
+          -0.007
+        ],
+        [
+          0.162,
+          0.08698759054269478,
+          0.0
+        ]
+      ],
+      "area_m2": 0.034858951297942926,
+      "abs_volume_m3": 4.353713443706235e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "1b44186195ba0c6ed95e44dbe7c11fb21fce4aa316f92396f8e7a267f15e33f7"
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "source_file": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0001.npz",
+      "geometry_sha256": "603cbadd89853ba116c7d445184f5e46b84c3f290673a5524aa3aad86f356546",
+      "required": true,
+      "vertices": 48,
+      "triangles": 28,
+      "bounds_m": [
+        [
+          -0.00480040752056786,
+          -0.01507997306144,
+          0.0
+        ],
+        [
+          0.014319891560306702,
+          0.00892002729618785,
+          0.01
+        ]
+      ],
+      "area_m2": 0.0024843457482209737,
+      "abs_volume_m3": 1.199052574671986e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "2c15e98db135fda95780405f68b8f02c75e3d29c2c847a1507750e8e0b3e5b25"
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "source_file": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0002.npz",
+      "geometry_sha256": "086c7c056118b7bd7e35179a859cd6e541a66f6fc26f8dcd5b4ef0568e36909d",
+      "required": true,
+      "vertices": 3746,
+      "triangles": 3652,
+      "bounds_m": [
+        [
+          -0.0147,
+          -0.0896999998219493,
+          -0.112
+        ],
+        [
+          0.16469999982194902,
+          0.0896999998219493,
+          -0.004
+        ]
+      ],
+      "area_m2": 0.050724439375886596,
+      "abs_volume_m3": 0.00015880291229025895,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "1fbaa16dedf0b8593e9a22bac22e50886dcdcde5b70ec5c5814d8b76f4477318"
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "source_file": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0003.npz",
+      "geometry_sha256": "33fa56ba73d14aeab6cf36a566e44ae4db79ca4eed4f0043ea787c726d350ee1",
+      "required": true,
+      "vertices": 668,
+      "triangles": 620,
+      "bounds_m": [
+        [
+          -0.0033,
+          -0.01358,
+          -0.001
+        ],
+        [
+          0.01282,
+          0.00742,
+          0.030500000223517402
+        ]
+      ],
+      "area_m2": 0.004519153754768442,
+      "abs_volume_m3": 2.8482850237546804e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "2fb9cc4e50d3dc0f8943311065e23b15c606bdd25a8958075a05ccb7ebf22ac0"
+    }
+  ],
+  "source_coverage_complete": true,
+  "coverage_note": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+  "importer_versions": {
+    "numpy": "2.5.3",
+    "trimesh": "4.12.2",
+    "cadquery-ocp": "7.8.1.1"
+  },
+  "excluded_ids": [],
+  "dataset_sha256": "34c8293ab1be49cd0bbdb8f8fe25278b60ba21c35d52b8009a5065278d25c87f",
+  "source_closure_sha256": "1fc37f577f33218a1e82bf0c1042202c9819cff21e240f1bb2b8c8db334940cf",
+  "primary_input": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step"
+}

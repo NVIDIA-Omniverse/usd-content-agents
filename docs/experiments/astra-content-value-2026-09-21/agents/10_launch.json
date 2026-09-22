@@ -1,0 +1,25 @@
+{
+  "pid": 97685,
+  "started_unix": 1790026565.0668092,
+  "command": [
+    "/Applications/ChatGPT.app/Contents/Resources/codex",
+    "exec",
+    "--ignore-user-config",
+    "--skip-git-repo-check",
+    "-C",
+    "[private runtime identifier]/Documents/ChatGPT/content-agents-product-work/output/astra-content-value-20260921/agents",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"ultra\"",
+    "-c",
+    "approval_policy=\"never\"",
+    "-s",
+    "danger-full-access",
+    "--json",
+    "-"
+  ],
+  "model": "gpt-6-astra",
+  "reasoning_effort": "ultra",
+  "purpose": "asset10 source curation"
+}

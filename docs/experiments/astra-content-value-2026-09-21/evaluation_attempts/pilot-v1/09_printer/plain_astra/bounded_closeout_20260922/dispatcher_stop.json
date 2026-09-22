@@ -1,0 +1,10 @@
+{
+  "pid": 124238,
+  "action": "SIGTERM",
+  "reason": "Direct10 corrected receipt is complete; direct09 exhausted its original bound without a verdict; geometry-only CA09/10 already have qualified mandatory-physics absence receipts. No corrected/source or native completion is inferred.",
+  "verified_cmdline": "/opt/astra-content-value-20260921/repo/.venv/bin/python /opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/dispatcher.py --cases 02_conveyor 05_vise 06_engine 09_printer 10_complex --label pair_r2_20260921 --wait-seconds 14400",
+  "verified_cwd": "/home/horde",
+  "children_before": [],
+  "confirmed_exited": true,
+  "observed_utc": "2026-09-22T01:46:18.612296+00:00"
+}

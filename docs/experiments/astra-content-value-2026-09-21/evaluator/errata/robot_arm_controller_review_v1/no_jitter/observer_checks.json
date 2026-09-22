@@ -1,0 +1,370 @@
+[
+  {
+    "name": "seed11:direct_run_completed",
+    "passed": true,
+    "evidence": 2880,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:finite_solver_state",
+    "passed": true,
+    "evidence": null,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:max_linear_speed_m_s",
+    "passed": true,
+    "evidence": {
+      "measured": 0.6305547036785439,
+      "limit": 5.0
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:max_angular_speed_rad_s",
+    "passed": true,
+    "evidence": {
+      "measured": 3.751103312357648,
+      "limit": 30.0
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:max_joint_closure_m",
+    "passed": true,
+    "evidence": {
+      "measured": 1.968699551380018e-05,
+      "limit": 0.002
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:max_joint_axis_error_rad",
+    "passed": true,
+    "evidence": {
+      "measured": 0.0004794590731886109,
+      "limit": 0.05
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:max_contact_penetration_m",
+    "passed": true,
+    "evidence": {
+      "measured": 0.0,
+      "limit": 0.003
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:native_mass_finite_positive",
+    "passed": true,
+    "evidence": null,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:native_inertia_finite_positive",
+    "passed": true,
+    "evidence": null,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:independent_freefall_witness",
+    "passed": true,
+    "evidence": {
+      "time": 0.1,
+      "delta_z": -0.05078125,
+      "vz": -0.9810003042221069,
+      "expected_vz": -0.9810000000000001
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_limits:/World/Robot/Joints/joint1",
+    "passed": true,
+    "evidence": {
+      "observed": [
+        -0.008522371737562207,
+        0.6108658566026732
+      ],
+      "authored": [
+        -0.6108652381980153,
+        0.6108652381980153
+      ],
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_limits:/World/Robot/Joints/joint2",
+    "passed": true,
+    "evidence": {
+      "observed": [
+        -0.2955970795459124,
+        0.6112409128332246
+      ],
+      "authored": [
+        -0.6108652381980153,
+        0.6108652381980153
+      ],
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_limits:/World/Robot/Joints/joint3",
+    "passed": true,
+    "evidence": {
+      "observed": [
+        -0.014092100146532172,
+        0.6108669413447587
+      ],
+      "authored": [
+        -0.6108652381980153,
+        0.6108652381980153
+      ],
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_limits:/World/Robot/Joints/joint4",
+    "passed": true,
+    "evidence": {
+      "observed": [
+        -0.017910626607649416,
+        0.6108869267975003
+      ],
+      "authored": [
+        -0.6108652381980153,
+        0.6108652381980153
+      ],
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_limits:/World/Robot/Joints/joint5",
+    "passed": true,
+    "evidence": {
+      "observed": [
+        -0.369735949200968,
+        0.6108672046758357
+      ],
+      "authored": [
+        -0.6108652381980153,
+        0.6108652381980153
+      ],
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_limits:/World/Robot/Joints/joint6",
+    "passed": true,
+    "evidence": {
+      "observed": [
+        -0.027583153208097233,
+        0.6108833573385413
+      ],
+      "authored": [
+        -0.6108652381980153,
+        0.6108652381980153
+      ],
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:required_joint_motion:joint1",
+    "passed": true,
+    "evidence": 0.26950565095300183,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:target_holding_under_load:joint1",
+    "passed": true,
+    "evidence": {
+      "max_error": 0.04080391433216213,
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_return:joint1",
+    "passed": true,
+    "evidence": [
+      0.0011937612440218182,
+      0.0019198737337959848,
+      0.0023303936319689633,
+      0.002473083600303294,
+      0.0023995757629844405,
+      0.002159237378391854,
+      0.001796998475500633,
+      0.001353521714563044
+    ],
+    "failure_class": null
+  },
+  {
+    "name": "seed11:required_joint_motion:joint2",
+    "passed": true,
+    "evidence": 0.2955898722369996,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:target_holding_under_load:joint2",
+    "passed": true,
+    "evidence": {
+      "max_error": 0.035586564981950675,
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_return:joint2",
+    "passed": true,
+    "evidence": [
+      0.0007116014939954063,
+      0.00022607695159049257,
+      -0.000163241837505268,
+      -0.00047472272786874825,
+      -0.0007305653437716941,
+      -0.0009499941473878337,
+      -0.001145472656526536,
+      -0.001321356744338864
+    ],
+    "failure_class": null
+  },
+  {
+    "name": "seed11:required_joint_motion:joint3",
+    "passed": true,
+    "evidence": 0.2724232156667301,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:target_holding_under_load:joint3",
+    "passed": true,
+    "evidence": {
+      "max_error": 0.04546930035559815,
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_return:joint3",
+    "passed": true,
+    "evidence": [
+      0.002521646292557911,
+      0.001454861964451215,
+      0.00044397900754677977,
+      -0.0004904062009494226,
+      -0.0013321742602832032,
+      -0.0020708400806217497,
+      -0.0026978427783985737,
+      -0.0032061137166348175
+    ],
+    "failure_class": null
+  },
+  {
+    "name": "seed11:required_joint_motion:joint4",
+    "passed": true,
+    "evidence": 0.27094134541528136,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:target_holding_under_load:joint4",
+    "passed": true,
+    "evidence": {
+      "max_error": 0.04647978793124774,
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_return:joint4",
+    "passed": true,
+    "evidence": [
+      0.0003983538650955687,
+      0.004183450403177247,
+      0.0070069068231921605,
+      0.008708455694630857,
+      0.009277903844600921,
+      0.008828128409354985,
+      0.0075591490499458125,
+      0.0057202424633246984
+    ],
+    "failure_class": null
+  },
+  {
+    "name": "seed11:required_joint_motion:joint5",
+    "passed": true,
+    "evidence": 0.37025458633216024,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:target_holding_under_load:joint5",
+    "passed": false,
+    "evidence": {
+      "max_error": 0.10969956421600968,
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": "rejected"
+  },
+  {
+    "name": "seed11:joint_return:joint5",
+    "passed": true,
+    "evidence": [
+      0.020429831180168723,
+      0.016450213926070933,
+      0.011114899006000378,
+      0.0051102220285637046,
+      -0.0008913692659646699,
+      -0.006306681930813962,
+      -0.010714931055249455,
+      -0.013877272596491519
+    ],
+    "failure_class": null
+  },
+  {
+    "name": "seed11:required_joint_motion:joint6",
+    "passed": true,
+    "evidence": 0.2686284586610155,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:target_holding_under_load:joint6",
+    "passed": true,
+    "evidence": {
+      "max_error": 0.044705447050125136,
+      "tolerance": 0.08726646259971647
+    },
+    "failure_class": null
+  },
+  {
+    "name": "seed11:joint_return:joint6",
+    "passed": true,
+    "evidence": [
+      -0.0016736432685755531,
+      0.005319023866428019,
+      0.011209667956391556,
+      0.015307295680474287,
+      0.01721653047113758,
+      0.016873373386619317,
+      0.01452533137937051,
+      0.010660605336242579
+    ],
+    "failure_class": null
+  },
+  {
+    "name": "seed11:end_effector_moved",
+    "passed": true,
+    "evidence": 0.3464806579869091,
+    "failure_class": null
+  },
+  {
+    "name": "seed11:base_stayed_fixed",
+    "passed": true,
+    "evidence": 0.0,
+    "failure_class": null
+  }
+]

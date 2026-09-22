@@ -1,0 +1,49 @@
+{
+  "generated_utc": "2026-09-22T00:31:01.079669+00:00",
+  "case_id": "03_hinge",
+  "arm": "content_agents",
+  "context_source": {
+    "path": "runs/pilot-v1/03_hinge/content_agents/model_usage_audit.json",
+    "sha256": "08b7e40bc136d4024759115e60bc5b4b893ba3aa5a4b94d9c3f370dab03ac660"
+  },
+  "context_checks": [
+    {
+      "session_index": 1,
+      "retained_session_sha256": "0f66a14f3c953c2287369450be3fba8df191e075626f2495a1d31fc32a18a94c",
+      "expected_model": "gpt-6-astra",
+      "expected_reasoning_effort": "ultra",
+      "turn_contexts": [
+        {
+          "timestamp": "2026-09-21T22:32:25.473Z",
+          "model": "gpt-6-astra",
+          "reasoning_effort": "ultra"
+        }
+      ],
+      "all_match": true
+    },
+    {
+      "session_index": 2,
+      "retained_session_sha256": "0708309b8fa0f74ce41fb58c9a9aa92f58cb75229c9f30143b924880d0548381",
+      "expected_model": "gpt-6-astra",
+      "expected_reasoning_effort": "ultra",
+      "turn_contexts": [
+        {
+          "timestamp": "2026-09-21T22:32:57.852Z",
+          "model": "gpt-6-astra",
+          "reasoning_effort": "ultra"
+        }
+      ],
+      "all_match": true
+    }
+  ],
+  "all_retained_turn_contexts_match": true,
+  "candidate_seals": [],
+  "submission": {
+    "path": "runs/pilot-v1/03_hinge/content_agents/submission.json",
+    "sha256": "929c0dbec18a4b075df2680317ab030295a39fbba9fac9a271cdf07c4dbe58bf"
+  },
+  "declared_repairs": 1,
+  "submitted_scene": null,
+  "submitted_bindings": null,
+  "privacy": "Session JSONL parsed only for turn_context metadata; no model messages, reasoning or auth exported. Retained session identity represented by file hash and ordinal."
+}

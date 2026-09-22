@@ -1,0 +1,231 @@
+{
+  "schema_version": "astra-content-value-protocol-audit.v1",
+  "case_id": "08_excavator",
+  "arm": "content_agents",
+  "valid": true,
+  "audited_utc": "2026-09-21T23:50:48.660558+00:00",
+  "checks": [
+    {
+      "name": "original_source_unchanged",
+      "valid": true,
+      "evidence": {
+        "source_files": 72,
+        "details": "protocol_probe.json#/source_checks"
+      },
+      "note": null
+    },
+    {
+      "name": "completed_outputs_unchanged",
+      "valid": true,
+      "evidence": {
+        "files": 247,
+        "manifest": {
+          "path": "runs/pilot-v1/08_excavator/content_agents/output_manifest.json",
+          "sha256": "25930c9b5c92fbcd770cba67898f71a460c33534e747110a62e87865db39a326"
+        },
+        "details": "protocol_probe.json#/output_checks"
+      },
+      "note": null
+    },
+    {
+      "name": "frozen_evaluator_and_task_unchanged",
+      "valid": true,
+      "evidence": {
+        "case_hooks.py": true,
+        "evaluate.py": true,
+        "structural.py": true,
+        "cases.json": true,
+        "geometry.py": true,
+        "common.py": true,
+        "solver.py": true,
+        "bindings.schema.json": true,
+        "reference_inventory": true
+      },
+      "note": null
+    },
+    {
+      "name": "matched_model_effort_task_budget_host_gpu",
+      "valid": true,
+      "evidence": {
+        "pair_fields": {
+          "model": true,
+          "reasoning_effort": true,
+          "budget_seconds": true,
+          "task_sha256": true
+        },
+        "contexts": [
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          }
+        ],
+        "launch": {
+          "path": "runs/pilot-v1/08_excavator/content_agents/launch.json",
+          "sha256": "3fb851d439cbc229cdaa62e8f261821003d49929aa85b8529921a20bc3806ee6"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "within_wall_time_budget",
+      "valid": true,
+      "evidence": {
+        "elapsed_seconds": 965.0488376617432,
+        "budget_seconds": 2400,
+        "execution": {
+          "path": "runs/pilot-v1/08_excavator/content_agents/execution.json",
+          "sha256": "54877b55b60240f9aa7c2bce6c8b64fb1f1d7a3a8eb1b97274b14ff86f8e63d5"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "no_observed_protected_reads_or_cross_case_exposure",
+      "valid": true,
+      "evidence": {
+        "execution_tool_requests_reviewed": 93,
+        "captured_sessions": 3,
+        "execution_request_metadata_sha256": "1c9a09b8efbb0ad67feb7d6999d57e78e1fd4b9a00e2bf04f7e454162cdf0323",
+        "access_pattern_hits": [],
+        "process_output_review": [
+          {
+            "event_line": 79,
+            "item_id": "item_40",
+            "output_characters": 0,
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "review": "Observed own-case command/process content only; no other-case source or evaluator content found."
+          },
+          {
+            "event_line": 89,
+            "item_id": "item_46",
+            "output_characters": 5403,
+            "output_sha256": "0083e913d91d4e22327313e88e613e007ece90242256b1fa995b56d7139ae54e",
+            "review": "Observed own-case command/process content only; no other-case source or evaluator content found."
+          },
+          {
+            "event_line": 93,
+            "item_id": "item_47",
+            "output_characters": 7647,
+            "output_sha256": "fa907507f0535b16940eba36b130a6399c62cf7d41204e0ee94d4c536e47e571",
+            "review": "Observed own-case command/process content only; no other-case source or evaluator content found."
+          }
+        ]
+      },
+      "note": "Captured command and public-output audit, not OS-level enforcement. Non-execution inter-agent payloads and private reasoning excluded."
+    },
+    {
+      "name": "native_failed_and_conditional_handoffs_preserved",
+      "valid": true,
+      "evidence": {
+        "native_geometry": [
+          {
+            "stage": "geometry_01",
+            "success": true,
+            "validation_status": "conditional",
+            "handoff_ready": "conditional",
+            "receipt": {
+              "path": "runs/pilot-v1/08_excavator/content_agents/geometry_01/geometry_workflow_result.json",
+              "sha256": "6aaec0adfe759b4664aa2246dd948be4bb1117dd9be2b9cd8de9185ff9c27ef3"
+            }
+          },
+          {
+            "stage": "geometry_02",
+            "success": false,
+            "validation_status": "fail",
+            "handoff_ready": "no",
+            "receipt": {
+              "path": "runs/pilot-v1/08_excavator/content_agents/geometry_02/geometry_workflow_result.json",
+              "sha256": "93c3d0caaa7a6fc8f539d6bc0f58640740aa46fc34a8ac3b49ce7b15b7ce0605"
+            }
+          },
+          {
+            "stage": "geometry_03",
+            "success": true,
+            "validation_status": "conditional",
+            "handoff_ready": "conditional",
+            "receipt": {
+              "path": "runs/pilot-v1/08_excavator/content_agents/geometry_03/geometry_workflow_result.json",
+              "sha256": "a9a16b08079bcdd74f0585e75f3671141c41737768d270dacc28446de0ec0ef2"
+            }
+          }
+        ],
+        "native_launcher_teardown": {
+          "path": "runs/pilot-v1/08_excavator/content_agents/asset_01/raw/asset_usd_cli_teardown_run-1790033326279599027-51342b6a.json",
+          "sha256": "099f6a91c5ea3255721e0537526447df805f03ae0728dd3a202b4fc10355deeb"
+        },
+        "launcher_status": "not_started",
+        "launcher_boundary": "setup_failed",
+        "child_returncode": 2,
+        "daemon_was_started": false,
+        "setup_error": "RuntimeError: Package-owned usd-cli route is unavailable: could not verify the committed in-tree usd-cli source",
+        "submitted_claim": false,
+        "final_readback": "usd_readback.json",
+        "chronology": [
+          {
+            "event_line": 91,
+            "item_id": "item_44",
+            "action": "Initial asset CLI invocation exited2 before a child ran; its script gated file existence only and included unsupported flags."
+          },
+          {
+            "event_line": 108,
+            "item_id": "item_52",
+            "action": "Corrected launcher required geometry03 success, retained conditional receipts and one remaining repair; native package provenance check then failed before child launch."
+          },
+          {
+            "event_line": 122,
+            "item_id": "item_63",
+            "action": "Preserved geometry-only repaired final and explicit false acceptance claim."
+          }
+        ]
+      },
+      "note": "The initial launcher did not correctly gate the failed geometry disposition, but exited before any workflow child or leaf executed. The corrected gate preserved conditional status; no native failed/conditional receipt was promoted to accepted, and no joint/physics validation success was claimed."
+    },
+    {
+      "name": "two_repair_limit_and_candidate_preservation",
+      "valid": true,
+      "evidence": {
+        "declared_repairs": 1,
+        "observed_post_prepared_candidate_geometry_repairs": 1,
+        "conservative_geometry_stage_count": 3,
+        "conservative_changes_after_original_conversion": 2,
+        "preserved_candidates": [
+          {
+            "path": "runs/pilot-v1/08_excavator/content_agents/candidate_01/scene.usd",
+            "sha256": "e29ec5b0dfd59ed43a66134e71638ef880073ec96ae1ab8374f280eeb8841e62"
+          },
+          {
+            "path": "runs/pilot-v1/08_excavator/content_agents/candidate_01/bindings.json",
+            "sha256": "483cf407598ded307d4b5f6b0c569648240655628007d69f611c82597450c81f"
+          },
+          {
+            "path": "runs/pilot-v1/08_excavator/content_agents/repair_01/scene.usd",
+            "sha256": "c10cc875d79cc2fd1e01074176054f4c6fcbf115ff5a07ab5c3ab776cde49759"
+          },
+          {
+            "path": "runs/pilot-v1/08_excavator/content_agents/repair_01/bindings.json",
+            "sha256": "70de8a031b0d5573e62417aed349845639bc0b4de6201ee7c04b9c247e5899d2"
+          }
+        ],
+        "repair_receipt": {
+          "path": "runs/pilot-v1/08_excavator/content_agents/repair_01/repair_receipt.json",
+          "sha256": "295a4c760bacf98744bc059f0125efcf13566cfd9ac506536e27710af317accc"
+        },
+        "points_and_topology_independently_equal_all80": true,
+        "final_matches_repair1": true
+      },
+      "note": "Original CAD conversion, first normalized/grouped candidate, then one indexed-normal correction. Counting the preparation as another change still gives at most2. No articulated candidate or physical repair occurred; launcher syntax/setup retries are retained separately."
+    }
+  ],
+  "independent_physical_result_separate": true,
+  "interpretation": "Protocol adherence for this run does not establish task success. It submitted an80-mesh geometry-only partial with zero rigid bodies/joints and claimed false. Required package-owned source provenance failed before the workflow model child or articulation logic ran. Report the configured-runtime outcome and incomplete prerequisite; no general causal workflow advantage/disadvantage follows.",
+  "scope_limit": "Source/output/evaluator hashes, captured model contexts, execution-request metadata and retained public outputs. No OS-level or unobserved-session isolation claim.",
+  "sanitized": true
+}

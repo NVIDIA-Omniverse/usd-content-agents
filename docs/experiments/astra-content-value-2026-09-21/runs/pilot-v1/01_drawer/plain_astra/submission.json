@@ -1,0 +1,15 @@
+{
+  "claimed_accepted": true,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "All five locally simulated public seeds passed force-driven opening, closure, payload retention, contact, penetration, stability and interior-clearance checks. All five source surfaces match exactly, and the final packaged scene has the same geometry and physics as the tested first candidate. Independent acceptance has not been observed.",
+  "repairs_used": 0,
+  "limitations": [
+    "Physics collision shapes approximate the source: drawer walls are axis-aligned slabs; the collision floor is 4.5 mm below the unchanged source floor, limiting the specified initial payload overlap to 3.5 mm.",
+    "Cabinet collision approximations omit thin source aperture lips that intersect the source drawer shell, plus decorative legs/upper shelving frame. Cabinet remains anchored; its full source visual mesh remains visible.",
+    "Drawer mass is an assumed 3 kg; center of mass, solid-envelope inertia and friction are documented simulation abstractions, not measured furniture properties.",
+    "The tests are our own implementation of the public force protocol on OvPhysX 0.4.13 CPU, not independent evaluator results. Exact evaluator random-number consumption and solver configuration were not inspected.",
+    "The pinned OvPhysX runtime crashed on a second initialization in one process. Completed seeds were therefore run in separate fresh processes; error logs are preserved. No installed packages or runtime source were changed.",
+    "The renderer completed on the assigned GPU with driver/display and fallback warnings recorded in its logs. No required physics capability was missing."
+  ]
+}

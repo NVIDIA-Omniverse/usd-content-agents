@@ -1,0 +1,67 @@
+{
+  "created_utc": "2026-09-22T00:36:44.871538+00:00",
+  "case_id": "03_hinge",
+  "arm": "content_agents",
+  "retained_tool_requests_total": 62,
+  "execution_requests_reviewed": 53,
+  "excluded_non_execution_tool_types": {
+    "spawn_agent": 1,
+    "send_message": 8
+  },
+  "source_tool_records": {
+    "path": "audits/pilot-v1/03_hinge/content_agents/tool_calls.private.json",
+    "sha256": "e1f980637904b0a064aecd193a76c21e40bde3ca2cb004539805bd971204fd42",
+    "publication": "Private execution audit source; never included in public bundle."
+  },
+  "execution_only_records_sha256": "a7e47b68e372a19661613b61ae1bb453c85610f6b30f07e249f070c5c78d8968",
+  "method": "Pattern review of all extracted execution request arguments, directed review of source/authoring/repair/closeout calls, direct inspection of all selected process outputs, and independent current-state hashes and USD readback. Inter-agent message payloads and model reasoning are not review evidence.",
+  "observed_forbidden_path_accesses": [],
+  "no_opposite_arm_or_evaluator_reads_observed": true,
+  "no_other_case_code_exposure_in_selected_process_outputs": true,
+  "no_source_repository_or_package_mutation_observed": true,
+  "process_inspection_requests": 0,
+  "process_output_coverage_complete": true,
+  "process_outputs_evidence": {
+    "path": "audits/pilot-v1/03_hinge/content_agents/fresh_review_20260922/process_output_index.json",
+    "sha256": "8e1a52d5a59b56df7a8d4dbd04385577664cfe736754c8ab4511555d87504242"
+  },
+  "process_output_review": "No ps, pgrep, or nvidia-smi inspection request found among extracted execution calls.",
+  "asset_repair_chronology": [
+    {
+      "original_tool_index": 24,
+      "timestamp": "2026-09-21T22:35:06.030Z",
+      "arguments_sha256": "aaa3c09990218f93f9938569d2d05d003fa21967ff61434f9ca113443494821d",
+      "description": "Single visual_only, diagnose-mode Geometry repair invoked after native failure."
+    },
+    {
+      "original_tool_index": 47,
+      "timestamp": "2026-09-21T22:38:33.971Z",
+      "arguments_sha256": "f3bde88efac0d291749bd30da16d38a2381376d22373bcc632e6be4e95241536",
+      "description": "First candidate and native failed receipts preserved; non-mutating Validation prepared."
+    },
+    {
+      "original_tool_index": 54,
+      "timestamp": "2026-09-21T22:41:08.423Z",
+      "arguments_sha256": "7fb396b9620609031815c3cd67d49e506aeae2a1637f3677d77cfc4a0e5c435c",
+      "description": "Null final scene and null bindings submitted with failed handoff and one repair declared."
+    },
+    {
+      "original_tool_index": 60,
+      "timestamp": "2026-09-21T22:43:04.802Z",
+      "arguments_sha256": "30e039690143138e1eb8fc579334540e57dfa78118ba7b603f4b4421b531f99c",
+      "description": "Final native Validation receipt/logs inspected without promoting a mechanism."
+    },
+    {
+      "original_tool_index": 61,
+      "timestamp": "2026-09-21T22:43:42.240Z",
+      "arguments_sha256": "0a189392865dfb62ff7f9415d6af4f3a43fc0fee378101f3ad0432e253e3f208",
+      "description": "Blocked closeout updated; no final mechanism authored."
+    }
+  ],
+  "boundaries": [
+    "This is an observational retained-tool audit, not an OS complete-access trace.",
+    "Current hashes cannot exclude transient modification followed by byte restoration.",
+    "Non-execution inter-agent message payloads are excluded; actual retained turn_context metadata is checked separately.",
+    "The pre-existing current receipt is preserved unchanged. No lost original audit bytes are reconstructed or claimed recovered."
+  ]
+}

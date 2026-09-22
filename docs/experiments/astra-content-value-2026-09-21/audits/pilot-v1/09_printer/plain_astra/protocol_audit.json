@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "case_id": "09_printer",
+  "arm": "plain_astra",
+  "valid": true,
+  "status": "VALID_AUTHOR_PROTOCOL_OBSERVED",
+  "scope": "Per-arm author model, access, treatment, source, environment, repairs, wall budget and retained-artifact protocol. Experiment-wide simulation scheduling is separate.",
+  "audited_utc": "2026-09-22T00:29:17.836716+00:00",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All 4 distinct reconciled sessions use gpt-6-astra ultra; full response usage reconciles with final counters.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/plain_astra/usage_reconciled.json",
+          "sha256": "c69c671ac87ba3ed25312bbef4d2f1b01b057d3efc8e04c27d3f38cb8ad6de69"
+        }
+      ]
+    },
+    {
+      "id": "frozen_task_and_outputs",
+      "valid": true,
+      "finding": "All 3,353 watchdog-manifest files, including dependencies, remain byte-identical; frozen public task matches launch.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/plain_astra/independent_protocol_probe.json",
+          "sha256": "eeede833fe99c6f5fc540e3e83412e3fbd3bd1cd7e4ea05ea6709e12b208450c"
+        }
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All 32 curation checksum entries are unchanged; copied original STEP and public source inventory hashes match.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/plain_astra/source_integrity.json",
+          "sha256": "b0e9b4eb52323b7ab1ba332491e605e42b0ecb71bc7cc309338437ece3b99e9c"
+        }
+      ]
+    },
+    {
+      "id": "control_treatment_separation",
+      "valid": true,
+      "finding": "Used unchanged original STEP with OCP, OpenUSD authoring, public usd-cli low-level rendering/documentation, and direct native OvPhysX. No Content Agents workflow skill, coordinator, decision-helper, evaluator implementation/reference, opposite-arm or other-case content access observed.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/plain_astra/protocol_observations.json",
+          "sha256": "3b307f349fa1094f58b962d56d2d9a9df5e478fd284eb07b59624037947f146c"
+        }
+      ]
+    },
+    {
+      "id": "forbidden_content_access",
+      "valid": true,
+      "finding": "No forbidden reads in captured requests. All 18 process responses inspected: own extraction/remeshing code or metadata only. The one inline-code listing is this same 09 source extractor, with explicit own source/run paths.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/plain_astra/protocol_observations.json",
+          "sha256": "3b307f349fa1094f58b962d56d2d9a9df5e478fd284eb07b59624037947f146c"
+        }
+      ]
+    },
+    {
+      "id": "frozen_environment_mutation",
+      "valid": true,
+      "finding": "No package install, shared repository/source/evaluator mutation, alternate model/provider or assigned-GPU change observed. Own scripts, fixture scenes and derived meshes stay within the run directory.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/plain_astra/protocol_observations.json",
+          "sha256": "3b307f349fa1094f58b962d56d2d9a9df5e478fd284eb07b59624037947f146c"
+        }
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "2335.713781107217seconds within 2,400 seconds; recorded human interventions 0.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/09_printer/plain_astra/execution.json",
+          "sha256": "f85a609ad286a854e6d4b432b8b5277bf063a63cca5e1a8a3c11f75c94ec37fe"
+        }
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "One complete first candidate followed by one preserved CAD visual retessellation repair affecting 36 microscopic source details; all 3,092 source identities retained. Extraction-performance restart before any mesh/candidate, tiny synthetic API fixtures and own test-harness edits are preparation/diagnostics, not additional candidate repairs. Final USD repackages the same repair layers using relative paths; bindings remain byte-identical.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/plain_astra/protocol_observations.json",
+          "sha256": "3b307f349fa1094f58b962d56d2d9a9df5e478fd284eb07b59624037947f146c"
+        }
+      ]
+    },
+    {
+      "id": "terminal_claim_recorded",
+      "valid": true,
+      "finding": "claimed_accepted=true is preserved as the author claim. Independent physical acceptance is evaluated separately.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/09_printer/plain_astra/submission.json",
+          "sha256": "63d2cba3d38f03c16aa359425fdb1597f772ac91eb74be8e8cf7f412b8ba5e9e"
+        }
+      ]
+    }
+  ],
+  "violations": [],
+  "unknowns": [
+    "No proof is claimed against unrecorded activity; opaque collaboration message bodies were not decoded.",
+    "A delivered own-process response was truncated; only the delivered content is audited.",
+    "Experiment-wide scheduling is not certified by this per-arm valid flag."
+  ],
+  "global_concurrency": {
+    "scope": "experiment-wide",
+    "status": "FAIL_CONFIRMED_OVERLAP",
+    "evidence": {
+      "path": "audits/pilot-v1/global_concurrency/overlap_02_05.json",
+      "sha256": "56224fbfb4d2fb4b429a8a0a2d7baddd0e411cdc8971be9aeb51905d061680f8"
+    },
+    "note": "Root owns global scheduling and unobserved remainder; this is separate from physical acceptance."
+  },
+  "coverage": {
+    "tool_requests": 384,
+    "tool_counts": {
+      "exec": 235,
+      "spawn_agent": 3,
+      "send_message": 98,
+      "sleep": 31,
+      "followup_task": 4,
+      "wait_agent": 13
+    },
+    "first_tool_utc": "2026-09-21T23:37:02.801Z",
+    "last_tool_utc": "2026-09-22T00:15:24.304Z",
+    "process_responses_reviewed": 18,
+    "review_method": "Reviewed all captured requests from parent and child sessions for source/read scope, treatment, model, package/repository/environment mutations and repair chronology. Inspected all 18 captured process responses, including escaped-newline ps requests; cross-checked candidate, repair, source and final receipts with the rehashed watchdog manifest.",
+    "opaque_collaboration_messages_decoded": false,
+    "private_tool_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "repair_counting": {
+    "declared_repairs": 1,
+    "audited_count": 1,
+    "limit": 2,
+    "convention": "One complete first candidate followed by one preserved CAD visual retessellation repair affecting 36 microscopic source details; all 3,092 source identities retained. Extraction-performance restart before any mesh/candidate, tiny synthetic API fixtures and own test-harness edits are preparation/diagnostics, not additional candidate repairs. Final USD repackages the same repair layers using relative paths; bindings remain byte-identical.",
+    "first_candidate": {
+      "path": "runs/pilot-v1/09_printer/plain_astra/candidates/first_candidate/authorship.json",
+      "sha256": "3e914bb2ff3dcfd1f93b8adf7635c9e70fd146a03931046e70a88a47f0dd691b"
+    },
+    "repair": {
+      "path": "runs/pilot-v1/09_printer/plain_astra/repairs/repair_1/authorship.json",
+      "sha256": "e6bd3ca2394a309e8afde7653c18e52b44bf4cf10edbe6a681f9bfaee7cfb210"
+    },
+    "physics_equivalence_author_record": {
+      "path": "runs/pilot-v1/09_printer/plain_astra/evidence/physics_equivalence.json",
+      "sha256": "e2a67092354524b2181cd5c4d2e920c24af5401eff3f8b137084db1428924efc"
+    },
+    "evidence_is_author_protocol_record_not_independent_physics": true,
+    "candidate_manifest_hashes": [
+      {
+        "path": "bindings.json",
+        "sha256": "f2f8bee9521a473f74e02a43108ed062d5dca2ff868430129a820dba0e77e900",
+        "size": 1880679
+      },
+      {
+        "path": "candidates/first_candidate/bindings.json",
+        "sha256": "f2f8bee9521a473f74e02a43108ed062d5dca2ff868430129a820dba0e77e900",
+        "size": 1880679
+      },
+      {
+        "path": "candidates/first_candidate/final.usd",
+        "sha256": "e28087fdba16e23e71aa2b6b61ffbb3d240d2057ae4fae49ee0b8cbcc516e79b",
+        "size": 8137
+      },
+      {
+        "path": "final.usd",
+        "sha256": "c51eadb4c57ece0f1a5a29b051d1139580fc480fc7e2899e870589c030bf65a4",
+        "size": 974
+      },
+      {
+        "path": "repairs/repair_1/bindings.json",
+        "sha256": "f2f8bee9521a473f74e02a43108ed062d5dca2ff868430129a820dba0e77e900",
+        "size": 1880679
+      },
+      {
+        "path": "repairs/repair_1/final.usd",
+        "sha256": "89e957c69dc636c7028f4c7def6709073e706652906167fceed7afddb2a7872a",
+        "size": 969
+      }
+    ]
+  },
+  "private_tool_metadata_digest": {
+    "path": "audits/pilot-v1/09_printer/plain_astra/tool_calls.private.json",
+    "sha256": "78a2a7378c649d4c1a905a994ad95a86ccb0213b747eb9e21f6b14f12bf7eb65",
+    "publish": false
+  },
+  "detailed_report": {
+    "path": "audits/pilot-v1/09_printer/plain_astra/protocol_observations.json",
+    "sha256": "3b307f349fa1094f58b962d56d2d9a9df5e478fd284eb07b59624037947f146c"
+  },
+  "usage_reconciled_sha256": "c69c671ac87ba3ed25312bbef4d2f1b01b057d3efc8e04c27d3f38cb8ad6de69",
+  "independent_protocol_probe_sha256": "eeede833fe99c6f5fc540e3e83412e3fbd3bd1cd7e4ea05ea6709e12b208450c",
+  "source_integrity_sha256": "b0e9b4eb52323b7ab1ba332491e605e42b0ecb71bc7cc309338437ece3b99e9c",
+  "launch_sha256": "3e89477f4e1a9524db9ad999f7731740a5e160c0964700d54366b5e83ee8db92",
+  "execution_sha256": "f85a609ad286a854e6d4b432b8b5277bf063a63cca5e1a8a3c11f75c94ec37fe",
+  "submission_sha256": "63d2cba3d38f03c16aa359425fdb1597f772ac91eb74be8e8cf7f412b8ba5e9e",
+  "task_sha256": "7573fe13b6a67b1a8e87aee8e608f81ccb027278e5afc31701a088441d1e4c13",
+  "no_scored_output_repaired": true
+}

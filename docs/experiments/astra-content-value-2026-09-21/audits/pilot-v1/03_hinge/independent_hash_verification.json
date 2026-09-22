@@ -1,0 +1,26 @@
+{
+  "checked_unix": 1790032331.0586145,
+  "scope": "Read-only current-state source and repository hash audit after completed case03 pair; no author data altered.",
+  "source": {
+    "files_checked": 3,
+    "mismatches": [],
+    "pass": true
+  },
+  "repository": {
+    "files_checked": 2883,
+    "mismatches": [],
+    "pass": true
+  },
+  "plain_astra": {
+    "manifest_sha256": "24437a3a27f9f25bca756bd6e74e1d45a646615ab4bc02955ab72b3f466540f4",
+    "files_checked": 124,
+    "mismatches": [],
+    "pass": true
+  },
+  "content_agents": {
+    "manifest_sha256": "95fe922c1937604d64da305dffcedb7a694c039fd9e7cb4b721ec8a8d581868d",
+    "files_checked": 110,
+    "mismatches": [],
+    "pass": true
+  }
+}

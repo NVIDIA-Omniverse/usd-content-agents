@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "scope": "Unscored single-seed controller diagnostic. It sets effort multiplier to1 and startup random effort to0; it cannot confer complete asset acceptance.",
+  "seed": 11,
+  "before": {
+    "solver_sha256": "ad24b111295c99ba5d2f228110d1ffb91167cabd9d7effc78cafc6ec868c0554",
+    "config_sha256": "dbcec950fb35b6140e2151a4626e27345334355c917c5b606a36fab52350125a"
+  },
+  "after": {
+    "solver_sha256": "ad24b111295c99ba5d2f228110d1ffb91167cabd9d7effc78cafc6ec868c0554",
+    "config_sha256": "dbcec950fb35b6140e2151a4626e27345334355c917c5b606a36fab52350125a"
+  },
+  "frozen_solver_and_config_unchanged": true,
+  "replacement_counts": {
+    "effort_multiplier": 1,
+    "startup_perturbations": 72
+  },
+  "diagnostic_sha256": "d031b8a07aed8c07d3f975bd28d008e5b62a8725662306953a164c9c81404dce",
+  "native_result_sha256": "d9c62690ab3225d4be8feaa1fcf913d8727399d47553a218b8e82c05beb83719",
+  "elapsed_seconds": 115.09452867507935
+}

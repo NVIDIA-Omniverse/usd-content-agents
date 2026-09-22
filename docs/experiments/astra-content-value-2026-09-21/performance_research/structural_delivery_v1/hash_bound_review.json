@@ -1,0 +1,307 @@
+{
+  "schema_version": 1,
+  "reviewed_utc": "2026-09-22T01:04:17.249201+00:00",
+  "status": "AGREE_NARROW_STATIC_REJECTION",
+  "auditor": {
+    "path": "performance_research/structural_delivery_v1/audit.py",
+    "sha256": "387c6608092d1fe0ad3464c677b62451f983e9151443fa899717be879c79fc22"
+  },
+  "qualifier": {
+    "path": "performance_research/structural_delivery_v1/qualify.py",
+    "sha256": "82e5f900ef170640bbf7e3d629e117cc5520eef1fd228524156715b72f8cbedd"
+  },
+  "review_source": {
+    "path": "performance_research/structural_delivery_v1/hash_bound_review.py",
+    "sha256": "89e1efa1fe48f029f6569d497d566a6897f23981290161f2e113f3769d74e444"
+  },
+  "qualifications": [
+    {
+      "host": "codex",
+      "qualification": {
+        "path": "performance_research/structural_delivery_v1/qualification_codex/qualification.json",
+        "sha256": "e297a618664654c82f9f40361a0705bcb4bd1d2219bdd73664c1a2bfdee46f62"
+      },
+      "tests": 15,
+      "all_passed": true,
+      "usd_version": [
+        0,
+        25,
+        5
+      ]
+    },
+    {
+      "host": "pair",
+      "qualification": {
+        "path": "performance_research/structural_delivery_v1/qualification_pair/qualification.json",
+        "sha256": "7b43248633411ee34fb7188bf7c5f34ce678ad5d4bde8c82947a5756f3d7e24b"
+      },
+      "tests": 15,
+      "all_passed": true,
+      "usd_version": [
+        0,
+        25,
+        5
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "07_robot_arm",
+      "arm": "content_agents",
+      "receipt": {
+        "path": "performance_research/structural_delivery_v1/07_robot_arm_content_agents.json",
+        "sha256": "371b02203288f0e1e9e8fe7d96b81b7f25ec5d9fa67eed955db1fcff7859dd16"
+      },
+      "public_task": {
+        "path": "protocol/tasks/07_robot_arm.json",
+        "sha256": "a9488b7ed6e5e6077cb78f1a9ad0bdf1d2a87f02f90b2c731a8d0bfc4df389f7"
+      },
+      "scene": {
+        "path": "runs/pilot-v1/07_robot_arm/content_agents/final.usd",
+        "sha256": "7d7491da326e828ca71eb0acfe6f21b14afc839c25ddd9b9e3dd6c2c7e271959"
+      },
+      "bindings": {
+        "path": "runs/pilot-v1/07_robot_arm/content_agents/bindings.json",
+        "sha256": "3fb2febaf5261f45984ede56c59a80de77e520a2d591c16e50894d036f327dd8"
+      },
+      "counts": {
+        "rigid_bodies": 0,
+        "joints": 0,
+        "colliders": 0,
+        "meshes": 566
+      },
+      "required_body_roles": [
+        "base",
+        "link1",
+        "link2",
+        "link3",
+        "link4",
+        "link5",
+        "end_effector"
+      ],
+      "required_joint_roles": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6"
+      ],
+      "joint_kinds": {
+        "joint1": "revolute",
+        "joint2": "revolute",
+        "joint3": "revolute",
+        "joint4": "revolute",
+        "joint5": "revolute",
+        "joint6": "revolute"
+      },
+      "supported_rejection_basis": "Actual composed scene contains no rigid bodies or joints although the frozen public task requires dynamic moving bodies and specified joints. Zero colliders corroborates missing physics.",
+      "supported_task_outcome": "FAIL_MANDATORY_PHYSICS_ABSENT",
+      "source_fidelity_status": "NOT_ASSESSED_BY_THIS_REVIEW",
+      "native_runtime_status": "NOT_ASSESSED_BY_THIS_REVIEW",
+      "claimed_accepted": false,
+      "demonstrated_false_pass": false
+    },
+    {
+      "case_id": "08_excavator",
+      "arm": "content_agents",
+      "receipt": {
+        "path": "performance_research/structural_delivery_v1/08_excavator_content_agents.json",
+        "sha256": "14b0c3fcd05eb04a82ca0a39534ed394d3df106a4c99d610a9adfe2c87aa29f7"
+      },
+      "public_task": {
+        "path": "protocol/tasks/08_excavator.json",
+        "sha256": "3436b7cd698a058da0bb0285814902aa22b28a5f7c21ffff4ae20db5a32bd25e"
+      },
+      "scene": {
+        "path": "runs/pilot-v1/08_excavator/content_agents/final.usd",
+        "sha256": "c10cc875d79cc2fd1e01074176054f4c6fcbf115ff5a07ab5c3ab776cde49759"
+      },
+      "bindings": {
+        "path": "runs/pilot-v1/08_excavator/content_agents/bindings.json",
+        "sha256": "70de8a031b0d5573e62417aed349845639bc0b4de6201ee7c04b9c247e5899d2"
+      },
+      "counts": {
+        "rigid_bodies": 0,
+        "joints": 0,
+        "colliders": 0,
+        "meshes": 80
+      },
+      "required_body_roles": [
+        "base",
+        "boom",
+        "stick",
+        "bucket"
+      ],
+      "required_joint_roles": [
+        "boom_pivot",
+        "stick_pivot",
+        "bucket_pivot"
+      ],
+      "joint_kinds": {
+        "boom_pivot": "revolute",
+        "stick_pivot": "revolute",
+        "bucket_pivot": "revolute"
+      },
+      "supported_rejection_basis": "Actual composed scene contains no rigid bodies or joints although the frozen public task requires dynamic moving bodies and specified joints. Zero colliders corroborates missing physics.",
+      "supported_task_outcome": "FAIL_MANDATORY_PHYSICS_ABSENT",
+      "source_fidelity_status": "NOT_ASSESSED_BY_THIS_REVIEW",
+      "native_runtime_status": "NOT_ASSESSED_BY_THIS_REVIEW",
+      "claimed_accepted": false,
+      "demonstrated_false_pass": false
+    },
+    {
+      "case_id": "09_printer",
+      "arm": "content_agents",
+      "receipt": {
+        "path": "performance_research/structural_delivery_v1/09_printer_content_agents.json",
+        "sha256": "dbb94fdf757ba38fee0d26797fdea6323cc2327a91b5fa5e94975be19b6e0ed5"
+      },
+      "public_task": {
+        "path": "protocol/tasks/09_printer.json",
+        "sha256": "7573fe13b6a67b1a8e87aee8e608f81ccb027278e5afc31701a088441d1e4c13"
+      },
+      "scene": {
+        "path": "runs/pilot-v1/09_printer/content_agents/final.usd",
+        "sha256": "1de197c5ee8302ec6d5cded5a9524e93c42260d73c0c33fc9a1f4f13618614bc"
+      },
+      "bindings": {
+        "path": "runs/pilot-v1/09_printer/content_agents/bindings.json",
+        "sha256": "d52be4c5529210640e672383aad810febd3acf40e99bf24bcc0ae9e284b7255a"
+      },
+      "counts": {
+        "rigid_bodies": 0,
+        "joints": 0,
+        "colliders": 0,
+        "meshes": 3092
+      },
+      "required_body_roles": [
+        "base",
+        "toolhead",
+        "gantry",
+        "bed"
+      ],
+      "required_joint_roles": [
+        "x",
+        "y",
+        "z"
+      ],
+      "joint_kinds": {
+        "x": "prismatic",
+        "y": "prismatic",
+        "z": "prismatic"
+      },
+      "supported_rejection_basis": "Actual composed scene contains no rigid bodies or joints although the frozen public task requires dynamic moving bodies and specified joints. Zero colliders corroborates missing physics.",
+      "supported_task_outcome": "FAIL_MANDATORY_PHYSICS_ABSENT",
+      "source_fidelity_status": "NOT_ASSESSED_BY_THIS_REVIEW",
+      "native_runtime_status": "NOT_ASSESSED_BY_THIS_REVIEW",
+      "claimed_accepted": false,
+      "demonstrated_false_pass": false
+    },
+    {
+      "case_id": "10_complex",
+      "arm": "content_agents",
+      "receipt": {
+        "path": "performance_research/structural_delivery_v1/10_complex_content_agents.json",
+        "sha256": "90fd749a8ea5357b6e6ec12a38f628f2a7988afe1578e00d737fa65fcb628731"
+      },
+      "public_task": {
+        "path": "protocol/tasks/10_complex.json",
+        "sha256": "8252d6cb86a9d22f92c2e865d9c270af6c23278121077d4c0fa8f7c7235518fc"
+      },
+      "scene": {
+        "path": "runs/pilot-v1/10_complex/content_agents/final.usd",
+        "sha256": "e02915da7d9985622209f66283a19c123dc7aa85855836a39637a417fefc135b"
+      },
+      "bindings": {
+        "path": "runs/pilot-v1/10_complex/content_agents/bindings.json",
+        "sha256": "3a07cc734382609293457816562646800c7a5c0c73dd60b593df193a745bb5a3"
+      },
+      "counts": {
+        "rigid_bodies": 0,
+        "joints": 0,
+        "colliders": 0,
+        "meshes": 69
+      },
+      "required_body_roles": [
+        "base",
+        "thumb_proximal",
+        "thumb_distal",
+        "index_proximal",
+        "index_middle",
+        "index_distal",
+        "middle_proximal",
+        "middle_middle",
+        "middle_distal",
+        "ring_proximal",
+        "ring_middle",
+        "ring_distal",
+        "little_proximal",
+        "little_middle",
+        "little_distal"
+      ],
+      "required_joint_roles": [
+        "thumb_mcp",
+        "thumb_ip",
+        "index_mcp",
+        "index_pip",
+        "index_dip",
+        "middle_mcp",
+        "middle_pip",
+        "middle_dip",
+        "ring_mcp",
+        "ring_pip",
+        "ring_dip",
+        "little_mcp",
+        "little_pip",
+        "little_dip"
+      ],
+      "joint_kinds": {
+        "thumb_mcp": "revolute",
+        "thumb_ip": "revolute",
+        "index_mcp": "revolute",
+        "index_pip": "revolute",
+        "index_dip": "revolute",
+        "middle_mcp": "revolute",
+        "middle_pip": "revolute",
+        "middle_dip": "revolute",
+        "ring_mcp": "revolute",
+        "ring_pip": "revolute",
+        "ring_dip": "revolute",
+        "little_mcp": "revolute",
+        "little_pip": "revolute",
+        "little_dip": "revolute"
+      },
+      "supported_rejection_basis": "Actual composed scene contains no rigid bodies or joints although the frozen public task requires dynamic moving bodies and specified joints. Zero colliders corroborates missing physics.",
+      "supported_task_outcome": "FAIL_MANDATORY_PHYSICS_ABSENT",
+      "source_fidelity_status": "NOT_ASSESSED_BY_THIS_REVIEW",
+      "native_runtime_status": "NOT_ASSESSED_BY_THIS_REVIEW",
+      "claimed_accepted": false,
+      "demonstrated_false_pass": false
+    }
+  ],
+  "all_reviewed_input_hashes_match": true,
+  "contract_basis": "Required body/joint roles and dynamic/nonkinematic requirement were disclosed in each launched frozen public task; missing all such APIs is a concrete necessary-condition failure independent of geometry distance and solver availability.",
+  "qualification_assessment": "Both hosts pass the same15 meaningful synthetic fixtures. Positive API presence is distinguished from geometry-only, disabled/kinematic bodies, absent/disabled colliders, wrong/disabled joints, missing/fake/duplicate bindings. Unresolved composition explicitly raises instead of proving absence. Tests qualify structural observations only, not simulation.",
+  "recommended_integration": {
+    "scope": "Only these four Content Agents receipts, bound to the reviewed auditor/qualification bytes and original submission/task/manifest/layers.",
+    "decision": "May report FAIL for mandatory physical content absent even while source comparison is unfinished or inconclusive. Preserve the original frozen evaluator result and separate supplementary receipt.",
+    "necessary_guards": [
+      "Require supported version, case/arm, auditor and qualification hashes, public task/launch consistency, scene/bindings/output-manifest hash binding, complete composed layer closure and unchanged inputs.",
+      "For this narrow integration require zero actual rigid bodies and zero actual joints; do not rely on supplementary_status alone.",
+      "Never convert importer/parser/hash/dependency/qualification exceptions into concrete failure.",
+      "Do not promote acceptance, claim source fidelity or native dynamics qualification, or count a false pass when claimed_accepted=false.",
+      "Any separately authorized stop must preserve incomplete attempts and a termination receipt; never call a stopped evaluation complete or claim its source fidelity. This review stops no jobs and changes no scored artifacts."
+    ]
+  },
+  "limitations": [
+    "No independent solver run was performed by this review.",
+    "The collider-descendant presence test can miss collider ownership under another nested rigid body; its positive result is expressly not acceptance. This does not affect these zero-schema scenes.",
+    "Outer manifest/path guards are code-reviewed and actual-receipt checked; the15 fixture set primarily exercises observe(), not every wrapper exception.",
+    "This is a post-run independent necessary-condition observation, not a rewrite of the frozen evaluator."
+  ],
+  "frozen_files_modified": false,
+  "scored_artifacts_modified": false,
+  "existing_jobs_changed": false,
+  "simulation_runs": 0
+}

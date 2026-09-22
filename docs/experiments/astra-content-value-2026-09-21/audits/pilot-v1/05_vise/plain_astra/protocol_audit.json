@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "case_id": "05_vise",
+  "arm": "plain_astra",
+  "valid": true,
+  "status": "VALID_AUTHOR_PROTOCOL_OBSERVED",
+  "scope": "Per-arm author model, access, treatment, source, environment, repairs, wall budget and retained-artifact protocol. Experiment-wide simulation scheduling is explicitly separate.",
+  "audited_utc": "2026-09-22T00:00:25.761244+00:00",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All3 observed completed sessions used gpt-6-astra ultra; usage ledger reconciles with final counters and no final session is missing.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/plain_astra/usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "frozen_task_and_outputs",
+      "valid": true,
+      "finding": "All259 retained watchdog-manifest files match their recorded bytes, and the public task hash matches launch. No scored artifact was repaired by this audit.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/plain_astra/independent_protocol_probe.json"
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All25 source files match the frozen inventory or original curation hashes. Both the source closure and this author copy were independently compared.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/plain_astra/source_integrity.json"
+      ]
+    },
+    {
+      "id": "control_treatment_separation",
+      "valid": true,
+      "finding": "Used original STEP/OCP, OpenUSD, common low-level usd-cli and direct OvPhysX. No Content Agents workflow skills, coordinators or decision helpers observed. One preserved visual tessellation repair was selected; independent physical acceptance is recorded elsewhere.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/plain_astra/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "forbidden_content_access",
+      "valid": true,
+      "finding": "At22:52:32.201Z child process listing exposed other-case/evaluator paths, process IDs and invocation options only, alongside common public OvPhysX documentation. No evaluator implementation, results, geometry arrays or foreign author code appeared. At22:54:40.983Z inline extract_source.py text belonged to this same05 author run (PID68636); no foreign code was found. Metadata visibility is retained as an isolation limitation, not misreported as evaluator evidence access.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/plain_astra/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "frozen_environment_mutation",
+      "valid": true,
+      "finding": "No package installation, repository/source/evaluator mutation, alternate model provider, or assigned-GPU override observed. Own temporary code, test harnesses and run-local derived assets stay within author scope.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/plain_astra/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "1737.8238974511623 seconds within2400-second watchdog cap; human interventions recorded0.",
+      "evidence": [
+        "runs/pilot-v1/05_vise/plain_astra/execution.json",
+        "audits/pilot-v1/05_vise/plain_astra/usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "The preserved candidate_01 was followed by one source-visual tessellation repair, repair_01. Reference tessellation experiments and own test-harness changes were diagnostics, not extra submitted scene candidates. Final USD/bindings exactly match repair_01.",
+      "count": 1,
+      "limit": 2,
+      "evidence": [
+        "audits/pilot-v1/05_vise/plain_astra/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "terminal_claim_recorded",
+      "valid": true,
+      "finding": "Terminal claimed_accepted=true is retained. Author claims and independent physical verdicts are distinct; this protocol audit changes neither.",
+      "evidence": [
+        "runs/pilot-v1/05_vise/plain_astra/submission.json"
+      ]
+    }
+  ],
+  "violations": [],
+  "unknowns": [
+    "No proof is claimed against unrecorded activity; opaque collaboration message bodies were not decoded.",
+    "Global scheduling is not certified by this per-arm valid flag. A separate confirmed global concurrency violation is retained."
+  ],
+  "global_concurrency": {
+    "scope": "experiment-wide",
+    "status": "FAIL_CONFIRMED_OVERLAP",
+    "evidence": "audits/pilot-v1/global_concurrency/overlap_02_05.json",
+    "note": "At least5 native solver processes overlap against cap4. Root owns global scope/adjudication and unobserved remainder."
+  },
+  "coverage": {
+    "tool_requests": 242,
+    "tool_counts": {
+      "exec": 170,
+      "spawn_agent": 2,
+      "send_message": 57,
+      "followup_task": 1,
+      "sleep": 3,
+      "wait_agent": 9
+    },
+    "first_tool_utc": "2026-09-21T22:49:12.891Z",
+    "last_tool_utc": "2026-09-21T23:17:38.427Z",
+    "review_method": "All captured tool requests, including child sessions, included in source/access/workflow/environment mutation scan; flagged calls and all process-listing responses inspected. Workflow and repair conclusions cross-checked against retained native receipts and output manifest.",
+    "opaque_collaboration_messages_decoded": false,
+    "private_request_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "repair_counting": {
+    "declared_repairs": 1,
+    "audited_count": 1,
+    "convention": "The preserved candidate_01 was followed by one source-visual tessellation repair, repair_01. Reference tessellation experiments and own test-harness changes were diagnostics, not extra submitted scene candidates. Final USD/bindings exactly match repair_01.",
+    "evidence_paths": [
+      "audits/pilot-v1/05_vise/plain_astra/author_evidence/evidence/repair_history.json",
+      "audits/pilot-v1/05_vise/plain_astra/author_evidence/repair_01/repair.json",
+      "audits/pilot-v1/05_vise/plain_astra/candidate_final_comparison.json"
+    ],
+    "limit": 2
+  },
+  "private_tool_metadata_digest": {
+    "path": "audits/pilot-v1/05_vise/plain_astra/tool_calls.private.json",
+    "sha256": "455bd0718bbf1123bb8cfabb88e8c07958240cc7161845a3fd83a9440d6c0846",
+    "publish": false
+  },
+  "detailed_report": {
+    "path": "audits/pilot-v1/05_vise/plain_astra/protocol_observations.json",
+    "sha256": "4bf439d162fd4f524af7f13f2077b150d8c74edd1ceae53fd71c0134cd3a7acc"
+  },
+  "usage_reconciled_sha256": "06a626c1ce544f39702054f921fe756da786d112a86928fe8da0254feac87224",
+  "independent_protocol_probe_sha256": "1f6bff8717848d0275c67f34aa544e0bbfec2966c701920ced89d3472b16f838",
+  "source_integrity_sha256": "83667c66b5d9384963ac21d685eed0d44d465d89c41ccb3cf8c209bcc63607c5",
+  "launch_sha256": "ba98c8e950e38e963b63a51f01a340c532082e1581c9fda4ded7c489f80a0344",
+  "execution_sha256": "0a5eb0bf3b5ad090cfbf86c2e279d3074e36f473646316c9b20783adc5444614",
+  "submission_sha256": "ba2b4148f4a939f4954ea4bbe62e9d1b3690c8c8f4931dc14f3e849241bba7f0",
+  "task_sha256": "a28238101478dde1f9ad3ed67e12a089ff1686b3bf30cd34030169348aa3324a",
+  "no_scored_output_repaired": true
+}

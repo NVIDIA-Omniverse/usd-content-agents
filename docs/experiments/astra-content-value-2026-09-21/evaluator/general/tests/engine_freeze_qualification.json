@@ -1,0 +1,162 @@
+{
+  "all_passed": true,
+  "fixtures": [
+    {
+      "fixture": "positive",
+      "expected_verdict_observed": true,
+      "failures": []
+    },
+    {
+      "fixture": "broken_topology",
+      "expected_verdict_observed": true,
+      "failures": [
+        "all_joints_declared",
+        "required_joint_is_in_closed_loop:crank"
+      ]
+    },
+    {
+      "fixture": "native_positive_seed11",
+      "expected_verdict_observed": true,
+      "checks": {
+        "accepted": true,
+        "status": "accepted",
+        "inconclusive_checks": [],
+        "concrete_failures": [],
+        "checks": [
+          {
+            "name": "seed11:direct_run_completed",
+            "passed": true,
+            "evidence": 2880,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:finite_solver_state",
+            "passed": true,
+            "evidence": null,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:max_linear_speed_m_s",
+            "passed": true,
+            "evidence": {
+              "measured": 0.043685585706349145,
+              "limit": 5.0
+            },
+            "failure_class": null
+          },
+          {
+            "name": "seed11:max_angular_speed_rad_s",
+            "passed": true,
+            "evidence": {
+              "measured": 1.334674596786499,
+              "limit": 30.0
+            },
+            "failure_class": null
+          },
+          {
+            "name": "seed11:max_joint_closure_m",
+            "passed": true,
+            "evidence": {
+              "measured": 1.2644380996079994e-05,
+              "limit": 0.002
+            },
+            "failure_class": null
+          },
+          {
+            "name": "seed11:max_joint_axis_error_rad",
+            "passed": true,
+            "evidence": {
+              "measured": 1.0745380149674388e-07,
+              "limit": 0.05
+            },
+            "failure_class": null
+          },
+          {
+            "name": "seed11:max_contact_penetration_m",
+            "passed": true,
+            "evidence": {
+              "measured": 0.0,
+              "limit": 0.003
+            },
+            "failure_class": null
+          },
+          {
+            "name": "seed11:native_mass_finite_positive",
+            "passed": true,
+            "evidence": null,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:native_inertia_finite_positive",
+            "passed": true,
+            "evidence": null,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:independent_freefall_witness",
+            "passed": true,
+            "evidence": {
+              "time": 0.1,
+              "delta_z": -0.05078125,
+              "vz": -0.9810003042221069,
+              "expected_vz": -0.9810000000000001
+            },
+            "failure_class": null
+          },
+          {
+            "name": "seed11:joint_limits:/World/j_piston_slide",
+            "passed": true,
+            "evidence": {
+              "observed": [
+                -0.000789940357208252,
+                0.05030637979507446
+              ],
+              "authored": [
+                -0.20000000298023224,
+                0.20000000298023224
+              ],
+              "tolerance": 0.002
+            },
+            "failure_class": null
+          },
+          {
+            "name": "seed11:full_crank_cycle",
+            "passed": true,
+            "evidence": 6.550075607720135,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:piston_stroke",
+            "passed": true,
+            "evidence": 0.051090940833091736,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:beam_swing",
+            "passed": true,
+            "evidence": 0.68081395620495,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:piston_cycle_repeat",
+            "passed": true,
+            "evidence": 4.640618341518331e-06,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:base_stayed_fixed",
+            "passed": true,
+            "evidence": 0.0,
+            "failure_class": null
+          }
+        ]
+      }
+    },
+    {
+      "fixture": "paired_load_response",
+      "expected_verdict_observed": true,
+      "max_angle_difference_rad": 0.028433240014170025,
+      "loaded_torque_Nm": 0.0039691349808194335
+    }
+  ]
+}

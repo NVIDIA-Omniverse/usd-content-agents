@@ -1,0 +1,53 @@
+{
+  "version": "source_distance_v1_1",
+  "hashes": {
+    "conservative_v1.json": "e36c2bd45eb875cc0a56dd373e828e273e50fcc4aaf32f6f32cee4c5f31fdfef",
+    "acceptance.json": "382566007ee71f8e82520fea1feaebc464a1def89d185f53282ad0849ea04366"
+  },
+  "author_manifest_sha256": "345e9511bce07ff8b037189f1e673be154476c1b9d92eacf58f8d9e32cbf2ecc",
+  "v1_physics_before": {
+    "all_five_complete": true,
+    "seeds": [
+      {
+        "seed": 11,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_11.json",
+        "sha256": "8a95ffd350331f11a334dcc65470e0b43a407a9c58a18a51f9f94f8cccaba96a"
+      },
+      {
+        "seed": 23,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_23.json",
+        "sha256": "0489d1852a84f3883333431f03b1f0d8ae59bc33159a5ec835d84474c7be97a2"
+      },
+      {
+        "seed": 47,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_47.json",
+        "sha256": "9091d08e1560f4f1c673b99746a4e6683cc407413d87cdf42f6f66895f7fcd51"
+      },
+      {
+        "seed": 83,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_83.json",
+        "sha256": "5b27874a06ff46c1a0e9f2e3c2a58bcaaa1dda59de68702c79571327f3bbed5c"
+      },
+      {
+        "seed": 131,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_131.json",
+        "sha256": "090d24a8dbde000601cf413ab914e6bd2a0ea03eff6d20e6e3532d89c5a8de56"
+      }
+    ],
+    "configuration_and_result_hashes": {
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/runtime_config.json": "faeadfbd106353a63921f48dddbc1a521cd791ea02f5940067c815e967305167",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/instrumented.usda": "677753f52483c96878682810c6e17ff1a1bc642b1093db7ce83ae4904bf4ed22",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_11.json": "8a95ffd350331f11a334dcc65470e0b43a407a9c58a18a51f9f94f8cccaba96a",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_23.json": "0489d1852a84f3883333431f03b1f0d8ae59bc33159a5ec835d84474c7be97a2",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_47.json": "9091d08e1560f4f1c673b99746a4e6683cc407413d87cdf42f6f66895f7fcd51",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_83.json": "5b27874a06ff46c1a0e9f2e3c2a58bcaaa1dda59de68702c79571327f3bbed5c",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/10_complex/plain_astra/seed_131.json": "090d24a8dbde000601cf413ab914e6bd2a0ea03eff6d20e6e3532d89c5a8de56"
+    }
+  },
+  "worker_sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84"
+}

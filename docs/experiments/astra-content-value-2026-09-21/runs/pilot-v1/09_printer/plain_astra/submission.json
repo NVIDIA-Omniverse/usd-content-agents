@@ -1,0 +1,15 @@
+{
+  "claimed_accepted": true,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "All3092 original source instances retained and mapped. Final source/structure audit passes after one CAD tessellation repair. Five native force-controlled seeds pass every tested motion, load, return, closure, limit, gravity, contact and payload criterion; repaired scene passes a fresh solver run and has identical physics and seed11 states. Acceptance is claimed only for the supplied bounded Cartesian scope, before any independent evaluator results.",
+  "repairs_used": 1,
+  "limitations": [
+    "This is an ideal prismatic Cartesian guide model. The required positive Z stroke extends beyond rail engagement pictured in the unchanged saved source pose; real hardware stroke is not certified.",
+    "Collision approximations retain the exact original bed support top but omit detailed lower-toolhead, nozzle, fan, belt, and full-machine interference.",
+    "All original visual geometry remains present. Belts, cable-chain segments, and service lines retain documented rigid-group approximations.",
+    "Mass and diagonal inertia are source-volume-based estimates rather than hardware measurements.",
+    "Physics evidence uses pinned ovphysx0.4.13 CPU solver on this Horde host; CUDA_VISIBLE_DEVICES remained the assigned GPU UUID. Rendering used pinned local OVRTX.",
+    "Own geometry checks use direct original-CAD extraction, source bounds/area, and saved-mesh identity checks. Independent evaluator results and its reference-distance implementation were not accessed."
+  ]
+}

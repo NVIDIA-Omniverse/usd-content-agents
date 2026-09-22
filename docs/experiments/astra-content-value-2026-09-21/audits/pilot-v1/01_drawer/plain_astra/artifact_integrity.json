@@ -1,0 +1,13 @@
+{
+  "case_id": "01_drawer",
+  "arm": "plain_astra",
+  "output_manifest_sha256": "1157af0a10b2f44bb394a34acdde53227b1375e1122c90bffc140f367833436c",
+  "checked_files": 75,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034791.1043165
+}

@@ -1,0 +1,188 @@
+{
+  "schema_version": "astra-content-value-protocol-audit.v1",
+  "case_id": "08_excavator",
+  "arm": "plain_astra",
+  "valid": true,
+  "audited_utc": "2026-09-21T23:57:52.106462+00:00",
+  "checks": [
+    {
+      "name": "original_source_unchanged",
+      "valid": true,
+      "evidence": {
+        "source_files": 72,
+        "details": "protocol_probe.json#/source_checks"
+      },
+      "note": null
+    },
+    {
+      "name": "completed_outputs_unchanged",
+      "valid": true,
+      "evidence": {
+        "files": 265,
+        "details": "protocol_probe.json#/output_checks",
+        "manifest": {
+          "path": "runs/pilot-v1/08_excavator/plain_astra/output_manifest.json",
+          "sha256": "644c844125ba1ca4a27f407be61a2f23848a9e4a9c045ac7734b9c45078f6e28"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "frozen_evaluator_and_task_unchanged",
+      "valid": true,
+      "evidence": {
+        "case_hooks.py": true,
+        "evaluate.py": true,
+        "structural.py": true,
+        "cases.json": true,
+        "geometry.py": true,
+        "common.py": true,
+        "solver.py": true,
+        "bindings.schema.json": true,
+        "reference_inventory": true
+      },
+      "note": null
+    },
+    {
+      "name": "matched_model_effort_task_budget_host_gpu",
+      "valid": true,
+      "evidence": {
+        "pair_fields": {
+          "model": true,
+          "reasoning_effort": true,
+          "budget_seconds": true,
+          "task_sha256": true
+        },
+        "contexts": [
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          }
+        ],
+        "launch": {
+          "path": "runs/pilot-v1/08_excavator/plain_astra/launch.json",
+          "sha256": "75ecda15192e4fd58ae834303f9281b52d9e91db20be2c12119a5e3553e5205b"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "within_wall_time_budget",
+      "valid": true,
+      "evidence": {
+        "elapsed_seconds": 1194.538734536618,
+        "budget_seconds": 2400,
+        "execution": {
+          "path": "runs/pilot-v1/08_excavator/plain_astra/execution.json",
+          "sha256": "ea49d8839aa3740da4eb1c7297900ff07fcb49bbb606b37fcaca980043093e83"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "no_observed_protected_reads_or_cross_case_exposure",
+      "valid": true,
+      "evidence": {
+        "execution_tool_requests_reviewed": 74,
+        "captured_sessions": 3,
+        "execution_request_metadata_sha256": "4d6d5c967f769feb2a6360e4ac562f3ea8f4aa8c95377dffb5a0069352928c73",
+        "access_pattern_hits": [],
+        "process_output_review": [
+          {
+            "event_line": 33,
+            "item_id": "item_17",
+            "output_characters": 9535,
+            "output_sha256": "179dab10d8b6e7aeedface7317ea3e8cb48da05daad9272b40a5a60d2cf3760b",
+            "review": "Own-case process/code or metrics only; no other-case source or evaluator content observed."
+          },
+          {
+            "event_line": 44,
+            "item_id": "item_21",
+            "output_characters": 0,
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "review": "Own-case process/code or metrics only; no other-case source or evaluator content observed."
+          },
+          {
+            "event_line": 77,
+            "item_id": "item_40",
+            "output_characters": 1324,
+            "output_sha256": "1528b2c57cfeb056fff2b4630ab0990235a63559fc0d58cf90ce860d0ef5aa7f",
+            "review": "Own-case process/code or metrics only; no other-case source or evaluator content observed."
+          }
+        ]
+      },
+      "note": "All captured execution requests reviewed, including broad process outputs; no syscall-level enforcement or causal non-use claim."
+    },
+    {
+      "name": "plain_arm_no_content_agents_workflow_use",
+      "valid": true,
+      "evidence": {
+        "workflow_skill_or_entrypoint_hits": [],
+        "execution_tool_requests_reviewed": 74
+      },
+      "note": "Allowed low-level CAD conversion, USD, OVRTX, and PhysX libraries were used directly."
+    },
+    {
+      "name": "two_repair_limit_and_candidate_preservation",
+      "valid": true,
+      "evidence": {
+        "declared_repairs": 1,
+        "observed_post_first_scene_repairs": 1,
+        "first": {
+          "path": "runs/pilot-v1/08_excavator/plain_astra/candidates/first/scene.usdc",
+          "sha256": "e9cf3da3d4ab2f26813fac8f50c78b75d27e1d8982a5f72b88b80a106b896265"
+        },
+        "repair1": {
+          "path": "runs/pilot-v1/08_excavator/plain_astra/repairs/repair_01/scene.usdc",
+          "sha256": "d61fe6b27666d0c7524308dabaab571a60ec75b70a83875077a9f9293bc8fccc"
+        },
+        "final": {
+          "path": "runs/pilot-v1/08_excavator/plain_astra/final.usd",
+          "sha256": "d61fe6b27666d0c7524308dabaab571a60ec75b70a83875077a9f9293bc8fccc"
+        },
+        "final_matches_repair1": true,
+        "chronology": [
+          {
+            "timestamp_utc": "2026-09-21T23:38:19.541Z",
+            "action": "First complete source-derived scene authored and preserved under candidates/first."
+          },
+          {
+            "timestamp_utc": "2026-09-21T23:44:17.754Z",
+            "action": "Repair1 authored separately after own first-candidate seed23 holding/return failure; increased effective rotational inertias and adjusted static-base CCD and presentation camera."
+          },
+          {
+            "timestamp_utc": "2026-09-21T23:50:47.994Z",
+            "action": "Final copied byte-for-byte from repair1 after own five-seed checks."
+          }
+        ]
+      },
+      "note": "Logging additions and stronger observation checks changed the author test harness, not the candidate scene. First results and failed/interrupted author trials remain preserved."
+    },
+    {
+      "name": "material_model_assumptions_disclosed",
+      "valid": true,
+      "evidence": {
+        "submission": {
+          "path": "runs/pilot-v1/08_excavator/plain_astra/submission.json",
+          "sha256": "d4a9a11a7cea79d3dbec611073868a8df501480cf5e6163649178c9ae0313ff2"
+        },
+        "disclosure": [
+          "Moving-body principal rotational inertias are independently authored as12x the source-solid moments at unchanged masses/COMs. They are positive and satisfy triangle inequalities, but exceed what mass confined to these visible geometries can realize. This is an abstract effective-inertia simulation model, not native hardware mass distribution or a verified reflected drivetrain model."
+        ]
+      },
+      "note": "The repair multiplies moving-body principal inertias by12 at unchanged source masses/COMs. The author explicitly states these moments cannot be realized by mass confined to the visible parts and are not a calibrated drivetrain model. This audit does not endorse hardware realism."
+    }
+  ],
+  "independent_physical_result_separate": true,
+  "interpretation": "Run-level protocol evidence is separate from the frozen independent task verdict and any global scheduling/isolation finding. Any physical pass applies to a bounded three-joint articulation model with explicitly artificial effective inertias; it does not establish native excavator or actuator/load realism.",
+  "scope_limit": "Hash, captured context, execution-request and public-output audit; not OS-level isolation or proof about uncaptured activity. Non-execution inter-agent payloads and private reasoning excluded.",
+  "sanitized": true
+}

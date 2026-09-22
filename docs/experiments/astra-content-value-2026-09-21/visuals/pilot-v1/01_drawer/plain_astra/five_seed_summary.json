@@ -1,0 +1,179 @@
+{
+  "case_id": "01_drawer",
+  "arm": "plain_astra",
+  "status": "PASS",
+  "report_sha256": "bd2ca01c1c9d756d234c6091cb69e458e652fa24dc3a30038d5cb169ff23feef",
+  "seeds": [
+    {
+      "seed": 11,
+      "status": "PASS",
+      "pass": true,
+      "metrics": {
+        "max_q_m": 0.24158190190792084,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 1.7881442545263637e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.09664197266101837,
+        "max_angular_speed_rad_s": 0.009855402633547783,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.6391287885976672,
+        "initial_drift_m": 5.634501576423645e-06,
+        "min_open_hold_q_m": 0.24001814424991608,
+        "max_closed_hold_error_m": 0.00018589943647384644,
+        "max_closed_hold_speed_m_s": 0.0012930913362652063
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      }
+    },
+    {
+      "seed": 23,
+      "status": "PASS",
+      "pass": true,
+      "metrics": {
+        "max_q_m": 0.24155353009700775,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 2.384192339368485e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.09631121903657913,
+        "max_angular_speed_rad_s": 0.053012385964393616,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.5932456024206806,
+        "initial_drift_m": 7.273629307746887e-06,
+        "min_open_hold_q_m": 0.23998214304447174,
+        "max_closed_hold_error_m": 6.52465969324112e-05,
+        "max_closed_hold_speed_m_s": 0.001163009786978364
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      }
+    },
+    {
+      "seed": 47,
+      "status": "PASS",
+      "pass": true,
+      "metrics": {
+        "max_q_m": 0.24168892204761505,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 2.264982832017803e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.0971979945898056,
+        "max_angular_speed_rad_s": 0.0516592375934124,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.6048981554335435,
+        "initial_drift_m": 6.627291440963745e-06,
+        "min_open_hold_q_m": 0.2401495724916458,
+        "max_closed_hold_error_m": 0.00012025237083435059,
+        "max_closed_hold_speed_m_s": 0.001321346266195178
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      }
+    },
+    {
+      "seed": 83,
+      "status": "PASS",
+      "pass": true,
+      "metrics": {
+        "max_q_m": 0.24171213805675507,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 1.4305163252395605e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.09616171568632126,
+        "max_angular_speed_rad_s": 0.009484278038144112,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.6465734462026316,
+        "initial_drift_m": 5.295500159263611e-06,
+        "min_open_hold_q_m": 0.24012650549411774,
+        "max_closed_hold_error_m": 1.3211742043495178e-05,
+        "max_closed_hold_speed_m_s": 0.0006359820254147053
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      }
+    },
+    {
+      "seed": 131,
+      "status": "PASS",
+      "pass": true,
+      "metrics": {
+        "max_q_m": 0.24157612025737762,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 2.145773325730848e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.09719394147396088,
+        "max_angular_speed_rad_s": 0.04085073992609978,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.6738638231541331,
+        "initial_drift_m": 5.923211574554443e-06,
+        "min_open_hold_q_m": 0.23995546996593475,
+        "max_closed_hold_error_m": 7.041357457637787e-05,
+        "max_closed_hold_speed_m_s": 0.0012069521471858025
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      }
+    }
+  ],
+  "limits": "Independent bounded drawer-force task with a free0.5kg payload. Contact trace force-labelled field is raw impulse N*s; no hardware or robot-manipulation claim."
+}

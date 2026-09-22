@@ -1,0 +1,13 @@
+{
+  "claimed_accepted": true,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "Own acceptance claim: final.usd passed a fresh strict-GPU12s force-only test at1/240s, and its identical authored physical state passed loaded and zero-load tests for all five public seeds. Travel30.260mm, worst loaded hold error1.510mm under1N, return error0.563mm,50mm upper stop respected with zero overshoot. All13 original shape instances are mapped once;209 final structural/source checks and independent native surface checks pass. Original closure hashes remain unchanged. Collision-proxy swept volumes are disjoint. One visual tessellation repair was used; first candidate and repair are preserved separately. This claim precedes and does not depend on independent evaluator results.",
+  "repairs_used": 1,
+  "limitations": [
+    "Ideal prismatic slide represents guide and bearing forces. Spindle rotation, helical thread engagement, backlash, compliance, clamping, and machining forces are not simulated or validated.",
+    "Native contact-tensor binding was unavailable. Nonpenetration is supported separately by disjoint swept volumes of every authored collision proxy over the full 0..50mm interval, plus measured native joint closure/axis error; all proxy shapes imported and a separate hidden-collider gravity/contact witness passed.",
+    "Independent evaluator saved-reference triangles were not available and were not inspected. The original CAD geometry and assembly are preserved; native0.1mm/0.1rad source meshes reproduce all public bounds exactly and areas within0.003375%, but spindle and M8 tessellation counts differ slightly from inventory. Independent native surface reproduction and all-vertex/sample checks pass; exact comparison against the evaluator saved mesh remains unobserved.",
+    "Source CAD geometry and these simulation tests do not certify real hardware accuracy. No independent evaluator result was accessed."
+  ]
+}

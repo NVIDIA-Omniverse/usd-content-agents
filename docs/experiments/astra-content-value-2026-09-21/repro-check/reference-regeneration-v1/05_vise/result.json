@@ -1,0 +1,600 @@
+{
+  "case_id": "05_vise",
+  "started_utc": "2026-09-21T23:21:48.009490+00:00",
+  "import_duration_s": 138.73449897766113,
+  "returncode": 0,
+  "error": null,
+  "expected_parts": 13,
+  "versions": {
+    "numpy": "2.5.3",
+    "trimesh": "4.12.2",
+    "cadquery-ocp": "7.8.1.1"
+  },
+  "original_inventory_sha256": "76c100c81816bce57e16b65f3c5dd37cc71f79f94bb152a9be17f34421bb662f",
+  "parts": [
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0000:Base",
+      "geometry_file": "geometry_0000.npz",
+      "expected_sha256": "855fd61bbff72d8f9b0e525287392bd73e09f20a5190f64337456ecd9ca71a2b",
+      "original_sha256": "855fd61bbff72d8f9b0e525287392bd73e09f20a5190f64337456ecd9ca71a2b",
+      "rebuilt_sha256": "855fd61bbff72d8f9b0e525287392bd73e09f20a5190f64337456ecd9ca71a2b",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            4304,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            4304,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "281396b96d99e7851c18c0d97e7655ba5e89c5c853a60c98aec89df332c14d6c",
+          "rebuilt_array_sha256": "281396b96d99e7851c18c0d97e7655ba5e89c5c853a60c98aec89df332c14d6c"
+        },
+        "faces": {
+          "shape": [
+            4204,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            4204,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "3c511697bd8d2436ce8989d3e8ea5f0850e5f4eff8329394b7c1e1435b23bae1",
+          "rebuilt_array_sha256": "3c511697bd8d2436ce8989d3e8ea5f0850e5f4eff8329394b7c1e1435b23bae1"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0001:Screw M8",
+      "geometry_file": "geometry_0001.npz",
+      "expected_sha256": "6adaec0312fcfe9ba343c75e60a13a1ddff625623b1ab563591c7146ec383ab4",
+      "original_sha256": "6adaec0312fcfe9ba343c75e60a13a1ddff625623b1ab563591c7146ec383ab4",
+      "rebuilt_sha256": "6adaec0312fcfe9ba343c75e60a13a1ddff625623b1ab563591c7146ec383ab4",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            19980,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            19980,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "650bf779036e815cab868cd36c6a7fcef10db4d10640a8d0258936300d24951a",
+          "rebuilt_array_sha256": "650bf779036e815cab868cd36c6a7fcef10db4d10640a8d0258936300d24951a"
+        },
+        "faces": {
+          "shape": [
+            20074,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            20074,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "edef628b20977154e253e105a79f82b85fe5621024608686e5137f0c3705901a",
+          "rebuilt_array_sha256": "edef628b20977154e253e105a79f82b85fe5621024608686e5137f0c3705901a"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0002:Screw Spindle",
+      "geometry_file": "geometry_0002.npz",
+      "expected_sha256": "9bcb5cfcc365c70e387cc87535f3baad3bcbfa1a92d2b7739abae53ff00f23da",
+      "original_sha256": "9bcb5cfcc365c70e387cc87535f3baad3bcbfa1a92d2b7739abae53ff00f23da",
+      "rebuilt_sha256": "9bcb5cfcc365c70e387cc87535f3baad3bcbfa1a92d2b7739abae53ff00f23da",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            70525,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            70525,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "15b049bad8fd95f576150d7c386c2b69b1e4ac1e7165024fa2f66ea040a32ae7",
+          "rebuilt_array_sha256": "15b049bad8fd95f576150d7c386c2b69b1e4ac1e7165024fa2f66ea040a32ae7"
+        },
+        "faces": {
+          "shape": [
+            73894,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            73894,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "b935fdd354e93d4c08712c23ac4d95c89fbaf653090cba948d3ed0c70798470d",
+          "rebuilt_array_sha256": "b935fdd354e93d4c08712c23ac4d95c89fbaf653090cba948d3ed0c70798470d"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0003:End plate",
+      "geometry_file": "geometry_0003.npz",
+      "expected_sha256": "266ddd4a02ac16cd60522f1a58388c400604b1e73beff5055204d93452bbcf56",
+      "original_sha256": "266ddd4a02ac16cd60522f1a58388c400604b1e73beff5055204d93452bbcf56",
+      "rebuilt_sha256": "266ddd4a02ac16cd60522f1a58388c400604b1e73beff5055204d93452bbcf56",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            1936,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            1936,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "1838e6770410a77ceb75bf171bb2e77c4154f4ebd3dfa9561e35a8849b3bd26f",
+          "rebuilt_array_sha256": "1838e6770410a77ceb75bf171bb2e77c4154f4ebd3dfa9561e35a8849b3bd26f"
+        },
+        "faces": {
+          "shape": [
+            2284,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            2284,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "620cdec4d6e2ed4a89476458228d8558d10d046027f3ec56467a45850967d2bd",
+          "rebuilt_array_sha256": "620cdec4d6e2ed4a89476458228d8558d10d046027f3ec56467a45850967d2bd"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0004:Block",
+      "geometry_file": "geometry_0004.npz",
+      "expected_sha256": "004f06ffc320e016cfac407884b178d0a0fd229300c845660529a5551eed2c40",
+      "original_sha256": "004f06ffc320e016cfac407884b178d0a0fd229300c845660529a5551eed2c40",
+      "rebuilt_sha256": "004f06ffc320e016cfac407884b178d0a0fd229300c845660529a5551eed2c40",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            19466,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            19466,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "3db79b9c0d2d39c0a5f6ef6013e1e8ad131ee3540e13bbf5aee3b0c95eac8827",
+          "rebuilt_array_sha256": "3db79b9c0d2d39c0a5f6ef6013e1e8ad131ee3540e13bbf5aee3b0c95eac8827"
+        },
+        "faces": {
+          "shape": [
+            19748,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            19748,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "13197ab7b0468910a7e25f46ec802bc69cbe308f13110b08ebc179cb685db8ac",
+          "rebuilt_array_sha256": "13197ab7b0468910a7e25f46ec802bc69cbe308f13110b08ebc179cb685db8ac"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0005:Screw M8",
+      "geometry_file": "geometry_0005.npz",
+      "expected_sha256": "c104c0dc089dc74f2324ca6f8e801e9f3e505e6872130a78c2dd7b5437643be9",
+      "original_sha256": "c104c0dc089dc74f2324ca6f8e801e9f3e505e6872130a78c2dd7b5437643be9",
+      "rebuilt_sha256": "c104c0dc089dc74f2324ca6f8e801e9f3e505e6872130a78c2dd7b5437643be9",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            19980,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            19980,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "4d8ce93cb13c0fa0d91513365a80466340a20784159b5a2531de36a0f0e7f59b",
+          "rebuilt_array_sha256": "4d8ce93cb13c0fa0d91513365a80466340a20784159b5a2531de36a0f0e7f59b"
+        },
+        "faces": {
+          "shape": [
+            20074,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            20074,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "edef628b20977154e253e105a79f82b85fe5621024608686e5137f0c3705901a",
+          "rebuilt_array_sha256": "edef628b20977154e253e105a79f82b85fe5621024608686e5137f0c3705901a"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0006:Fixed Jaw",
+      "geometry_file": "geometry_0006.npz",
+      "expected_sha256": "4c4fcf6a70fa8808959261feadadd0e4049f1ffa29905a3c008bcdcbfaa012fe",
+      "original_sha256": "4c4fcf6a70fa8808959261feadadd0e4049f1ffa29905a3c008bcdcbfaa012fe",
+      "rebuilt_sha256": "4c4fcf6a70fa8808959261feadadd0e4049f1ffa29905a3c008bcdcbfaa012fe",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            1942,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            1942,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "50fe8678eaa00347175e96e2b818be7dc5db204aa2ecf13fa9fcafbc98f3d035",
+          "rebuilt_array_sha256": "50fe8678eaa00347175e96e2b818be7dc5db204aa2ecf13fa9fcafbc98f3d035"
+        },
+        "faces": {
+          "shape": [
+            2288,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            2288,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "ba8fb3a8a713c6c822c952655494540cdfdfb54b438464c299f18487edb1c4c0",
+          "rebuilt_array_sha256": "ba8fb3a8a713c6c822c952655494540cdfdfb54b438464c299f18487edb1c4c0"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0007:Screw M8",
+      "geometry_file": "geometry_0007.npz",
+      "expected_sha256": "075353b25215a151bd2e59ce5de1ad99c6f735c8ddf17857698759fb4e3ff097",
+      "original_sha256": "075353b25215a151bd2e59ce5de1ad99c6f735c8ddf17857698759fb4e3ff097",
+      "rebuilt_sha256": "075353b25215a151bd2e59ce5de1ad99c6f735c8ddf17857698759fb4e3ff097",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            19980,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            19980,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "0dc01914516e933bf4181b02bde1432a427de74c832605574f517fde3f3f7d3d",
+          "rebuilt_array_sha256": "0dc01914516e933bf4181b02bde1432a427de74c832605574f517fde3f3f7d3d"
+        },
+        "faces": {
+          "shape": [
+            20074,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            20074,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "edef628b20977154e253e105a79f82b85fe5621024608686e5137f0c3705901a",
+          "rebuilt_array_sha256": "edef628b20977154e253e105a79f82b85fe5621024608686e5137f0c3705901a"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0008:Screw M8",
+      "geometry_file": "geometry_0008.npz",
+      "expected_sha256": "bd77fd300bd1ff6ecac7205a43a77eb107d2d97be083779b24b3f39fd3dcb697",
+      "original_sha256": "bd77fd300bd1ff6ecac7205a43a77eb107d2d97be083779b24b3f39fd3dcb697",
+      "rebuilt_sha256": "bd77fd300bd1ff6ecac7205a43a77eb107d2d97be083779b24b3f39fd3dcb697",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            19980,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            19980,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "00f22bd832c906002a5ee4aaf6f43bfc73a686081358116aba71431867c11f87",
+          "rebuilt_array_sha256": "00f22bd832c906002a5ee4aaf6f43bfc73a686081358116aba71431867c11f87"
+        },
+        "faces": {
+          "shape": [
+            20074,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            20074,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "edef628b20977154e253e105a79f82b85fe5621024608686e5137f0c3705901a",
+          "rebuilt_array_sha256": "edef628b20977154e253e105a79f82b85fe5621024608686e5137f0c3705901a"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0009:Sliding Jaw",
+      "geometry_file": "geometry_0009.npz",
+      "expected_sha256": "139fcc0ba75b8d96bb69797f63f19b3693749f865226975e6445b1ec35e73af8",
+      "original_sha256": "139fcc0ba75b8d96bb69797f63f19b3693749f865226975e6445b1ec35e73af8",
+      "rebuilt_sha256": "139fcc0ba75b8d96bb69797f63f19b3693749f865226975e6445b1ec35e73af8",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            2644,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            2644,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "ad99934bc7f5c91a79ee2c9dd052e78fdcb0571a9ec6fb24c45fbc87e4c71bb4",
+          "rebuilt_array_sha256": "ad99934bc7f5c91a79ee2c9dd052e78fdcb0571a9ec6fb24c45fbc87e4c71bb4"
+        },
+        "faces": {
+          "shape": [
+            2792,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            2792,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "3b4a782445a9d5ef533a9ea8e3c4adc7526eccf7d8df56ad413d973f711210f0",
+          "rebuilt_array_sha256": "3b4a782445a9d5ef533a9ea8e3c4adc7526eccf7d8df56ad413d973f711210f0"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0010:Set Screw M6",
+      "geometry_file": "geometry_0010.npz",
+      "expected_sha256": "b517defa189fe6a5bbd753ef0d2165b7c635c4dcd30548519130a3c7f73823cb",
+      "original_sha256": "b517defa189fe6a5bbd753ef0d2165b7c635c4dcd30548519130a3c7f73823cb",
+      "rebuilt_sha256": "b517defa189fe6a5bbd753ef0d2165b7c635c4dcd30548519130a3c7f73823cb",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            7556,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            7556,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "f2e0e17d305486062b4005a40c27611d30eb8474c7eae566e49c5e304b4fdbd9",
+          "rebuilt_array_sha256": "f2e0e17d305486062b4005a40c27611d30eb8474c7eae566e49c5e304b4fdbd9"
+        },
+        "faces": {
+          "shape": [
+            7682,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            7682,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "74976f9c36dcaa993f0007b476c136c2b41b9087bf28e7c1ae9809ef885115cf",
+          "rebuilt_array_sha256": "74976f9c36dcaa993f0007b476c136c2b41b9087bf28e7c1ae9809ef885115cf"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0011:Set Screw M8",
+      "geometry_file": "geometry_0011.npz",
+      "expected_sha256": "d57ff8cbc9b32d32b95896234140d4a694a963585fb389db088b176b3c9998c5",
+      "original_sha256": "d57ff8cbc9b32d32b95896234140d4a694a963585fb389db088b176b3c9998c5",
+      "rebuilt_sha256": "d57ff8cbc9b32d32b95896234140d4a694a963585fb389db088b176b3c9998c5",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            968,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            968,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "96da1a94dd9d843deb4fe165dfe88a6a299700023d321fd9ca646a7b28f94223",
+          "rebuilt_array_sha256": "96da1a94dd9d843deb4fe165dfe88a6a299700023d321fd9ca646a7b28f94223"
+        },
+        "faces": {
+          "shape": [
+            1128,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            1128,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "f6a7829ee44ca84240de9fa2d9d824763e8eb7e69107d3a1baea026b1e480410",
+          "rebuilt_array_sha256": "f6a7829ee44ca84240de9fa2d9d824763e8eb7e69107d3a1baea026b1e480410"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0012:Set Screw M8",
+      "geometry_file": "geometry_0012.npz",
+      "expected_sha256": "5e023dc348648f47440766626fb4ddca7531be63822b5a6c87be2738a0207157",
+      "original_sha256": "5e023dc348648f47440766626fb4ddca7531be63822b5a6c87be2738a0207157",
+      "rebuilt_sha256": "5e023dc348648f47440766626fb4ddca7531be63822b5a6c87be2738a0207157",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            968,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            968,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "e2c8c953963f71ccb38c822e519fbaf1a9496f92106f31fc2c743e6abb37c20f",
+          "rebuilt_array_sha256": "e2c8c953963f71ccb38c822e519fbaf1a9496f92106f31fc2c743e6abb37c20f"
+        },
+        "faces": {
+          "shape": [
+            1128,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            1128,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "f6a7829ee44ca84240de9fa2d9d824763e8eb7e69107d3a1baea026b1e480410",
+          "rebuilt_array_sha256": "f6a7829ee44ca84240de9fa2d9d824763e8eb7e69107d3a1baea026b1e480410"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    }
+  ],
+  "regenerated_parts": 13,
+  "source_id_order_equal": true,
+  "all_npz_byte_identical": true,
+  "all_arrays_exactly_equal": true,
+  "copied_original_inventory_sha256": "76c100c81816bce57e16b65f3c5dd37cc71f79f94bb152a9be17f34421bb662f",
+  "original_inventory_plus_rebuilt_npz_compatible": true,
+  "original_inventory_unchanged": true,
+  "frozen_code_unchanged": true,
+  "original_source_closure_unchanged": true,
+  "elapsed_seconds": 139.35829377174377,
+  "finished_utc": "2026-09-21T23:24:07.367785+00:00",
+  "scope_limit": "Exact regeneration was tested in the recorded existing pinned Linux runtime, on original source bytes. This is not a new-environment installation or redownload test, does not establish cross-version/platform byte stability, and does not rerun author physics. Original inventory hashes were never rewritten."
+}

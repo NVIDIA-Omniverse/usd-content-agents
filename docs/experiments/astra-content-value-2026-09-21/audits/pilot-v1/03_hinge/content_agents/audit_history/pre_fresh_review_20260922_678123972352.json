@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "case_id": "03_hinge",
+  "arm": "content_agents",
+  "valid": "unknown",
+  "audit_scope": "Post-run protocol audit of extracted executed tool requests, launch/model telemetry, immutable manifests and durable author artifacts. No hidden reasoning read. This is not an OS-level complete access trace or physical acceptance decision.",
+  "created_utc": "2026-09-21T23:13:35.571288+00:00",
+  "checks": [
+    {
+      "criterion": "pinned_model_and_effort",
+      "valid": true,
+      "observed_context_count": 2,
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/launch.json",
+          "sha256": "8e9297990b82df38c07aba27104c25af8a2bde84ea25d963ea9c130cfce67b76"
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/model_usage_audit.json",
+          "sha256": "08b7e40bc136d4024759115e60bc5b4b893ba3aa5a4b94d9c3f370dab03ac660"
+        }
+      ]
+    },
+    {
+      "criterion": "task_matches_frozen_brief",
+      "valid": true,
+      "task_sha256": "02282a061887e1358e7be6754ac2978e78ee02cdc204b4bf9f94bf173ce327a5"
+    },
+    {
+      "criterion": "wall_time_cap",
+      "valid": true,
+      "elapsed_s": 691.8100549690425,
+      "cap_s": 2400,
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/execution.json",
+          "sha256": "b6606fd896268e8b8e2d8504822eaa897c0163b72fdf0d13adc232ed572a5814"
+        }
+      ]
+    },
+    {
+      "criterion": "source_repository_and_outputs_unchanged",
+      "valid": true,
+      "evidence_path": "audits/pilot-v1/03_hinge/independent_hash_verification.json",
+      "details": "Independent read-only verification on original host: 3 source hashes, 2883 pinned repository hashes and all arm output-manifest entries match."
+    },
+    {
+      "criterion": "no_observed_forbidden_reads_or_mutations",
+      "valid": true,
+      "tool_requests_reviewed": 62,
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/03_hinge/content_agents/tool_calls.private.json",
+          "sha256": "e1f980637904b0a064aecd193a76c21e40bde3ca2cb004539805bd971204fd42"
+        }
+      ],
+      "details": "Reviewed extracted tool requests and author scripts. No access to opposite arm, other-case artifacts or evaluator implementation/evidence was observed; no source/repository/package mutation was observed. Reads of public source inventory and common low-level API documentation are allowed. Private request records remain excluded from public publication."
+    },
+    {
+      "criterion": "repair_chronology_within_two",
+      "valid": true,
+      "declared_repairs": 1,
+      "details": "Native Geometry initial attempt followed by exactly one native diagnose-only visual_only repair attempt; both fail receipts are preserved. Later validation assessment-schema corrections do not mutate the candidate asset and are not asset repair iterations.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/submission.json",
+          "sha256": "929c0dbec18a4b075df2680317ab030295a39fbba9fac9a271cdf07c4dbe58bf"
+        }
+      ]
+    },
+    {
+      "criterion": "treatment_or_control_adherence",
+      "valid": true,
+      "details": "Public workflow skills and native Geometry entrypoint are used. Native failed dispositions are honored; no ad hoc articulated replacement is produced or labeled a workflow success. Partial Validation remains failure/unauthorized; submitted claimed_accepted=false.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/submission.json",
+          "sha256": "929c0dbec18a4b075df2680317ab030295a39fbba9fac9a271cdf07c4dbe58bf"
+        }
+      ]
+    },
+    {
+      "criterion": "global_simulator_concurrency_cap",
+      "valid": "unknown",
+      "details": "Cross-lane process timeline is under root review. Plain arm ran four GPU solver workers from2026-09-21T22:27:58.162095Z to2026-09-21T22:30:35.105987Z. Any additional overlapping simulator would violate the global cap4; per-arm absence of model/input/repair violations does not certify global compliance.",
+      "evidence_path": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native/report.json"
+    }
+  ],
+  "limitations": [
+    "Encrypted collaboration message bodies are not decrypted; explicit spawn model/effort metadata and all observed child turn contexts are checked.",
+    "Current-state hashes cannot prove no transient modification-and-restoration; tool requests provide complementary observational evidence.",
+    "Author physics probes can run concurrently on the assigned GPU; shared machine contention remains a pilot timing limitation."
+  ],
+  "physical_evaluation": "Owned by root frozen evaluator workers; not duplicated by this audit."
+}

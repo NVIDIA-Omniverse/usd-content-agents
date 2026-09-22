@@ -1,0 +1,357 @@
+{
+  "version": "supplementary_structural_delivery_v1",
+  "case_id": "07_robot_arm",
+  "arm": "content_agents",
+  "started_utc": "2026-09-22T00:58:12.266617+00:00",
+  "auditor_sha256": "387c6608092d1fe0ad3464c677b62451f983e9151443fa899717be879c79fc22",
+  "qualification_sha256": "e297a618664654c82f9f40361a0705bcb4bd1d2219bdd73664c1a2bfdee46f62",
+  "moving_role_policy": "For scoped public07-10 tasks, every required body role except base is a physically moving link, digit or axis component. Binding moving flags cannot waive the task.",
+  "no_author_assertion_used_as_observed_evidence": true,
+  "original_evaluations_modified": false,
+  "scored_files_modified": false,
+  "source_fidelity_status": "NOT_EVALUATED",
+  "native_physics_status": "NOT_EVALUATED",
+  "schema_counts": {
+    "rigid_bodies": 0,
+    "joints": 0,
+    "colliders": 0,
+    "meshes": 566
+  },
+  "bodies": [],
+  "joints": [],
+  "colliders": [],
+  "checks": [
+    {
+      "name": "required_body_role_exists:base",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/base",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_body_role_exists:link1",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/link1",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:link1",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link1",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:link1",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link1",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "required_body_role_exists:link2",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/link2",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:link2",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link2",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:link2",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link2",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "required_body_role_exists:link3",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/link3",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:link3",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link3",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:link3",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link3",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "required_body_role_exists:link4",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/link4",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:link4",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link4",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:link4",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link4",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "required_body_role_exists:link5",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/link5",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:link5",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link5",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:link5",
+      "passed": false,
+      "evidence": {
+        "path": "/World/link5",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "required_body_role_exists:end_effector",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/end_effector",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:end_effector",
+      "passed": false,
+      "evidence": {
+        "path": "/World/end_effector",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:end_effector",
+      "passed": false,
+      "evidence": {
+        "path": "/World/end_effector",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "distinct_required_body_paths",
+      "passed": true,
+      "evidence": [
+        "/World/base",
+        "/World/link1",
+        "/World/link2",
+        "/World/link3",
+        "/World/link4",
+        "/World/link5",
+        "/World/end_effector"
+      ]
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:joint1",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "revolute",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:joint2",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "revolute",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:joint3",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "revolute",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:joint4",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "revolute",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:joint5",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "revolute",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:joint6",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "revolute",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "distinct_required_joint_paths",
+      "passed": true,
+      "evidence": []
+    }
+  ],
+  "concrete_missing_delivery_checks": [
+    "required_moving_body_is_dynamic:link1",
+    "required_moving_body_has_collider:link1",
+    "required_moving_body_is_dynamic:link2",
+    "required_moving_body_has_collider:link2",
+    "required_moving_body_is_dynamic:link3",
+    "required_moving_body_has_collider:link3",
+    "required_moving_body_is_dynamic:link4",
+    "required_moving_body_has_collider:link4",
+    "required_moving_body_is_dynamic:link5",
+    "required_moving_body_has_collider:link5",
+    "required_moving_body_is_dynamic:end_effector",
+    "required_moving_body_has_collider:end_effector",
+    "required_joint_role_has_enabled_api:joint1",
+    "required_joint_role_has_enabled_api:joint2",
+    "required_joint_role_has_enabled_api:joint3",
+    "required_joint_role_has_enabled_api:joint4",
+    "required_joint_role_has_enabled_api:joint5",
+    "required_joint_role_has_enabled_api:joint6"
+  ],
+  "supplementary_status": "DECISIVE_NON_DELIVERY",
+  "required_body_roles": [
+    "base",
+    "link1",
+    "link2",
+    "link3",
+    "link4",
+    "link5",
+    "end_effector"
+  ],
+  "required_joint_roles": [
+    "joint1",
+    "joint2",
+    "joint3",
+    "joint4",
+    "joint5",
+    "joint6"
+  ],
+  "joint_kinds": {
+    "joint1": "revolute",
+    "joint2": "revolute",
+    "joint3": "revolute",
+    "joint4": "revolute",
+    "joint5": "revolute",
+    "joint6": "revolute"
+  },
+  "unresolved_dependencies": [],
+  "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated.",
+  "composed_layer_hashes": [
+    {
+      "path": "runs/pilot-v1/07_robot_arm/content_agents/final.usd",
+      "sha256": "7d7491da326e828ca71eb0acfe6f21b14afc839c25ddd9b9e3dd6c2c7e271959"
+    }
+  ],
+  "finished_utc": "2026-09-22T00:58:17.408888+00:00",
+  "elapsed_seconds": 5.1437956392765045,
+  "inputs_unchanged": true,
+  "inputs": {
+    "output_manifest.json": {
+      "path": "runs/pilot-v1/07_robot_arm/content_agents/output_manifest.json",
+      "sha256": "5f2653468b114b21cb30a3506d23ed4d8d0be4a5d268dd8dac5e7bf98de8db78"
+    },
+    "submission.json": {
+      "path": "runs/pilot-v1/07_robot_arm/content_agents/submission.json",
+      "sha256": "4e58ba0839bff71ab022cc7ff92c6c2b68fbb9e06e314d4d4a760bb4d3e337c2"
+    },
+    "launch.json": {
+      "path": "runs/pilot-v1/07_robot_arm/content_agents/launch.json",
+      "sha256": "064186a07bc313f7c11eb3a1945deb414cc4fa66359ea5f0888b3f0a48e222a7"
+    },
+    "public_task": {
+      "path": "protocol/tasks/07_robot_arm.json",
+      "sha256": "a9488b7ed6e5e6077cb78f1a9ad0bdf1d2a87f02f90b2c731a8d0bfc4df389f7"
+    },
+    "scene": {
+      "path": "runs/pilot-v1/07_robot_arm/content_agents/final.usd",
+      "sha256": "7d7491da326e828ca71eb0acfe6f21b14afc839c25ddd9b9e3dd6c2c7e271959"
+    },
+    "bindings": {
+      "path": "runs/pilot-v1/07_robot_arm/content_agents/bindings.json",
+      "sha256": "3fb2febaf5261f45984ede56c59a80de77e520a2d591c16e50894d036f327dd8"
+    }
+  }
+}

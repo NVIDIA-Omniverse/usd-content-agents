@@ -1,0 +1,225 @@
+{
+  "version": "supplementary_structural_delivery_v1",
+  "case_id": "09_printer",
+  "arm": "content_agents",
+  "started_utc": "2026-09-22T00:58:10.717640+00:00",
+  "auditor_sha256": "387c6608092d1fe0ad3464c677b62451f983e9151443fa899717be879c79fc22",
+  "qualification_sha256": "7b43248633411ee34fb7188bf7c5f34ce678ad5d4bde8c82947a5756f3d7e24b",
+  "moving_role_policy": "For scoped public07-10 tasks, every required body role except base is a physically moving link, digit or axis component. Binding moving flags cannot waive the task.",
+  "no_author_assertion_used_as_observed_evidence": true,
+  "original_evaluations_modified": false,
+  "scored_files_modified": false,
+  "source_fidelity_status": "NOT_EVALUATED",
+  "native_physics_status": "NOT_EVALUATED",
+  "schema_counts": {
+    "rigid_bodies": 0,
+    "joints": 0,
+    "colliders": 0,
+    "meshes": 3092
+  },
+  "bodies": [],
+  "joints": [],
+  "colliders": [],
+  "checks": [
+    {
+      "name": "required_body_role_exists:base",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/base",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_body_role_exists:toolhead",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/toolhead",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:toolhead",
+      "passed": false,
+      "evidence": {
+        "path": "/World/toolhead",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:toolhead",
+      "passed": false,
+      "evidence": {
+        "path": "/World/toolhead",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "required_body_role_exists:gantry",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/gantry",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:gantry",
+      "passed": false,
+      "evidence": {
+        "path": "/World/gantry",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:gantry",
+      "passed": false,
+      "evidence": {
+        "path": "/World/gantry",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "required_body_role_exists:bed",
+      "passed": true,
+      "evidence": {
+        "binding_count": 1,
+        "path": "/World/bed",
+        "prim_exists": true
+      }
+    },
+    {
+      "name": "required_moving_body_is_dynamic:bed",
+      "passed": false,
+      "evidence": {
+        "path": "/World/bed",
+        "actual_rigid_body_api": false
+      }
+    },
+    {
+      "name": "required_moving_body_has_collider:bed",
+      "passed": false,
+      "evidence": {
+        "path": "/World/bed",
+        "enabled_collider_paths": []
+      }
+    },
+    {
+      "name": "distinct_required_body_paths",
+      "passed": true,
+      "evidence": [
+        "/World/base",
+        "/World/toolhead",
+        "/World/gantry",
+        "/World/bed"
+      ]
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:x",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "prismatic",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:y",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "prismatic",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "required_joint_role_has_enabled_api:z",
+      "passed": false,
+      "evidence": {
+        "binding_count": 0,
+        "path": null,
+        "actual_joint_api": false,
+        "required_kind": "prismatic",
+        "actual_type": null,
+        "enabled": false
+      }
+    },
+    {
+      "name": "distinct_required_joint_paths",
+      "passed": true,
+      "evidence": []
+    }
+  ],
+  "concrete_missing_delivery_checks": [
+    "required_moving_body_is_dynamic:toolhead",
+    "required_moving_body_has_collider:toolhead",
+    "required_moving_body_is_dynamic:gantry",
+    "required_moving_body_has_collider:gantry",
+    "required_moving_body_is_dynamic:bed",
+    "required_moving_body_has_collider:bed",
+    "required_joint_role_has_enabled_api:x",
+    "required_joint_role_has_enabled_api:y",
+    "required_joint_role_has_enabled_api:z"
+  ],
+  "supplementary_status": "DECISIVE_NON_DELIVERY",
+  "required_body_roles": [
+    "base",
+    "toolhead",
+    "gantry",
+    "bed"
+  ],
+  "required_joint_roles": [
+    "x",
+    "y",
+    "z"
+  ],
+  "joint_kinds": {
+    "x": "prismatic",
+    "y": "prismatic",
+    "z": "prismatic"
+  },
+  "unresolved_dependencies": [],
+  "scope": "Necessary static physical-delivery conditions only. A positive presence observation is not physical acceptance. Source fidelity, geometry distances, native dynamics, limits, loads and contacts were not evaluated.",
+  "composed_layer_hashes": [
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/final.usd",
+      "sha256": "1de197c5ee8302ec6d5cded5a9524e93c42260d73c0c33fc9a1f4f13618614bc"
+    }
+  ],
+  "finished_utc": "2026-09-22T00:58:11.611066+00:00",
+  "elapsed_seconds": 0.8938185051083565,
+  "inputs_unchanged": true,
+  "inputs": {
+    "output_manifest.json": {
+      "path": "runs/pilot-v1/09_printer/content_agents/output_manifest.json",
+      "sha256": "1a323544d9f53cb1ad0c211b954226aae8d36a50606d5cc44bb7d2b638d35dec"
+    },
+    "submission.json": {
+      "path": "runs/pilot-v1/09_printer/content_agents/submission.json",
+      "sha256": "3b0bed802c07048e56180c623df33511d5aa79aa24ec9870f95308733652d94c"
+    },
+    "launch.json": {
+      "path": "runs/pilot-v1/09_printer/content_agents/launch.json",
+      "sha256": "f4d877b29c51f42e114d833b875c7f2194e4f7b3344b8e8f217bd164c4d38499"
+    },
+    "public_task": {
+      "path": "protocol/tasks/09_printer.json",
+      "sha256": "7573fe13b6a67b1a8e87aee8e608f81ccb027278e5afc31701a088441d1e4c13"
+    },
+    "scene": {
+      "path": "runs/pilot-v1/09_printer/content_agents/final.usd",
+      "sha256": "1de197c5ee8302ec6d5cded5a9524e93c42260d73c0c33fc9a1f4f13618614bc"
+    },
+    "bindings": {
+      "path": "runs/pilot-v1/09_printer/content_agents/bindings.json",
+      "sha256": "d52be4c5529210640e672383aad810febd3acf40e99bf24bcc0ae9e284b7255a"
+    }
+  }
+}

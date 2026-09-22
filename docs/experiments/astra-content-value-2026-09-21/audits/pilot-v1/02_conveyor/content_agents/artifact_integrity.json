@@ -1,0 +1,13 @@
+{
+  "case_id": "02_conveyor",
+  "arm": "content_agents",
+  "output_manifest_sha256": "f538febbf354f06b75d3c7487819ed8be9ceaf110616ff0d3e18f5949d014568",
+  "checked_files": 189,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034791.208135
+}

@@ -1,0 +1,23 @@
+# SHA256-bound evidence must remain byte-for-byte unchanged in every checkout.
+* -text
+*.bin binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gz binary
+*.usdc binary
+*.usdz binary
+# CSV writer output and original USD exports retain their original line endings.
+*.csv whitespace=cr-at-eol
+*.usda whitespace=-blank-at-eof
+# Frozen diagnostic inputs and generated plotting output retain original spacing.
+evaluator/errata/engine_auxiliary_body_review/**/*.usda whitespace=-blank-at-eol,-blank-at-eof
+report/drawer/drawer_validation.svg whitespace=-blank-at-eol
+# Large machine records remain available, with collapsed pull-request diffs.
+evaluations/** linguist-generated=true
+evaluation_adjudications/** linguist-generated=true
+evaluator/general/references/** linguist-generated=true
+evaluator/case08_10/references/** linguist-generated=true
+protocol/tasks/*_source_inventory.json linguist-generated=true
+report/drawer/*.csv linguist-generated=true
+publication_manifest.json linguist-generated=true

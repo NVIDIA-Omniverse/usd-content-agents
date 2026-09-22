@@ -1,0 +1,10 @@
+{
+  "checked_utc": "2026-09-21T23:56:45.463429+00:00",
+  "queue_status": "complete",
+  "queue_sha256": "7d2afafa62b22705e8d5ba9550a5cf6ca5b75f062e1d190fd82dbdf280e33d98",
+  "ready": true,
+  "remaining07_owned_sidecars": [],
+  "gpu0_compute_processes": [],
+  "nvidia_query_returncode": 0,
+  "purpose": "Three independent drawer replay presentation renders; release afterward for agent06 capstone renderer."
+}

@@ -1,0 +1,19 @@
+{
+  "claimed_accepted": false,
+  "final_scene": null,
+  "bindings": null,
+  "reason": "Blocked at native Geometry: cad_preflight.mesh_topology failed on 670 cabinet boundary edges and handoff_ready=no. Shared conversion also changed metresPerUnit to 0.001 and discarded ten original zero-area cabinet triangles. A separately preserved native repair diagnosis failed before a certificate or output was published. No supported source-preserving correction was found in the frozen public entrypoints; downstream Joint and Physics were not run. final.usd is the unqualified first Geometry candidate only.",
+  "repairs_used": 1,
+  "limitations": [
+    "No physically constrained drawer, enabled colliders, explicit mass/inertia, or free-payload dynamics were authored or validated.",
+    "Partial USD is 1000 times too small in physical units: native converter authored metersPerUnit=0.001 with metre-valued coordinates.",
+    "Cabinet triangle count is 18188 instead of 18198; four drawers retain 2052 triangles each. Missing ten source faces have zero area but violate the exact count contract.",
+    "Native Geometry failed; repair_01 returned validation_status=fail, handoff_ready=no, error=(0.000528343915939331, -0.00020667807757854465, 0.0004099169969558716), with no repair certificate.",
+    "No evaluator implementation or results were used; this is a pre-evaluation rejection claim.",
+    "Null physics bindings and null final_scene/bindings in submission.json explicitly denote no accepted deliverable. final.usd and bindings.json remain diagnostic partial artifacts.",
+    "Focused shared Validation of the partial scene failed: physics.expected_but_missing, physics.no_physics_scene, physics.no_rigid_bodies, and physics.no_colliders.",
+    "Shared Validation assessment was unauthorized; the native workflow published no terminal receipt and refused review of the rejected assessment. Exact native artifacts are preserved."
+  ],
+  "partial_scene": "final.usd",
+  "partial_bindings": "bindings.json"
+}

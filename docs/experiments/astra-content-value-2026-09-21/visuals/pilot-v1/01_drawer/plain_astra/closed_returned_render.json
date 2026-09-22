@@ -1,0 +1,107 @@
+{
+  "command": "render",
+  "ok": true,
+  "schema_version": "1",
+  "summary": {
+    "camera": "/__ReplayPresentation/Camera",
+    "res": "1024x768",
+    "modalities": [
+      "rgb"
+    ],
+    "camera_world_transform": [
+      [
+        0.8372705045624258,
+        -2.7755575615628914e-17,
+        -0.546788900938727,
+        0.0
+      ],
+      [
+        -0.22906050215743406,
+        0.9080234026495508,
+        -0.35074889392857095,
+        0.0
+      ],
+      [
+        0.4964971183613911,
+        0.41891944361742367,
+        0.7602612124908802,
+        0.0
+      ],
+      [
+        1.6000000000000003,
+        2.3000000000000003,
+        2.5000000000000004,
+        1.0
+      ]
+    ],
+    "camera_pos": [
+      1.6,
+      2.3,
+      2.5
+    ],
+    "camera_dir": [
+      -0.496,
+      -0.419,
+      -0.76
+    ],
+    "backend": "ovrtx",
+    "ovrtx_render_mode": "rt2",
+    "ovrtx_num_sensor_updates": 64,
+    "active_aov": "LdrColor"
+  },
+  "data": {
+    "results": [
+      {
+        "camera": "/__ReplayPresentation/Camera",
+        "path": "/opt/astra-content-value-20260921/visuals/pilot-v1/01_drawer/plain_astra/closed_returned.png",
+        "render_time_s": 1.591,
+        "ovrtx_render_mode": "rt2",
+        "ovrtx_num_sensor_updates": 64,
+        "active_aov": "LdrColor",
+        "camera_world_transform": [
+          [
+            0.8372705045624258,
+            -2.7755575615628914e-17,
+            -0.546788900938727,
+            0.0
+          ],
+          [
+            -0.22906050215743406,
+            0.9080234026495508,
+            -0.35074889392857095,
+            0.0
+          ],
+          [
+            0.4964971183613911,
+            0.41891944361742367,
+            0.7602612124908802,
+            0.0
+          ],
+          [
+            1.6000000000000003,
+            2.3000000000000003,
+            2.5000000000000004,
+            1.0
+          ]
+        ],
+        "camera_pos": [
+          1.6,
+          2.3,
+          2.5
+        ],
+        "camera_dir": [
+          -0.496,
+          -0.419,
+          -0.76
+        ]
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "/opt/astra-content-value-20260921/visuals/pilot-v1/01_drawer/plain_astra/closed_returned.png",
+      "kind": "render",
+      "label": "rgb:/__ReplayPresentation/Camera"
+    }
+  ]
+}

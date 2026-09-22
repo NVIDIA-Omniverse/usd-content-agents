@@ -1,0 +1,232 @@
+{
+  "accepted": true,
+  "status": "accepted",
+  "inconclusive_checks": [],
+  "concrete_failures": [],
+  "checks": [
+    {
+      "name": "seed11:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.08175000548362732,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.9898973493355191,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 8.243698268819196e-05,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.00027182342833679976,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 5.111098289489746e-06,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/x",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -4.779612214484914e-07,
+          0.050000397117508026
+        ],
+        "authored": [
+          0.0,
+          0.05000000074505806
+        ],
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/y",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          0.0,
+          0.04999999329447746
+        ],
+        "authored": [
+          0.0,
+          0.05000000074505806
+        ],
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/z",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          0.0,
+          0.04999997466802597
+        ],
+        "authored": [
+          0.0,
+          0.05000000074505806
+        ],
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:required_joint_motion:x",
+      "passed": true,
+      "evidence": 0.025182698645346724,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:x",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.0014518411962352942,
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_return:x",
+      "passed": true,
+      "evidence": [
+        7.6338983100726e-13,
+        2.0899745693295323e-14,
+        2.0479005046196238e-14,
+        8.239934758808101e-15,
+        6.141855810468973e-18,
+        4.076805735531493e-17,
+        2.9077322967739633e-17,
+        7.732605059782122e-18
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed11:required_joint_motion:y",
+      "passed": true,
+      "evidence": 0.025182785466313303,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:y",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.0014518924057483687,
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_return:y",
+      "passed": true,
+      "evidence": [
+        1.2605147481359325e-10,
+        6.788293017978564e-12,
+        9.19619762285162e-12,
+        4.626175744565364e-12,
+        2.6000016484402366e-13,
+        7.3322146694043e-14,
+        6.92049770354558e-14,
+        2.6874883273116622e-14
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed11:required_joint_motion:z",
+      "passed": true,
+      "evidence": 0.024812817573547363,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:z",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.0018217876553535475,
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_return:z",
+      "passed": true,
+      "evidence": [
+        7.450580596923828e-09,
+        7.450580596923828e-09,
+        7.450580596923828e-09,
+        7.450580596923828e-09,
+        7.450580596923828e-09,
+        7.450580596923828e-09,
+        7.450580596923828e-09,
+        7.450580596923828e-09
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed11:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    }
+  ]
+}

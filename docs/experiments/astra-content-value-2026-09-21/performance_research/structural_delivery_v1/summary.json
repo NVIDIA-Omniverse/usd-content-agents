@@ -1,0 +1,97 @@
+{
+  "created_utc": "2026-09-22T01:01:06.225333+00:00",
+  "scope": "Separate necessary static-delivery evidence only; root owns any later aggregation decision. No original acceptance, native evaluation, frozen/scored artifact or aggregate modified.",
+  "cases": [
+    {
+      "case_id": "07_robot_arm",
+      "receipt_path": "performance_research/structural_delivery_v1/07_robot_arm_content_agents.json",
+      "receipt_sha256": "371b02203288f0e1e9e8fe7d96b81b7f25ec5d9fa67eed955db1fcff7859dd16",
+      "supplementary_status": "DECISIVE_NON_DELIVERY",
+      "schema_counts": {
+        "rigid_bodies": 0,
+        "joints": 0,
+        "colliders": 0,
+        "meshes": 566
+      },
+      "concrete_missing_delivery_check_count": 18,
+      "elapsed_seconds": 5.1437956392765045,
+      "qualification_sha256": "e297a618664654c82f9f40361a0705bcb4bd1d2219bdd73664c1a2bfdee46f62"
+    },
+    {
+      "case_id": "08_excavator",
+      "receipt_path": "performance_research/structural_delivery_v1/08_excavator_content_agents.json",
+      "receipt_sha256": "14b0c3fcd05eb04a82ca0a39534ed394d3df106a4c99d610a9adfe2c87aa29f7",
+      "supplementary_status": "DECISIVE_NON_DELIVERY",
+      "schema_counts": {
+        "rigid_bodies": 0,
+        "joints": 0,
+        "colliders": 0,
+        "meshes": 80
+      },
+      "concrete_missing_delivery_check_count": 9,
+      "elapsed_seconds": 0.16585328802466393,
+      "qualification_sha256": "e297a618664654c82f9f40361a0705bcb4bd1d2219bdd73664c1a2bfdee46f62"
+    },
+    {
+      "case_id": "09_printer",
+      "receipt_path": "performance_research/structural_delivery_v1/09_printer_content_agents.json",
+      "receipt_sha256": "dbb94fdf757ba38fee0d26797fdea6323cc2327a91b5fa5e94975be19b6e0ed5",
+      "supplementary_status": "DECISIVE_NON_DELIVERY",
+      "schema_counts": {
+        "rigid_bodies": 0,
+        "joints": 0,
+        "colliders": 0,
+        "meshes": 3092
+      },
+      "concrete_missing_delivery_check_count": 9,
+      "elapsed_seconds": 0.8938185051083565,
+      "qualification_sha256": "7b43248633411ee34fb7188bf7c5f34ce678ad5d4bde8c82947a5756f3d7e24b"
+    },
+    {
+      "case_id": "10_complex",
+      "receipt_path": "performance_research/structural_delivery_v1/10_complex_content_agents.json",
+      "receipt_sha256": "90fd749a8ea5357b6e6ec12a38f628f2a7988afe1578e00d737fa65fcb628731",
+      "supplementary_status": "DECISIVE_NON_DELIVERY",
+      "schema_counts": {
+        "rigid_bodies": 0,
+        "joints": 0,
+        "colliders": 0,
+        "meshes": 69
+      },
+      "concrete_missing_delivery_check_count": 42,
+      "elapsed_seconds": 0.572694543749094,
+      "qualification_sha256": "7b43248633411ee34fb7188bf7c5f34ce678ad5d4bde8c82947a5756f3d7e24b"
+    }
+  ],
+  "qualifications": [
+    {
+      "path": "performance_research/structural_delivery_v1/qualification_codex/qualification.json",
+      "sha256": "e297a618664654c82f9f40361a0705bcb4bd1d2219bdd73664c1a2bfdee46f62",
+      "tests": 15,
+      "all_passed": true,
+      "usd_version": [
+        0,
+        25,
+        5
+      ]
+    },
+    {
+      "path": "performance_research/structural_delivery_v1/qualification_pair/qualification.json",
+      "sha256": "7b43248633411ee34fb7188bf7c5f34ce678ad5d4bde8c82947a5756f3d7e24b",
+      "tests": 15,
+      "all_passed": true,
+      "usd_version": [
+        0,
+        25,
+        5
+      ]
+    }
+  ],
+  "independent_review_sha256": "81e75bd6183b7f19bb384f118abde8ba5e8b901485c07114d5261ef19b3e1d2c",
+  "auditor_sha256": "387c6608092d1fe0ad3464c677b62451f983e9151443fa899717be879c79fc22",
+  "source_fidelity_status": "NOT_EVALUATED",
+  "native_runtime_status": "NOT_EVALUATED",
+  "active_jobs_stopped_or_modified": false,
+  "gpu_jobs": 0,
+  "model_calls": 0
+}

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "case_id": "06_engine",
+  "arm": "plain_astra",
+  "valid": true,
+  "created_utc": "2026-09-21T23:58:17.625932+00:00",
+  "scope": "Author-level observational audit; global scheduling is evaluated separately in report/global_protocol_audit.json. No hidden reasoning inspected.",
+  "tool_requests_reviewed": 127,
+  "checks": [
+    {
+      "criterion": "model_effort_all_observed_sessions",
+      "valid": true,
+      "model": "gpt-6-astra",
+      "effort": "ultra"
+    },
+    {
+      "criterion": "wall_time_cap",
+      "valid": true,
+      "elapsed_seconds": 893.8338283188641,
+      "cap_seconds": 2400
+    },
+    {
+      "criterion": "unchanged_output_and_task",
+      "valid": true,
+      "evidence_sha256": "ecd87019e8f4f5941fc9b3c44f8c99e3c2668ff9d5d61cf40a3971f909c6285c"
+    },
+    {
+      "criterion": "source_and_repository_unchanged",
+      "valid": true,
+      "evidence": "../independent_hash_verification.json"
+    },
+    {
+      "criterion": "repair_limit",
+      "valid": true,
+      "declared": 0,
+      "reviewed": 0,
+      "details": "Only first candidate retained and selected. Final USD SHA equals preserved candidates/first/final.usd; no post-candidate scene repair observed."
+    },
+    {
+      "criterion": "treatment_or_control_adherence",
+      "valid": true,
+      "details": "Direct task scripts use OpenUSD/OCP/OvPhysX; no workflow skill, coordinator or decision-helper reads/invocations observed."
+    },
+    {
+      "criterion": "no_cross_case_code_exposure",
+      "valid": true,
+      "details": "No forbidden case/evaluator paths or broad process inspection appeared in127captured requests; all authored output paths stay in this run."
+    }
+  ],
+  "limitations": [
+    "Instruction-based isolation is not complete OS mediation. Unchanged current hashes do not exclude transient edits restored before inspection.",
+    "Physical acceptance is decided separately by frozen evaluator and versioned numerical adjudication."
+  ],
+  "tool_requests_sha256": "58ed70bdd15a605e3985fc2c8080c577773070895a4f4b5b9374ed88ec16596e"
+}

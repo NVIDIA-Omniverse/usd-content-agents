@@ -1,0 +1,15 @@
+{
+  "case_id": "05_vise",
+  "reference_inventory": "/opt/astra-content-value-20260921/evaluator/general/references/05_vise/source_inventory.json",
+  "reference_inventory_sha256": "76c100c81816bce57e16b65f3c5dd37cc71f79f94bb152a9be17f34421bb662f",
+  "code_sha256": {
+    "evaluate.py": "c88b9a1de90f85d9923c10640e502f287a86d1aec3ec9b94ce953b33f19db5f8",
+    "structural.py": "476f3bffc017a46fada8623fbf1c96361b2f3d8145d03f34815df34f10683a39",
+    "cases.json": "66affde6c3d1270f1b79e9b4a41d55c80fd25dacf35568bd6040def24b92cddb",
+    "geometry.py": "6f56755a187b6b11491a5168bc99c55a306e114ee51dd5195bd86286286592eb",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "solver.py": "f64ec843b7d3760f1f9661a96f673ea56cdd51e93b7d5fa337cfe52f2ab502ed",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b"
+  },
+  "public_inventory_sha256": "ffbc3f371126f01e7ca3419d2cbb085122ac6349f791e1fe0dec5234ee700fc4"
+}

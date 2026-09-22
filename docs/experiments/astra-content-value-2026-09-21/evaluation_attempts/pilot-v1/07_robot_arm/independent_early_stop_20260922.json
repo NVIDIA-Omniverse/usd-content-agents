@@ -1,0 +1,64 @@
+{
+  "scope": "Scheduling termination only, not a replacement acceptance verdict.",
+  "started_utc": "2026-09-22T01:05:54.458680+00:00",
+  "code_sha256": "6517a0cf4b00ab50af2179060eb863233539bd0535a557cd5f5385e04ec2a7b0",
+  "frozen_code_modified": false,
+  "author_artifacts_modified": false,
+  "source_fidelity_completion_claimed": false,
+  "dependencies": [
+    {
+      "path": "performance_research/structural_delivery_v1/07_robot_arm_content_agents.json",
+      "sha256": "371b02203288f0e1e9e8fe7d96b81b7f25ec5d9fa67eed955db1fcff7859dd16"
+    },
+    {
+      "path": "evaluations/pilot-v1/07_robot_arm/plain_astra/acceptance.json",
+      "sha256": "4ed3f61d9a1fa522fb9379518cc5e4b155b7116190f9a27962b4c928970cacb3"
+    }
+  ],
+  "jobs": [
+    {
+      "pid": 32101,
+      "required": [
+        "scripts/evaluate_finished.py",
+        "07_robot_arm"
+      ],
+      "role": "sequential_dispatcher",
+      "reason": "Stop dispatcher before its child so unnecessary geometry-only CA evaluations are not automatically started. Root separately owns the pending08 plain evaluation.",
+      "command": "/opt/astra-content-value-20260921/repo/.venv/bin/python /opt/astra-content-value-20260921/scripts/evaluate_finished.py --worker codex --cases 03_hinge 07_robot_arm 08_excavator ",
+      "signal": "SIGTERM",
+      "signaled_utc": "2026-09-22T01:05:54.460813+00:00",
+      "outcome": "zombie_reaped_by_parent_pending",
+      "ended_utc": "2026-09-22T01:05:54.564684+00:00"
+    },
+    {
+      "pid": 122154,
+      "required": [
+        "general/frozen/07_robot_arm/evaluate.py",
+        "07_robot_arm/content_agents/final.usd"
+      ],
+      "role": "07_content_agents_frozen_partial",
+      "reason": "Qualified independently hash-bound static inspection proves zero actual bodies, joints and colliders. Mandatory physical content is absent; source fidelity remains unassessed. No completed frozen verdict is claimed.",
+      "command": "/opt/astra-content-value-20260921/repo/.venv/bin/python /opt/astra-content-value-20260921/evaluator/general/frozen/07_robot_arm/evaluate.py --usd /opt/astra-content-value-20260921/runs/pilot-v1/07_robot_arm/content_agents/final.usd --bindings /opt/astra-content-value-20260921/runs/pilot-v1/07_robot_arm/content_agents/bindings.json --inventory /opt/astra-content-value-20260921/evaluator/general/references/07_robot_arm/source_inventory.json --case 07_robot_arm --output /opt/astra-content-value-20260921/evaluations/pilot-v1/07_robot_arm/content_agents ",
+      "signal": "SIGTERM",
+      "signaled_utc": "2026-09-22T01:05:54.564915+00:00",
+      "outcome": "zombie_reaped_by_parent_pending",
+      "ended_utc": "2026-09-22T01:05:54.668689+00:00"
+    },
+    {
+      "pid": 122487,
+      "required": [
+        "source_distance_v1_1/worker.py",
+        "07_robot_arm",
+        "plain_astra"
+      ],
+      "role": "07_plain_source_distance_partial",
+      "reason": "All five frozen native trials fail the declared joint5 holding tolerance, also reproduced without controller jitter. Source-distance completion cannot cure that independent physical failure. No corrected source-fidelity verdict is claimed.",
+      "command": "/opt/astra-content-value-20260921/repo/.venv/bin/python /opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/worker.py --root /opt/astra-content-value-20260921 --run-id pilot-v1 --case 07_robot_arm --arm plain_astra --qualification /opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/qualification_r2.json --fresh-conveyor-if-needed ",
+      "signal": "SIGTERM",
+      "signaled_utc": "2026-09-22T01:05:54.669039+00:00",
+      "outcome": "zombie_reaped_by_parent_pending",
+      "ended_utc": "2026-09-22T01:05:54.854592+00:00"
+    }
+  ],
+  "finished_utc": "2026-09-22T01:05:54.854897+00:00"
+}

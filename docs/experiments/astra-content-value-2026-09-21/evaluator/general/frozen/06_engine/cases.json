@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "common": {
+    "dt_s": 0.004166666666666667,
+    "duration_s": 12.0,
+    "gravity_m_s2": 9.81,
+    "max_linear_speed_m_s": 5.0,
+    "max_angular_speed_rad_s": 30.0,
+    "max_joint_closure_m": 0.002,
+    "max_joint_axis_error_rad": 0.05,
+    "max_penetration_m": 0.003,
+    "max_fixed_base_motion_m": 0.002,
+    "position_tolerance_m": 0.002,
+    "angle_tolerance_rad": 0.08726646259971647,
+    "minimum_source_surface_coverage": 1.0,
+    "max_mesh_surface_error_fraction": 0.001,
+    "max_mesh_surface_error_m": 5e-05
+  },
+  "cases": {
+    "06_engine": {
+      "observer": "engine",
+      "required_joint_roles": [
+        "crank",
+        "piston_slide",
+        "beam_pivot"
+      ],
+      "required_body_roles": [
+        "crank",
+        "piston",
+        "beam",
+        "connecting_rod",
+        "base"
+      ],
+      "joint_kinds": {
+        "crank": "revolute",
+        "piston_slide": "prismatic",
+        "beam_pivot": "revolute"
+      },
+      "minimum_crank_cycle_rad": 6.283185307179586,
+      "minimum_piston_stroke_m": 0.002,
+      "minimum_beam_swing_rad": 0.05,
+      "require_joint_graph_cycle": true,
+      "control": {
+        "crank": {
+          "kp": 36.0,
+          "kd": 2.0,
+          "max_effort": 2.0,
+          "gain_mode": "inertia_scaled"
+        }
+      },
+      "acceptance": "One full physically integrated crank cycle with piston stroke and beam oscillation; all actual joint anchors/axes remain closed, returning piston position repeats after a cycle, and a paired external shaft-load perturbation measurably changes shaft motion.",
+      "controller_scale_definition": "PD gains are multiplied by independently read downstream effective inertia (principal maximum plus parallel-axis mass terms at the initial pose). Opposing hold torque is min(1% of effort cap, effective inertia times 1 rad/s^2). This normalizes the unknown authored inertial scale; no certified hardware load rating is claimed.",
+      "joint_moving_body_roles": {
+        "crank": "crank",
+        "piston_slide": "piston",
+        "beam_pivot": "beam"
+      },
+      "required_cycle_joint_roles": [
+        "crank"
+      ]
+    }
+  }
+}

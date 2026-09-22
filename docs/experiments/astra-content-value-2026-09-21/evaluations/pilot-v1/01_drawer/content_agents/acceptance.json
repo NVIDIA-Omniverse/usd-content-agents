@@ -1,0 +1,44 @@
+{
+  "schema_version": "astra-content-value-independent-acceptance.v1",
+  "recorded_utc": "2026-09-21T22:53:58.807636+00:00",
+  "case_id": "01_drawer",
+  "arm": "content_agents",
+  "status": "FAIL",
+  "accepted": false,
+  "claimed_accepted": false,
+  "false_pass": false,
+  "failure_kind": "contractual_non_submission",
+  "reason": "No submitted accepted final scene or physical mechanism; final_scene/bindings are explicitly null. Diagnostic partial artifacts do not satisfy the submission contract.",
+  "raw_evaluator_status": "INCONCLUSIVE",
+  "raw_evaluator_report": "report.json",
+  "raw_evaluator_report_sha256": "6e650328b583a5eb2d264a70deb99cfcf234fb8ff0fa2d284daa67a9322370da",
+  "raw_evaluator_error": "ArgumentError: Python argument types in\n    Stage.GetPrimAtPath(Stage, NoneType)\ndid not match C++ signature:\n    GetPrimAtPath(pxrInternal_v0_25_5__pxrReserved__::UsdStage {lvalue}, pxrInternal_v0_25_5__pxrReserved__::SdfPath path)",
+  "submission_sha256": "309907204db6cedc8021b41edeab2ab24835636b3d2fba8a66e8641e95890ff2",
+  "inputs": {
+    "bindings_sha256": "a9261269e167f6411859db968a2751817491bc7213885b33db1ec4fedb947d20",
+    "usd_sha256": "8bb8642cd820efe828f749c3459524b9fde8464ae3954334a64cbf9111ee30a6",
+    "protocol_sha256": "cef4474f7bee05ce3be6c1e7bfa294ebfced78b62e99aace7aebc50cb14bb85d",
+    "evaluator_sha256": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+    "solver_adapter_sha256": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa"
+  },
+  "author_claim_reason": "Blocked at native Geometry: cad_preflight.mesh_topology failed on 670 cabinet boundary edges and handoff_ready=no. Shared conversion also changed metresPerUnit to 0.001 and discarded ten original zero-area cabinet triangles. A separately preserved native repair diagnosis failed before a certificate or output was published. No supported source-preserving correction was found in the frozen public entrypoints; downstream Joint and Physics were not run. final.usd is the unqualified first Geometry candidate only.",
+  "author_limitations": [
+    "No physically constrained drawer, enabled colliders, explicit mass/inertia, or free-payload dynamics were authored or validated.",
+    "Partial USD is 1000 times too small in physical units: native converter authored metersPerUnit=0.001 with metre-valued coordinates.",
+    "Cabinet triangle count is 18188 instead of 18198; four drawers retain 2052 triangles each. Missing ten source faces have zero area but violate the exact count contract.",
+    "Native Geometry failed; repair_01 returned validation_status=fail, handoff_ready=no, error=(0.000528343915939331, -0.00020667807757854465, 0.0004099169969558716), with no repair certificate.",
+    "No evaluator implementation or results were used; this is a pre-evaluation rejection claim.",
+    "Null physics bindings and null final_scene/bindings in submission.json explicitly denote no accepted deliverable. final.usd and bindings.json remain diagnostic partial artifacts.",
+    "Focused shared Validation of the partial scene failed: physics.expected_but_missing, physics.no_physics_scene, physics.no_rigid_bodies, and physics.no_colliders.",
+    "Shared Validation assessment was unauthorized; the native workflow published no terminal receipt and refused review of the rejected assessment. Exact native artifacts are preserved."
+  ],
+  "evaluation_limitations": [
+    "Force-limited drawer actuation and authored mass/inertia/friction are simulation abstractions, not physical furniture or robot manipulation validation.",
+    "Five deterministic seeds do not estimate general reliability.",
+    "Contact field payload_drawer_contact_force_n stores impulse in N*s; divide by1/240s for average force. The frozen contact detector remains0.01N*s (2.4N equivalent), with acceptance unchanged.",
+    "Native CPU evaluation ran at nice15/idle I/O on the shared authoring host; instantaneous load was not matched."
+  ],
+  "original_author_outputs_modified": false,
+  "evaluator_implementation_modified": false,
+  "classification_note": "The raw evaluator cannot dereference null body paths and records INCONCLUSIVE. This wrapper preserves that diagnostic result and separately applies the explicit no-deliverable contract failure. It is not a false pass because the author claimed rejection."
+}

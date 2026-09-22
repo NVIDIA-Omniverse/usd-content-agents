@@ -1,0 +1,13 @@
+{
+  "status": "blocked",
+  "current": "09_printer/plain_astra",
+  "completed": [
+    "02_conveyor/content_agents",
+    "02_conveyor/plain_astra",
+    "05_vise/plain_astra",
+    "06_engine/content_agents",
+    "05_vise/content_agents",
+    "06_engine/plain_astra"
+  ],
+  "error_file": "/opt/astra-content-value-20260921/evidence/pair-09_printer-plain_astra-evaluation-error.json"
+}

@@ -1,0 +1,182 @@
+{
+  "schema_version": "astra-content-value-protocol-audit.v1",
+  "case_id": "01_drawer",
+  "arm": "plain_astra",
+  "valid": true,
+  "audited_utc": "2026-09-21T23:08:56.512211+00:00",
+  "checks": [
+    {
+      "name": "original_source_unchanged",
+      "valid": true,
+      "evidence": {
+        "source_files_checked": 5,
+        "detail": "protocol_probe.json#/source_checks",
+        "dataset_sha256": "34c8293ab1be49cd0bbdb8f8fe25278b60ba21c35d52b8009a5065278d25c87f"
+      },
+      "note": null,
+      "core_protocol_check": true
+    },
+    {
+      "name": "completed_outputs_unchanged",
+      "valid": true,
+      "evidence": {
+        "frozen_files_checked": 75,
+        "manifest": {
+          "path": "runs/pilot-v1/01_drawer/plain_astra/output_manifest.json",
+          "sha256": "1157af0a10b2f44bb394a34acdde53227b1375e1122c90bffc140f367833436c"
+        },
+        "detail": "protocol_probe.json#/output_checks"
+      },
+      "note": "The runner intentionally excludes .usd-cli state and the manifest itself from its output manifest; all listed scored files were checked.",
+      "core_protocol_check": true
+    },
+    {
+      "name": "frozen_evaluator_unchanged",
+      "valid": true,
+      "evidence": {
+        "files_checked": 12,
+        "detail": "protocol_probe.json#/frozen_evaluator_checks"
+      },
+      "note": null,
+      "core_protocol_check": true
+    },
+    {
+      "name": "matched_model_effort_task_budget",
+      "valid": true,
+      "evidence": {
+        "launch": {
+          "path": "runs/pilot-v1/01_drawer/plain_astra/launch.json",
+          "sha256": "485344c5d72eed68d8961e088f86a8bc06fdb0431ae1584e3eb86a6538fafbc2"
+        },
+        "pair_fields": {
+          "model": true,
+          "reasoning_effort": true,
+          "budget_seconds": true,
+          "task_sha256": true
+        },
+        "observed_turn_contexts": [
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          }
+        ],
+        "recorded_sessions_available": true
+      },
+      "note": "Recorded primary and child contexts were Astra Ultra. This is a recorded-context audit, not independent provider attestation.",
+      "core_protocol_check": true
+    },
+    {
+      "name": "within_wall_time_budget",
+      "valid": true,
+      "evidence": {
+        "execution": {
+          "path": "runs/pilot-v1/01_drawer/plain_astra/execution.json",
+          "sha256": "b48edde1719698bf3f0f2f9491009ddaf49c7975152ce67990c651632084a911"
+        },
+        "elapsed_seconds": 983.914294026792,
+        "budget_seconds": 2400
+      },
+      "note": null,
+      "core_protocol_check": true
+    },
+    {
+      "name": "no_observed_evaluator_or_opposite_arm_read",
+      "valid": true,
+      "evidence": {
+        "tool_metadata": "tool_operation_metadata.json",
+        "tool_metadata_sha256": "28240e55f6b204c0b3df47f49fb2c31b32356ab06c40ff79de6fa6e3c44959b8",
+        "matched_access_operations": []
+      },
+      "note": "Reviewed all captured session tool operations, public commands and own generated scripts. No protected-path access was observed. Runtime documentation and process-list metadata were read; this is not a kernel syscall audit. Private reasoning, messages, raw rollout files and auth were excluded from exported metadata.",
+      "core_protocol_check": true
+    },
+    {
+      "name": "repair_limit_respected",
+      "valid": true,
+      "evidence": {
+        "count_interpretations": {
+          "declared": 0,
+          "after_first_complete_candidate": 0,
+          "pre_complete_candidate_authoring_retries": 1,
+          "conservative_count_including_initial_incomplete_candidate": 1,
+          "maximum_allowed": 2,
+          "operational_retries": "Simulation adapter/runtime and rendering retries were also preserved; they did not change the asset scene."
+        },
+        "chronology": [
+          {
+            "public_event_line": 45,
+            "item_id": "item_22",
+            "action": "Initial authoring call raised numpy.float32-to-Gf.Vec3f constructor error and left a492-byte incomplete scene.",
+            "evidence": {
+              "path": "runs/pilot-v1/01_drawer/plain_astra/evidence/author_attempt_00/author_error.log",
+              "sha256": "96d2975e849d1470c1400158d9312feef6934b2e3022026ea97f18be7a7c4166"
+            }
+          },
+          {
+            "public_event_line": 49,
+            "item_id": "item_24",
+            "action": "Preserved incomplete scene/error log, fixed Python scalar conversion, and produced the first complete candidate.",
+            "evidence": {
+              "path": "runs/pilot-v1/01_drawer/plain_astra/candidates/first/scene.usd",
+              "sha256": "f3974155c08dc07810cca8174bc62bf567b7de1d8a9c36212e175340172d945a"
+            }
+          },
+          {
+            "public_event_line": 96,
+            "item_id": "item_49",
+            "action": "Packaged final scene by rebasing exactly three texture paths; independent layer comparison proves all other authored content unchanged.",
+            "evidence": {
+              "path": "audits/pilot-v1/01_drawer/plain_astra/independent_packaging_comparison.json",
+              "sha256": "3c0c31d9f6bd7640e224b19040d1a365bc6cde6cd7447b0208a3cb5d3c0a86bb"
+            }
+          }
+        ]
+      },
+      "note": "The limit holds under both counting conventions. Declared0 excludes the initial construction exception; a stricter count treating its incomplete492-byte file as a candidate gives1.",
+      "core_protocol_check": true
+    },
+    {
+      "name": "declared_repair_counter_convention",
+      "valid": "unknown",
+      "evidence": {
+        "declared": 0,
+        "after_first_complete_candidate": 0,
+        "pre_complete_candidate_authoring_retries": 1,
+        "conservative_count_including_initial_incomplete_candidate": 1,
+        "maximum_allowed": 2,
+        "operational_retries": "Simulation adapter/runtime and rendering retries were also preserved; they did not change the asset scene."
+      },
+      "note": "The protocol did not define whether an incomplete constructor-failure file is a candidate. This affects the displayed repair count, not compliance with the limit of2.",
+      "core_protocol_check": false
+    },
+    {
+      "name": "plain_arm_did_not_use_content_agents_workflows",
+      "valid": true,
+      "evidence": {
+        "tool_metadata": "tool_operation_metadata.json",
+        "matched_workflow_operations": [],
+        "public_examples": [
+          {
+            "event_line": 7,
+            "item_id": "item_2",
+            "read": "repo/apps/usd_cli/README.md"
+          },
+          {
+            "event_line": 20,
+            "item_id": "item_9",
+            "read": "ovphysx native samples plus low-level usd_core initialization"
+          }
+        ]
+      },
+      "note": "Common low-level USD/runtime documentation and APIs were allowed; no workflow skill, coordinator or Content Agents entrypoint was observed.",
+      "core_protocol_check": true
+    }
+  ],
+  "physical_acceptance_separate": "evaluations/pilot-v1/01_drawer/plain_astra/acceptance.json",
+  "scope_limit": "Evidence-bound audit of captured operations, source and output hashes, and native receipts; not OS-level prevention or complete syscall tracing. Protocol validity does not imply physical task success.",
+  "privacy": "Tool operations and model/effort metadata only were extracted from captured sessions. Raw rollouts, private reasoning, private messages and credentials were not copied."
+}

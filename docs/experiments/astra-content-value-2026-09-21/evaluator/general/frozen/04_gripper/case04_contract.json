@@ -1,0 +1,20 @@
+{
+  "observer": "gripper_contact",
+  "case_id": "04_gripper",
+  "required_body_roles": ["base", "left_finger", "right_finger", "left_arm", "right_arm", "turntable"],
+  "required_joint_roles": ["actuator", "left_slide", "right_slide", "left_inner", "left_outer", "right_inner", "right_outer"],
+  "joint_kinds": {"actuator":"revolute","left_slide":"prismatic","right_slide":"prismatic","left_inner":"revolute","left_outer":"revolute","right_inner":"revolute","right_outer":"revolute"},
+  "require_joint_graph_cycle": true,
+  "assembly_orientation": "Rigid translation and rotation about worldZ are allowed; original sourceZ must remain worldZ. Original source rest configuration is retained.",
+  "evaluator_interventions": ["Add a free evaluator-owned payload at the source-derived grasp site; never attach it to any submitted body", "Disable authored joint-drive stiffness/damping and reset initial velocities in a copied scene; prohibit authored external forces", "Normalize finger/payload friction to0.6, restitution0, contact offset0.0002m and rest offset0", "Apply bounded torque only to the cam and the stated temporary loading support/downward payload load", "No pose or velocity writes during simulation"],
+  "source_body_role_by_solid": {"0":"right_finger","1":"left_finger","2":"base","3":"left_finger","4":"right_finger","5":"turntable","19":"base","24":"right_arm","25":"left_arm","26":"turntable"},
+  "joint_endpoints": {"actuator":["base","turntable"],"left_slide":["base","left_finger"],"right_slide":["base","right_finger"],"left_inner":["turntable","left_arm"],"left_outer":["left_arm","left_finger"],"right_inner":["turntable","right_arm"],"right_outer":["right_arm","right_finger"]},
+  "payload": {"center_source_m":[0,0.134102022251,0.065],"size_m":[0.004,0.012,0.018],"mass_kg":0.01,"friction":0.6,"restitution":0,"contact_offset_m":0.0002,"rest_offset_m":0},
+  "controller": {"close_offset_rad":0.2,"kp_Nm_rad":0.4,"kd_Nms_rad":0.02,"max_torque_Nm":0.05,"seed_multiplier_range":[0.98,1.02],"closing_axis_source":[0,0,1]},
+  "phases_s": {"start_close":0.5,"close_end":2.5,"remove_loading_support":2.75,"gravity_observe_start":3.0,"load_start":4.5,"load_observe_start":4.75,"start_open":6.5,"open_end":8.5,"end":9.0},
+  "loading_fixture": {"kp_N_m":20.0,"kd_Ns_m":0.9,"max_force_N":0.3},
+  "load_downward_N":0.2,
+  "dt_s":0.004166666666666667,
+  "limits": {"max_hold_displacement_m":0.004,"min_bilateral_normal_force_N":0.025,"min_bilateral_frame_fraction":0.95,"min_each_finger_closure_m":0.0008,"minimum_release_drop_m":0.02,"max_contact_penetration_m":0.001,"max_joint_closure_m":0.002,"max_joint_axis_error_rad":0.05,"max_linear_speed_m_s":5.0,"max_angular_speed_rad_s":30.0,"joint_limit_tolerance_m":0.002,"joint_limit_tolerance_rad":0.08726646259971647},
+  "acceptance":"Original 27-solid source assembly retained in its source rest configuration; source-grounded opposed fingers, carriers, separate rocker arms and cam connected by the specified two-slider closed linkage. Bounded cam torque closes onto an independently placed 10g block. After external loading support is removed, both finger contacts retain the block under gravity, then an additional 0.2N downward load. Opening releases the block and it falls at least20mm. All five fixed seeds must pass; no position or velocity writes during integration. This uses a documented torque actuator abstraction, not an electrical servo model."
+}

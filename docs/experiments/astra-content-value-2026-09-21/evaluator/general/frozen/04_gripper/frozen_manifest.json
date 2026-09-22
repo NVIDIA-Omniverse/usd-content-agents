@@ -1,0 +1,18 @@
+{
+  "case_id": "04_gripper",
+  "reference_inventory": "/opt/astra-content-value-20260921/evaluator/general/references/04_gripper/source_inventory.json",
+  "reference_inventory_sha256": "762a1f3315de9ed42fd1694328c8d2134239a03648f7e39a34415fb1d71ae36c",
+  "code_sha256": {
+    "evaluate.py": "569b60b995d931a2b4af70392bc0667a129493f27425748ae6073ca6a36df8ff",
+    "case04_contract.json": "9158d495062f21db187549cf66a04200d8e236153d9e988bd4a0be1d36d69e07",
+    "structural.py": "280569c0d5dfa172c82e64704607374e1a5d3884dd530c82093e36776f008c2d",
+    "cases.json": "54f255250615a79b6824a3dfb0698570adb5ade3f54ee55cc83a05bb6be339d7",
+    "geometry.py": "d4e9d3d625a81f3d4eada59ddd35145caf7d980a9853edb1d2090b92e55d8fe8",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "case04_evaluate.py": "b2acef24271daab5c54ca9ae05427551b5469fd6308787a9eb1c74bf4654942c",
+    "case04_solver.py": "47396bc0b3e6e015d916e97ebd17b41199ee9362fafc94519d1dd428c0671047",
+    "solver.py": "8bf1bcd203747face921cbcebe3933402d4855298da26cdf72c735e801c6f0c3",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b"
+  },
+  "public_inventory_sha256": "5a13a75472fe4f13fa713fa9db364d0b5191b21c738b73e10f7c4befdb9c9715"
+}

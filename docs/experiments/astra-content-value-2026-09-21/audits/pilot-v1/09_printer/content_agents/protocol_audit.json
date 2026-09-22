@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "case_id": "09_printer",
+  "arm": "content_agents",
+  "valid": true,
+  "status": "VALID_AUTHOR_PROTOCOL_OBSERVED",
+  "scope": "Per-arm author model, access, treatment, source, environment, repairs, wall budget and retained-artifact protocol. Experiment-wide simulation scheduling is separate.",
+  "audited_utc": "2026-09-22T00:55:16.502051+00:00",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All3 distinct reconciled sessions use gpt-6-astra ultra; full response usage reconciles with final counters.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/content_agents/usage_reconciled.json",
+          "sha256": "98d7777ca7daf94700fc703e2e2b971a71ebb02ca49dcb86be255a6c50dacd79"
+        }
+      ]
+    },
+    {
+      "id": "frozen_task_and_outputs",
+      "valid": true,
+      "finding": "All144 watchdog-manifest files remain byte-identical; frozen task, evaluator/reference and paired model/budget/task/host/GPU fields match.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/content_agents/independent_protocol_probe.json",
+          "sha256": "09366ad5f55f839a40efdf3d99ab0d6c0cdfa6aa97ebb1f30a8cbea5f8435c00"
+        },
+        {
+          "path": "audits/pilot-v1/09_printer/content_agents/supplemental_integrity.json",
+          "sha256": "2354d05ea82fb5b0388674b12024768e63c22cf68de880730972965b64ec40e3"
+        }
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All32 original curation checksum entries remain unchanged.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/content_agents/source_integrity.json",
+          "sha256": "c03111c37259a15bff9df862ed71f35c26de51116bf4e603c4ade52b8a1d4320"
+        }
+      ]
+    },
+    {
+      "id": "native_treatment_and_failure_reporting",
+      "valid": true,
+      "finding": "Used public native Geometry with shared CAD conversion. Geometry completed success=false, validation_status=fail and handoff_ready=no. The bounded native repair did not publish a terminal result. A Joint preparation draft was retained, but Joint/Physics authoring were not invoked and no failed handoff was bypassed. Public Validation rendered the static partial and rejected missing physics; its assessment records authorized=false.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/content_agents/protocol_observations.json",
+          "sha256": "00ee47944c42e751887b99d20d9b07bbd9ccc773c5377b1583154b2463117d65"
+        }
+      ]
+    },
+    {
+      "id": "forbidden_content_access",
+      "valid": true,
+      "finding": "No forbidden reads observed in118 command requests. All25 process responses inspected: own code or metadata only. The separate usd-cli status response reported not running; no foreign asset state was exposed.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/content_agents/protocol_observations.json",
+          "sha256": "00ee47944c42e751887b99d20d9b07bbd9ccc773c5377b1583154b2463117d65"
+        }
+      ]
+    },
+    {
+      "id": "frozen_environment_mutation",
+      "valid": true,
+      "finding": "No package install, shared repository/source/evaluator mutation, alternate model/provider or assigned-GPU change observed. Derived scenes and scripts stay within the run directory.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/content_agents/protocol_observations.json",
+          "sha256": "00ee47944c42e751887b99d20d9b07bbd9ccc773c5377b1583154b2463117d65"
+        }
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "1642.543988544494seconds within2,400 seconds; recorded human interventions0.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/09_printer/content_agents/execution.json",
+          "sha256": "62afc356fcfaa8b65fb31cbf395f793dc712da45d972b48244f987444d38a1e6"
+        }
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "One preserved first geometry-only candidate followed by one native visual-only repair invocation. The invocation was stopped after its frozen900-second budget without a native terminal certificate or a repaired candidate. Diagnostic script fixes, draft Joint preparation and rejecting Validation assessment serialization are preparation/reporting, not additional candidate repairs.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/09_printer/content_agents/protocol_observations.json",
+          "sha256": "00ee47944c42e751887b99d20d9b07bbd9ccc773c5377b1583154b2463117d65"
+        }
+      ]
+    },
+    {
+      "id": "terminal_claim_recorded",
+      "valid": true,
+      "finding": "claimed_accepted=false is preserved. Independent physical acceptance is evaluated separately.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/09_printer/content_agents/submission.json",
+          "sha256": "3b0bed802c07048e56180c623df33511d5aa79aa24ec9870f95308733652d94c"
+        }
+      ]
+    }
+  ],
+  "violations": [],
+  "unknowns": [
+    "No proof is claimed against unrecorded activity; opaque collaboration message bodies were not decoded.",
+    "Delivered outputs can be truncated; only delivered content is audited.",
+    "Shared process visibility remains an isolation limitation; a renderer worker command was visible as metadata, without foreign asset content.",
+    "Experiment-wide scheduling is not certified by this per-arm valid flag."
+  ],
+  "global_concurrency": {
+    "scope": "experiment-wide",
+    "status": "FAIL_CONFIRMED_OVERLAP",
+    "evidence": {
+      "path": "audits/pilot-v1/global_concurrency/overlap_02_05.json",
+      "sha256": "56224fbfb4d2fb4b429a8a0a2d7baddd0e411cdc8971be9aeb51905d061680f8"
+    },
+    "note": "Root owns global scheduling and unobserved remainder; this is separate from physical acceptance."
+  },
+  "coverage": {
+    "tool_requests": 144,
+    "tool_counts": {
+      "exec": 118,
+      "spawn_agent": 2,
+      "send_message": 18,
+      "followup_task": 4,
+      "wait": 2
+    },
+    "command_requests_reviewed": 118,
+    "first_tool_utc": "2026-09-22T00:16:17.051Z",
+    "last_tool_utc": "2026-09-22T00:43:17.321Z",
+    "process_responses_reviewed": 25,
+    "additional_daemon_status_responses_reviewed": 1,
+    "review_method": "Reviewed all captured command requests from parent and child sessions for source/read scope, treatment, model, package/repository/environment mutations and repair chronology. Selected process requests after escaped-newline decoding, then recursively decoded nested Promise-result JSON and bare text outputs. Reviewed all25 process responses plus the separate usd-cli server-status response. Cross-checked candidate, repair, source and final receipts with the independently rehashed watchdog manifest.",
+    "protected_request_pattern_hits": [],
+    "opaque_collaboration_messages_decoded": false,
+    "private_tool_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "repair_counting": {
+    "declared_repairs": 1,
+    "audited_count": 1,
+    "limit": 2,
+    "convention": "One preserved first geometry-only candidate followed by one native visual-only repair invocation. The invocation was stopped after its frozen900-second budget without a native terminal certificate or a repaired candidate. Diagnostic script fixes, draft Joint preparation and rejecting Validation assessment serialization are preparation/reporting, not additional candidate repairs.",
+    "first_candidate": {
+      "path": "runs/pilot-v1/09_printer/content_agents/candidates/first/candidate_record.json",
+      "sha256": "1523593da11f91eaccb7e74d7cc60b76044029a63bf1b197844ceeaa5b7d7e35"
+    },
+    "repair": {
+      "path": "runs/pilot-v1/09_printer/content_agents/repairs/repair_01/attempt_closeout.json",
+      "sha256": "177b668430d27c7c8357702a38c0993c3f7d5d934ad5d71ca190c57508846609"
+    },
+    "budget_stop": {
+      "path": "runs/pilot-v1/09_printer/content_agents/evidence/repair_01_budget_stop.json",
+      "sha256": "cb2f07103f978cd25d819185cccbf219e1e925b6cb59ed38daee9d0b6aca9db9"
+    },
+    "native_repair_request": {
+      "path": "runs/pilot-v1/09_printer/content_agents/repairs/repair_01/geometry_request.json",
+      "sha256": "23539e589dbb7d8f547324d33d177f894a340963d81a75c456d2e467d87e72dd"
+    },
+    "source_format_validation": {
+      "path": "runs/pilot-v1/09_printer/content_agents/repairs/repair_01/geometry_repair/source_format_validation.json",
+      "sha256": "7312a1dd5ae40c337b4face15b28d719d70181b1899ed02e541b95ff05c7abc1"
+    },
+    "candidate_manifest_hashes": [
+      {
+        "path": "runs/pilot-v1/09_printer/content_agents/bindings.json",
+        "sha256": "d52be4c5529210640e672383aad810febd3acf40e99bf24bcc0ae9e284b7255a",
+        "size": 1816112
+      },
+      {
+        "path": "runs/pilot-v1/09_printer/content_agents/candidates/first/bindings.json",
+        "sha256": "d52be4c5529210640e672383aad810febd3acf40e99bf24bcc0ae9e284b7255a",
+        "size": 1816112
+      },
+      {
+        "path": "runs/pilot-v1/09_printer/content_agents/candidates/first/final.usd",
+        "sha256": "1de197c5ee8302ec6d5cded5a9524e93c42260d73c0c33fc9a1f4f13618614bc",
+        "size": 57285440
+      },
+      {
+        "path": "runs/pilot-v1/09_printer/content_agents/final.usd",
+        "sha256": "1de197c5ee8302ec6d5cded5a9524e93c42260d73c0c33fc9a1f4f13618614bc",
+        "size": 57285440
+      }
+    ],
+    "final_scene_and_bindings_byte_identical_to_first_candidate": true,
+    "evidence_is_author_protocol_record_not_independent_physics": true
+  },
+  "private_tool_metadata_digest": {
+    "path": "audits/pilot-v1/09_printer/content_agents/tool_calls.private.json",
+    "sha256": "82eed5164bc66990fe499b266ed40bc885d537074a18e7253f2130530f5bb6b4",
+    "publish": false
+  },
+  "detailed_report": {
+    "path": "audits/pilot-v1/09_printer/content_agents/protocol_observations.json",
+    "sha256": "00ee47944c42e751887b99d20d9b07bbd9ccc773c5377b1583154b2463117d65"
+  },
+  "usage_reconciled_sha256": "98d7777ca7daf94700fc703e2e2b971a71ebb02ca49dcb86be255a6c50dacd79",
+  "independent_protocol_probe_sha256": "09366ad5f55f839a40efdf3d99ab0d6c0cdfa6aa97ebb1f30a8cbea5f8435c00",
+  "source_integrity_sha256": "c03111c37259a15bff9df862ed71f35c26de51116bf4e603c4ade52b8a1d4320",
+  "launch_sha256": "f4d877b29c51f42e114d833b875c7f2194e4f7b3344b8e8f217bd164c4d38499",
+  "execution_sha256": "62afc356fcfaa8b65fb31cbf395f793dc712da45d972b48244f987444d38a1e6",
+  "submission_sha256": "3b0bed802c07048e56180c623df33511d5aa79aa24ec9870f95308733652d94c",
+  "task_sha256": "7573fe13b6a67b1a8e87aee8e608f81ccb027278e5afc31701a088441d1e4c13",
+  "no_scored_output_repaired": true
+}

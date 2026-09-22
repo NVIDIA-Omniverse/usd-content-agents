@@ -1,0 +1,130 @@
+{
+  "captured_utc": "2026-09-21T23:14:49.619132+00:00",
+  "repository_commit": "a96faf9cb2f5c1f655fe0d60c0ccf57e3477b1aa",
+  "source_evidence": [
+    {
+      "path": "repo/agentic/packages/content_workflow_cli/README.md",
+      "sha256": "27b8e70252e5038254a8e721f9976b05445fcf556304849351828a25adf39420",
+      "excerpts": [
+        {
+          "first_line": 78,
+          "last_line": 113,
+          "text": "the `libseccomp` runtime, `bubblewrap` (`bwrap`), and unprivileged user\nnamespaces; Claude additionally requires `socat`. `content-workflow-cli auth\nstatus` verifies that both the direct Codex CLI and Codex SDK bridge can run a\nworkspace-write command. See [Child Runner Security\nRequirements](#child-runner-security-requirements) before starting a workflow.\n\n1. Install the CLI and Node SDK dependencies from the repository root:\n\n   ```bash\n   ./scripts/setup_content_agent.sh\n   ```\n\n   For direct conversion, Texture, Validation, SimReady, or reviewed\n   Articulation commands that do not launch a child agent, use\n   `./scripts/setup_content_agent.sh --without-child-runners` to omit Node/npm\n   SDK setup.\n\n2. Authenticate one child runner:\n\n   ```bash\n   # Default Codex runner.\n   content-workflow-cli auth login\n   content-workflow-cli auth status --sandbox-smoke\n\n   # Or Claude runner.\n   export ANTHROPIC_API_KEY=...\n   ```\n\n3. Fetch the Scene Optimizer build resources used by optimized workflows:\n\n   ```bash\n   ./scripts/fetch_build_resources.sh\n   ```\n\n4. Convert a non-USD source asset when needed:\n"
+        }
+      ]
+    },
+    {
+      "path": "repo/agentic/packages/geometry_repair/README.md",
+      "sha256": "ec0e4913955ae2645c62c0f2406727386ee3b764ffa6c561029adc653df73db0",
+      "excerpts": [
+        {
+          "first_line": 200,
+          "last_line": 214,
+          "text": "## Native Worker Policy\n\n`geometry_repair/worker_registry.json` is executable authority. Documentation,\nan installed library, or an agent suggestion cannot enable a worker. Missing,\ndisabled, unpinned, license-unapproved, capability-drifted, or shadow-only\nworkers must remain unavailable.\n\nThe base `geometry-repair` distribution depends on the backend-neutral\n`sdf-tools` contract. Install `geometry-repair[openvdb]` when the current\nOpenVDB driver is required; higher-level content-agent applications select that\ndriver explicitly. A future admitted driver can satisfy the same neutral\nworkers without adding OpenVDB to the base dependency graph.\n`geometry_repair/sdf_backend_qualifications.json` separately binds production\nrepair authority to benchmarked driver identity and capabilities. Adding a\ndriver to `sdf_tools` alone does not qualify it to publish repaired geometry."
+        },
+        {
+          "first_line": 226,
+          "last_line": 255,
+          "text": "matching archive through `OPENVDB_RUNTIME_SOURCE_ARCHIVE`.\n\nPMP is production-routable only for one explicitly classified 5+ vertex\naccidental hole. Build the pinned executable outside the repository with\n`scripts/build_pmp_patch.sh`, then provide both\n`GEOMETRY_REPAIR_PMP_EXECUTABLE` and\n`GEOMETRY_REPAIR_PMP_EXECUTABLE_SHA256`. Discovery independently hashes the\nbinary and rejects a missing or mismatched digest. This authority does not\nextend to generic remeshing, inferred hole intent, or reconstructive repair.\n\nThe current `openvdb` driver requires the `openvdb==13.0.0+wu.3` wheel built from\nOpenVDB 13.0.0 commit\n`7c03e1f084873cd1b3422c7ff7aec6ee681b3b38`. `openvdb_runtime` validates ABI\n13, installed and source-lock distribution identities, the source commit, and\nloaded-extension SHA-256 evidence before use. Content code calls `sdf_tools`;\nthe admitted driver invokes OpenVDB's nanobind module and bounded tools overlay\nin-process inside Geometry Repair's existing generic isolated worker. There is\nno OpenVDB helper, daemon, or OpenVDB-specific subprocess. A successful\nreconstruction remains conditional until independent visual/task review.\n\nGeogram production routing likewise requires the pinned vorpalite 1.10.0\nexecutable plus an approved digest supplied through\n`GEOMETRY_REPAIR_GEOGRAM_EXECUTABLE_SHA256` or the read-only absolute file\nnamed by `GEOMETRY_REPAIR_GEOGRAM_EXECUTABLE_SHA256_FILE`. The worker hashes\nthe discovered executable before checking its version and records that digest\nin every admitted worker result.\n\n`sdf_collision_rebuild` uses the same admitted backend as `sdf_rebuild` but\nhas only collision-role authority. It consumes a neutral world-space mesh,\napplies the collision-specific resolution ladder, and emits a separate"
+        }
+      ]
+    },
+    {
+      "path": "repo/agentic/packages/geometry_repair/pyproject.toml",
+      "sha256": "9c44d4a8ff86aa311683fb4cfdbfc71de017911d89cf7bc8cf5ec380a555e809",
+      "excerpts": [
+        {
+          "first_line": 55,
+          "last_line": 66,
+          "text": "    \"pytest>=9.0.3,<10\",\n    \"pytest-asyncio>=1.3.0,<2\",\n    \"ruff>=0.12\",\n]\nportability = [\n    \"mujoco==3.3.7\",\n    \"pybullet==3.2.7\",\n]\n\n[project.scripts]\ngeometry-repair = \"geometry_repair.cli:main\"\n"
+        }
+      ]
+    },
+    {
+      "path": "repo/world_understanding/functions/graphics/scene_optimizer_local.py",
+      "sha256": "1606fd12d99c3abb9968298bdb18141c41b499212ce9d9c644b26e5954b3c768",
+      "excerpts": [
+        {
+          "first_line": 3,
+          "last_line": 23,
+          "text": "\"\"\"Local USD scene optimization using Scene Optimizer package in an isolated subprocess.\n\nThe Scene Optimizer (SO) package bundles native C++ libraries that conflict\nwith external ``pxr``/OpenUSD bindings at the ABI level. To avoid crashes, all\nSO work runs in an isolated subprocess that uses the SO package's own stock USD\n25.11 ``pxr`` Python bindings instead of the ones from the main virtualenv.\n\nSetup:\n    Download the public ``scene_optimizer_core_usd_25.11_py_3.12`` zip and\n    unpack it. Point ``WU_SO_PACKAGE_DIR`` at the unpacked root (the one that\n    contains ``python/``, ``lib/``, ``extraLibs/``, ``usdpy/``). The repo-level\n    helper ``scripts/fetch_build_resources.sh`` does this into\n    ``.build-resources/scene_optimizer_core/``.\n\nOptional environment variables:\n    WU_SO_PYTHON: Path to a Python 3.12 executable for the subprocess.\n        When unset, defaults to ``sys.executable`` if the current\n        interpreter is Python 3.12, otherwise to ``python3.12`` (PATH lookup,\n        with the standard ``FileNotFoundError`` if missing). The SO native\n        bindings are cpython-312-only, so a 3.13+ host must either have\n        ``python3.12`` on ``PATH`` or set ``WU_SO_PYTHON`` explicitly."
+        },
+        {
+          "first_line": 124,
+          "last_line": 161,
+          "text": "def _default_so_package_dir() -> Path:\n    \"\"\"Default unpack location written by ``./scripts/fetch_build_resources.sh``.\"\"\"\n    return Path.cwd() / \".build-resources\" / \"scene_optimizer_core\"\n\n\ndef _resolve_so_package_dir() -> Path:\n    \"\"\"Resolve the Scene Optimizer Core package root.\n\n    Resolution order:\n        1. ``WU_SO_PACKAGE_DIR`` environment variable (explicit override).\n        2. ``<cwd>/.build-resources/scene_optimizer_core/`` \u2014 the location\n           populated by ``./scripts/fetch_build_resources.sh`` when run from\n           the repo root.\n\n    Either target must contain ``python/``, ``lib/``, ``extraLibs/``, ``usdpy/``.\n    \"\"\"\n    so_package_dir_env = os.environ.get(\"WU_SO_PACKAGE_DIR\")\n    if so_package_dir_env:\n        so_package_dir = Path(so_package_dir_env)\n        for sub in SO_PACKAGE_SUBDIRS:\n            if not (so_package_dir / sub).is_dir():\n                raise RuntimeError(\n                    f\"Scene Optimizer package directory missing expected \"\n                    f\"subdirectory: {so_package_dir / sub}\"\n                )\n        return so_package_dir\n\n    default = _default_so_package_dir()\n    if _is_valid_so_package_dir(default):\n        return default\n\n    raise RuntimeError(\n        \"Scene Optimizer Core package not found. Run \"\n        \"`./scripts/fetch_build_resources.sh` from the repo root to fetch it \"\n        f\"into {default}, or set WU_SO_PACKAGE_DIR to point at an unpacked \"\n        \"scene_optimizer_core_usd_25.11_py_3.12 package.\"\n    )\n"
+        }
+      ]
+    },
+    {
+      "path": "repo/agentic/packages/geometry_repair/geometry_repair/workers/geogram_local_repair.py",
+      "sha256": "d2e8d34e29ebfe52a9e964dea5fea92976cc3245145a08e02823756bebcc7e6d",
+      "excerpts": [
+        {
+          "first_line": 27,
+          "last_line": 47,
+          "text": "def _verified_vorpalite(\n    *,\n    expected_version: str,\n) -> tuple[Path | None, str | None, str | None]:\n    executable_name = shutil.which(\"vorpalite\")\n    if executable_name is None:\n        return None, None, \"Geogram vorpalite is not installed or not on PATH\"\n    executable = Path(executable_name)\n    digest, digest_reason = verify_approved_executable_digest(\n        executable,\n        digest_environment_variable=GEOGRAM_EXECUTABLE_SHA256_ENVIRONMENT_VARIABLE,\n    )\n    if digest is None:\n        return (\n            None,\n            None,\n            \"Geogram vorpalite identity rejected: \"\n            + (digest_reason or \"executable digest could not be verified\"),\n        )\n    try:\n        completed = subprocess.run("
+        },
+        {
+          "first_line": 178,
+          "last_line": 211,
+          "text": "\n    name = \"geogram_local_repair\"\n    version = \"1.10.0\"\n    operations = frozenset({\"local_topology_repair\", \"intersection_repair\"})\n\n    def available(self) -> tuple[bool, str | None]:\n        executable, digest, reason = _verified_vorpalite(expected_version=self.version)\n        return executable is not None and digest is not None, reason\n\n    def execute(\n        self,\n        *,\n        source: Path,\n        output: Path,\n        operation: RepairOperation,\n    ) -> WorkerResult:\n        if source.suffix.lower() not in USD_SUFFIXES:\n            return WorkerResult(\n                status=\"unavailable\",\n                failures=[\"Geogram local repair currently requires a prepared USD stage\"],\n            )\n        import trimesh\n\n        executable, executable_sha256, reason = _verified_vorpalite(expected_version=self.version)\n        if executable is None or executable_sha256 is None:\n            return WorkerResult(\n                status=\"unavailable\",\n                failures=[reason or \"vorpalite executable identity is unavailable\"],\n            )\n        identity_metadata: dict[str, object] = {\n            \"vorpalite_version\": self.version,\n            \"vorpalite_sha256\": executable_sha256,\n        }\n"
+        }
+      ]
+    },
+    {
+      "path": "repo/agentic/packages/geometry_repair/geometry_repair/workers/scene_optimizer_deinstance.py",
+      "sha256": "b76f9b475ad47f705e3bd7a01343ea0a9d9aad33243cb7b448988f8a6e928416",
+      "excerpts": [
+        {
+          "first_line": 15,
+          "last_line": 40,
+          "text": "    \"\"\"Materialize USD instances without splitting, merging, or deduplicating.\"\"\"\n\n    name = \"scene_optimizer_deinstance\"\n    operations = frozenset({\"deinstance_without_split_merge_or_deduplicate\"})\n\n    def available(self) -> tuple[bool, str | None]:\n        try:\n            from world_understanding.functions.graphics.scene_optimizer_local import (\n                _resolve_so_package_dir,\n            )\n\n            _resolve_so_package_dir()\n            return True, None\n        except Exception as exc:\n            return False, f\"{type(exc).__name__}: {exc}\"\n\n    def execute(\n        self,\n        *,\n        source: Path,\n        output: Path,\n        operation: RepairOperation,\n    ) -> WorkerResult:\n        if source.suffix.lower() not in USD_SUFFIXES:\n            return WorkerResult(\n                status=\"unavailable\","
+        }
+      ]
+    }
+  ],
+  "scored_case": "02_conveyor/content_agents",
+  "repair_result_path": "runs/pilot-v1/02_conveyor/content_agents/geometry_repair_1/geometry_repair/final/repair_result.json",
+  "repair_result_sha256": "e5ae232fddc3a000e4f0294d964280d60b9b067029b5761869ced77489ef4bda",
+  "attempts": [
+    {
+      "attempt_id": "attempt-00",
+      "status": "rejected",
+      "reasons": [
+        "mesh:self_intersections",
+        "No geometry change was made."
+      ],
+      "output_path": "/opt/astra-content-value-20260921/runs/pilot-v1/02_conveyor/content_agents/geometry_repair_1/geometry_repair/attempts/attempt-00/geometry.usd",
+      "output_sha256": "79603479f9a72025cee7ae11b373e9ada19b8c7209d36bbfee8d6b9618029345",
+      "worker": "noop"
+    },
+    {
+      "attempt_id": "attempt-01",
+      "status": "unavailable",
+      "reasons": [
+        "RuntimeError: Scene Optimizer Core package not found. Run `./scripts/fetch_build_resources.sh` from the repo root to fetch it into /opt/astra-content-value-20260921/runs/pilot-v1/02_conveyor/content_agents/.build-resources/scene_optimizer_core, or set WU_SO_PACKAGE_DIR to point at an unpacked scene_optimizer_core_usd_25.11_py_3.12 package."
+      ],
+      "output_path": null,
+      "output_sha256": null,
+      "worker": "scene_optimizer_deinstance"
+    },
+    {
+      "attempt_id": "attempt-02",
+      "status": "unavailable",
+      "reasons": [
+        "Geogram vorpalite is not installed or not on PATH"
+      ],
+      "output_path": null,
+      "output_sha256": null,
+      "worker": "geogram_local_repair"
+    }
+  ],
+  "current_read_only_paths": {
+    "repo_default_so_exists": false,
+    "root_default_so_exists": false,
+    "arm_cwd_default_so_exists": false,
+    "vorpalite_on_current_path": null
+  },
+  "interpretation_limit": "Current path checks supplement preserved scored receipts; they do not reconstruct every process environment. No backend installed, runtime changed, or author output edited."
+}

@@ -1,0 +1,861 @@
+{
+  "scope": "Minimal selected native receipts and submitted claims; no model reasoning or authentication data.",
+  "records": [
+    {
+      "path": "runs/pilot-v1/01_drawer/content_agents/submission.json",
+      "sha256": "309907204db6cedc8021b41edeab2ab24835636b3d2fba8a66e8641e95890ff2",
+      "receipt_excerpt": {
+        "claimed_accepted": false,
+        "reason": "Blocked at native Geometry: cad_preflight.mesh_topology failed on 670 cabinet boundary edges and handoff_ready=no. Shared conversion also changed metresPerUnit to 0.001 and discarded ten original zero-area cabinet triangles. A separately preserved native repair diagnosis failed before a certificate or output was published. No supported source-preserving correction was found in the frozen public entrypoints; downstream Joint and Physics were not run. final.usd is the unqualified first Geometry candidate only.",
+        "repairs_used": 1
+      }
+    },
+    {
+      "path": "runs/pilot-v1/01_drawer/content_agents/geometry/geometry_workflow_result.json",
+      "sha256": "d4c556d81aec7317eca75152fedf2ecda13456b22e8364cfeabe9566a98066e9",
+      "receipt_excerpt": {
+        "error": null,
+        "handoff_ready": "no",
+        "success": false,
+        "validation_status": "fail"
+      }
+    },
+    {
+      "path": "runs/pilot-v1/01_drawer/content_agents/repair_01/geometry_workflow_result.json",
+      "sha256": "72542cf4f9bac61cc2c43dbeb7878b03632c9604c2a829e9778aa05da3120e9b",
+      "receipt_excerpt": {
+        "error": "(0.000528343915939331, -0.00020667807757854465, 0.0004099169969558716)",
+        "handoff_ready": "no",
+        "success": false,
+        "validation_status": "fail"
+      }
+    },
+    {
+      "path": "runs/pilot-v1/01_drawer/content_agents/evidence/conversion_missing_faces.json",
+      "sha256": "8122e8923841d4e54b338bead91e32783b25a032e164cdcc48041b73da98bba2",
+      "receipt_excerpt": {}
+    },
+    {
+      "path": "runs/pilot-v1/01_drawer/content_agents/evidence/converter_geometry_audit.json",
+      "sha256": "85eb0e913cd0778c2afd002646762454ce54c32a487ddf55ffc57997b49c00da",
+      "receipt_excerpt": {}
+    },
+    {
+      "path": "runs/pilot-v1/03_hinge/content_agents/submission.json",
+      "sha256": "929c0dbec18a4b075df2680317ab030295a39fbba9fac9a271cdf07c4dbe58bf",
+      "receipt_excerpt": {
+        "claimed_accepted": false,
+        "reason": "Blocked at native Geometry handoff. The first candidate failed the topology gate; the documented source-preserving visual_only diagnosis then failed before producing a repair certificate. No articulated physical mechanism was produced. Non-mutating Validation of the preserved partial candidate confirms missing physics. Five-seed runtime acceptance is INCONCLUSIVE, not claimed.",
+        "repairs_used": 1
+      }
+    },
+    {
+      "path": "runs/pilot-v1/03_hinge/content_agents/geometry/geometry_workflow_result.json",
+      "sha256": "97e370adb1ffba1bd7e0502926286c82a290a2e6837aa9a7d5e0755e99537495",
+      "receipt_excerpt": {
+        "error": null,
+        "handoff_ready": "no",
+        "success": false,
+        "validation_status": "fail"
+      }
+    },
+    {
+      "path": "runs/pilot-v1/03_hinge/content_agents/geometry_repair_1/geometry_workflow_result.json",
+      "sha256": "1f52462f1f91484855f9a714d72a72da0db5a817955ec39ae24119555fe315b0",
+      "receipt_excerpt": {
+        "error": "(0.00038730049133300784, -0.00039816018939018203, 0.002172035425901413)",
+        "handoff_ready": "no",
+        "success": false,
+        "validation_status": "fail"
+      }
+    },
+    {
+      "path": "runs/pilot-v1/03_hinge/content_agents/geometry_repair_1/geometry_repair/source_format_validation.json",
+      "sha256": "a2df3268433a4863344fb6fe1ab8cff51a9d3d46a1c4ac96f942fa63840d8766",
+      "receipt_excerpt": {
+        "errors": [],
+        "metadata": {
+          "excluded_material_rule_names": [
+            "MaterialBindingAPIAppliedChecker",
+            "NormalMapTextureChecker",
+            "ShaderPropertyTypeConformanceChecker",
+            "TextureChecker"
+          ],
+          "execution_scope": "isolated_subprocess",
+          "failed_check_count": 0,
+          "full_checker_error": "ErrorException: \n\tError in 'pxrInternal_v0_25_5__pxrReserved__::NdrRegistry::_InstantiateParserPlugins' at line 1020 in file /builds/omniverse/usd-ci/USD/pxr/usd/ndr/registry.cpp : 'Failed verification: ' pluginFactory ''\n\tError in 'pxrInternal_v0_25_5__pxrReserved__::NdrRegistry::_FindAndInstantiateDiscoveryPlugins' at line 947 in file /builds/omniverse/usd-ci/USD/pxr/usd/ndr/registry.cpp : 'Failed verification: ' pluginFactory ''",
+          "memory_limit_mb": 4096,
+          "output_limit_bytes": 16777216,
+          "provider_distribution": "usd-exchange",
+          "provider_version": "2.3.0",
+          "timeout_s": 120.0
+        },
+        "report_path": "/opt/astra-content-value-20260921/runs/pilot-v1/03_hinge/content_agents/geometry_repair_1/geometry_repair/source_format_validation.json",
+        "schema_version": "geometry-repair.source-format-validation.v1",
+        "source_format": "usda",
+        "source_path": "/opt/astra-content-value-20260921/runs/pilot-v1/03_hinge/content_agents/geometry_repair_1/source_prep/conversion/CommercialRefrigerator.converted.usda",
+        "source_sha256": "7b0ebd1aedaff777abaa6d1eb4d48942d89c861c62810eb1415f500843b8c26d",
+        "status": "not_evaluated",
+        "validator": "OpenUSD UsdUtils.ComplianceChecker",
+        "validator_version": "25.5",
+        "warnings": [
+          "OpenUSD material/shader compliance rules were not evaluated after the full checker failed: ErrorException: \n\tError in 'pxrInternal_v0_25_5__pxrReserved__::NdrRegistry::_InstantiateParserPlugins' at line 1020 in file /builds/omniverse/usd-ci/USD/pxr/usd/ndr/registry.cpp : 'Failed verification: ' pluginFactory ''\n\tError in 'pxrInternal_v0_25_5__pxrReserved__::NdrRegistry::_FindAndInstantiateDiscoveryPlugins' at line 947 in file /builds/omniverse/usd-ci/USD/pxr/usd/ndr/registry.cpp : 'Failed verification: ' pluginFactory ''"
+        ]
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/submission.json",
+      "sha256": "3b0bed802c07048e56180c623df33511d5aa79aa24ec9870f95308733652d94c",
+      "receipt_excerpt": {
+        "claimed_accepted": false,
+        "reason": "NOT ACCEPTED. The source-preserving native Geometry workflow finished with success=false, validation_status=fail, and handoff_ready=no (topology and triangle-budget failures). One native repair attempt was stopped at its frozen 900-second bound without producing a repaired candidate or native terminal result. Joint and Physics authoring were not bypassed; final.usd is a partial geometry-only candidate. Public Validation rendered it but failed physics_sane, and its assessment recorded authorized=false.",
+        "repairs_used": 1,
+        "limitations": [
+          "Partial scene only: zero authored rigid bodies, zero colliders, zero masses/inertias, and zero joints. Binding body entries identify intended source role roots; dynamic-body and joint requirements are not satisfied.",
+          "All 3092 required source IDs map once to visible native-converter meshes with required body-role assignments; exact original source surface coverage/error was not certified. Bounds-only checks are not surface acceptance evidence.",
+          "Native CAD preflight failed on 3 duplicate faces, 75797 boundary edges, 16 over-connected edges, and its triangle budget at 4301821 triangle-equivalent faces.",
+          "Native repair reached its frozen 900-second attempt budget. Its source-format validation passed; no terminal repair certificate or repaired output was produced before interruption.",
+          "Some USD validation extension checks were skipped because the frozen pxr.UsdValidation bindings were unsafe or unavailable; no packages were changed.",
+          "No fresh-solver travel, bounded-load hold/return, joint closure, gravity response, payload contact, or bed-relative drift measurements were produced.",
+          "Original source geometry presents upward bed guide-stop and nozzle clearance restrictions; no real hardware accuracy claim is made.",
+          "Native standalone Validation records authorized=false but provides no canonical assessment or terminal review receipt for a rejecting assessment. Its failure result and rejection execution index are preserved."
+        ]
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/geometry_01/geometry_workflow_result.json",
+      "sha256": "d9e596ba9c43a6a19926b23232ed068d7746b9f4873ea6f6d76a146ec2b0c674",
+      "receipt_excerpt": {
+        "success": false,
+        "validation_status": "fail",
+        "handoff_ready": "no",
+        "error": null,
+        "repair_outcome": null,
+        "native_repair_certificate_path": null
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/geometry_01/geometry_validation_evidence.json",
+      "sha256": "792ce7ce59ff0c04df5f62ab39287fe78cc7bf69bc932ec655e2f2e6c8ba0ff9",
+      "receipt_excerpt": {
+        "checks": [
+          {
+            "evidence_artifacts": [
+              {
+                "description": "CAD-specific mesh and optional legacy physics preflight evidence.",
+                "kind": "cad_preflight_report",
+                "metadata": {
+                  "claim_scope": "cad_preflight",
+                  "producer": "cad_verifier.sim_ready",
+                  "status": "fail"
+                },
+                "path": "/opt/astra-content-value-20260921/runs/pilot-v1/09_printer/content_agents/geometry_01/cad_preflight_report.json"
+              }
+            ],
+            "failures": [
+              "3092 mesh prim(s)",
+              "0 empty mesh(es)",
+              "0 invalid vertex value(s)",
+              "0 degenerate face(s)",
+              "3 duplicate face(s)",
+              "75797 boundary edge(s), 16 over-connected edge(s)",
+              "0 non-triangular face(s)",
+              "4301821 triangle-equivalent face(s)"
+            ],
+            "metadata": {
+              "claim_scope": "cad_preflight_only",
+              "final_domain_claim": false,
+              "profile_intent": "geometry-agent.static-visual-asset.v1",
+              "raw_status": "fail",
+              "required_by_profile": true
+            },
+            "name": "cad_preflight.mesh_topology",
+            "repair_hints": [],
+            "status": "fail",
+            "summary": "3 mesh topology issue(s)",
+            "warnings": []
+          }
+        ]
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/execution.json",
+      "sha256": "62afc356fcfaa8b65fb31cbf395f793dc712da45d972b48244f987444d38a1e6",
+      "receipt_excerpt": {
+        "elapsed_seconds": 1642.543988544494,
+        "timed_out": false,
+        "exit_code": 0,
+        "human_interventions": 0
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/submission.json",
+      "sha256": "82459ef233c4bdf90c0e324bddc406dfa1f63994488664586ad8ecf0f1f71867",
+      "receipt_excerpt": {
+        "claimed_accepted": false,
+        "reason": "Partial submission, not physically accepted. Native Geometry failed with handoff_ready=no. Native Geometry Repair then rejected the render role: no approved automatic worker targeted measured topology defects, and its450-second repair budget elapsed. The enclosing public workflow was interrupted at its700-second cutoff. No failed handoff was promoted to Joint or Physics authoring. final.usd retains all69original visible shape instances but has zero rigid bodies and zero joints.",
+        "repairs_used": 2,
+        "limitations": [
+          "All14-joint flexion, bounded-load holding, return, closure and dynamic mass/inertia requirements remain unmet; no physical articulation was authored.",
+          "First native Geometry preflight reported72 degenerate faces,10 duplicate faces,66 boundary edges,76 over-connected edges and a triangle-budget violation at1638104triangles.",
+          "Two repair invocations were preserved. Repair1 was cancelled during intake to enforce the attempt cap. Repair2 returned native outcome=rejected with operations_applied=[] and render_geometry_changed=false; its enclosing Geometry wrapper timed out during normal authoring.",
+          "The native repair certificate reports no approved automatic worker for degenerate faces, duplicate faces, inverted shells or over-connected edges; seam analysis could not guarantee exact source face/surface preservation.",
+          "The public Joint graph admits cardinal world axes only; exact source thumb hinge shafts are10degrees from the nearest supported axis. No approximate joint was authored.",
+          "Pinned OvPhysX/OVRTX prerequisites and an SDK tooling smoke passed, but the required native torque test was not run because no articulated candidate was available.",
+          "Native focused Validation of the exact saved candidate failed static physics. Its runtime operation warned without usable physical behavior evidence; the outer rejection was not authorized for accepted publication.",
+          "No independent evaluator implementation, hidden evidence, opposite-arm output or evaluator results were accessed."
+        ]
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/geometry_workflow/geometry_workflow_result.json",
+      "sha256": "1364f4aa73369532f1e25cf12ba89e3e222d818c564da5f1f47c8c50c3365972",
+      "receipt_excerpt": {
+        "success": false,
+        "validation_status": "fail",
+        "handoff_ready": "no",
+        "error": null,
+        "repair_outcome": null,
+        "native_repair_certificate_path": null
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/geometry_workflow/geometry_validation_evidence.json",
+      "sha256": "7fd60c94b80f99fe3aacd7181e6976c4930c2169ff9766c3bf44bcf3d4846068",
+      "receipt_excerpt": {
+        "checks": [
+          {
+            "evidence_artifacts": [
+              {
+                "description": "CAD-specific mesh and optional legacy physics preflight evidence.",
+                "kind": "cad_preflight_report",
+                "metadata": {
+                  "claim_scope": "cad_preflight",
+                  "producer": "cad_verifier.sim_ready",
+                  "status": "fail"
+                },
+                "path": "/opt/astra-content-value-20260921/runs/pilot-v1/10_complex/content_agents/geometry_workflow/cad_preflight_report.json"
+              }
+            ],
+            "failures": [
+              "69 mesh prim(s)",
+              "0 empty mesh(es)",
+              "0 invalid vertex value(s)",
+              "72 degenerate face(s)",
+              "10 duplicate face(s)",
+              "66 boundary edge(s), 76 over-connected edge(s)",
+              "0 non-triangular face(s)",
+              "1638104 triangle-equivalent face(s)"
+            ],
+            "metadata": {
+              "claim_scope": "cad_preflight_only",
+              "final_domain_claim": false,
+              "profile_intent": "geometry-agent.static-visual-asset.v1",
+              "raw_status": "fail",
+              "required_by_profile": true
+            },
+            "name": "cad_preflight.mesh_topology",
+            "repair_hints": [],
+            "status": "fail",
+            "summary": "4 mesh topology issue(s)",
+            "warnings": []
+          }
+        ]
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/execution.json",
+      "sha256": "bc43cccf40499e06eac8eca42a822f5c0b788f5117fad986f98e056030289d1d",
+      "receipt_excerpt": {
+        "elapsed_seconds": 2056.5814871415496,
+        "timed_out": false,
+        "exit_code": 0,
+        "human_interventions": 0
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/repairs/repair_01/geometry_request.json",
+      "sha256": "23539e589dbb7d8f547324d33d177f894a340963d81a75c456d2e467d87e72dd",
+      "receipt_excerpt": {
+        "repair_budgets": {
+          "allow_reconstructive": false,
+          "audit_broad_pair_limit": 5000000,
+          "audit_chunk_size": 2048,
+          "audit_exact_test_limit": 1000000,
+          "audit_wall_time_s": 60.0,
+          "conservative_p99_ratio": 0.001,
+          "conservative_volume_drift": 0.01,
+          "max_attempts": 8,
+          "max_collision_decomposition_time_s": 120.0,
+          "max_collision_faces_per_hull": 255,
+          "max_collision_hulls": 128,
+          "max_collision_occupancy_face_point_product": 100000000,
+          "max_collision_reconstruction_grid_dimension": 128,
+          "max_collision_source_vertices_per_body": 250000,
+          "max_collision_surface_distance_ratio": 0.05,
+          "max_collision_vertices_per_hull": 255,
+          "max_collision_volume_deficit": 0.01,
+          "max_collision_volume_excess": 0.1,
+          "max_dependency_count": 20000,
+          "max_dependency_hash_bytes": 8589934592,
+          "max_memory_mb": 8192,
+          "max_protected_feature_candidates": 256,
+          "max_reconstruction_grid_dimension": 256,
+          "max_reconstruction_output_faces": 1000000,
+          "max_source_collision_prims": 1024,
+          "moderate_p99_ratio": 0.005,
+          "moderate_volume_drift": 0.03,
+          "reconstruction_feature_voxels": 6,
+          "reconstructive_p99_ratio": 0.01,
+          "reconstructive_volume_drift": 0.05,
+          "sample_point_limit": 4096,
+          "source_collision_audit_wall_time_s": 120.0,
+          "timeout_s": 900.0
+        }
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/repairs/repair_01/geometry_repair/source_format_validation.json",
+      "sha256": "7312a1dd5ae40c337b4face15b28d719d70181b1899ed02e541b95ff05c7abc1",
+      "receipt_excerpt": {
+        "status": "pass",
+        "validator": "OpenUSD UsdUtils.ComplianceChecker",
+        "validator_version": "25.5",
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/evidence/repair_01_budget_stop.json",
+      "sha256": "cb2f07103f978cd25d819185cccbf219e1e925b6cb59ed38daee9d0b6aca9db9",
+      "receipt_excerpt": {
+        "native_attempt": "repairs/repair_01",
+        "observed_elapsed_s_at_least": 900,
+        "frozen_repair_timeout_s": 900.0,
+        "reason": "The native repair has reached its frozen 900-second budget without a terminal result or repaired candidate. Preserve artifacts and stop without promotion.",
+        "signal_requested": "SIGINT",
+        "time_utc": "2026-09-22T00:41:16.713289+00:00",
+        "native_disposition_override": false
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/repairs/repair_01/attempt_closeout.json",
+      "sha256": "177b668430d27c7c8357702a38c0993c3f7d5d934ad5d71ca190c57508846609",
+      "receipt_excerpt": {
+        "repair_iteration": 1,
+        "native_result": null,
+        "repaired_scene": null,
+        "promoted": false,
+        "stop_reason": "Frozen 900-second repair budget reached; SIGINT; retained partial native artifacts.",
+        "notes": "This record is an own closeout note, not a native repair certificate."
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/validation_partial/validation_result.json",
+      "sha256": "1a95f26dc2b8ed210fdf037094c32b86bb137ebb5e92fd298be9188642c14dd8",
+      "receipt_excerpt": {
+        "verdict": "fail",
+        "issues": [
+          {
+            "code": "physics.expected_but_missing",
+            "details": {
+              "prim_path": null
+            },
+            "message": "Physics was expected, but no physics scene, rigid bodies, or colliders were found.",
+            "severity": "fail",
+            "subject": "/opt/astra-content-value-20260921/runs/pilot-v1/09_printer/content_agents/final.usd",
+            "template_name": "physics_sane"
+          },
+          {
+            "code": "physics.no_rigid_bodies",
+            "details": {
+              "prim_path": null
+            },
+            "message": "Physics was expected, but no enabled RigidBodyAPI prims were found.",
+            "severity": "fail",
+            "subject": "/opt/astra-content-value-20260921/runs/pilot-v1/09_printer/content_agents/final.usd",
+            "template_name": "physics_sane"
+          }
+        ]
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/validation_partial/standalone_validation_execution.json",
+      "sha256": "e31f420a4eff5be4eaf185393105de9405217f949b8f2bdf1a22f4173db6a8fe",
+      "receipt_excerpt": {
+        "authorized": false,
+        "canonical_assessment": null,
+        "nested_agent_launched": false,
+        "terminal_receipt": null
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/repair_1/outer_cancellation_reason.json",
+      "sha256": "ab9aa58fc98100b8b1a43efeab3eb39de7eb0afbc6895e43d3a21db4ad76660f",
+      "receipt_excerpt": {
+        "status": "cancelled_by_outer_budget_policy",
+        "reason": "Public CLI froze default max_attempts=8; task permits at most two repair iterations. Interrupted during non-mutating intake before any candidate attempt was saved. Preserve this attempt and use exported public Geometry API with explicit max_attempts=1 for the remaining allowed repair.",
+        "repair_iteration": 1,
+        "authored_repair_candidates_observed": 0
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/repair_2/geometry_repair/repair_plan.json",
+      "sha256": "269db7e235852282cba8f9ab190ecc91b912acd08bf27a3cd47473ad620cc375",
+      "receipt_excerpt": {
+        "budgets": {
+          "allow_reconstructive": false,
+          "audit_broad_pair_limit": 5000000,
+          "audit_chunk_size": 2048,
+          "audit_exact_test_limit": 1000000,
+          "audit_wall_time_s": 30.0,
+          "conservative_p99_ratio": 0.0002,
+          "conservative_volume_drift": 0.01,
+          "max_attempts": 1,
+          "max_collision_decomposition_time_s": 120.0,
+          "max_collision_faces_per_hull": 255,
+          "max_collision_hulls": 128,
+          "max_collision_occupancy_face_point_product": 100000000,
+          "max_collision_reconstruction_grid_dimension": 128,
+          "max_collision_source_vertices_per_body": 250000,
+          "max_collision_surface_distance_ratio": 0.05,
+          "max_collision_vertices_per_hull": 255,
+          "max_collision_volume_deficit": 0.01,
+          "max_collision_volume_excess": 0.1,
+          "max_dependency_count": 20000,
+          "max_dependency_hash_bytes": 8589934592,
+          "max_memory_mb": 8192,
+          "max_protected_feature_candidates": 256,
+          "max_reconstruction_grid_dimension": 256,
+          "max_reconstruction_output_faces": 1000000,
+          "max_source_collision_prims": 1024,
+          "moderate_p99_ratio": 0.005,
+          "moderate_volume_drift": 0.03,
+          "reconstruction_feature_voxels": 6,
+          "reconstructive_p99_ratio": 0.01,
+          "reconstructive_volume_drift": 0.05,
+          "sample_point_limit": 4096,
+          "source_collision_audit_wall_time_s": 120.0,
+          "timeout_s": 450.0
+        },
+        "operations": [
+          {
+            "drift_band": "identity",
+            "expected_changes": [],
+            "implementation": "geometry_repair.orchestrator.copy_source",
+            "intent_id": "repair-intent-attempt-00-noop",
+            "issue_ids": [],
+            "operation_id": "attempt-00-noop",
+            "parameters": {},
+            "source_checkpoint": "/opt/astra-content-value-20260921/runs/pilot-v1/10_complex/content_agents/repair_2/geometry_repair/normalized/source.usd",
+            "target_prim_paths": [],
+            "target_role": "render",
+            "worker": "noop"
+          }
+        ],
+        "routing_evidence": {
+          "blocking_issue_ids": [
+            "mesh:degenerate_faces",
+            "mesh:duplicate_faces",
+            "mesh:inverted_shells",
+            "mesh:over_connected_edges"
+          ],
+          "policy_id": "geometry-repair.route-policy.phase2-observed.v1",
+          "proposal_authority": "ranking_only_no_gate_authority",
+          "proposal_ranking": [],
+          "proposal_ranking_enabled": false,
+          "proposed_intent_ids": [],
+          "ranked_workers": [
+            {
+              "destructive_cost": 1,
+              "observed_attempts": 6,
+              "observed_blocker_reductions": 5,
+              "priority": 20,
+              "target_issue_ids": [
+                "mesh:degenerate_faces",
+                "mesh:duplicate_faces",
+                "mesh:inverted_shells"
+              ],
+              "worker": "trimesh_conservative_cleanup"
+            },
+            {
+              "destructive_cost": 2,
+              "observed_attempts": 16,
+              "observed_blocker_reductions": 8,
+              "priority": 40,
+              "target_issue_ids": [
+                "mesh:inverted_shells",
+                "mesh:over_connected_edges"
+              ],
+              "worker": "geogram_local_repair"
+            },
+            {
+              "destructive_cost": 4,
+              "observed_attempts": 31,
+              "observed_blocker_reductions": 5,
+              "priority": 90,
+              "target_issue_ids": [
+                "mesh:degenerate_faces",
+                "mesh:duplicate_faces",
+                "mesh:inverted_shells",
+                "mesh:over_connected_edges"
+              ],
+              "worker": "sdf_rebuild"
+            }
+          ],
+          "source_evidence": {
+            "case_count": 42,
+            "note": "Ordering combines observed Phase 1 and Phase 2 outcomes with the fixed least-destructive repair invariant. The Phase 2 matrix confirms bounded local closure before opt-in global reconstruction.",
+            "phase1_pilot_results_sha256": "ae12cb50ee167cc2067b031e11f2abf2de57e5bc21dca35096f3f5d062ecef24",
+            "phase2_route_observations_sha256": "c80094a96459775c0401d6988e810a85c0715d8f43a9372d498aa5effd4078d5"
+          }
+        }
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/repair_2/geometry_repair/final/repair_certificate.json",
+      "sha256": "029688f31a58fde0df16ec8c6f725b9adae38d66559e4efba99cc02e3f2785a8",
+      "receipt_excerpt": {
+        "outcome": "rejected",
+        "accepted_attempt_id": null,
+        "operations_applied": [],
+        "output_sha256": null,
+        "render_geometry_changed": false,
+        "blockers": [
+          "mesh:degenerate_faces",
+          "mesh:duplicate_faces",
+          "mesh:inverted_shells",
+          "mesh:over_connected_edges",
+          "no approved automatic worker targeted mesh:degenerate_faces",
+          "no approved automatic worker targeted mesh:duplicate_faces",
+          "no approved automatic worker targeted mesh:inverted_shells",
+          "no approved automatic worker targeted mesh:over_connected_edges",
+          "repair job exceeded wall-clock budget of 450.000s",
+          "required geometry role 'render' failed"
+        ]
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/repair_2/geometry_repair/final/repair_result.json",
+      "sha256": "c9b9712685475d0771b90b53d2cb996c5cdee22c10c4a89ad225e68fade4b554",
+      "receipt_excerpt": {
+        "outcome": "rejected",
+        "error": null,
+        "attempts": [],
+        "render_usd_path": null,
+        "composed_usd_path": null,
+        "collision_usd_path": null
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/repair_2/outer_workflow_outcome.json",
+      "sha256": "ad1f9c3f72b15401cc2b0284994a447c32fb6b8aeae6a927a3bb24ddf20e6116",
+      "receipt_excerpt": {
+        "status": "interrupted_at_outer_timeout",
+        "exit_code": 124,
+        "outer_timeout_seconds": 700,
+        "native_repair_outcome": "rejected",
+        "native_operations_applied": [],
+        "native_render_geometry_changed": false,
+        "final_candidate_promoted": false,
+        "note": "Native repair certificate was retained before the public enclosing Geometry wrapper was interrupted while authoring normals on a source derivative."
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/own_evidence/workflow_dispositions.json",
+      "sha256": "f4ee414b36e2aeb6b52994d4e847fce470500c00df2668963a2d56c2199905f1",
+      "receipt_excerpt": {
+        "geometry": {
+          "status": "fail",
+          "handoff_ready": "no",
+          "result": "geometry_workflow/geometry_workflow_result.json"
+        },
+        "repair_1": {
+          "status": "cancelled",
+          "reason": "Interrupted during intake to replace the CLI default of eight attempts with an explicit task-bounded one-attempt policy.",
+          "artifacts": "repair_1"
+        },
+        "repair_2": {
+          "status": "rejected",
+          "public_entrypoint": "content_agent_workflows.geometry.run_geometry_workflow",
+          "max_attempts": 1,
+          "timeout_s": 450,
+          "seam_analysis_status": "unavailable",
+          "artifacts": "repair_2",
+          "certificate": "repair_2/geometry_repair/final/repair_certificate.json",
+          "result": "repair_2/geometry_repair/final/repair_result.json",
+          "operations_applied": [],
+          "wrapper_exit_code": 124,
+          "wrapper_interrupted_during": "author_missing_mesh_normals after native repair rejection"
+        },
+        "joint": {
+          "status": "not_started",
+          "reason": "No passing Geometry handoff; native failure was not bypassed."
+        },
+        "physics": {
+          "status": "not_started",
+          "runtime_preflight": "ready",
+          "reason": "No authored Joint handoff; no task physics acceptance."
+        },
+        "own_acceptance_claim": false
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/source_analysis/geometry_metadata.partial.json",
+      "sha256": "bbf81a7309b905e8dd4cc18545cb47b19d5c2c3fa13de717811022f4b97f0128",
+      "receipt_excerpt": {
+        "evidence_scope": "Author-retained CAD-axis derivation, independently recomputed angular discrepancy; original CAD face extraction was not rerun for this diagnosis.",
+        "joints": [
+          {
+            "role": "thumb_mcp",
+            "axis_world": [
+              0.1736481776669347,
+              -1.5892763646726063e-15,
+              -0.9848077530122074
+            ],
+            "cad_source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:009",
+            "cad_cylinder_face": 87,
+            "recomputed_nearest_signed_cardinal_angle_deg": 10.000000000000233
+          },
+          {
+            "role": "thumb_ip",
+            "axis_world": [
+              0.17364817766693394,
+              -4.2600658326700745e-16,
+              -0.9848077530122076
+            ],
+            "cad_source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:011",
+            "cad_cylinder_face": 71,
+            "recomputed_nearest_signed_cardinal_angle_deg": 10.00000000000016
+          },
+          {
+            "role": "index_mcp",
+            "axis_world": [
+              -1.0,
+              7.880583991355683e-16,
+              -4.469301271814597e-15
+            ],
+            "cad_source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:009",
+            "cad_cylinder_face": 87,
+            "recomputed_nearest_signed_cardinal_angle_deg": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/content_agents/geometry_01/cad_preflight_report.json",
+      "sha256": "75eec0dbad8ec49684b791cd872a08508e0da176ed11faf429efefbe7fb67d16",
+      "receipt_excerpt": {
+        "status": "fail",
+        "claim_scope": "cad_preflight",
+        "issues": [
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "3092 mesh prim(s)",
+            "metadata": {},
+            "name": "mesh_topology_meshes_present",
+            "passed": true,
+            "severity": "info",
+            "source": "mesh_topology",
+            "suggestion": "Export at least one renderable mesh."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "0 empty mesh(es)",
+            "metadata": {},
+            "name": "mesh_topology_no_empty_meshes",
+            "passed": true,
+            "severity": "info",
+            "source": "mesh_topology",
+            "suggestion": "Remove or repair empty mesh prims before simulation."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "0 invalid vertex value(s)",
+            "metadata": {},
+            "name": "mesh_topology_vertices_finite",
+            "passed": true,
+            "severity": "info",
+            "source": "mesh_topology",
+            "suggestion": "Remove NaN/Inf vertex coordinates."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "0 degenerate face(s)",
+            "metadata": {},
+            "name": "mesh_topology_no_degenerate_faces",
+            "passed": true,
+            "severity": "info",
+            "source": "mesh_topology",
+            "suggestion": "Remove zero-area or malformed faces."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "3 duplicate face(s)",
+            "metadata": {},
+            "name": "mesh_topology_no_duplicate_faces",
+            "passed": false,
+            "severity": "error",
+            "source": "mesh_topology",
+            "suggestion": "Deduplicate mesh faces."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "75797 boundary edge(s), 16 over-connected edge(s)",
+            "metadata": {},
+            "name": "mesh_topology_watertight_edges",
+            "passed": false,
+            "severity": "error",
+            "source": "mesh_topology",
+            "suggestion": "Use watertight collision/render meshes for simulation handoff."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "0 non-triangular face(s)",
+            "metadata": {},
+            "name": "mesh_topology_triangulated",
+            "passed": true,
+            "severity": "info",
+            "source": "mesh_topology",
+            "suggestion": "Triangulate exported mesh faces."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "4301821 triangle-equivalent face(s)",
+            "metadata": {},
+            "name": "mesh_topology_triangle_budget",
+            "passed": false,
+            "severity": "error",
+            "source": "mesh_topology",
+            "suggestion": "Simplify render meshes or split collision geometry."
+          }
+        ]
+      }
+    },
+    {
+      "path": "runs/pilot-v1/10_complex/content_agents/geometry_workflow/cad_preflight_report.json",
+      "sha256": "3926a6168e06f482c592f3fd7790db769adcb0ca0892fdc88f142575cafa8973",
+      "receipt_excerpt": {
+        "status": "fail",
+        "claim_scope": "cad_preflight",
+        "issues": [
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "69 mesh prim(s)",
+            "metadata": {},
+            "name": "mesh_topology_meshes_present",
+            "passed": true,
+            "severity": "info",
+            "source": "mesh_topology",
+            "suggestion": "Export at least one renderable mesh."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "0 empty mesh(es)",
+            "metadata": {},
+            "name": "mesh_topology_no_empty_meshes",
+            "passed": true,
+            "severity": "info",
+            "source": "mesh_topology",
+            "suggestion": "Remove or repair empty mesh prims before simulation."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "0 invalid vertex value(s)",
+            "metadata": {},
+            "name": "mesh_topology_vertices_finite",
+            "passed": true,
+            "severity": "info",
+            "source": "mesh_topology",
+            "suggestion": "Remove NaN/Inf vertex coordinates."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "72 degenerate face(s)",
+            "metadata": {},
+            "name": "mesh_topology_no_degenerate_faces",
+            "passed": false,
+            "severity": "error",
+            "source": "mesh_topology",
+            "suggestion": "Remove zero-area or malformed faces."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "10 duplicate face(s)",
+            "metadata": {},
+            "name": "mesh_topology_no_duplicate_faces",
+            "passed": false,
+            "severity": "error",
+            "source": "mesh_topology",
+            "suggestion": "Deduplicate mesh faces."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "66 boundary edge(s), 76 over-connected edge(s)",
+            "metadata": {},
+            "name": "mesh_topology_watertight_edges",
+            "passed": false,
+            "severity": "error",
+            "source": "mesh_topology",
+            "suggestion": "Use watertight collision/render meshes for simulation handoff."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "0 non-triangular face(s)",
+            "metadata": {},
+            "name": "mesh_topology_triangulated",
+            "passed": true,
+            "severity": "info",
+            "source": "mesh_topology",
+            "suggestion": "Triangulate exported mesh faces."
+          },
+          {
+            "fix_strategy": "lower_render_mesh_or_split_collision_geometry",
+            "message": "1638104 triangle-equivalent face(s)",
+            "metadata": {},
+            "name": "mesh_topology_triangle_budget",
+            "passed": false,
+            "severity": "error",
+            "source": "mesh_topology",
+            "suggestion": "Simplify render meshes or split collision geometry."
+          }
+        ]
+      }
+    }
+  ],
+  "late_diagnosis": {
+    "cases": [
+      "09_printer",
+      "10_complex"
+    ],
+    "interpretation": "Configured native-workflow non-delivery. These observations do not isolate workflow logic from setup completeness, runtime contention or source representation and establish no causal advantage.",
+    "case09_native_repair_terminal": "not_produced_before_author_SIGINT_after_declared_900s_budget",
+    "case10_native_repair_terminal": "rejected;450s budget exhausted; zero recorded attempts and no output",
+    "case10_worker_interpretation": "Certificate records no approved automatic worker targeting four blockers. Retained plan contains only noop under max_attempts1. Ranked workers are routing metadata, not evidence they ran or their executables were missing. Case02 separately establishes missing dependencies.",
+    "supported_axis_code": {
+      "repository_commit": "a96faf9cb2f5c1f655fe0d60c0ccf57e3477b1aa",
+      "repository_relative_path": "agentic/packages/content_agent_workflows/content_agent_workflows/articulation/embedded_decision.py",
+      "sha256": "3e512855220d1aa8946c69e5dd15b837b4cce388062f2fd674c4c575521dce58",
+      "ranges": [
+        {
+          "start": 161,
+          "end": 168
+        },
+        {
+          "start": 320,
+          "end": 337
+        },
+        {
+          "start": 3003,
+          "end": 3045
+        }
+      ],
+      "finding": "Embedded canonical graph permits six signed cardinal axis tokens and maps them to motion_axis_world. No arbitrary world-axis vector field in this graph."
+    },
+    "prior_setup_diagnosis": "report/independent_method_review.md",
+    "prior_dependency_receipts": "report/optional_backend_review_evidence.json",
+    "frozen_files_modified": false,
+    "scored_artifacts_modified": false,
+    "fresh_simulations_run": false
+  }
+}

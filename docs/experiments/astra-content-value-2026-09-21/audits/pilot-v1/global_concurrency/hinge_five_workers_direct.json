@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-09-22T00:33:56.706169+00:00",
+  "kind": "direct_retained_process_table_concurrency_evidence",
+  "case_id": "03_hinge",
+  "arm": "plain_astra",
+  "observation_utc": "2026-09-21T22:28:04.786Z",
+  "observed_native_worker_processes": 5,
+  "global_max_sim_processes": 4,
+  "exceeds_global_process_cap": true,
+  "workers": [
+    {
+      "pid": 10744,
+      "ppid": 1,
+      "elapsed": "00:37",
+      "seed": 23,
+      "worker_script": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py",
+      "output_directory": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native",
+      "command_line": "10744       1       00:37 <EXPERIMENT_ROOT>/ovphysx-venv/bin/python <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py --output <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native --worker-seed 23 --metadata <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native/metadata.json"
+    },
+    {
+      "pid": 11250,
+      "ppid": 11245,
+      "elapsed": "00:07",
+      "seed": 131,
+      "worker_script": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py",
+      "output_directory": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native",
+      "command_line": "11250   11245       00:07 <EXPERIMENT_ROOT>/ovphysx-venv/bin/python <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py --output <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native --worker-seed 131 --metadata <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native/metadata.json"
+    },
+    {
+      "pid": 11251,
+      "ppid": 11245,
+      "elapsed": "00:07",
+      "seed": 23,
+      "worker_script": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py",
+      "output_directory": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native",
+      "command_line": "11251   11245       00:07 <EXPERIMENT_ROOT>/ovphysx-venv/bin/python <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py --output <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native --worker-seed 23 --metadata <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native/metadata.json"
+    },
+    {
+      "pid": 11252,
+      "ppid": 11245,
+      "elapsed": "00:07",
+      "seed": 47,
+      "worker_script": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py",
+      "output_directory": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native",
+      "command_line": "11252   11245       00:07 <EXPERIMENT_ROOT>/ovphysx-venv/bin/python <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py --output <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native --worker-seed 47 --metadata <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native/metadata.json"
+    },
+    {
+      "pid": 11253,
+      "ppid": 11245,
+      "elapsed": "00:07",
+      "seed": 83,
+      "worker_script": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py",
+      "output_directory": "runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native",
+      "command_line": "11253   11245       00:07 <EXPERIMENT_ROOT>/ovphysx-venv/bin/python <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/run_hinge_native.py --output <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native --worker-seed 83 --metadata <EXPERIMENT_ROOT>/runs/pilot-v1/03_hinge/plain_astra/evidence/physics_probe/repair_1_native/metadata.json"
+    }
+  ],
+  "source": {
+    "path": "audits/pilot-v1/03_hinge/plain_astra/fresh_review_20260922/process_outputs.private.json",
+    "sha256": "81ef2798bb87fb3f6c9e1ca05bb6b0a3805392b632ddf4bc562a0757b46439f7",
+    "record_index": 3,
+    "tool_output_serialized_sha256": "65df7b8e1637d63aed7d7bd3edf146b2e7dc7fb4885c3e4e71c7eda7de71ae85",
+    "tool_output_characters": 2889
+  },
+  "separate_observation": {
+    "observation_utc": "2026-09-21T22:29:34.154Z",
+    "native_worker_pids": [
+      11250,
+      11251,
+      11252,
+      11253
+    ],
+    "tool_output_serialized_sha256": "ff4eba8d501d7245060e95699b6e399f43dd66b186cc814c2143adcc18ba074d"
+  },
+  "interpretation": "One retained process-table output directly lists five simultaneous native worker processes for the same hinge run, including a seed23 worker reparented to PID1 and a newly launched seed23 worker. This is direct process-count evidence for the global harness cap, independent of other-lane reconstruction. Process presence does not measure which instruction each process executed at that instant.",
+  "responsibility": "The global simulator-process cap was a harness obligation and was not disclosed in this author prompt. This finding does not change the separate run-level access/model/budget/treatment/repair checks or physical verdicts.",
+  "privacy": "Only the five relevant process lines are projected with the experiment root substituted. No model reasoning, authentication, opposite-arm code, raw sessions or other commands are exported."
+}

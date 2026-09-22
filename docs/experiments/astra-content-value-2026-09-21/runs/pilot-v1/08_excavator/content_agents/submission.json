@@ -1,0 +1,18 @@
+{
+  "claimed_accepted": false,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "INCONCLUSIVE: mandatory Content Agents asset launcher setup failed because package-owned usd-cli could not verify committed in-tree source; the frozen repository has no .git metadata. Preserved the source-faithful geometry-only partial and all native receipts. No physically simulated articulated candidate or load-holding acceptance was demonstrated.",
+  "repairs_used": 1,
+  "limitations": [
+    "Final scene is a geometry-only partial: the four named scopes are static logical body groups, with no authored RigidBodyAPI, MassAPI, or joints.",
+    "Joint, Physics authoring, and final behavioral Validation were not executed because the mandatory Content Agents launcher provenance check failed before child launch.",
+    "Frozen repository has no .git metadata. No repository metadata was reconstructed and no package, repository source, or evaluator was changed.",
+    "Geometry source conversion and repaired handoff retain native conditional dispositions for non-manifold source vertices and CAD editability loss; those were not promoted to workflow success.",
+    "80 required visible native mesh instances are retained and mapped once. Own native-conversion surface checks do not substitute for independent reference surface comparison.",
+    "Three pivot locations are source-grounded geometric inferences verified against adjacent converted hole circles; native assembly mates and actuator transmission behavior are outside scope.",
+    "No torque simulation, hold/return behavior, penetration gate, or native gravity witness has been demonstrated.",
+    "One repair corrected indexed source normals after coordinate normalization; source mesh point locations and topology were unchanged.",
+    "Repository model child was configured explicitly as gpt-6-astra with ultra reasoning but was never started. In-session delegated agents inherited the same model/reasoning; token and monetary usage are not exposed by the collaboration tools."
+  ]
+}

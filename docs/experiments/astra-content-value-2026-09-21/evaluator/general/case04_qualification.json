@@ -1,0 +1,224 @@
+{
+  "status": "QUALIFIED_BEFORE_SCORED_CASE04_RUN",
+  "qualified_utc": "2026-09-21T22:35:37.615826+00:00",
+  "source_inventory_sha256": "762a1f3315de9ed42fd1694328c8d2134239a03648f7e39a34415fb1d71ae36c",
+  "code_sha256": {
+    "case04_contract.json": "9158d495062f21db187549cf66a04200d8e236153d9e988bd4a0be1d36d69e07",
+    "case04_evaluate.py": "b2acef24271daab5c54ca9ae05427551b5469fd6308787a9eb1c74bf4654942c",
+    "case04_solver.py": "47396bc0b3e6e015d916e97ebd17b41199ee9362fafc94519d1dd428c0671047",
+    "case04_fixtures.py": "afda7c0159bd082435f967ce6aaccf8054d6c58198d9e8e6a4a1d7d82d703e6e",
+    "case04_structure_fixtures.py": "db8ff7a222ab4ab0d62a3988bde08397438afc7785db3745c1168c635c3ef2bd",
+    "case04_contact_units_probe.py": "dccd2396d1df731a74847fb9c835c0a1cf2f6de2cd7a25462bcbe8b4e2c07b38",
+    "case04_torque_units_probe.py": "2c53fee923193e6e33cc432e945f0e0e1ebcb8669a18c6f0629d2e9777aaee01",
+    "case04_source_probe.py": "644d9aee1811512f6847569d87cf9ecfc31a9eebb0019bad15baec5517d23f37",
+    "case04_qualify.py": "723ec735116044dea6275b92ad6355c08631582def6609bf024627d4a56a3b87",
+    "case04_EVALUATOR.md": "7aa1c44a0bc0f057a64cf63a4a827ee7adf1d0c7d4afbc8f1a0e3c88cffeac11"
+  },
+  "evidence_sha256": {
+    "case04_source_evidence.json": "fdd28bce402654c825879e912ae9b99f2c8d053a312979e8f8339ea7132c9a0a",
+    "case04_contact_units_evidence.json": "5b723f51b6cbdab925ca6bc306effafd38c7a6c817e14029d69e201e899e21e7",
+    "case04_torque_units_evidence.json": "585e21e113ca419d49102a001d8a7c1e0c3576afcf64262844d7f304a7580103",
+    "case04_structure_evidence.json": "fce715a9c7d4996b3e2bdfa642fcb878d99541f7da235d6ccdc45772367d3e65"
+  },
+  "native_contact_tests": [
+    {
+      "variant": "positive",
+      "pass": true,
+      "expected": "accepted",
+      "actual": "accepted",
+      "failures": [],
+      "trace_sha256": "b4b5f7c62a521d139ca7643bed32a2ccb2d00e31216743d82d1d015a661709e7",
+      "original_config_sha256": "9475083871c4a093c60e3e09b5f24465e92e02fdcc279ac52bd9345610ece75f",
+      "scene_created_utc": "2026-09-21T22:34:25.311061+00:00",
+      "solver_result_written_utc": "2026-09-21T22:35:35.515805+00:00",
+      "metrics": {
+        "hold_samples": 780,
+        "bilateral_samples": 780,
+        "max_hold_displacement_m": 9.261265458998208e-06,
+        "min_gravity_height_m": 0.0649997666478157,
+        "min_loaded_height_m": 0.0649997666478157,
+        "max_torque_Nm": 0.0,
+        "max_loading_force_N": 0.09829818852797644,
+        "max_force_after_loading_N": 0.0,
+        "min_contact_axis_forces_N": [
+          1.1759974956512451,
+          1.1866333484649658
+        ],
+        "bilateral_fraction": 1.0,
+        "minimum_each_finger_closure_m": [
+          0.001403742004185915,
+          0.0014076707884669304
+        ],
+        "release_drop_m": 0.025000058114528656
+      }
+    },
+    {
+      "variant": "no_motion",
+      "pass": true,
+      "expected": "not_accepted",
+      "actual": "not_accepted",
+      "failures": [
+        "seed11:gripper_bilateral_contact_under_load",
+        "seed11:gripper_payload_retained_without_fixture",
+        "seed11:gripper_both_fingers_closed"
+      ],
+      "trace_sha256": "9fac3c00d24e3d28e150806511cce3e39e03963891a559fbbf3510243f807eee",
+      "original_config_sha256": "0ac465290ff5512aa4f8d4447b41dac41fc076b01f54bb8b31b9ee412b37f20e",
+      "scene_created_utc": "2026-09-21T22:26:00.105721+00:00",
+      "solver_result_written_utc": "2026-09-21T22:28:21.711213+00:00",
+      "metrics": {
+        "hold_samples": 780,
+        "bilateral_samples": 0,
+        "max_hold_displacement_m": 0.025000364436726298,
+        "min_gravity_height_m": 0.03999986872076988,
+        "min_loaded_height_m": 0.03999963402748108,
+        "max_torque_Nm": 0.0,
+        "max_loading_force_N": 0.09810000335276127,
+        "max_force_after_loading_N": 0.0,
+        "min_contact_axis_forces_N": [
+          0.0,
+          0.0
+        ],
+        "bilateral_fraction": 0.0,
+        "minimum_each_finger_closure_m": [
+          0.0,
+          -0.0
+        ],
+        "release_drop_m": 0.025000128895044327
+      }
+    },
+    {
+      "variant": "one_contact",
+      "pass": true,
+      "expected": "not_accepted",
+      "actual": "not_accepted",
+      "failures": [
+        "seed11:gripper_bilateral_contact_under_load",
+        "seed11:gripper_payload_retained_without_fixture"
+      ],
+      "trace_sha256": "53214212235ae6413d43267dd17d9bba8d2fa4fe0a4a22b507979549240b01b7",
+      "original_config_sha256": "313062898faa7c634db9ee97dc38402a8027681ccdba87258f1873b1f276770d",
+      "scene_created_utc": "2026-09-21T22:28:22.607222+00:00",
+      "solver_result_written_utc": "2026-09-21T22:29:31.399948+00:00",
+      "metrics": {
+        "hold_samples": 780,
+        "bilateral_samples": 0,
+        "max_hold_displacement_m": 0.025029052834952145,
+        "min_gravity_height_m": 0.039999932050704956,
+        "min_loaded_height_m": 0.03999984264373779,
+        "max_torque_Nm": 0.0,
+        "max_loading_force_N": 0.10059269845884261,
+        "max_force_after_loading_N": 0.0,
+        "min_contact_axis_forces_N": [
+          0.0,
+          0.0
+        ],
+        "bilateral_fraction": 0.0,
+        "minimum_each_finger_closure_m": [
+          0.0024999454617500305,
+          0.002499997615814209
+        ],
+        "release_drop_m": 0.025000065565109253
+      }
+    },
+    {
+      "variant": "no_friction",
+      "pass": true,
+      "expected": "not_accepted",
+      "actual": "not_accepted",
+      "failures": [
+        "seed11:gripper_payload_retained_without_fixture"
+      ],
+      "trace_sha256": "29109e664daee48a8b03a4ee8b8718f05fc31a7fca8d1ac84524898bddb3092b",
+      "original_config_sha256": "26da1c438443b947330cb65c4665fbfe1d66ff776476b4e96c1ef2b96df3b9ef",
+      "scene_created_utc": "2026-09-21T22:29:32.307958+00:00",
+      "solver_result_written_utc": "2026-09-21T22:30:42.408700+00:00",
+      "metrics": {
+        "hold_samples": 780,
+        "bilateral_samples": 780,
+        "max_hold_displacement_m": 0.025710170609331718,
+        "min_gravity_height_m": 0.04000328853726387,
+        "min_loaded_height_m": 0.03999686986207962,
+        "max_torque_Nm": 0.0,
+        "max_loading_force_N": 0.09849001374292937,
+        "max_force_after_loading_N": 0.0,
+        "min_contact_axis_forces_N": [
+          1.2683331966400146,
+          1.2729779481887817
+        ],
+        "bilateral_fraction": 1.0,
+        "minimum_each_finger_closure_m": [
+          0.0013825222849845886,
+          0.0013822633773088455
+        ],
+        "release_drop_m": 0.02500006929039955
+      }
+    }
+  ],
+  "source_role_mutation_tests": [
+    {
+      "variant": "positive",
+      "expected_rejection": null,
+      "failures": [],
+      "pass": true
+    },
+    {
+      "variant": "wrong_group",
+      "expected_rejection": "gripper_source_group:3",
+      "failures": [
+        "gripper_source_group:3",
+        "gripper_source_dynamic_ancestry:/left_finger/Mesh3"
+      ],
+      "pass": true
+    },
+    {
+      "variant": "fused_arm",
+      "expected_rejection": "gripper_source_group:24",
+      "failures": [
+        "gripper_source_group:24",
+        "gripper_source_dynamic_ancestry:/right_arm/Mesh24"
+      ],
+      "pass": true
+    },
+    {
+      "variant": "wrong_axis",
+      "expected_rejection": "gripper_joint_axis:left_slide",
+      "failures": [
+        "gripper_joint_axis:left_slide"
+      ],
+      "pass": true
+    },
+    {
+      "variant": "disconnected",
+      "expected_rejection": "gripper_joint_endpoints:left_outer",
+      "failures": [
+        "gripper_joint_endpoints:left_outer"
+      ],
+      "pass": true
+    },
+    {
+      "variant": "static_finger",
+      "expected_rejection": "gripper_dynamic_identity:left_finger",
+      "failures": [
+        "gripper_dynamic_identity:left_finger",
+        "gripper_source_dynamic_ancestry:/left_finger/Mesh1",
+        "gripper_source_dynamic_ancestry:/left_finger/Mesh3"
+      ],
+      "pass": true
+    },
+    {
+      "variant": "nested_dynamic",
+      "expected_rejection": "gripper_source_dynamic_ancestry:/base/Dynamic/Extra",
+      "failures": [
+        "gripper_source_dynamic_ancestry:/base/Dynamic/Extra"
+      ],
+      "pass": true
+    }
+  ],
+  "contact_units_calibrated": true,
+  "torque_units_calibrated": true,
+  "source_placement_and_closing_sign_verified": true,
+  "all_qualification_tests_pass": true,
+  "scored_source_gripper_runs": 0,
+  "claim_limit": "Synthetic evaluator qualification only; no original-source gripper solution has been authored or simulated by this evaluator agent."
+}

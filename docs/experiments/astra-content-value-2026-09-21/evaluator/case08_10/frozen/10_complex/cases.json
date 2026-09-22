@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "common": {
+    "dt_s": 0.004166666666666667,
+    "duration_s": 12.0,
+    "gravity_m_s2": 9.81,
+    "max_linear_speed_m_s": 5.0,
+    "max_angular_speed_rad_s": 30.0,
+    "max_joint_closure_m": 0.002,
+    "max_joint_axis_error_rad": 0.05,
+    "max_penetration_m": 0.003,
+    "max_fixed_base_motion_m": 0.002,
+    "position_tolerance_m": 0.002,
+    "angle_tolerance_rad": 0.08726646259971647,
+    "minimum_source_surface_coverage": 1.0,
+    "max_mesh_surface_error_fraction": 0.001,
+    "max_mesh_surface_error_m": 5e-05
+  },
+  "cases": {
+    "10_complex": {
+      "observer": "arm",
+      "required_body_roles": [
+        "base",
+        "thumb_proximal",
+        "thumb_distal",
+        "index_proximal",
+        "index_middle",
+        "index_distal",
+        "middle_proximal",
+        "middle_middle",
+        "middle_distal",
+        "ring_proximal",
+        "ring_middle",
+        "ring_distal",
+        "little_proximal",
+        "little_middle",
+        "little_distal"
+      ],
+      "required_joint_roles": [
+        "thumb_mcp",
+        "thumb_ip",
+        "index_mcp",
+        "index_pip",
+        "index_dip",
+        "middle_mcp",
+        "middle_pip",
+        "middle_dip",
+        "ring_mcp",
+        "ring_pip",
+        "ring_dip",
+        "little_mcp",
+        "little_pip",
+        "little_dip"
+      ],
+      "joint_kinds": {
+        "thumb_mcp": "revolute",
+        "thumb_ip": "revolute",
+        "index_mcp": "revolute",
+        "index_pip": "revolute",
+        "index_dip": "revolute",
+        "middle_mcp": "revolute",
+        "middle_pip": "revolute",
+        "middle_dip": "revolute",
+        "ring_mcp": "revolute",
+        "ring_pip": "revolute",
+        "ring_dip": "revolute",
+        "little_mcp": "revolute",
+        "little_pip": "revolute",
+        "little_dip": "revolute"
+      },
+      "required_joint_body_pairs": {
+        "thumb_mcp": [
+          "base",
+          "thumb_proximal"
+        ],
+        "thumb_ip": [
+          "thumb_proximal",
+          "thumb_distal"
+        ],
+        "index_mcp": [
+          "base",
+          "index_proximal"
+        ],
+        "index_pip": [
+          "index_proximal",
+          "index_middle"
+        ],
+        "index_dip": [
+          "index_middle",
+          "index_distal"
+        ],
+        "middle_mcp": [
+          "base",
+          "middle_proximal"
+        ],
+        "middle_pip": [
+          "middle_proximal",
+          "middle_middle"
+        ],
+        "middle_dip": [
+          "middle_middle",
+          "middle_distal"
+        ],
+        "ring_mcp": [
+          "base",
+          "ring_proximal"
+        ],
+        "ring_pip": [
+          "ring_proximal",
+          "ring_middle"
+        ],
+        "ring_dip": [
+          "ring_middle",
+          "ring_distal"
+        ],
+        "little_mcp": [
+          "base",
+          "little_proximal"
+        ],
+        "little_pip": [
+          "little_proximal",
+          "little_middle"
+        ],
+        "little_dip": [
+          "little_middle",
+          "little_distal"
+        ]
+      },
+      "minimum_each_motion_rad": 0.174532925199,
+      "target_offsets_rad": [
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26,
+        0.26
+      ],
+      "end_effector_role": "index_distal",
+      "minimum_end_effector_motion_m": 0.001,
+      "terminal_body_roles": [
+        "thumb_distal",
+        "index_distal",
+        "middle_distal",
+        "ring_distal",
+        "little_distal"
+      ],
+      "minimum_terminal_motion_m": 0.001,
+      "control_default": {
+        "gain_mode": "inertia_scaled",
+        "kp": 36.0,
+        "kd": 6.0,
+        "max_effort": 0.2,
+        "gravity_compensate": true
+      },
+      "acceptance": "All five source-grounded digits physically flex and reopen: thumb MCP/IP and all four fingers MCP/PIP/DIP (14 rotary joints) move at least 10 degrees, hold +0.26rad offsets within 5 degrees under bounded opposing torques, and return within 5 degrees. Actual joint endpoints must form five branches from the fixed palm; every phalanx is bound to its independently identified cached CAD solid. Every original cached solid remains visible, every distal body moves, and all authored joints maintain anchor/axis closure and finite limits. This is joint-level articulation and load holding, not tendon/motor transmission accuracy or dexterous grasp validation."
+    }
+  }
+}

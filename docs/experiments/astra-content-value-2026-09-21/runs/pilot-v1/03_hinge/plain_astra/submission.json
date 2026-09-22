@@ -1,0 +1,15 @@
+{
+  "claimed_accepted": true,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "All eight source instances and original dependencies are retained, source geometry and assembly maps pass independent local checks, and all five fresh native GPU runs pass the supplied opening/closing/hinge/range/speed/finite-state checks. The door physically reaches the 90-degree stop under bounded torque. Collision clearance is established from geometry and measured native poses. One preserved repair corrected angular-speed units. This is our own acceptance claim, made without accessing evaluator results.",
+  "repairs_used": 1,
+  "limitations": [
+    "No independent evaluator implementation, evidence, or results were accessed.",
+    "Door mass is an assumed 5 kg; diagonal inertia approximates the source door bounding box, not certified hardware data.",
+    "Six invisible collision-only convex boxes approximate the shell and panel; smaller details remain visual-only.",
+    "KHR_materials_transmission is approximated using USDPreviewSurface opacity. Original mesh geometry and extracted textures remain intact.",
+    "Native contact sensor construction for the connected body pair is unavailable; geometric clearance is assessed analytically.",
+    "All five requested seeds were set in fresh workers. The public prompt did not disclose a randomized perturbation distribution, so no hidden randomization was reproduced."
+  ]
+}

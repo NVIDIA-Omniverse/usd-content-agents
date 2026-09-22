@@ -1,0 +1,13 @@
+{
+  "case_id": "05_vise",
+  "arm": "content_agents",
+  "output_manifest_sha256": "40e49a8ce2048efe0709a478fb64c0843c08fe2b02ebfd93b12828d3f14dffa3",
+  "checked_files": 195,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034792.6034808
+}

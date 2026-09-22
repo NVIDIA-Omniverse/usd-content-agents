@@ -1,0 +1,1346 @@
+{
+  "accepted": true,
+  "status": "accepted",
+  "inconclusive_checks": [],
+  "concrete_failures": [],
+  "checks": [
+    {
+      "name": "reference_inventory_frozen",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:evaluate.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:structural.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:cases.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:geometry.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:common.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:solver.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:bindings.schema.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "case_identity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "usd_stage_load",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "meters_and_z_up",
+      "passed": true,
+      "evidence": {
+        "meters_per_unit": 1.0,
+        "up_axis": "Z"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "no_prescribed_time_sampled_motion_or_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "frozen_source_coverage_complete",
+      "passed": true,
+      "evidence": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/CommercialRefrigerator.glb",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/README.upstream.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/screenshot_Large.jpg",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unique_body_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "required_body_roles",
+      "passed": true,
+      "evidence": {
+        "required": [
+          "door",
+          "base"
+        ],
+        "given": {
+          "base": "/World/Base",
+          "door": "/World/Door"
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/Base",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/Base",
+      "passed": true,
+      "evidence": [
+        "/World/Base/Collision/Back",
+        "/World/Base/Collision/Left",
+        "/World/Base/Collision/Right",
+        "/World/Base/Collision/Bottom",
+        "/World/Base/Collision/Top"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/Door",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/Door",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/Door",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/Door",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/Door",
+      "passed": true,
+      "evidence": [
+        "/World/Door/Collision/Panel"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/World/Door",
+      "passed": true,
+      "evidence": [
+        5.0,
+        1.07054603099823,
+        1.3712257146835327,
+        0.30762216448783875
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/World/Door",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "all_rigid_bodies_observed",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "unique_joint_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/World/Hinge",
+      "passed": true,
+      "evidence": "revolute",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/World/Hinge",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Hinge:0",
+      "passed": true,
+      "evidence": "/World/Base",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Hinge:1",
+      "passed": true,
+      "evidence": "/World/Door",
+      "failure_class": null
+    },
+    {
+      "name": "all_joints_declared",
+      "passed": true,
+      "evidence": {
+        "undeclared": [],
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "required_joint_roles",
+      "passed": true,
+      "evidence": {
+        "hinge": "/World/Hinge"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:hinge",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_parts_mapped_once",
+      "passed": true,
+      "evidence": {
+        "required": 8,
+        "mapped": 8,
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:source/CommercialRefrigerator.glb#node:FridgeCase",
+      "passed": true,
+      "evidence": {
+        "required_role": "base",
+        "mapped_body": "/World/Base"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:source/CommercialRefrigerator.glb#node:FridgeDoor",
+      "passed": true,
+      "evidence": {
+        "required_role": "door",
+        "mapped_body": "/World/Door"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:source/CommercialRefrigerator.glb#node:FridgeDoorInner",
+      "passed": true,
+      "evidence": {
+        "required_role": "door",
+        "mapped_body": "/World/Door"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:source/CommercialRefrigerator.glb#node:FridgeGlass",
+      "passed": true,
+      "evidence": {
+        "required_role": "door",
+        "mapped_body": "/World/Door"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "assembly_alignment_is_rigid",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/CommercialRefrigerator.glb#node:ChampagneBottles_c13f78",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/CommercialRefrigerator.glb#node:ChampagneBottles_c13f78",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/CommercialRefrigerator.glb#node:ChampagneBottles_c13f78",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/CommercialRefrigerator.glb#node:ChampagneBottles_c13f78",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 5.813500621374847e-05,
+        "final_to_source_max_sample_distance_m": 6.192678833869585e-05,
+        "area_ratio": 0.999999918611315,
+        "bounds_error_m": 2.968731882546649e-08,
+        "tolerance_m": 0.0013123923798767688,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/CommercialRefrigerator.glb#node:ChampagneBottles_d2eb44",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/CommercialRefrigerator.glb#node:ChampagneBottles_d2eb44",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/CommercialRefrigerator.glb#node:ChampagneBottles_d2eb44",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/CommercialRefrigerator.glb#node:ChampagneBottles_d2eb44",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.0659095753352715e-06,
+        "final_to_source_max_sample_distance_m": 1.9794208957625784e-06,
+        "area_ratio": 0.999999973314218,
+        "bounds_error_m": 2.1109673564723153e-08,
+        "tolerance_m": 0.0014403994175858704,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/CommercialRefrigerator.glb#node:ChampagneBottles_f99424",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/CommercialRefrigerator.glb#node:ChampagneBottles_f99424",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/CommercialRefrigerator.glb#node:ChampagneBottles_f99424",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/CommercialRefrigerator.glb#node:ChampagneBottles_f99424",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 5.992023421984229e-08,
+        "final_to_source_max_sample_distance_m": 6.040839580646369e-08,
+        "area_ratio": 0.9999998180232604,
+        "bounds_error_m": 4.858406188468223e-08,
+        "tolerance_m": 0.0013269630916271512,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/CommercialRefrigerator.glb#node:FridgeCase",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/CommercialRefrigerator.glb#node:FridgeCase",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/CommercialRefrigerator.glb#node:FridgeCase",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/CommercialRefrigerator.glb#node:FridgeCase",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.4013286747821036e-12,
+        "final_to_source_max_sample_distance_m": 8.31652004290269e-10,
+        "area_ratio": 1.0,
+        "bounds_error_m": 0.0,
+        "tolerance_m": 0.0025194171336933953,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/CommercialRefrigerator.glb#node:FridgeDoor",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/CommercialRefrigerator.glb#node:FridgeDoor",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/CommercialRefrigerator.glb#node:FridgeDoor",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/CommercialRefrigerator.glb#node:FridgeDoor",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.610313905072823e-11,
+        "final_to_source_max_sample_distance_m": 1.2096990248514393e-11,
+        "area_ratio": 1.0,
+        "bounds_error_m": 0.0,
+        "tolerance_m": 0.0018163900002941683,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/CommercialRefrigerator.glb#node:FridgeDoorInner",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/CommercialRefrigerator.glb#node:FridgeDoorInner",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/CommercialRefrigerator.glb#node:FridgeDoorInner",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/CommercialRefrigerator.glb#node:FridgeDoorInner",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 2.98023224436982e-08,
+        "final_to_source_max_sample_distance_m": 2.980232244389313e-08,
+        "area_ratio": 1.0000000134651839,
+        "bounds_error_m": 2.9802322443206464e-08,
+        "tolerance_m": 0.0016539451440537247,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/CommercialRefrigerator.glb#node:FridgeGlass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/CommercialRefrigerator.glb#node:FridgeGlass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/CommercialRefrigerator.glb#node:FridgeGlass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/CommercialRefrigerator.glb#node:FridgeGlass",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 2.980232233218416e-08,
+        "final_to_source_max_sample_distance_m": 4.830746106985055e-15,
+        "area_ratio": 0.9999999602964901,
+        "bounds_error_m": 2.980232233218416e-08,
+        "tolerance_m": 0.0016621193138224792,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/CommercialRefrigerator.glb#node:FridgeInterior",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/CommercialRefrigerator.glb#node:FridgeInterior",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/CommercialRefrigerator.glb#node:FridgeInterior",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/CommercialRefrigerator.glb#node:FridgeInterior",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.2091893914709756e-11,
+        "final_to_source_max_sample_distance_m": 2.3814839507296342e-12,
+        "area_ratio": 1.0,
+        "bounds_error_m": 0.0,
+        "tolerance_m": 0.0020372479945388092,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_visual_meshes_unique",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_unmapped_visible_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "exactly_one_physics_scene",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "earth_gravity_authored",
+      "passed": true,
+      "evidence": {
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "magnitude": 9.8100004196167
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 1.1859527159171006,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 2.896972894668579,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.7646397761210754e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/Hinge",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          0.0,
+          1.570796495382282
+        ],
+        "authored": [
+          0.0,
+          1.5707963267948966
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:door_started_closed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:door_opened_60deg",
+      "passed": true,
+      "evidence": 1.570796495382282,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:door_closed_5deg",
+      "passed": true,
+      "evidence": [
+        0.004000251159861357,
+        0.004285523090365118,
+        0.00451372228967406,
+        0.004685223652725057,
+        0.0048002017190440505,
+        0.0048594421543284305,
+        0.0048641881602677906,
+        0.004817240681454837,
+        0.00472084897019176,
+        0.004581199304702022
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed11:door_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:door_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 1.5707963267948966,
+        "observed": 1.570796495382282
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 1.1966957629761654,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 2.9232146739959717,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.7367365699211913e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:joint_limits:/World/Hinge",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          0.0,
+          1.570796579675978
+        ],
+        "authored": [
+          0.0,
+          1.5707963267948966
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:door_started_closed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:door_opened_60deg",
+      "passed": true,
+      "evidence": 1.5707964110885886,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:door_closed_5deg",
+      "passed": true,
+      "evidence": [
+        0.0031691649541651934,
+        0.0033816350475031065,
+        0.003546244381436914,
+        0.0036633889336625813,
+        0.0037372475737047495,
+        0.0037699622977314107,
+        0.0037630458598640892,
+        0.0037076772037250016,
+        0.003619152848212348,
+        0.0035008115583896604
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed23:door_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:door_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 1.5707963267948966,
+        "observed": 1.5707964110885886
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 1.1986423467265075,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 2.927969455718994,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.682973850190103e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:joint_limits:/World/Hinge",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          0.0,
+          1.570796495382286
+        ],
+        "authored": [
+          0.0,
+          1.5707963267948966
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:door_started_closed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:door_opened_60deg",
+      "passed": true,
+      "evidence": 1.570796495382286,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:door_closed_5deg",
+      "passed": true,
+      "evidence": [
+        0.001547056776230793,
+        0.001654037023197219,
+        0.0017279720184215641,
+        0.0017823050057628187,
+        0.0018234298636397028,
+        0.0018279814677280015,
+        0.0018249056599750624,
+        0.0018011319160629036,
+        0.0017483133759306213,
+        0.0016901697656197534
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed47:door_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:door_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 1.5707963267948966,
+        "observed": 1.570796495382286
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 1.191875729325706,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 2.9114410877227783,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.7646397761210754e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:joint_limits:/World/Hinge",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -3.9968028886505635e-15,
+          1.5707965796759846
+        ],
+        "authored": [
+          0.0,
+          1.5707963267948966
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:door_started_closed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:door_opened_60deg",
+      "passed": true,
+      "evidence": 1.5707964110885952,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:door_closed_5deg",
+      "passed": true,
+      "evidence": [
+        0.00038845094480244313,
+        0.00038845059555647765,
+        0.00038845024631051217,
+        0.0003884498970645467,
+        0.0003884495478185812,
+        0.00038844919857261573,
+        0.00038844884932665025,
+        0.00038844850008068477,
+        0.0003884481508347193,
+        0.0003884478015887538
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed83:door_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:door_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 1.5707963267948966,
+        "observed": 1.5707964110885952
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 1.193434258613893,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 2.9152469635009766,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.7489672602559578e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:joint_limits:/World/Hinge",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          0.0,
+          1.5707964953822735
+        ],
+        "authored": [
+          0.0,
+          1.5707963267948966
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:door_started_closed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:door_opened_60deg",
+      "passed": true,
+      "evidence": 1.5707964953822735,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:door_closed_5deg",
+      "passed": true,
+      "evidence": [
+        0.006546381492500419,
+        0.007013350181399147,
+        0.007382768074611246,
+        0.007658612545380805,
+        0.007841040938816768,
+        0.007927399954176462,
+        0.007928505425334187,
+        0.007842220915452724,
+        0.00767927795819956,
+        0.007436165505172898
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed131:door_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:door_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 1.5707963267948966,
+        "observed": 1.5707964953822735
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    }
+  ],
+  "case_id": "03_hinge",
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "input_sha256": "81e39c6369f71424ba1802b97495cdd8a5bbf1167f6a5b260a9ffcf5e8404362",
+  "bindings_sha256": "d9e772e76c0d4da21d4a44f28da9d7be6d890cfc9db01e29f8406c04b9fd2348",
+  "inventory_sha256": "c4fcc67778174cc387d847063096de1a8ca071eaea05fe12e627e31f5b1f55b3",
+  "cases_sha256": "5e6fb947ed79d453e4d20d8c4b16b39c7840db9957784a78d3a510e94c80f90e",
+  "evidence_policy": "Only evaluator-owned source inspection and fresh solver trajectories used. Inconclusive capability checks are not failures or false passes. A false-pass comparison additionally requires the author arm explicit accepted claim and at least one concrete failing check."
+}

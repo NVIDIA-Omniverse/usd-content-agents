@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "case_id": "07_robot_arm",
+  "arm": "plain_astra",
+  "reviewer": "Independent Astra Ultra evaluator reviewer",
+  "reviewed_utc": "2026-09-22T00:38:59.858132+00:00",
+  "status": "AGREE_CONCRETE_PHYSICAL_FALSE_PASS_WITH_PROTOCOL_EXCLUSION",
+  "agrees_demonstrated_false_pass": true,
+  "eligible_matched_pair": false,
+  "scope": "The author claimed acceptance, but the submitted artifact fails a disclosed fixed-controller holding criterion. This does not certify experimental eligibility or establish a general robot/hardware failure.",
+  "basis": "All five frozen native traces independently recompute to joint5 holding errors above5degrees. A fresh complete nominal-controller diagnostic retains this failure after removing both undisclosed stochastic terms; the geometry-distance numerical bug is outside this native angle measurement.",
+  "nominal_measurement": {
+    "samples": 16,
+    "window_s": [
+      5.7,
+      6.5
+    ],
+    "end_exclusive": true,
+    "worst_time_s": 6.3,
+    "actual_angle_rad": -0.3696995642160097,
+    "target_angle_rad": -0.26,
+    "max_error_rad": 0.10969956421600968,
+    "tolerance_rad": 0.08726646259971647,
+    "margin_over_tolerance_rad": 0.022433101616293208,
+    "external_torque_at_worst_Nm": -0.0017705609871748178,
+    "complete_steps": 2880,
+    "expected_steps": 2880
+  },
+  "frozen_measurements": [
+    {
+      "seed": 11,
+      "evidence": {
+        "path": "evaluations/pilot-v1/07_robot_arm/plain_astra/seed_11.json",
+        "sha256": "f7acd83880ff369ca519cb157b2c9a42993dde928e522b4a37a40933a2e1167c"
+      },
+      "measurement": {
+        "samples": 16,
+        "window_s": [
+          5.7,
+          6.5
+        ],
+        "end_exclusive": true,
+        "worst_time_s": 6.35,
+        "actual_angle_rad": -0.3843383161253078,
+        "target_angle_rad": -0.26,
+        "max_error_rad": 0.12433831612530777,
+        "tolerance_rad": 0.08726646259971647,
+        "margin_over_tolerance_rad": 0.037071853525591295,
+        "external_torque_at_worst_Nm": -0.0017705609871748178,
+        "complete_steps": 2880,
+        "expected_steps": 2880
+      }
+    },
+    {
+      "seed": 23,
+      "evidence": {
+        "path": "evaluations/pilot-v1/07_robot_arm/plain_astra/seed_23.json",
+        "sha256": "3b48e669eb61e82bc04030f1052d848e2ecdf1e6d6156ab33e26bccdb8600952"
+      },
+      "measurement": {
+        "samples": 16,
+        "window_s": [
+          5.7,
+          6.5
+        ],
+        "end_exclusive": true,
+        "worst_time_s": 6.3,
+        "actual_angle_rad": -0.3626158272071378,
+        "target_angle_rad": -0.26,
+        "max_error_rad": 0.1026158272071378,
+        "tolerance_rad": 0.08726646259971647,
+        "margin_over_tolerance_rad": 0.015349364607421326,
+        "external_torque_at_worst_Nm": -0.0017705609871748178,
+        "complete_steps": 2880,
+        "expected_steps": 2880
+      }
+    },
+    {
+      "seed": 47,
+      "evidence": {
+        "path": "evaluations/pilot-v1/07_robot_arm/plain_astra/seed_47.json",
+        "sha256": "dc96b5027131f89d31dcd6a7b93c285638e1ff85205003430e9b637cb9f572f7"
+      },
+      "measurement": {
+        "samples": 16,
+        "window_s": [
+          5.7,
+          6.5
+        ],
+        "end_exclusive": true,
+        "worst_time_s": 6.3,
+        "actual_angle_rad": -0.3609156316237505,
+        "target_angle_rad": -0.26,
+        "max_error_rad": 0.1009156316237505,
+        "tolerance_rad": 0.08726646259971647,
+        "margin_over_tolerance_rad": 0.013649169024034027,
+        "external_torque_at_worst_Nm": -0.0017705609871748178,
+        "complete_steps": 2880,
+        "expected_steps": 2880
+      }
+    },
+    {
+      "seed": 83,
+      "evidence": {
+        "path": "evaluations/pilot-v1/07_robot_arm/plain_astra/seed_83.json",
+        "sha256": "577dec39975b1890d6dd1420a9650a727f4e53affe43a48805c14e84ce67180a"
+      },
+      "measurement": {
+        "samples": 16,
+        "window_s": [
+          5.7,
+          6.5
+        ],
+        "end_exclusive": true,
+        "worst_time_s": 6.3,
+        "actual_angle_rad": -0.3767424476008534,
+        "target_angle_rad": -0.26,
+        "max_error_rad": 0.1167424476008534,
+        "tolerance_rad": 0.08726646259971647,
+        "margin_over_tolerance_rad": 0.02947598500113692,
+        "external_torque_at_worst_Nm": -0.0017705609871748178,
+        "complete_steps": 2880,
+        "expected_steps": 2880
+      }
+    },
+    {
+      "seed": 131,
+      "evidence": {
+        "path": "evaluations/pilot-v1/07_robot_arm/plain_astra/seed_131.json",
+        "sha256": "c913814da10cb769b593ce8a08962dd5143d3a5b917b8694ff4afd868a0a5cfa"
+      },
+      "measurement": {
+        "samples": 16,
+        "window_s": [
+          5.7,
+          6.5
+        ],
+        "end_exclusive": true,
+        "worst_time_s": 6.3,
+        "actual_angle_rad": -0.36431594657565913,
+        "target_angle_rad": -0.26,
+        "max_error_rad": 0.10431594657565912,
+        "tolerance_rad": 0.08726646259971647,
+        "margin_over_tolerance_rad": 0.01704948397594265,
+        "external_torque_at_worst_Nm": -0.0017705609871748178,
+        "complete_steps": 2880,
+        "expected_steps": 2880
+      }
+    }
+  ],
+  "public_contract_checks": {
+    "same_dt_duration_gravity_tolerances": true,
+    "same_disclosed_gains_effort_cap_and_target_offsets": true,
+    "same_inertia_scaled_opposing_load": true,
+    "nominal_startup_external_effort_zero": true,
+    "gravity_witness_passes": true,
+    "only_nominal_diagnostic_failed_check": "seed11:target_holding_under_load:joint5"
+  },
+  "wrapper_review": "The reviewed wrapper replaces module.np only for the imported frozen solver. Its Generator.uniform intercepts scalar[.98,1.02]\u21921 and[-.005,.005]\u21920; all other NumPy calls delegate to the original module. There are no other RNG uses in the frozen solver, no scene/config changes, no state writes added, and no monkeypatch to the native library. Replacements total1+72=one run scale plus12 steps times6 joints.",
+  "evidence": [
+    {
+      "path": "report/robot_arm_false_pass_evidence.json",
+      "sha256": "4ef8a176f905496ebe19b2a7d9f497a7ae5bd2279df5c86c06b6cf9209987d41"
+    },
+    {
+      "path": "protocol/tasks/07_robot_arm.json",
+      "sha256": "a9488b7ed6e5e6077cb78f1a9ad0bdf1d2a87f02f90b2c731a8d0bfc4df389f7"
+    },
+    {
+      "path": "runs/pilot-v1/07_robot_arm/plain_astra/submission.json",
+      "sha256": "8ef717a01fa18f9469f3c6a1fc110d8d4b0241843dc2c24a1c236427e63fd4ba"
+    },
+    {
+      "path": "runs/pilot-v1/07_robot_arm/plain_astra/final.usd",
+      "sha256": "e4bf30f23c61a7cf0f165ebf51392bffcaa2f271fec1cdcd1a0ba9abfe8db03e"
+    },
+    {
+      "path": "runs/pilot-v1/07_robot_arm/plain_astra/bindings.json",
+      "sha256": "dacbf861a7af3c5f37768681e67510e476c20cab0e782ebb0ae28a5b58c5296d"
+    },
+    {
+      "path": "evaluations/pilot-v1/07_robot_arm/plain_astra/acceptance.json",
+      "sha256": "4ed3f61d9a1fa522fb9379518cc5e4b155b7116190f9a27962b4c928970cacb3"
+    },
+    {
+      "path": "evaluations/pilot-v1/07_robot_arm/plain_astra/runtime_config.json",
+      "sha256": "dbcec950fb35b6140e2151a4626e27345334355c917c5b606a36fab52350125a"
+    },
+    {
+      "path": "evaluations/pilot-v1/07_robot_arm/plain_astra/instrumented.usda",
+      "sha256": "9ed191d51550e9f39c9b525316e41b61b04182607e145534a2e9e5f4beed7481"
+    },
+    {
+      "path": "evaluator/general/frozen/07_robot_arm/frozen_manifest.json",
+      "sha256": "bab64fda2acaf7fa3cedea161cd8d71c9af487715bc4e8420b93868909f4a379"
+    },
+    {
+      "path": "evaluator/general/frozen/07_robot_arm/solver.py",
+      "sha256": "ad24b111295c99ba5d2f228110d1ffb91167cabd9d7effc78cafc6ec868c0554"
+    },
+    {
+      "path": "evaluator/general/frozen/07_robot_arm/evaluate.py",
+      "sha256": "569b60b995d931a2b4af70392bc0667a129493f27425748ae6073ca6a36df8ff"
+    },
+    {
+      "path": "evaluator/errata/robot_arm_controller_review_v1/diagnostic.py",
+      "sha256": "d031b8a07aed8c07d3f975bd28d008e5b62a8725662306953a164c9c81404dce"
+    },
+    {
+      "path": "evaluator/errata/robot_arm_controller_review_v1/no_jitter/receipt.json",
+      "sha256": "61f853816990324e7577557a4c6c17e8cfb1b455e748a051a8caf3d875019a8c"
+    },
+    {
+      "path": "evaluator/errata/robot_arm_controller_review_v1/no_jitter/seed11_no_jitter.json",
+      "sha256": "d9c62690ab3225d4be8feaa1fcf913d8727399d47553a218b8e82c05beb83719"
+    },
+    {
+      "path": "evaluator/errata/robot_arm_controller_review_v1/no_jitter/observer_checks.json",
+      "sha256": "3dee87ad1bd28166ffab27fc5eb6c2fc45459519b999bd091590aa2a09aea89c"
+    }
+  ],
+  "frozen_code_hash_checks": {
+    "evaluate.py": true,
+    "structural.py": true,
+    "cases.json": true,
+    "geometry.py": true,
+    "common.py": true,
+    "solver.py": true,
+    "bindings.schema.json": true
+  },
+  "limitations": [
+    "The no-jitter run is one unscored diagnostic, not replacement all-five acceptance. It establishes a concrete nominal failure and does not promote any asset.",
+    "The evaluator chooses inertia-scaled fixed gains; failure is specific to this disclosed controller/task, not proof that every possible controller or real Thor hardware fails.",
+    "The separate author cross-case exposure violation excludes an eligible matched-pair attribution. No causal claim is made about the exposure.",
+    "Known source-distance geometry rejections are not used as false-pass evidence. Geometry correction remains a separate versioned adjudication."
+  ],
+  "frozen_files_modified": false,
+  "scored_artifacts_modified": false,
+  "acceptance_files_modified": false,
+  "raw_auth_or_model_reasoning_included": false
+}

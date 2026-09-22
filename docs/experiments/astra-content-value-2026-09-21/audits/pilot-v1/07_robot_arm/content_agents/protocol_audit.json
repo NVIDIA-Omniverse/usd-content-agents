@@ -1,0 +1,362 @@
+{
+  "schema_version": "astra-content-value-protocol-audit.v1",
+  "case_id": "07_robot_arm",
+  "arm": "content_agents",
+  "valid": true,
+  "audited_utc": "2026-09-22T00:03:26.774380+00:00",
+  "checks": [
+    {
+      "name": "original_source_unchanged",
+      "valid": true,
+      "evidence": {
+        "source_files": 236,
+        "details": "protocol_probe.json#/source_checks"
+      },
+      "note": null
+    },
+    {
+      "name": "completed_outputs_unchanged",
+      "valid": true,
+      "evidence": {
+        "files": 1275,
+        "manifest": {
+          "path": "runs/pilot-v1/07_robot_arm/content_agents/output_manifest.json",
+          "sha256": "5f2653468b114b21cb30a3506d23ed4d8d0be4a5d268dd8dac5e7bf98de8db78"
+        },
+        "details": "protocol_probe.json#/output_checks"
+      },
+      "note": null
+    },
+    {
+      "name": "frozen_evaluator_and_task_unchanged",
+      "valid": true,
+      "evidence": {
+        "evaluate.py": true,
+        "structural.py": true,
+        "cases.json": true,
+        "geometry.py": true,
+        "common.py": true,
+        "solver.py": true,
+        "bindings.schema.json": true,
+        "reference_inventory": true
+      },
+      "note": null
+    },
+    {
+      "name": "matched_model_effort_task_budget_host_gpu",
+      "valid": true,
+      "evidence": {
+        "pair_fields": {
+          "model": true,
+          "reasoning_effort": true,
+          "budget_seconds": true,
+          "task_sha256": true
+        },
+        "contexts": [
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          },
+          {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "ultra"
+          }
+        ],
+        "launch": {
+          "path": "runs/pilot-v1/07_robot_arm/content_agents/launch.json",
+          "sha256": "064186a07bc313f7c11eb3a1945deb414cc4fa66359ea5f0888b3f0a48e222a7"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "within_wall_time_budget",
+      "valid": true,
+      "evidence": {
+        "elapsed_seconds": 2397.3659111708403,
+        "budget_seconds": 2400,
+        "execution": {
+          "path": "runs/pilot-v1/07_robot_arm/content_agents/execution.json",
+          "sha256": "e0e5764fb2fe2d47a06af904a3c5b288694cda981e7f29c343efba181b2c9cfa"
+        }
+      },
+      "note": null
+    },
+    {
+      "name": "no_observed_protected_reads_or_cross_case_exposure",
+      "valid": true,
+      "evidence": {
+        "execution_requests_reviewed": 191,
+        "captured_sessions": 4,
+        "execution_metadata_sha256": "ccdda19223faed16822e6c2ead4b3273c613cbf8669a835d6456c2e203a3fd8a",
+        "access_pattern_hits": [],
+        "process_output_review": [
+          {
+            "event_line": 79,
+            "item_id": "item_40",
+            "output_character_count": 142,
+            "output_sha256": "806e62c574b2095bb706d50e2badd1c7307df997beb213e80efb34f801ee25d5",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 95,
+            "item_id": "item_49",
+            "output_character_count": 76,
+            "output_sha256": "9e3f5ccfc4f61cad08a3b54017abddc5b85d0e4d89a9eb21e7435deaa655c98f",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 113,
+            "item_id": "item_59",
+            "output_character_count": 1517,
+            "output_sha256": "e717b58b97aa9a23e3a0fe719c47ddb518976674f017bf0eedd4f8099d4e0262",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 115,
+            "item_id": "item_60",
+            "output_character_count": 151,
+            "output_sha256": "130f52b0bff3d8163bea1897e527031f376de3a7a882e10ef2bf673606b8531e",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 120,
+            "item_id": "item_63",
+            "output_character_count": 403,
+            "output_sha256": "a797d98ec6b206d768d73c6ce886a2eb5c87af8f255be5ec75621d97ce0fb37e",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 126,
+            "item_id": "item_66",
+            "output_character_count": 232,
+            "output_sha256": "12f2973185aeb7fb61db36d57a2efcda8db6e4c1da9c311da8ecf96ff78b665d",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 132,
+            "item_id": "item_69",
+            "output_character_count": 433,
+            "output_sha256": "c7c47ec3b75ba253107684f3a9750afc49b83d5eecffd1ddc0135aa11f8f3fa3",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 137,
+            "item_id": "item_72",
+            "output_character_count": 232,
+            "output_sha256": "2271a38498e017ddb2dc29b8c7449c69bc984c3cd202338495714392927782f2",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 143,
+            "item_id": "item_75",
+            "output_character_count": 232,
+            "output_sha256": "de744a75b906bcf5c465c717418b71a310e4340dff98df68a3e7a41e15c1d015",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 148,
+            "item_id": "item_78",
+            "output_character_count": 295,
+            "output_sha256": "2805cc89763d5016d675da0b2020377b426bdf7cfe3077ebb8ffce480800f32d",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 155,
+            "item_id": "item_82",
+            "output_character_count": 295,
+            "output_sha256": "bf256022436d87aa2b7e6127a2c98a378b6006577ef0cb18d613784ed05d39a7",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 157,
+            "item_id": "item_83",
+            "output_character_count": 295,
+            "output_sha256": "a6ef813ac84b711c1133b199a2c3eb29eb1988f17343d91a5bf96997823fdd65",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 160,
+            "item_id": "item_85",
+            "output_character_count": 53,
+            "output_sha256": "8b8ac52997e0b2e41d90e5290317e390b67277082dc745675c40dc80c47fc6cb",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 162,
+            "item_id": "item_86",
+            "output_character_count": 295,
+            "output_sha256": "2569136aef095aab1739cf59a9fbd9afb0ef350441251bdcddda3688a83377b6",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 169,
+            "item_id": "item_90",
+            "output_character_count": 295,
+            "output_sha256": "9ac4fa744067de53abb30b85911205767e1349b5c2db66e069c1132c966ce0c7",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 171,
+            "item_id": "item_91",
+            "output_character_count": 295,
+            "output_sha256": "74b57772043648c441db9de8e4aff391cc4d1190ff5db34138a5cfede6bdb913",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 175,
+            "item_id": "item_93",
+            "output_character_count": 295,
+            "output_sha256": "efbabf95bfb735b8e7a8de1f2a0c9057a654fbceaa757e6fded58d8af8007f1f",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 178,
+            "item_id": "item_95",
+            "output_character_count": 295,
+            "output_sha256": "af87f6def14489f792085838f172104f20870dd8de4cfd163c7bd5deccc8ae92",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 182,
+            "item_id": "item_97",
+            "output_character_count": 528,
+            "output_sha256": "4433c4ef6be38da3f1ab9143ce729b39944725ebc3203fe4d474d4f67b147fcd",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 193,
+            "item_id": "item_103",
+            "output_character_count": 295,
+            "output_sha256": "8260c269e1b9470304c360306ddf291ab541a1ffd7c8b9f0164ac2c989ee3b6a",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 199,
+            "item_id": "item_106",
+            "output_character_count": 586,
+            "output_sha256": "423faed35fc3075362aee2bff143d915587e714989c4bcba184a78639787cd11",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 202,
+            "item_id": "item_108",
+            "output_character_count": 295,
+            "output_sha256": "3559470ffde0a19f273cb14f4c1731751f8a6acb9d9a3dc62260eff693dda7e6",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 206,
+            "item_id": "item_110",
+            "output_character_count": 328,
+            "output_sha256": "22da2f79f311f74003da7cf3d27fc5642658dc9802b69261889444763701eaf9",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          },
+          {
+            "event_line": 213,
+            "item_id": "item_114",
+            "output_character_count": 408,
+            "output_sha256": "f3f1c7c75fdbd0e9840240b24a23553bb705dc21ffd3d51af3fe201f221163d0",
+            "review": "Own-case process/file metadata or own geometry invocation only; no other-case/evaluator source observed."
+          }
+        ]
+      },
+      "note": "Compared with the plain arm this run used scoped process lookups. No cross-case or evaluator content was observed in its captured requests/output; OS-level isolation was not enforced."
+    },
+    {
+      "name": "native_failed_geometry_handoff_honored",
+      "valid": true,
+      "evidence": {
+        "receipt": {
+          "path": "runs/pilot-v1/07_robot_arm/content_agents/geometry_01/geometry_workflow_result.json",
+          "sha256": "0872b4f5b3addfcebcd61fe3761ee518ec74e886a813e5de8ca6b64182973c2e"
+        },
+        "native_disposition": {
+          "success": false,
+          "validation_status": "fail",
+          "handoff_ready": "no"
+        },
+        "native_validation_evidence": {
+          "path": "runs/pilot-v1/07_robot_arm/content_agents/geometry_01/geometry_validation_evidence.json",
+          "sha256": "1ccd485ed729b546d816ddf1205e8bd014c43d62fb0b72b1c6d0e453aca1cff4"
+        },
+        "claim": false,
+        "submission": {
+          "path": "runs/pilot-v1/07_robot_arm/content_agents/submission.json",
+          "sha256": "4e58ba0839bff71ab022cc7ff92c6c2b68fbb9e06e314d4d4a760bb4d3e337c2"
+        },
+        "independent_usd_readback": {
+          "meshes": 566,
+          "rigid_bodies": 0,
+          "joints": 0,
+          "physics_scenes": 0,
+          "final_sha256": "7d7491da326e828ca71eb0acfe6f21b14afc839c25ddd9b9e3dd6c2c7e271959",
+          "final_matches_preserved_first": true,
+          "author_scene_unchanged": true
+        },
+        "chronology": [
+          {
+            "event_line": 216,
+            "item_id": "item_53",
+            "action": "Single native Geometry workflow exited1 with failed topology/triangle-budget gates after its render evidence completed."
+          },
+          {
+            "event_line": 227,
+            "item_id": "item_121",
+            "action": "Saved unaccepted geometry-only partial; no downstream Joint/Physics/Validation launched."
+          },
+          {
+            "event_line": 233,
+            "item_id": "item_124",
+            "action": "Verified false acceptance claim and preserved first partial before ending."
+          }
+        ]
+      },
+      "note": "Native rendered geometry is not physical-task evidence. Unexecuted preparation helpers are retained without being counted as completed workflow stages."
+    },
+    {
+      "name": "two_repair_limit_and_first_partial_preservation",
+      "valid": true,
+      "evidence": {
+        "declared_repairs": 0,
+        "observed_native_geometry_runs": 1,
+        "observed_post_first_candidate_repairs": 0,
+        "first_scene": {
+          "path": "runs/pilot-v1/07_robot_arm/content_agents/first_candidate/scene.usd",
+          "sha256": "7d7491da326e828ca71eb0acfe6f21b14afc839c25ddd9b9e3dd6c2c7e271959"
+        },
+        "first_bindings": {
+          "path": "runs/pilot-v1/07_robot_arm/content_agents/first_candidate/bindings.json",
+          "sha256": "3fb2febaf5261f45984ede56c59a80de77e520a2d591c16e50894d036f327dd8"
+        },
+        "final": {
+          "path": "runs/pilot-v1/07_robot_arm/content_agents/final.usd",
+          "sha256": "7d7491da326e828ca71eb0acfe6f21b14afc839c25ddd9b9e3dd6c2c7e271959"
+        },
+        "preserved_source_intake_script_variants": [
+          {
+            "path": "runs/pilot-v1/07_robot_arm/content_agents/source_intake/extract_thor_initial.py",
+            "sha256": "0f0c7cb421b61c85f5f2b6e49aeaf4299e9ba42e87eaeba5f511699aa9a651ef"
+          },
+          {
+            "path": "runs/pilot-v1/07_robot_arm/content_agents/source_intake/extract_thor_sequential.py",
+            "sha256": "be30b0d8cc8830ab9bd07264ec4847c8a944a2426e49484aab35ac5c3ee40e39"
+          }
+        ]
+      },
+      "note": "Two slow source-extraction attempts were interrupted and their scripts preserved before the first completed geometry intake/native workflow. These were pre-candidate preparation retries, not hidden scene repair iterations; even counting both conservatively would not exceed2."
+    }
+  ],
+  "independent_physical_result_separate": true,
+  "interpretation": "Run-level captured protocol checks pass; the native geometry failure was preserved and no physical success was claimed. This does not rescue the pair:07 plain had actual cross-case code exposure, and global scheduling/isolation remains separately audited. No general causal workflow comparison is supported.",
+  "scope_limit": "Hash/context/request/public-output review and independent USD-state readback, not OS-level isolation. No raw rollout, private reasoning or non-execution inter-agent payload is exported.",
+  "sanitized": true
+}

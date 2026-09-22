@@ -1,0 +1,2 @@
+/opt/astra-content-value-20260921/repo/.venv/lib/python3.12/site-packages/trimesh/triangles.py:659: RuntimeWarning: invalid value encountered in divide
+  v = (d1[is_ab] / (d1[is_ab] - d3[is_ab])).reshape((-1, 1))

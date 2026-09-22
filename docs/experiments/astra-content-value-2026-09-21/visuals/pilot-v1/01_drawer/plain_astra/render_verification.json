@@ -1,0 +1,32 @@
+{
+  "credential_pattern_check": [],
+  "script_and_config_hashes_match": true,
+  "frames": {
+    "closed_initial": {
+      "snapshot_hash_unchanged": true,
+      "native_render_ok": true,
+      "backend": "ovrtx",
+      "mode": "rt2",
+      "sensor_updates": 64,
+      "reported_render_time_s": 8.071
+    },
+    "open_loaded": {
+      "snapshot_hash_unchanged": true,
+      "native_render_ok": true,
+      "backend": "ovrtx",
+      "mode": "rt2",
+      "sensor_updates": 64,
+      "reported_render_time_s": 1.731
+    },
+    "closed_returned": {
+      "snapshot_hash_unchanged": true,
+      "native_render_ok": true,
+      "backend": "ovrtx",
+      "mode": "rt2",
+      "sensor_updates": 64,
+      "reported_render_time_s": 1.591
+    }
+  },
+  "script_elapsed_seconds": 26.423912286758423,
+  "source": "Native CLI render receipts plus immutable snapshot hashes; visual inspection is recorded separately."
+}

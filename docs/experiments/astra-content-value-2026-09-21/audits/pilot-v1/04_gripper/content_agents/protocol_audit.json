@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "case_id": "04_gripper",
+  "arm": "content_agents",
+  "valid": true,
+  "status": "VALID_PROTOCOL_OBSERVED",
+  "audited_utc": "2026-09-21T23:17:16.050067+00:00",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All three completed recorded sessions used gpt-6-astra with ultra reasoning. Per-response ledgers reconcile to final counters; no missing final sessions.",
+      "evidence": [
+        "usage_reconciled.json",
+        "../../../../runs/pilot-v1/04_gripper/content_agents/model_usage_audit.json"
+      ]
+    },
+    {
+      "id": "equal_frozen_task",
+      "valid": true,
+      "finding": "Author launch task hash matches the unchanged public04 task; independent dispatch verified frozen evaluator and reference geometry hashes.",
+      "evidence": [
+        "artifact_integrity.json",
+        "../../../../evaluations/pilot-v1/04_gripper/dispatch_content_agents.json"
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All69 original source-repo files match the retained source closure; original STEP was supplied to native conversion.",
+      "evidence": [
+        "../../../../evaluations/pilot-v1/04_gripper/protocol_audit_content_agents.json",
+        "../../../../runs/pilot-v1/04_gripper/content_agents/workflows/geometry/geometry_workflow_result.json"
+      ]
+    },
+    {
+      "id": "output_immutable",
+      "valid": true,
+      "finding": "All303 watchdog-manifest files unchanged; final scene and bindings remained unchanged across independent evaluation.",
+      "evidence": [
+        "artifact_integrity.json",
+        "../../../../evaluations/pilot-v1/04_gripper/dispatch_content_agents.json"
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "716.5058221705258 seconds including autonomous tool/child work, below2400-second cap. All child sessions completed before main completion.",
+      "evidence": [
+        "../../../../runs/pilot-v1/04_gripper/content_agents/execution.json",
+        "usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "At most two post-first-candidate iterations under the explicit audit convention below: one native repair invocation plus one diagnostic representation rewrite.",
+      "evidence": [
+        "../../../../runs/pilot-v1/04_gripper/content_agents/evidence/candidate_ledger.json",
+        "../../../../runs/pilot-v1/04_gripper/content_agents/repairs/repair_01/geometry/geometry_repair/attempts/attempts.json",
+        "../../../../runs/pilot-v1/04_gripper/content_agents/preparation/source_reexpression.json"
+      ]
+    },
+    {
+      "id": "treatment_workflow_use",
+      "valid": true,
+      "finding": "Public workflow skills, Geometry shared conversion, native repair, native articulation preparation/apply and Validation receipts observed. Native failed/rejected dispositions were preserved. Unsupported direct native agent controls were diagnostic only, without a successful-workflow claim.",
+      "evidence": [
+        "../../../../runs/pilot-v1/04_gripper/content_agents/workflows/geometry/geometry_workflow_result.json",
+        "../../../../runs/pilot-v1/04_gripper/content_agents/workflows/joint/native_rejection_observation.json",
+        "../../../../runs/pilot-v1/04_gripper/content_agents/workflows/validation/outer_assessment.json"
+      ]
+    },
+    {
+      "id": "no_forbidden_access_observed",
+      "valid": true,
+      "finding": "Reviewed127 tool requests across all three sessions:99 executable tool requests,2 collaboration spawns,26 collaboration messages. No captured executable request reads/runs hidden evaluator code/evidence, another case output, opposite arm, private auth, or another author log. Absolute experiment paths are confined to source04, public04 task/inventory, own run, and installed tool repo/docs. Environment/process capability inspection was not treated as artifact access.",
+      "evidence": [
+        "private_tool_metadata_digest"
+      ],
+      "qualification": "This is an audit of captured tool requests, not proof against unrecorded activity. Encrypted collaboration-message bodies were not decoded or published."
+    },
+    {
+      "id": "no_environment_mutation_observed",
+      "valid": true,
+      "finding": "No captured package install, repository/source/evaluator edit, provider switch, external model call, or assigned GPU override observed. All authored patch paths are inside the run. Capability failures were recorded.",
+      "evidence": [
+        "private_tool_metadata_digest",
+        "../../../../runs/pilot-v1/04_gripper/content_agents/evidence/run_accounting.json"
+      ]
+    },
+    {
+      "id": "honest_terminal_claim",
+      "valid": true,
+      "finding": "Submission claimed_accepted=false; native generic static pass with physics_expected=false was explicitly overridden by a blocked outer assessment. No simulated grasp success was claimed.",
+      "evidence": [
+        "../../../../runs/pilot-v1/04_gripper/content_agents/submission.json",
+        "../../../../runs/pilot-v1/04_gripper/content_agents/workflows/validation/outer_assessment.json"
+      ]
+    }
+  ],
+  "violations": [],
+  "unknowns": [
+    "The global protocol did not explicitly define whether internal unavailable worker probes count as separate repair iterations; this audit uses the documented invocation/candidate convention below.",
+    "No claim is made about unrecorded activity or opaque collaboration message text. Captured executable requests and all child model contexts are covered."
+  ],
+  "repair_counting": {
+    "author_declared_outer_repairs": 1,
+    "native_outer_repair_invocations": 1,
+    "native_internal_probes": 4,
+    "internal_probe_outcomes": [
+      "identity/no-op rejected; identical representation only",
+      "de-instancing unavailable; no output",
+      "cleanup unavailable on read-only instance proxies; no output",
+      "Geogram unavailable; no output"
+    ],
+    "additional_diagnostic_source_reexpression_counted_conservatively": 1,
+    "conservative_post_first_candidate_iterations": 2,
+    "limit": 2,
+    "valid_under_stated_convention": true,
+    "fine_grained_probe_count_rule_predeclared": false,
+    "convention": "Count a top-level repair invocation once; its failed capability probes with no new modified candidate do not become independent repair iterations. Also count the final source-instance/local-frame/units reexpression as a second iteration, despite author describing it as preparation. Metadata/readback/schema fixes that do not modify asset geometry or physics are not asset repair iterations."
+  },
+  "coverage": {
+    "tool_requests": 127,
+    "tool_counts": {
+      "exec": 99,
+      "spawn_agent": 2,
+      "send_message": 26
+    },
+    "first_tool_utc": "2026-09-21T22:39:53.509Z",
+    "last_tool_utc": "2026-09-21T22:51:30.416Z",
+    "private_request_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "private_tool_metadata_digest": {
+    "path": "tool_calls.private.json",
+    "sha256": "76ef24bc24e981edfdcc28093b7eae693fa456e07b06967dbd27a8916e52f967",
+    "publish": false,
+    "description": "Tool request metadata only; no reasoning messages or tool responses. Kept outside public allowlist."
+  },
+  "detailed_report": {
+    "path": "evaluations/pilot-v1/04_gripper/protocol_audit_content_agents.json",
+    "sha256": "f1d8cc33d6fc565727ed65b0bed3651e9f164c640d423e5567b137889310da52",
+    "note": "Preserved original detailed report; its outer-only coverage caveat is superseded by this127-request audit."
+  },
+  "usage_reconciled_sha256": "c1661291bc8c8362f7ca883ffaee9316cbff243b9c40227c88e06402a7ae8f94",
+  "artifact_integrity_sha256": "ce610b565f6319d588aaa267586965278f1b9449864b248f3402318032b39a9f",
+  "no_scored_output_repaired": true
+}

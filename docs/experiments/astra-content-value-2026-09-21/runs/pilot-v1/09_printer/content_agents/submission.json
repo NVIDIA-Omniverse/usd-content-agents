@@ -1,0 +1,17 @@
+{
+  "claimed_accepted": false,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "NOT ACCEPTED. The source-preserving native Geometry workflow finished with success=false, validation_status=fail, and handoff_ready=no (topology and triangle-budget failures). One native repair attempt was stopped at its frozen 900-second bound without producing a repaired candidate or native terminal result. Joint and Physics authoring were not bypassed; final.usd is a partial geometry-only candidate. Public Validation rendered it but failed physics_sane, and its assessment recorded authorized=false.",
+  "repairs_used": 1,
+  "limitations": [
+    "Partial scene only: zero authored rigid bodies, zero colliders, zero masses/inertias, and zero joints. Binding body entries identify intended source role roots; dynamic-body and joint requirements are not satisfied.",
+    "All 3092 required source IDs map once to visible native-converter meshes with required body-role assignments; exact original source surface coverage/error was not certified. Bounds-only checks are not surface acceptance evidence.",
+    "Native CAD preflight failed on 3 duplicate faces, 75797 boundary edges, 16 over-connected edges, and its triangle budget at 4301821 triangle-equivalent faces.",
+    "Native repair reached its frozen 900-second attempt budget. Its source-format validation passed; no terminal repair certificate or repaired output was produced before interruption.",
+    "Some USD validation extension checks were skipped because the frozen pxr.UsdValidation bindings were unsafe or unavailable; no packages were changed.",
+    "No fresh-solver travel, bounded-load hold/return, joint closure, gravity response, payload contact, or bed-relative drift measurements were produced.",
+    "Original source geometry presents upward bed guide-stop and nozzle clearance restrictions; no real hardware accuracy claim is made.",
+    "Native standalone Validation records authorized=false but provides no canonical assessment or terminal review receipt for a rejecting assessment. Its failure result and rejection execution index are preserved."
+  ]
+}

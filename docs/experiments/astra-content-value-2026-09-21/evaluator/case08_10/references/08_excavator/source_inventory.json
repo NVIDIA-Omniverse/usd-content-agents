@@ -1,0 +1,2480 @@
+{
+  "parts": [
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__1_x1vhh1juO/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0000.npz",
+      "geometry_sha256": "35c697f353bef973177623e1f4e60dddc92007528717c9dda261ccb4cb9374f2",
+      "required": true,
+      "vertices": 9834,
+      "triangles": 3278,
+      "bounds_m": [
+        [
+          -0.003000000000000057,
+          -0.02778367638840629,
+          -0.19102368843277814
+        ],
+        [
+          0.08300000000000009,
+          -0.01578367638840621,
+          -0.08102368843277802
+        ]
+      ],
+      "area_m2": 0.019903787692333207,
+      "abs_volume_m3": 2.84409936254055e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "e539d18bb68a77023a905bc0647755862ca06557de6bea73016fffea22e7416a"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__23_h3lvt1hxm1omG/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0001.npz",
+      "geometry_sha256": "84ad8cf61bc208a2e5add5831a667cee0137b5a25c4a49b1c1410e0f67f9e71d",
+      "required": true,
+      "vertices": 4854,
+      "triangles": 1618,
+      "bounds_m": [
+        [
+          0.07640000019073478,
+          -0.030678956469826296,
+          -0.09491896851419812
+        ],
+        [
+          0.07959999999999995,
+          -0.012888396306986155,
+          -0.07712840835135798
+        ]
+      ],
+      "area_m2": 0.0007186617537668738,
+      "abs_volume_m3": 5.542891311657253e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "75cd8d93c4b1ae5b2ec7dd75438333f8f5368e9e217a5ab11ff84a6c6eccc0c8"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__34_h3esp1XY4eYY2/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0002.npz",
+      "geometry_sha256": "5b73d02425b003516c253590d740070827249b43a18c6a55059a3329afccedf4",
+      "required": true,
+      "vertices": 4842,
+      "triangles": 1614,
+      "bounds_m": [
+        [
+          0.07640000019073492,
+          -0.03067408908017633,
+          -0.19691410112454816
+        ],
+        [
+          0.0796000000000001,
+          -0.012893263696636117,
+          -0.17913327574100793
+        ]
+      ],
+      "area_m2": 0.0007181569137465339,
+      "abs_volume_m3": 5.525220215915585e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "387216fc37e54cdca5fafe561791fdacff979e71c86b5dcefdbd6d9b725424bd"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__N201_g6wia3cxc0ssSjkW1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0003.npz",
+      "geometry_sha256": "2a4250ecc99edf4d5f06f91b7fb1c6863e354c635103fa35f57d350c194057ef",
+      "required": true,
+      "vertices": 3132,
+      "triangles": 1044,
+      "bounds_m": [
+        [
+          0.04769999790191649,
+          -0.027783676388406238,
+          -0.09102368843277803
+        ],
+        [
+          0.08300000095367431,
+          -0.015783676388406217,
+          -0.08102368843277802
+        ]
+      ],
+      "area_m2": 0.001373326518596838,
+      "abs_volume_m3": 2.6714910008101647e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "66e87059b53cbfe22389009e7c20d4ede263edae08c980c6761c2a624de7cca8"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__N203_g6wia3cxc0ssSjkW1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0004.npz",
+      "geometry_sha256": "3ced60c1bdab5ad2eb9c9745a4d75a0c7ee47225c525069d128bed5677e2ad8e",
+      "required": true,
+      "vertices": 3132,
+      "triangles": 1044,
+      "bounds_m": [
+        [
+          -0.0030000009536743696,
+          -0.027783676388406273,
+          -0.09102368843277808
+        ],
+        [
+          0.03230000209808345,
+          -0.01578367638840625,
+          -0.08102368843277807
+        ]
+      ],
+      "area_m2": 0.0013733265185968382,
+      "abs_volume_m3": 2.671491001922846e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "66e87059b53cbfe22389009e7c20d4ede263edae08c980c6761c2a624de7cca8"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__24_h3lvt1hxm1omG/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0005.npz",
+      "geometry_sha256": "d540521f256dbcdeacf5e055623ab8208a4c718d6616dbcf07eed77900fb9b62",
+      "required": true,
+      "vertices": 4854,
+      "triangles": 1618,
+      "bounds_m": [
+        [
+          0.00039999999999998614,
+          -0.03067895646982634,
+          -0.0949189685141982
+        ],
+        [
+          0.0035999998092651492,
+          -0.0128883963069862,
+          -0.07712840835135806
+        ]
+      ],
+      "area_m2": 0.0007186617537668735,
+      "abs_volume_m3": 5.542891311657265e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "75cd8d93c4b1ae5b2ec7dd75438333f8f5368e9e217a5ab11ff84a6c6eccc0c8"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__39_h3esp1XY4eYY2/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0006.npz",
+      "geometry_sha256": "6ad68bbdb8843f12f09ce5041b02679213f92eef7a9ef13a2faeff2e06a1bac1",
+      "required": true,
+      "vertices": 4842,
+      "triangles": 1614,
+      "bounds_m": [
+        [
+          0.0004000000000000461,
+          -0.030674089080176388,
+          -0.19691410112454824
+        ],
+        [
+          0.0035999998092651887,
+          -0.012893263696636181,
+          -0.179133275741008
+        ]
+      ],
+      "area_m2": 0.0007181569137465339,
+      "abs_volume_m3": 5.525220215915594e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "387216fc37e54cdca5fafe561791fdacff979e71c86b5dcefdbd6d9b725424bd"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4223_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0007.npz",
+      "geometry_sha256": "5ff7078b0ecca78c3c8f7f55061d3033173d0f0761b047545ce3b1725e5d217f",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000006,
+          -0.035383676388406164,
+          -0.16170305500054824
+        ],
+        [
+          0.08600000000000008,
+          -0.028887971737527236,
+          -0.15101305446649063
+        ]
+      ],
+      "area_m2": 0.0005165092792180489,
+      "abs_volume_m3": 2.89376025222121e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4224_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0008.npz",
+      "geometry_sha256": "7f35ff192945c9a82d627c1634ed2a6529729f73278a428e8de7a591a1afcdb7",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000006,
+          -0.03538367638840616,
+          -0.15481305500054826
+        ],
+        [
+          0.08600000000000008,
+          -0.02888797173752723,
+          -0.14412305446649062
+        ]
+      ],
+      "area_m2": 0.0005165092792180489,
+      "abs_volume_m3": 2.8937602522212216e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4225_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0009.npz",
+      "geometry_sha256": "043fc3184936055d5011ab7f05d1dd437550250bfbc9dd642d93530a23523f3a",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000003,
+          -0.03538367638840617,
+          -0.14792304599923875
+        ],
+        [
+          0.08600000000000005,
+          -0.028887971737527243,
+          -0.13723304546518114
+        ]
+      ],
+      "area_m2": 0.00051650927921805,
+      "abs_volume_m3": 2.8937602522212226e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4226_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0010.npz",
+      "geometry_sha256": "f317d3fc8109ede3f44fab2a4c6c045e2a6ea237433dcdca6bceeedb08439b9e",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000002,
+          -0.03538367638840616,
+          -0.1410330369979293
+        ],
+        [
+          0.08600000000000003,
+          -0.02888797173752723,
+          -0.13034303646387166
+        ]
+      ],
+      "area_m2": 0.0005165092792180487,
+      "abs_volume_m3": 2.89376025222121e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4227_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0011.npz",
+      "geometry_sha256": "9e7ffea5d3ec1bb3a35ce7255046464feb56eb77545207397071b26e479b7388",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07,
+          -0.03538367638840616,
+          -0.1341430279966198
+        ],
+        [
+          0.08600000000000002,
+          -0.02888797173752723,
+          -0.12345302746256219
+        ]
+      ],
+      "area_m2": 0.0005165092792180492,
+      "abs_volume_m3": 2.8937602522212226e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4228_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0012.npz",
+      "geometry_sha256": "0a87fe54e6b7bddfccfc015e4378d63e619714b633b6c6e460e172e931a99310",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07,
+          -0.03538367638840614,
+          -0.1272530189953104
+        ],
+        [
+          0.08600000000000002,
+          -0.028887971737527215,
+          -0.11656301846125278
+        ]
+      ],
+      "area_m2": 0.0005165092792180494,
+      "abs_volume_m3": 2.893760252221213e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4229_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0013.npz",
+      "geometry_sha256": "d13d0e7f07f2f595e2f81116322f63c45b7452224fc9511c5ca3a70b397cef11",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999999,
+          -0.03538367638840614,
+          -0.12036300999400101
+        ],
+        [
+          0.08600000000000001,
+          -0.028887971737527215,
+          -0.10967300945994336
+        ]
+      ],
+      "area_m2": 0.0005165092792180491,
+      "abs_volume_m3": 2.8937602522212226e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4230_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0014.npz",
+      "geometry_sha256": "b3aaf62cb41852066f426a8d1e81630bd0dfb994a9664b36fceddd09f9a26c2a",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999998,
+          -0.03538367638840613,
+          -0.11347300099269159
+        ],
+        [
+          0.086,
+          -0.0288879717375272,
+          -0.10278300045863394
+        ]
+      ],
+      "area_m2": 0.0005165092792180498,
+      "abs_volume_m3": 2.8937602522212284e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4231_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0015.npz",
+      "geometry_sha256": "af738ad1bf8c8a4e3103310ff06e5764cd771f5274f5d405b819f96acdffb415",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999995,
+          -0.03538367638840612,
+          -0.10658299199138219
+        ],
+        [
+          0.08599999999999997,
+          -0.02888797173752719,
+          -0.09589299145732455
+        ]
+      ],
+      "area_m2": 0.0005165092792180491,
+      "abs_volume_m3": 2.893760252221214e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4232_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0016.npz",
+      "geometry_sha256": "0bcf9e2be1a6cd88087468200b17edee3f4a0d8cf7c656631008146cc95af18d",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999997,
+          -0.035383676388406116,
+          -0.09969298299007273
+        ],
+        [
+          0.08599999999999998,
+          -0.028887971737527184,
+          -0.0890029824560151
+        ]
+      ],
+      "area_m2": 0.0005165092792180491,
+      "abs_volume_m3": 2.8937602522212216e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4233_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0017.npz",
+      "geometry_sha256": "5df6a9802c8a6a815a740e0b6fc970b669c51c527ce303f59abee1e39e9429c5",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999994,
+          -0.03535668242501637,
+          -0.09280194588849003
+        ],
+        [
+          0.08599999999999995,
+          -0.028658168671997167,
+          -0.0821177297529148
+        ]
+      ],
+      "area_m2": 0.00051650927921805,
+      "abs_volume_m3": 2.893760252221224e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4234_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0018.npz",
+      "geometry_sha256": "9ab4de02168a3baf727cf2bc355b7fe7d0f3b848cae30b53a5602fe27c39a74e",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.0699999999999999,
+          -0.03387558373695948,
+          -0.08591018828157192
+        ],
+        [
+          0.08599999999999994,
+          -0.024669227749457897,
+          -0.07634308727074127
+        ]
+      ],
+      "area_m2": 0.0005165092792180501,
+      "abs_volume_m3": 2.89376025222123e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4235_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0019.npz",
+      "geometry_sha256": "9eb8dfd3ee67b64599bdf0cb66118c08f3b2fe83008c7d51c89b0bb156c1fb8d",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999988,
+          -0.0284626518564632,
+          -0.08029031021051282
+        ],
+        [
+          0.0859999999999999,
+          -0.017877651234305358,
+          -0.07283972939643057
+        ]
+      ],
+      "area_m2": 0.0005165092792180498,
+      "abs_volume_m3": 2.893760252221231e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4236_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0020.npz",
+      "geometry_sha256": "09ffec4e16f352edb54efee2a5bb20c7e3a2d500e977a5c6a42caa8aff522c05",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999987,
+          -0.02166664702667008,
+          -0.0831412984773642
+        ],
+        [
+          0.08599999999999988,
+          -0.012099404222492147,
+          -0.07393394308515452
+        ]
+      ],
+      "area_m2": 0.0005165092792180495,
+      "abs_volume_m3": 2.89376025222122e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4237_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0021.npz",
+      "geometry_sha256": "773aca6d658ba21645c01902f15fa4d3e6075d9bdc5e9345be08874bfbffaf83",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999991,
+          -0.016053595292920542,
+          -0.0898862016671208
+        ],
+        [
+          0.08599999999999991,
+          -0.008424688509829942,
+          -0.07935299645450603
+        ]
+      ],
+      "area_m2": 0.0005165092792180488,
+      "abs_volume_m3": 2.89376025222122e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4238_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0022.npz",
+      "geometry_sha256": "44c30e4c4d77591fe2ac39468c556f12ed150ca5b6be4ac6df784c75bbff9342",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999988,
+          -0.014679381039285008,
+          -0.09678537006618515
+        ],
+        [
+          0.0859999999999999,
+          -0.00818367638840605,
+          -0.08609536953212756
+        ]
+      ],
+      "area_m2": 0.000516509279218049,
+      "abs_volume_m3": 2.893760252221209e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4239_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0023.npz",
+      "geometry_sha256": "cd83a6ee38e69e910e361dd4949d7067ca3a5a8d72b04cf35acfcb31ff373cbe",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.0699999999999999,
+          -0.014679381039285015,
+          -0.10367537906749454
+        ],
+        [
+          0.08599999999999991,
+          -0.008183676388406056,
+          -0.09298537853343693
+        ]
+      ],
+      "area_m2": 0.0005165092792180496,
+      "abs_volume_m3": 2.89376025222122e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4240_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0024.npz",
+      "geometry_sha256": "bddfeb8e207236ad207ff09cc76661e0078877997e060b5330362354d60c704e",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.0699999999999999,
+          -0.014679381039285025,
+          -0.11056538806880392
+        ],
+        [
+          0.08599999999999991,
+          -0.008183676388406067,
+          -0.09987538753474631
+        ]
+      ],
+      "area_m2": 0.0005165092792180489,
+      "abs_volume_m3": 2.893760252221214e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4241_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0025.npz",
+      "geometry_sha256": "536de8af4eefb1d5f9f393573a9077325fcc0b11445d4ce49d09773620e55479",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999994,
+          -0.01467938103928503,
+          -0.1174553970701133
+        ],
+        [
+          0.08599999999999995,
+          -0.008183676388406072,
+          -0.1067653965360557
+        ]
+      ],
+      "area_m2": 0.000516509279218049,
+      "abs_volume_m3": 2.893760252221213e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4242_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0026.npz",
+      "geometry_sha256": "eab8bb18c6c7c026a9322c42b8d5566d6dbfb88d5c39c270a008d3f4925a6b8d",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999995,
+          -0.014679381039285039,
+          -0.12434540607142265
+        ],
+        [
+          0.08599999999999997,
+          -0.00818367638840608,
+          -0.11365540553736504
+        ]
+      ],
+      "area_m2": 0.0005165092792180496,
+      "abs_volume_m3": 2.8937602522212173e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4243_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0027.npz",
+      "geometry_sha256": "c0fa51555eb94861f89f2e2ba7ce042beed0bf62418c905bb4dadb98fab85b5c",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999995,
+          -0.014679381039285044,
+          -0.13123541507273206
+        ],
+        [
+          0.08599999999999997,
+          -0.008183676388406086,
+          -0.12054541453867446
+        ]
+      ],
+      "area_m2": 0.0005165092792180492,
+      "abs_volume_m3": 2.893760252221214e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4244_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0028.npz",
+      "geometry_sha256": "1187867a752484d5554d1125908eb37a5f1ca5c2d5c9cd1cff0bc72217ee5c6d",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999997,
+          -0.014679381039285054,
+          -0.13812542407404144
+        ],
+        [
+          0.08599999999999998,
+          -0.008183676388406096,
+          -0.12743542353998383
+        ]
+      ],
+      "area_m2": 0.0005165092792180492,
+      "abs_volume_m3": 2.8937602522212184e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4245_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0029.npz",
+      "geometry_sha256": "f592dde1db124ed3d3d7b5320bc0a7a587115878a235fdaea8ed31926d2e92eb",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999998,
+          -0.014679381039285063,
+          -0.1450154330753508
+        ],
+        [
+          0.086,
+          -0.008183676388406105,
+          -0.1343254325412932
+        ]
+      ],
+      "area_m2": 0.0005165092792180499,
+      "abs_volume_m3": 2.8937602522212284e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4246_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0030.npz",
+      "geometry_sha256": "9978f806e6c3ba3f577784158c8782c51d8ac929d92b13486f53a18696ae3521",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.06999999999999999,
+          -0.01467938103928507,
+          -0.1519054420766602
+        ],
+        [
+          0.08600000000000001,
+          -0.008183676388406114,
+          -0.14121544154260257
+        ]
+      ],
+      "area_m2": 0.000516509279218049,
+      "abs_volume_m3": 2.8937602522212073e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4247_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0031.npz",
+      "geometry_sha256": "bca01070ed5924ae700a855115b4cbbb9c4c3784d6965a53f3ee18e38d453edd",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07,
+          -0.01467938103928508,
+          -0.15879545107796958
+        ],
+        [
+          0.08600000000000002,
+          -0.008183676388406122,
+          -0.14810545054391197
+        ]
+      ],
+      "area_m2": 0.000516509279218049,
+      "abs_volume_m3": 2.893760252221214e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4248_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0032.npz",
+      "geometry_sha256": "e9e2e9043da5d23e133cf059d930a1503d5af28427dc69b0287585eabfca9c5c",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000002,
+          -0.014679381039285089,
+          -0.16568546007927895
+        ],
+        [
+          0.08600000000000003,
+          -0.008183676388406131,
+          -0.15499545954522134
+        ]
+      ],
+      "area_m2": 0.0005165092792180502,
+      "abs_volume_m3": 2.8937602522212343e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4249_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0033.npz",
+      "geometry_sha256": "88110f4e7d734afc6c6cf4f0ac037a473018ed79c96f0d11d7b0e38a74a3e761",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000002,
+          -0.014679381039285098,
+          -0.17257546908058832
+        ],
+        [
+          0.08600000000000003,
+          -0.00818367638840614,
+          -0.1618854685465307
+        ]
+      ],
+      "area_m2": 0.0005165092792180489,
+      "abs_volume_m3": 2.8937602522212173e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4250_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0034.npz",
+      "geometry_sha256": "854c37049f28734f7496f80cab13a5dc480f2dfb3b6a0581eca5688924c66ff8",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000005,
+          -0.014679381039285105,
+          -0.17946547808189772
+        ],
+        [
+          0.08600000000000006,
+          -0.008183676388406147,
+          -0.1687754775478401
+        ]
+      ],
+      "area_m2": 0.0005165092792180489,
+      "abs_volume_m3": 2.893760252221216e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4251_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0035.npz",
+      "geometry_sha256": "7692857a215669be0c0cb625ec4e664a236146182994f8b21748b5a5c5165590",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000005,
+          -0.014679381039285112,
+          -0.18635548708320707
+        ],
+        [
+          0.08600000000000006,
+          -0.008183676388406154,
+          -0.17566548654914946
+        ]
+      ],
+      "area_m2": 0.0005165092792180501,
+      "abs_volume_m3": 2.89376025222123e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4252_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0036.npz",
+      "geometry_sha256": "e1ad78b3170a1eac4b5fb8044572f138666e1cc9e444830d4513cb7ec446cd92",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000008,
+          -0.015307409204250054,
+          -0.19321702830441348
+        ],
+        [
+          0.08600000000000009,
+          -0.008270095361566816,
+          -0.18255555091205916
+        ]
+      ],
+      "area_m2": 0.0005165092792180494,
+      "abs_volume_m3": 2.89376025222122e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4253_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0037.npz",
+      "geometry_sha256": "08b665b3f33848ad5d344d29643b68f55c7e7c29ef27f8a3995dc93fd6c556c5",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.0700000000000001,
+          -0.020082538980035203,
+          -0.19893340577277857
+        ],
+        [
+          0.08600000000000012,
+          -0.01061462372732479,
+          -0.18942140177527156
+        ]
+      ],
+      "area_m2": 0.0005165092792180499,
+      "abs_volume_m3": 2.893760252221241e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4254_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0038.npz",
+      "geometry_sha256": "6580c31fb1e1b2ec4dbc5200f30aeb1699a6b54b2d8d43a46d495b1b9e381d9e",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.0700000000000001,
+          -0.026980263154407245,
+          -0.20098413878238344
+        ],
+        [
+          0.08600000000000012,
+          -0.016291946472688047,
+          -0.19437812679746694
+        ]
+      ],
+      "area_m2": 0.0005165092792180497,
+      "abs_volume_m3": 2.8937602522212284e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4255_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0039.npz",
+      "geometry_sha256": "525dedd45d841e562e9ac182f8c2dc38bad95945eaee9b732bd5383c2b71854b",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000012,
+          -0.03269642339848884,
+          -0.19918987168733368
+        ],
+        [
+          0.08600000000000013,
+          -0.023184862432627143,
+          -0.18972153131831854
+        ]
+      ],
+      "area_m2": 0.0005165092792180502,
+      "abs_volume_m3": 2.893760252221244e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4256_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0040.npz",
+      "geometry_sha256": "9ba79d9a3564b36219609258160cd8514cf68a046d6dd6cd4ddac2dfcb9b836d",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000012,
+          -0.03527589406392629,
+          -0.19351231131744032
+        ],
+        [
+          0.08600000000000013,
+          -0.028138873357770298,
+          -0.18286299703639414
+        ]
+      ],
+      "area_m2": 0.0005165092792180495,
+      "abs_volume_m3": 2.893760252221227e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4265_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0041.npz",
+      "geometry_sha256": "db8cdcefa21c7784c7843d4856031fbc72e323fa60f7b641aa473c337ce0a5fc",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.0700000000000001,
+          -0.03538367638840623,
+          -0.18666289768852726
+        ],
+        [
+          0.08600000000000012,
+          -0.028887971737527298,
+          -0.17597289715446965
+        ]
+      ],
+      "area_m2": 0.0005165092792180489,
+      "abs_volume_m3": 2.893760252221224e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4266_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0042.npz",
+      "geometry_sha256": "85f22cdc08a1110fbd5d315388ad749064bfe46fd3b82e6b791d1dc32bc0c485",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000008,
+          -0.03538367638840621,
+          -0.17977288868721777
+        ],
+        [
+          0.08600000000000009,
+          -0.028887971737527284,
+          -0.16908288815316017
+        ]
+      ],
+      "area_m2": 0.00051650927921805,
+      "abs_volume_m3": 2.893760252221224e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4267_e6vdj3bh8xq2kqR/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0043.npz",
+      "geometry_sha256": "c959bf7d1da5a35a7207b664ccb857c3123976d0ed24b0a885737d260b250197",
+      "required": true,
+      "vertices": 2556,
+      "triangles": 852,
+      "bounds_m": [
+        [
+          0.07000000000000009,
+          -0.0353836763884062,
+          -0.1728828796859083
+        ],
+        [
+          0.0860000000000001,
+          -0.02888797173752727,
+          -0.16219287915185066
+        ]
+      ],
+      "area_m2": 0.0005165092792180488,
+      "abs_volume_m3": 2.8937602522212173e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "694929642ab00447d885ba9dee364431caacdbd52be8bcd328bcafb36c611acf"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__1_x1czW1ge7XaBmud1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0044.npz",
+      "geometry_sha256": "c2c3f5c5f18c6659c71ce4f1213600aa7b18a0d3324f13a9e37c2340fe58f430",
+      "required": true,
+      "vertices": 3504,
+      "triangles": 1168,
+      "bounds_m": [
+        [
+          0.02900401107413525,
+          -0.010783676769875999,
+          -0.14701967735864316
+        ],
+        [
+          0.050995988925864925,
+          -0.002183676388406256,
+          -0.12502769950691348
+        ]
+      ],
+      "area_m2": 0.0016849087356250799,
+      "abs_volume_m3": 2.345967178346632e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "ad9d55e9ae05591b8962eb1eab6b59c167b475f762b7407a8efc4ba003e89c4a"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__203271_c957gwh7vqb3/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0045.npz",
+      "geometry_sha256": "2dcaaed5ae64c1da8a0495b5805c998e038a7d796ad4883a9b44851cf3cef6a0",
+      "required": true,
+      "vertices": 7680,
+      "triangles": 2560,
+      "bounds_m": [
+        [
+          0.026502478639784485,
+          -0.008783676388406268,
+          -0.14952120979299388
+        ],
+        [
+          0.05349752136021573,
+          -0.004783676388406264,
+          -0.12252616707256264
+        ]
+      ],
+      "area_m2": 0.0012834591114006487,
+      "abs_volume_m3": 1.005389207031125e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "95cd55509f40728ffcc82030c0858198979e50c79e155742d20481a501a34a9c"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__1_x1qVd1i7og5ix5nsp1m0lib0/tn__1_x1qVd1i7XaBmud1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0046.npz",
+      "geometry_sha256": "a8eddb0bd86088bed4914267927eff1538ba194a986f4f4d61b97a2bee225254",
+      "required": true,
+      "vertices": 7506,
+      "triangles": 2502,
+      "bounds_m": [
+        [
+          0.02000960116560774,
+          -0.01578367638840628,
+          -0.15601408726717061
+        ],
+        [
+          0.05999039883439245,
+          -0.00278367638840625,
+          -0.11603328959838592
+        ]
+      ],
+      "area_m2": 0.004295465905298756,
+      "abs_volume_m3": 5.387384844622917e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "9b53714f5573ba82cb82212efc2d40e81ea61137e2f5ee1d305b2cd501b56a07"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__1_x1qVd1i7og5ix5nsp1m0lib0/tn__spurgear_gb1_mCd5/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0047.npz",
+      "geometry_sha256": "95415e99a85637a07a0e02b394b7a64edbcf2dae390da2010e8061e8c5218f82",
+      "required": true,
+      "vertices": 5544,
+      "triangles": 1848,
+      "bounds_m": [
+        [
+          0.021118159151962704,
+          -0.008783676388406285,
+          -0.1549055292808132
+        ],
+        [
+          0.05888184084803608,
+          -0.002783676388406249,
+          -0.11714184758473982
+        ]
+      ],
+      "area_m2": 0.002641855088066452,
+      "abs_volume_m3": 1.8316002932665442e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "84c7bacab445cdbd8e52146a911c0defd829875588e7b244554cedc037bf54ac"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__1_x1czW1Zl5Xb1qnDutp1qcN/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0048.npz",
+      "geometry_sha256": "031b26b814a892d3796ffccc7e079de1b4193e4dd7e0cbdd438c748a75040952",
+      "required": true,
+      "vertices": 1536,
+      "triangles": 512,
+      "bounds_m": [
+        [
+          0.028649999355524793,
+          -0.004783676388406267,
+          -0.14737368907725357
+        ],
+        [
+          0.05135000064447541,
+          -0.0017836763884062654,
+          -0.12467368778830296
+        ]
+      ],
+      "area_m2": 0.0005669485951825885,
+      "abs_volume_m3": 2.4276881109784144e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "4558d54c9c4ceab542efefd35b1aae65f09432ae53a9a9e521ffbcb3585f5531"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__N201_g6wia3cxc0ssSjkW1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0049.npz",
+      "geometry_sha256": "330114eeb8c1ad40d531a0b30d1532fbe86ca476bc8f02b7c505591760ee4685",
+      "required": true,
+      "vertices": 3132,
+      "triangles": 1044,
+      "bounds_m": [
+        [
+          0.00734661143420586,
+          0.08766133950088721,
+          -0.13134979615697925
+        ],
+        [
+          0.03526887644295733,
+          0.10533620052409896,
+          -0.10337228460847254
+        ]
+      ],
+      "area_m2": 0.0013733265185968393,
+      "abs_volume_m3": 2.6714910019644834e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "66e87059b53cbfe22389009e7c20d4ede263edae08c980c6761c2a624de7cca8"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__N201_g6yqi3kn7YsNakW0/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0050.npz",
+      "geometry_sha256": "b7cf5e88485caf75b5d0936e40824b24f1f7110b082a9185110a3212c346bb4d",
+      "required": true,
+      "vertices": 3423,
+      "triangles": 1141,
+      "bounds_m": [
+        [
+          0.0049018075048675325,
+          0.09166506109124577,
+          -0.11658852623397697
+        ],
+        [
+          0.020436244646423605,
+          0.10585655408342423,
+          -0.10104750525455969
+        ]
+      ],
+      "area_m2": 0.000545962881205998,
+      "abs_volume_m3": 2.9682719758341e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "7f81a32e82164c7287d62faf1c20df6d898f8c938e7003ed378538838dbbcf06"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__1_x1zbd1ty9ht3/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0051.npz",
+      "geometry_sha256": "6ef336fc11f181c05d9dbc6892895a0304ff8589d5eb5362c2d857a69edcfb3f",
+      "required": true,
+      "vertices": 900,
+      "triangles": 300,
+      "bounds_m": [
+        [
+          -0.02646140469737898,
+          0.09783153560398238,
+          -0.11201763437018983
+        ],
+        [
+          0.015861235531239717,
+          0.12427273279715267,
+          -0.0698449377138133
+        ]
+      ],
+      "area_m2": 0.002112938320384075,
+      "abs_volume_m3": 1.4383961045085125e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "4798eae21812d6770bf15f820d86e98a5b6400d121f3098eb37897795e9384d6"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__M31_w4nai3qsd1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0052.npz",
+      "geometry_sha256": "e85778aae1461e051f51ea9cbe0ed30e77f630a4350feee7a05caac40b5f4740",
+      "required": true,
+      "vertices": 840,
+      "triangles": 280,
+      "bounds_m": [
+        [
+          -0.025550443426325866,
+          0.11391027096770971,
+          -0.08265143019817224
+        ],
+        [
+          -0.013633218827470163,
+          0.12310848825501723,
+          -0.0707586923174628
+        ]
+      ],
+      "area_m2": 0.00032968558558005,
+      "abs_volume_m3": 1.4002078932906977e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "06abf29fed26e698762ace5f1d7dd8bb70d2e2858251771aa592ecd2135e0892"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__M31_w4Vlt4siJ/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0053.npz",
+      "geometry_sha256": "d8975f5fc7b69f82dd3b0461a28070e92524f2934319c219c4a0fc6245b0c547",
+      "required": true,
+      "vertices": 828,
+      "triangles": 276,
+      "bounds_m": [
+        [
+          -0.046149012857930646,
+          0.11153343514504915,
+          -0.08846000035043963
+        ],
+        [
+          -0.007790273562658627,
+          0.13386632063279671,
+          -0.05025590745162272
+        ]
+      ],
+      "area_m2": 0.0005817496070511876,
+      "abs_volume_m3": 4.1019547122540017e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "1ad5ea5a7414548745383f86d9e1d413bbb741c3a138980c5b44e6170fe63d8b"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__1_x1ifb1nf1Xa2fkc1jvM/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0054.npz",
+      "geometry_sha256": "a27f5e272a3a8a421d33037bb5d60e010c622af0448e6889b25eb32453baeeda",
+      "required": true,
+      "vertices": 1686,
+      "triangles": 562,
+      "bounds_m": [
+        [
+          -0.049404597369864155,
+          0.1256180929810034,
+          -0.05894984756592587
+        ],
+        [
+          -0.03744705765472589,
+          0.1357334170466302,
+          -0.04701082025292819
+        ]
+      ],
+      "area_m2": 0.0004343030720695545,
+      "abs_volume_m3": 2.620153914814618e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "51a98df3bb4a318a8679679d36ebb6b58a1f83c35414c3fcb925c63440b491ce"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1sfz0aZ0XeJ/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0055.npz",
+      "geometry_sha256": "e030ce0f99dbec06ac300461fff739ece5c69d14cffe8b7ab7cf8b0b81f0d932",
+      "required": true,
+      "vertices": 10473,
+      "triangles": 3491,
+      "bounds_m": [
+        [
+          0.0008044862059366054,
+          -0.0017836763884062634,
+          -0.2183161186635989
+        ],
+        [
+          0.1224630149320575,
+          0.04121632361159374,
+          -0.09039348910543937
+        ]
+      ],
+      "area_m2": 0.04196650614362653,
+      "abs_volume_m3": 7.087080753529516e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "2cd60a6cc0495834796bf50ba7cf5730cd9ad81eb49abde06e19e4a16eae0c04"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1fXd1fcg0/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0056.npz",
+      "geometry_sha256": "fec1b0371ce82126c9ecf77561f78a5dc09e456137a70decdc54635c375145f9",
+      "required": true,
+      "vertices": 1968,
+      "triangles": 656,
+      "bounds_m": [
+        [
+          -0.05197124385536899,
+          0.014244248040718404,
+          -0.14345363996664892
+        ],
+        [
+          0.047418577671885315,
+          0.11486930233391494,
+          -0.04442870979466156
+        ]
+      ],
+      "area_m2": 0.01061354556307919,
+      "abs_volume_m3": 3.5420360022914885e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "7c08fb585977de7c1411916e332bfdbfbcc03cd2f6ad3fa8b81d95614fa484ff"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1fhf1fZd0/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0057.npz",
+      "geometry_sha256": "0d445c918eb1d0cb53a7387d86c4945a1b4d2f23c75b6407905a4bf517286a21",
+      "required": true,
+      "vertices": 2004,
+      "triangles": 668,
+      "bounds_m": [
+        [
+          -0.0647625429786284,
+          0.029861593041008327,
+          -0.05883503069701425
+        ],
+        [
+          -0.03757673288191385,
+          0.13513333873729186,
+          -0.03170902063570999
+        ]
+      ],
+      "area_m2": 0.005702031261869451,
+      "abs_volume_m3": 1.4015030945950101e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "048516dd58c1ead527de42d3f8485b6e5c69d0611db77ec661a0d128b5516913"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1iVl1so1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0058.npz",
+      "geometry_sha256": "33cb9b8fe2f4a211f89de5e4c189422ca1ad8d4a9982c245cf1a5f15f0f0dbdf",
+      "required": true,
+      "vertices": 2775,
+      "triangles": 925,
+      "bounds_m": [
+        [
+          -0.09321152533431151,
+          -0.010065852769239662,
+          -0.049217863724923976
+        ],
+        [
+          -0.047322868251855756,
+          0.04231115237163273,
+          -0.0033061787336658953
+        ]
+      ],
+      "area_m2": 0.008198534108120978,
+      "abs_volume_m3": 7.630340459653244e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "629d79469aa54ecd08e3b91967318a4a10b3be2a7e91df512ba991aebf5c3564"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__11_h3cgg2ie2kp1pph1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0059.npz",
+      "geometry_sha256": "90947d2f0315c8ff7793e9b0351375aeb6f392d44c7fa54e546de8bbb65b4952",
+      "required": true,
+      "vertices": 2388,
+      "triangles": 796,
+      "bounds_m": [
+        [
+          -0.07208397746791506,
+          0.03678543636385162,
+          -0.03735386225754703
+        ],
+        [
+          -0.05915683719344544,
+          0.05791940891369275,
+          -0.024421151901960845
+        ]
+      ],
+      "area_m2": 0.0007219098347755833,
+      "abs_volume_m3": 5.178590540211166e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "9b04ad891699ceee2afb1036faf842e4b4dd54f5fffcd9f15717e46fd069fe73"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__21_h3cgg2ie2kp1pph1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0060.npz",
+      "geometry_sha256": "7c209a6225b3d73f0bd354d183e9aa72d08d231cfa1d4eecb0876aaaed14b378",
+      "required": true,
+      "vertices": 1572,
+      "triangles": 524,
+      "bounds_m": [
+        [
+          -0.0629736293113476,
+          0.04000167130887725,
+          -0.037295300172401985
+        ],
+        [
+          -0.05068477111614633,
+          0.057919226116716946,
+          -0.025049814183527596
+        ]
+      ],
+      "area_m2": 0.0002631512248948582,
+      "abs_volume_m3": 1.2395973003523173e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "dd6d23de5bd907133fa25ae2bce8bb30f437f680273e6741951924e834e3b7e9"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__22_h3cgg2ie2kp1pph1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0061.npz",
+      "geometry_sha256": "e8127d08571e89dc83bd2e2afe394fff9acc20a641d341b3cb45f1d7d1b33a8e",
+      "required": true,
+      "vertices": 1572,
+      "triangles": 524,
+      "bounds_m": [
+        [
+          -0.07143939289526663,
+          0.040001671308882186,
+          -0.04580005454517464
+        ],
+        [
+          -0.05915053470006527,
+          0.05791922611672178,
+          -0.03355456855630016
+        ]
+      ],
+      "area_m2": 0.00026315122489485837,
+      "abs_volume_m3": 1.2395973003523202e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "dd6d23de5bd907133fa25ae2bce8bb30f437f680273e6741951924e834e3b7e9"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__pcb1_g6/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0062.npz",
+      "geometry_sha256": "eb2a049d23f609543e1b8dd8b2e145ef498ff461a7223a97e353b85f675d9124",
+      "required": true,
+      "vertices": 492,
+      "triangles": 164,
+      "bounds_m": [
+        [
+          0.03997026029514961,
+          0.001716323611593726,
+          -0.1394796068131781
+        ],
+        [
+          0.07536174420791576,
+          0.03771632361159373,
+          -0.1042438946795302
+        ]
+      ],
+      "area_m2": 0.002684909060514812,
+      "abs_volume_m3": 1.2628213132941956e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "d3b4d5fe1cee6b3f8db152f80b4410ddd69d518a5546401c02a19a011872f182"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1glX1oZ6ybDlY5/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0063.npz",
+      "geometry_sha256": "af5b5325792b0cfa3d91ef9289e519e430d985c54edbbd6c711cac3afd7caad1",
+      "required": true,
+      "vertices": 1194,
+      "triangles": 398,
+      "bounds_m": [
+        [
+          0.049660245389003745,
+          0.0005163232360844639,
+          -0.13639730627230548
+        ],
+        [
+          0.09395064602642547,
+          0.03891632476196338,
+          -0.09229958513413385
+        ]
+      ],
+      "area_m2": 0.003655225349665366,
+      "abs_volume_m3": 2.6399992573867466e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "8a581878835d7e48fd68840f227269a79ce8af7265f79fc8c773188b5ab8214d"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1juz0ZjUqrAum1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0064.npz",
+      "geometry_sha256": "9a36ca0017888cbb2354685c50aa0b609bb785616ae3ae252abd5dfb1317054b",
+      "required": true,
+      "vertices": 900,
+      "triangles": 300,
+      "bounds_m": [
+        [
+          0.038000531470582424,
+          0.0252163236115937,
+          -0.2183161186635989
+        ],
+        [
+          0.12246301493205751,
+          0.028216323611593715,
+          -0.13378052747302235
+        ]
+      ],
+      "area_m2": 0.008744038747213271,
+      "abs_volume_m3": 1.1898762275997693e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "4a9c4df774b09e470918cb4e44a87e599dad6d8429984ed254dd4ab7de72ffe6"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__N201_g6wia3cxc0ssSjkW1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0065.npz",
+      "geometry_sha256": "9586f34a948b203650ae6ca500be66cd9f97ec250bef08b03e087bd53643702f",
+      "required": true,
+      "vertices": 3132,
+      "triangles": 1044,
+      "bounds_m": [
+        [
+          -0.013348499994660519,
+          0.06677287010496297,
+          -0.11953601409785357
+        ],
+        [
+          0.004972053150663167,
+          0.10152587357797516,
+          -0.10123330619127205
+        ]
+      ],
+      "area_m2": 0.0013733265185968387,
+      "abs_volume_m3": 2.671491001848036e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "66e87059b53cbfe22389009e7c20d4ede263edae08c980c6761c2a624de7cca8"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__N201_g6yqi3kn7YsNakW0/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0066.npz",
+      "geometry_sha256": "df174b04a698089d01f1681e9b221c8e66f472498378810d6a4c84673badf416",
+      "required": true,
+      "vertices": 3423,
+      "triangles": 1141,
+      "bounds_m": [
+        [
+          -0.009814856826815713,
+          0.07309549780556414,
+          -0.12406237790229988
+        ],
+        [
+          0.009517356299722161,
+          0.07935391177581311,
+          -0.10474099217343502
+        ]
+      ],
+      "area_m2": 0.000545962881205998,
+      "abs_volume_m3": 2.9682719758341e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "7f81a32e82164c7287d62faf1c20df6d898f8c938e7003ed378538838dbbcf06"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__1_x1zbd1ty9ht3/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0067.npz",
+      "geometry_sha256": "91153d153e750173f0ab92742ad28f17e70babd5369c0d1144d2d929592003da",
+      "required": true,
+      "vertices": 900,
+      "triangles": 300,
+      "bounds_m": [
+        [
+          -0.005266966594639684,
+          0.025202395192160585,
+          -0.12786983758142298
+        ],
+        [
+          0.013359286922443012,
+          0.0751238236149717,
+          -0.10928488948310067
+        ]
+      ],
+      "area_m2": 0.001935564440397092,
+      "abs_volume_m3": 1.2945131011773402e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "c44d5dffa5c341c1e5c2b03e91e7605501bc2ab8114bb6abe101d3679d95a181"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__M31_w4nai3qsd1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0068.npz",
+      "geometry_sha256": "ac7c96ee6ef00b9ad4027b1227033b903ec33b8d9408170f54e94aa5b61dd6ab",
+      "required": true,
+      "vertices": 840,
+      "triangles": 280,
+      "bounds_m": [
+        [
+          0.004412335468460114,
+          0.025594329658919786,
+          -0.12669249449222753
+        ],
+        [
+          0.012183523484252789,
+          0.03867580552244917,
+          -0.11892678598205372
+        ]
+      ],
+      "area_m2": 0.0003296855855800499,
+      "abs_volume_m3": 1.400207893290699e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "06abf29fed26e698762ace5f1d7dd8bb70d2e2858251771aa592ecd2135e0892"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__M31_w4Vlt4siJ/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0069.npz",
+      "geometry_sha256": "5888661fd9964cad7f47ab5099b140be94ef647e957d7e776899b97d0eee83e8",
+      "required": true,
+      "vertices": 828,
+      "triangles": 276,
+      "bounds_m": [
+        [
+          0.00214811628656872,
+          0.00567489961509656,
+          -0.13148654946340607
+        ],
+        [
+          0.017011347018205763,
+          0.05249151371644088,
+          -0.11668614541766868
+        ]
+      ],
+      "area_m2": 0.0005347013795698111,
+      "abs_volume_m3": 3.750792130786048e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "936a911a391062efdc0e1c11f93c491aceb5f7cd42e03ea570a6032617cae41a"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__1_x1ifb1nf1Xa2fkc1jvM/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0070.npz",
+      "geometry_sha256": "85112a50238c6f40cf07338fc2752d4e43ecf6cb1f83eddaf8221f2dd3a30c68",
+      "required": true,
+      "vertices": 1686,
+      "triangles": 562,
+      "bounds_m": [
+        [
+          0.008426882312166678,
+          0.0018504940662879168,
+          -0.13391063373955103
+        ],
+        [
+          0.019431813249580387,
+          0.013070055283787725,
+          -0.1229198478861774
+        ]
+      ],
+      "area_m2": 0.00043430307206955413,
+      "abs_volume_m3": 2.6201539148146244e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "51a98df3bb4a318a8679679d36ebb6b58a1f83c35414c3fcb925c63440b491ce"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__N201_g6wia3cxc0ssSjkW1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0071.npz",
+      "geometry_sha256": "99be6de6942815ba8f047e2c7498a8aa65a7c06bbf62b5474a840f39a3e3c9cb",
+      "required": true,
+      "vertices": 3132,
+      "triangles": 1044,
+      "bounds_m": [
+        [
+          0.048888532159412,
+          -0.008783677342080588,
+          -0.15915943951914213
+        ],
+        [
+          0.0628625508322724,
+          0.026516325709677227,
+          -0.1444934547263766
+        ]
+      ],
+      "area_m2": 0.0013733265185968384,
+      "abs_volume_m3": 2.6714910018393936e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "66e87059b53cbfe22389009e7c20d4ede263edae08c980c6761c2a624de7cca8"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0zfr1b0aV0mr1YVX0/tn__spurgear_gb1_mCd5/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0072.npz",
+      "geometry_sha256": "cca37b130d16bddd29eead205b7bf8b5e4bcc5f6b46554ad11f6a9147c3f7f8a",
+      "required": true,
+      "vertices": 2826,
+      "triangles": 942,
+      "bounds_m": [
+        [
+          0.05097577804808872,
+          -0.005783676388406263,
+          -0.1567262105705144
+        ],
+        [
+          0.060775304943599215,
+          -0.0017836763884062608,
+          -0.1469266836750039
+        ]
+      ],
+      "area_m2": 0.00035020844044200325,
+      "abs_volume_m3": 1.272709562507778e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "f80b76b3610b9690678c2f7c71efc6cb592171553ef3baf17c49b16e9f29456a"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0zfr1b0aV0mr1YVX0/tn__1_x1s3Wyo1ci0tj2WdHXVm25Y1on0hY3yYm07/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0073.npz",
+      "geometry_sha256": "9fab79506142eedb5797226d05c889f7051cd8938acda924a3895539abea9984",
+      "required": true,
+      "vertices": 1956,
+      "triangles": 652,
+      "bounds_m": [
+        [
+          0.05337585771071269,
+          -0.005783676388406262,
+          -0.1543261309078889
+        ],
+        [
+          0.058375225280971645,
+          -0.00178367638840626,
+          -0.14932676333762993
+        ]
+      ],
+      "area_m2": 0.00012442289902086986,
+      "abs_volume_m3": 4.773224343451133e-08,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "7b12021a92cfc4aa28710342fcb19578798b70d651a99262df04e4b49c7c44d9"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__N201_g6wia3cxc0ssSjkW1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0074.npz",
+      "geometry_sha256": "74a4abe6d05b11418a548abce8e1b3cd3c4f88f11c7de54543d3fafad3d02605",
+      "required": true,
+      "vertices": 3132,
+      "triangles": 1044,
+      "bounds_m": [
+        [
+          -0.0715019911346515,
+          0.09738552661496037,
+          -0.039804273170759796
+        ],
+        [
+          -0.05669974610560858,
+          0.132731704167148,
+          -0.024995885494121347
+        ]
+      ],
+      "area_m2": 0.001373326518596838,
+      "abs_volume_m3": 2.671491001831556e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "66e87059b53cbfe22389009e7c20d4ede263edae08c980c6761c2a624de7cca8"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__N201_g6yqi3kn7YsNakW0/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0075.npz",
+      "geometry_sha256": "fe2779d8eb4d8e8846c0220dd4974e9538d7a458663c823ab13314e4eac6838b",
+      "required": true,
+      "vertices": 3423,
+      "triangles": 1141,
+      "bounds_m": [
+        [
+          -0.07193354602353247,
+          0.10131771307125056,
+          -0.043650575470955424
+        ],
+        [
+          -0.05283763662180088,
+          0.1074642138927631,
+          -0.024564410111842107
+        ]
+      ],
+      "area_m2": 0.0005459628812059978,
+      "abs_volume_m3": 2.968271975834098e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "7f81a32e82164c7287d62faf1c20df6d898f8c938e7003ed378538838dbbcf06"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__1_x1zbd1ty9ht3/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0076.npz",
+      "geometry_sha256": "0ca973268abb94006232a1bc9dd8a46fadb569e9c0f7bebf76d372c83f3fa1eb",
+      "required": true,
+      "vertices": 900,
+      "triangles": 300,
+      "bounds_m": [
+        [
+          -0.06830288083158287,
+          0.06435813156596336,
+          -0.03612971316512378
+        ],
+        [
+          -0.06037620286539065,
+          0.10445128653152969,
+          -0.02819528747954716
+        ]
+      ],
+      "area_m2": 0.0015808166804231257,
+      "abs_volume_m3": 1.0067470945149918e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "0ae5d61601f7785c3a9907a1fe8502349c4ec7264eca51431de23f3ae7ad010f"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__M31_w4nai3qsd1/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0077.npz",
+      "geometry_sha256": "d2400195da30809459c24b37ca0ebfe6d931ba0b95c5f444407f7e2f780e133c",
+      "required": true,
+      "vertices": 840,
+      "triangles": 280,
+      "bounds_m": [
+        [
+          -0.06710464831347003,
+          0.06437333243364067,
+          -0.03468810537225835
+        ],
+        [
+          -0.06181744812501891,
+          0.07643818520933529,
+          -0.029394996644024746
+        ]
+      ],
+      "area_m2": 0.0003296855855800501,
+      "abs_volume_m3": 1.4002078932906966e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "06abf29fed26e698762ace5f1d7dd8bb70d2e2858251771aa592ecd2135e0892"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__M31_w4Vlt4siJ/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0078.npz",
+      "geometry_sha256": "601ac60914c7a6c9f031483b061c5cc2be5105c8399ff697d66edad2580f026f",
+      "required": true,
+      "vertices": 828,
+      "triangles": 276,
+      "bounds_m": [
+        [
+          -0.06732056008741892,
+          0.05763609624506875,
+          -0.03470578954324465
+        ],
+        [
+          -0.06179719548107569,
+          0.09561528280700822,
+          -0.029182550360646625
+        ]
+      ],
+      "area_m2": 0.0004406049246070584,
+      "abs_volume_m3": 3.048466967850177e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "683050aa2fe95f9652d1224d35718a81030d1b0fdaf20683ef424e0f795772aa"
+    },
+    {
+      "source_id": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__1_x1ifb1nf1Xa2fkc1jvM/Mesh",
+      "source_file": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0079.npz",
+      "geometry_sha256": "625d47bb329d94f23b8a7ab708d68dcd79a7ff1293c16e4243b9ef41a002f6f8",
+      "required": true,
+      "vertices": 1686,
+      "triangles": 562,
+      "bounds_m": [
+        [
+          -0.0693942274943514,
+          0.053207850938509674,
+          -0.036785613488995846
+        ],
+        [
+          -0.059713373600923464,
+          0.06326833056921886,
+          -0.027112834332813
+        ]
+      ],
+      "area_m2": 0.00043430307206955446,
+      "abs_volume_m3": 2.6201539148146207e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "51a98df3bb4a318a8679679d36ebb6b58a1f83c35414c3fcb925c63440b491ce"
+    }
+  ],
+  "source_coverage_complete": true,
+  "coverage_note": "Canonical reference is the complete 80-mesh converter output, preserving all original native dependency bytes and the converted reference hash. Native SolidWorks assembly completeness and mate fidelity are not independently proven; acceptance is explicitly relative to this frozen neutral conversion. It is not a claim that all original native geometry was converted.",
+  "converted_reference": "/opt/astra-content-value-20260921/evaluator/general/references/08_excavator/reference.usdc",
+  "converted_reference_sha256": "526380cbae3b02a57713212a2114507a68a906e58df741bd8bc4ab1b5460f8c4",
+  "stage_meters_per_unit": 0.001,
+  "importer_versions": {
+    "usd-convert-cad": "0.2.0"
+  },
+  "schema_version": 1,
+  "case_id": "08_excavator",
+  "source_root": "/opt/astra-content-value-20260921/assets/08_excavator",
+  "source_files": [
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u4e3b\u4f53\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u4e3b\u4f53\u7cfb\u7edf-1 \u4e3b\u4f53\u5e95-1.STL",
+      "sha256": "b42450ecae86ade90a3b5a627a4808ef45d03a2cbb30dd2cb6cee837934b2444"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u4e3b\u4f53\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u4e3b\u4f53\u7cfb\u7edf-1 \u5927\u81c2-1.STL",
+      "sha256": "185a9709b0970a06da53d19a3f5459de84021198d7dbbc44e9418a43ca7c8d2c"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u4e3b\u4f53\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u4e3b\u4f53\u7cfb\u7edf-1 \u5c0f\u81c2-1.STL",
+      "sha256": "4f79da56e13ac736a4c61df472f27549adb0fcb3ced3260d77b8756e7d3f8369"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u4e3b\u4f53\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u4e3b\u4f53\u7cfb\u7edf-1 \u6316\u6597-1.STL",
+      "sha256": "1325a5a5730284cb76c9dd27c4e0ee9331ba99fd1cb89f481a7dd119bc3d84a7"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u4e3b\u4f53\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u4e3b\u4f53\u7cfb\u7edf-1 \u6316\u6597\u8fde\u67461-1.STL",
+      "sha256": "edd5b404bd2cc89497e87b189cd75868d67cce1fd37b63856809aa260e03b853"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u4e3b\u4f53\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u4e3b\u4f53\u7cfb\u7edf-1 \u6316\u6597\u8fde\u67462-1.STL",
+      "sha256": "5ea78fc4a2e68d98b950658b0523dd6a485bc41123f0b65c12aa926f6c291531"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u4e3b\u4f53\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u4e3b\u4f53\u7cfb\u7edf-1 \u6316\u6597\u8fde\u67462-2.STL",
+      "sha256": "a03035ab35b71426951ee9ee569cf883f1b2ce2f35730d143ed9549835add84a"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u65cb\u8f6c\u7ed3\u6784/\u4e3b\u8f74\u9f7f\u8f6e\u9002\u914d\u4f53.STL",
+      "sha256": "745c65f61eb4531ab50e04af5efb58728f0223144c136c71f1e4b3d25efa3bae"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u65cb\u8f6c\u7ed3\u6784/\u8bd5\u88c51 - \u65b0\u8f74\u627f\u7cfb\u7edf-1 \u8f74\u627f\u5185\u5957-1.STL",
+      "sha256": "879734d02d15b942cea96c73ec47413104c26e7e2bd5a56107b9f671898eb945"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u65cb\u8f6c\u7ed3\u6784/\u8bd5\u88c51 - \u65b0\u8f74\u627f\u7cfb\u7edf-1 \u8f74\u627f\u5185\u5957\u57ab\u9ad8-1.STL",
+      "sha256": "cea28ef29e2780e9b3f436feba6b4a819bfacc2868b046aefd42299348c935af"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u65cb\u8f6c\u7ed3\u6784/\u8f74\u627f\u5916\u5957\u57ab\u9ad8.STL",
+      "sha256": "b23b503cffb0ce4185ed251a7029d9788c54ce37863d4c44b2104c73d8f5b600"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u65cb\u8f6c\u7ed3\u6784/\u8f74\u627f\u5916\u5957\u5e26\u9f7f\u8f6e.STL",
+      "sha256": "85dfc8a87f845c4c049e54aa4dcfb33283476ac23312ef8c65581b72c32dddf0"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u90e8\u5206/\u5c65\u5e26\u6a21\u5757\u603b\u5171\u6253\u537090\u4e2a.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u90e8\u5206/\u8bd5\u88c51 - \u5e95\u76d8\u7cfb\u7edf-1 \u4ece\u52a8\u8f6e3-4.STL",
+      "sha256": "298fbed63cdeb37b2f34a45d0c90dde0d84db2ab5b933d63a9409c11c7810d24"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u90e8\u5206/\u8bd5\u88c51 - \u5e95\u76d8\u7cfb\u7edf-1 \u4ece\u52a8\u8f6e3-9.STL",
+      "sha256": "4966f74d12a73612c43541623e22f6d0655bf97e719d40159313e3834b8d1565"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u90e8\u5206/\u8bd5\u88c51 - \u5e95\u76d8\u7cfb\u7edf-1 \u5c65\u5e26\u6a21\u57574-223.STL",
+      "sha256": "8963296f5cf98a9dd192badb08c639341141f5a979e512cb710c553748b7b3a7"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u90e8\u5206/\u8bd5\u88c51 - \u5e95\u76d8\u7cfb\u7edf-1 \u5e95\u76d8-1.STL",
+      "sha256": "0d94f34a276928d18454ff42ffe45e2d19e1893002da255ed9d44bd2c4c43941"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u90e8\u5206/\u8bd5\u88c51 - \u5e95\u76d8\u7cfb\u7edf-1 \u9a71\u52a8\u8f6e2-3.STL",
+      "sha256": "c9e46642ab38b18349a2cb61fb2e11a38a8215378a60f0ce851f82b14a955865"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u5e95\u76d8\u90e8\u5206/\u8bd5\u88c51 - \u5e95\u76d8\u7cfb\u7edf-1 \u9a71\u52a8\u8f6e2-4.STL",
+      "sha256": "6edf078d481228a80660ea9270721401532dbc4e91484029d41e5f1a2405c762"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u63a8\u6746\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u63a8\u67461-1 N20\u7535\u673a\u56fa\u5b9a-1.STL",
+      "sha256": "89885026e87b4916a8911d1fae32d29c3806357dc26578a5f177e3defcbc882b"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u63a8\u6746\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u63a8\u67461-1 \u63a8\u6746\u5957-1.STL",
+      "sha256": "816888f788f377da6fb8495fa7f321225e137a03a5fbfd2bdb7b092923dcea78"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u63a8\u6746\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u63a8\u67461-1 \u87ba\u9489\u56fa\u5b9a\u5934-1.STL",
+      "sha256": "c897698d87fc9fe2e8f901cfb36ba579f0b767f71dc4c8c055762e76b906a67d"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u63a8\u6746\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u63a8\u67461-2 N20\u7535\u673a\u56fa\u5b9a-1.STL",
+      "sha256": "19944d4b85edd3479daff13fae40afd01c9004297204983af42495b20595fe03"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u63a8\u6746\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u63a8\u67461-2 \u63a8\u6746\u5957-1.STL",
+      "sha256": "882b769b164708bd161a9c11a4746e0c7e4d866a8e6a26751a6f193138c17797"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u63a8\u6746\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u63a8\u67461-2 \u87ba\u9489\u56fa\u5b9a\u5934-1.STL",
+      "sha256": "856dfbeccf1f40929dd239fd5dd368edac0cbd7f80d59a8675b8ce0417165d9f"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u63a8\u6746\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u63a8\u67461-3 N20\u7535\u673a\u56fa\u5b9a-1.STL",
+      "sha256": "134c8e096cf625b53dbb43be9cea0834925a4e5c126e9892ceefc344711c095f"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u63a8\u6746\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u63a8\u67461-3 \u63a8\u6746\u5957-1.STL",
+      "sha256": "cdadb659c841a5ad61941f1e691f2ac875a90195ab4143af4ac0282fe48cb180"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/3D\u6253\u5370\u673aSTL\u6587\u4ef6/\u63a8\u6746\u90e8\u5206/\u8bd5\u88c51 - \u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf-1 \u63a8\u67461-3 \u87ba\u9489\u56fa\u5b9a\u5934-1.STL",
+      "sha256": "768b3d7a2fbb5e2016be5ea196a52c92407a1baa208d0bec3289cda45b96bb9f"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/M3\u87ba\u9489.SLDPRT",
+      "sha256": "2580f655f9f6721ed0bf282d05a8dc68cf3da94b30d20bed754cc81e4fffe101"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/M3\u94dc\u67f1.SLDPRT",
+      "sha256": "7b2fdfe6497e5c5b7e8fabe26dcb6368eb85c2ee80753693896fbebcbf433c5a"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/N20\u51cf\u901f\u7535\u673a.SLDPRT",
+      "sha256": "a8a8027af2600ef0dbb3e08301818fd2d43f36c438232630ffe202ceb8712bdd"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/N20\u7535\u673a\u56fa\u5b9a.SLDPRT",
+      "sha256": "bc1505f59010da115621aa36760f09fb360b14a866f91d8052f22ed35560193c"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/pcb.DXF",
+      "sha256": "29ba2cede3dddc96a26905d4e01c7616699cb688477486d35f4810c975832e82"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/pcb.sldprt",
+      "sha256": "533814594a86c4272efa1b047e70d2274e726cc141fcc55d858ff150aac50bd0"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/pcb^\u4e3b\u4f53\u7cfb\u7edf.DWG",
+      "sha256": "052209d7de2fd1c73d838100b79dd4fe5d2f733c36e7cfe0df0d717a975d551e"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/pcb^\u4e3b\u4f53\u7cfb\u7edf.DXF",
+      "sha256": "a7ccc24057d451dbc0df426b626ea72a19e8340e913b461b73be27043fb9634e"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u4e3b\u4f53\u5e26\u63a8\u6746\u7cfb\u7edf.sldasm",
+      "sha256": "e094fb965a67391098804d9a93eb849265aff53d6ed35c86cb1d96ca8bb5629b"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u4e3b\u4f53\u5e95.SLDPRT",
+      "sha256": "8dc3e9fabc94bda927aa34cbc3e48b850b3f2d2804fd9b939bd32ab90dfdc7e6"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u4e3b\u4f53\u7cfb\u7edf.sldasm",
+      "sha256": "5f5631d0d8594c95298bc512c6c57224a5f23fd1cc74be61923350c4e48bf567"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u4e3b\u8f74\u9f7f\u8f6e\u9002\u914d\u4f53.SLDASM",
+      "sha256": "533a720311454d88eb57ff5917ee2a995e85d220b7f7a345e84688026728031b"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u4ece\u52a8\u8f6e.SLDPRT",
+      "sha256": "f3286d194441cc1b685349316d19aba5dd1a97b2ba3ff300f953bffa723cfe31"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u4ece\u52a8\u8f6e2.SLDPRT",
+      "sha256": "278ddb500155db73362c6343b0fc6dc032ce0547c555b881e11d618615e25982"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u4ece\u52a8\u8f6e3.SLDPRT",
+      "sha256": "9955790605a51c6cedec14658bce18228150c04a7680b341102a3eea9c9e0729"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5916\u58f3.sldprt",
+      "sha256": "f8dd68604e8d2a59a5d9688dec0245909db525fa0eb775aeabcabcde47f9c5ae"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5916\u6321\u677f.sldprt",
+      "sha256": "6081b31b0fd3f3632d33d31fc594fb64797fd3a246a5e94d3332319b1393b03d"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5927\u81c2.SLDPRT",
+      "sha256": "119e2972d994c02a3bb049b478326c813df718a984b6fe213c600efa54d4b64f"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5c0f\u81c2.SLDPRT",
+      "sha256": "58254b1d681bc8672d003d40118660b36947aa33e8be5871694346ab5ee6b59a"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5c65\u5e26.SLDPRT",
+      "sha256": "d119df27673f3d256466e26f068bc18b12659d09fa9c097bde0b2641abc2e50b"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5c65\u5e26\u6a21\u5757.SLDPRT",
+      "sha256": "b2b61cb4a1f23305442b29690613c5f6c6210195eed786ba76661ac4326ac2f5"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5c65\u5e26\u6a21\u57572.SLDPRT",
+      "sha256": "66e7f6a29fe6d062dbe9c7ea109721bc3d7b2eb6edc65c9451d12f7d67449112"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5c65\u5e26\u6a21\u57573.SLDPRT",
+      "sha256": "054a145525fcde57953fc91c717a811aa7503d62ba674f3f5d84a4f68b39f13b"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5c65\u5e26\u6a21\u57574.SLDPRT",
+      "sha256": "9a6afde0b59fe30dcd90499ac4f6f4e0a99548c10b62256c2a730b59206daec8"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5e95\u76d8.SLDPRT",
+      "sha256": "60df907b08573eea88734f266b021d4ffebed176461065f73ad43085be0c3fa0"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u5e95\u76d8\u7cfb\u7edf.SLDASM",
+      "sha256": "cecaf7c735f7cbfe1206c563e0851f3e87af2ac14e1c5ac0a2cbbb7ddb457ffd"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u6316\u6597.SLDPRT",
+      "sha256": "af77053090768e3abdac91adb82ccb110b921e169be1bb52057a92341e385746"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u6316\u6597\u8fde\u67461.SLDPRT",
+      "sha256": "a99054fe35cac58d64bcd454facb85f5187901a5218256493339f27ff7f355d8"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u6316\u6597\u8fde\u67462.SLDPRT",
+      "sha256": "9bc912e07e63aef9ba846bf3e8a2faed6e81f317a0b20303175fd90cae688290"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u63a7\u5236\u677f\u58f3.sldprt",
+      "sha256": "8d2824858dcdb1ffa0342939307d01e44977e9ee8da46514d7d6bb947b1b452b"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u63a8\u67461.SLDASM",
+      "sha256": "ee76a41b355ed33d9df6ca5792312140824ee200108afc38cdcc0d4f870c0a6a"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u63a8\u6746\u5957.SLDPRT",
+      "sha256": "c30e6a8678e511afea830de19c13fb4bd6ba0a0b778702b7d5788af7da4df820"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u65b0\u8f74\u627f\u7cfb\u7edf.SLDASM",
+      "sha256": "70f5224a49ed1bb5abc0f4f6c0075932efce38cf2519966ffeaa0d651a9e6894"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u7535\u6c60\u4ed3\u76d6.sldprt",
+      "sha256": "4d1ecbeed09ffca071d772dc868cc12cee9a729ef7ba7e8e8fc18528a4142545"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u87ba\u9489\u56fa\u5b9a\u5934.SLDPRT",
+      "sha256": "4121a4def37b9b57bc0ae1200c0cc475b3dce975304516c095ea80c50ddf2095"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+      "sha256": "e1c8f66df634762c77ecb0e6e9af607e88a52518a4021035e8f3dc4633644954"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8f74\u627f20-32-7.SLDPRT",
+      "sha256": "752301653246940566381e112bfee2ec01664cc57a9ec5a679c0bf13daf38d68"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8f74\u627f\u5185\u5957.SLDPRT",
+      "sha256": "6320c95d825d1c3bf685cce78a562f6f091ee5dd48597970d869b6bf46259c5f"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8f74\u627f\u5185\u5957\u57ab\u9ad8.SLDPRT",
+      "sha256": "9f91cb2800e6bec208aa5009e2e01a14f3dbd82c397102a2aea57f526cea367a"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8f74\u627f\u5916\u5957.SLDPRT",
+      "sha256": "ba94884c8adfc1e09412139fd28097878a29032848f13b833a9139dc40730b2e"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8f74\u627f\u5916\u5957\u57ab\u9ad8.SLDPRT",
+      "sha256": "4afb55c66d9f05fb6a5ead61a385907334189b18da31ee983bcfd4dda7f795ba"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8f74\u627f\u5916\u5957\u5e26\u9f7f\u8f6e.sldasm",
+      "sha256": "5daa6cf488d542fe5f4d3a0d4fb50a8f86b98c877d9fcd4cea1abe84aaffc83e"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u9a71\u52a8\u8f6e.SLDPRT",
+      "sha256": "d44f6354c4d542352797c63b6588360fac0411d9f79582a67628ca7cf8eff87e"
+    },
+    {
+      "path": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u9a71\u52a8\u8f6e2.SLDPRT",
+      "sha256": "92ed026ab982817a088d38d14973e10a5732ee5e389e27480a67a849575187d0"
+    }
+  ],
+  "dataset_sha256": "34c8293ab1be49cd0bbdb8f8fe25278b60ba21c35d52b8009a5065278d25c87f",
+  "source_closure_sha256": "53238df9856c66666a295b81060f20ec71283632679229820b9e837fe380a88f",
+  "primary_input": "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+  "source_body_role_requirements": {
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__1_x1vhh1juO/Mesh": "base",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1sfz0aZ0XeJ/Mesh": "base",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1fXd1fcg0/Mesh": "boom",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1fhf1fZd0/Mesh": "stick",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1iVl1so1/Mesh": "bucket"
+  },
+  "source_display_names": {
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__1_x1vhh1juO/Mesh": "\u5e95\u76d8-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__23_h3lvt1hxm1omG/Mesh": "\u9a71\u52a8\u8f6e2-3",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__34_h3esp1XY4eYY2/Mesh": "\u4ece\u52a8\u8f6e3-4",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__N201_g6wia3cxc0ssSjkW1/Mesh": "N20\u51cf\u901f\u7535\u673a-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__N203_g6wia3cxc0ssSjkW1/Mesh": "N20\u51cf\u901f\u7535\u673a-3",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__24_h3lvt1hxm1omG/Mesh": "\u9a71\u52a8\u8f6e2-4",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__39_h3esp1XY4eYY2/Mesh": "\u4ece\u52a8\u8f6e3-9",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4223_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-223",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4224_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-224",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4225_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-225",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4226_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-226",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4227_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-227",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4228_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-228",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4229_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-229",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4230_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-230",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4231_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-231",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4232_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-232",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4233_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-233",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4234_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-234",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4235_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-235",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4236_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-236",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4237_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-237",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4238_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-238",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4239_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-239",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4240_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-240",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4241_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-241",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4242_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-242",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4243_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-243",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4244_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-244",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4245_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-245",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4246_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-246",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4247_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-247",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4248_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-248",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4249_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-249",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4250_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-250",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4251_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-251",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4252_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-252",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4253_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-253",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4254_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-254",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4255_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-255",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4256_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-256",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4265_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-265",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4266_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-266",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1vhh1juOjZ7tz1/tn__4267_e6vdj3bh8xq2kqR/Mesh": "\u5c65\u5e26\u6a21\u57574-267",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__1_x1czW1ge7XaBmud1/Mesh": "\u8f74\u627f\u5185\u5957-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__203271_c957gwh7vqb3/Mesh": "\u8f74\u627f20-32-7-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__1_x1qVd1i7og5ix5nsp1m0lib0/tn__1_x1qVd1i7XaBmud1/Mesh": "\u8f74\u627f\u5916\u5957-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__1_x1qVd1i7og5ix5nsp1m0lib0/tn__spurgear_gb1_mCd5/Mesh": "spur gear_gb-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1ulk1ig2vzTtz1nwT/tn__1_x1czW1Zl5Xb1qnDutp1qcN/Mesh": "\u8f74\u627f\u5185\u5957\u57ab\u9ad8-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__N201_g6wia3cxc0ssSjkW1/Mesh": "N20\u51cf\u901f\u7535\u673a-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__N201_g6yqi3kn7YsNakW0/Mesh": "N20\u7535\u673a\u56fa\u5b9a-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__1_x1zbd1ty9ht3/Mesh": "\u63a8\u6746\u5957-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__M31_w4nai3qsd1/Mesh": "M3\u94dc\u67f1-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__M31_w4Vlt4siJ/Mesh": "M3\u87ba\u9489-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__11_h3Xzg2ht3/tn__1_x1ifb1nf1Xa2fkc1jvM/Mesh": "\u87ba\u9489\u56fa\u5b9a\u5934-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1sfz0aZ0XeJ/Mesh": "\u4e3b\u4f53\u5e95-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1fXd1fcg0/Mesh": "\u5927\u81c2-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1fhf1fZd0/Mesh": "\u5c0f\u81c2-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1iVl1so1/Mesh": "\u6316\u6597-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__11_h3cgg2ie2kp1pph1/Mesh": "\u6316\u6597\u8fde\u67461-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__21_h3cgg2ie2kp1pph1/Mesh": "\u6316\u6597\u8fde\u67462-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__22_h3cgg2ie2kp1pph1/Mesh": "\u6316\u6597\u8fde\u67462-2",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__pcb1_g6/Mesh": "pcb-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1glX1oZ6ybDlY5/Mesh": "\u63a7\u5236\u677f\u58f3-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0ctx0tz1/tn__1_x1juz0ZjUqrAum1/Mesh": "\u7535\u6c60\u4ed3\u76d6-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__N201_g6wia3cxc0ssSjkW1/Mesh": "N20\u51cf\u901f\u7535\u673a-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__N201_g6yqi3kn7YsNakW0/Mesh": "N20\u7535\u673a\u56fa\u5b9a-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__1_x1zbd1ty9ht3/Mesh": "\u63a8\u6746\u5957-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__M31_w4nai3qsd1/Mesh": "M3\u94dc\u67f1-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__M31_w4Vlt4siJ/Mesh": "M3\u87ba\u9489-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__12_h3Xzg2ht3/tn__1_x1ifb1nf1Xa2fkc1jvM/Mesh": "\u87ba\u9489\u56fa\u5b9a\u5934-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__N201_g6wia3cxc0ssSjkW1/Mesh": "N20\u51cf\u901f\u7535\u673a-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0zfr1b0aV0mr1YVX0/tn__spurgear_gb1_mCd5/Mesh": "spur gear_gb-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__1_x1sfz0aZ0zfr1b0aV0mr1YVX0/tn__1_x1s3Wyo1ci0tj2WdHXVm25Y1on0hY3yYm07/Mesh": "\u9f7f\u8f6e\u5185\u5b54^\u4e3b\u8f74\u9f7f\u8f6e\u9002\u914d\u4f53-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__N201_g6wia3cxc0ssSjkW1/Mesh": "N20\u51cf\u901f\u7535\u673a-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__N201_g6yqi3kn7YsNakW0/Mesh": "N20\u7535\u673a\u56fa\u5b9a-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__1_x1zbd1ty9ht3/Mesh": "\u63a8\u6746\u5957-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__M31_w4nai3qsd1/Mesh": "M3\u94dc\u67f1-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__M31_w4Vlt4siJ/Mesh": "M3\u87ba\u9489-1",
+    "source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM#usd:/reference/reference/tn__aaa0ab9/tn__1_x1sfz0aZ0arIVt7cr5ccj0rk3/tn__13_h3Xzg2ht3/tn__1_x1ifb1nf1Xa2fkc1jvM/Mesh": "\u87ba\u9489\u56fa\u5b9a\u5934-1"
+  },
+  "native_assembly_completeness_proven": false,
+  "source_coverage_scope": "All 80 mesh instances in the frozen independent usd-converter 0.2.0 native SolidWorks conversion.",
+  "canonical_neutral_reference_sha256": "526380cbae3b02a57713212a2114507a68a906e58df741bd8bc4ab1b5460f8c4"
+}

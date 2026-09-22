@@ -1,0 +1,19 @@
+{
+  "case_id": "02_conveyor",
+  "scope": "A rotary-annulus abstraction of the original circular conveyor: bounded torque turns the original fused rail/roller assembly; its free carrier and original target move through contacts. This tests contact transfer, not individual powered rollers, belt deformation, or a real conveyor installation.",
+  "seeds": [11,23,47,83,131],
+  "backend": "OvPhysX0.4.13 native CPU PhysX on Horde",
+  "dt_s": 0.004166666666666667,
+  "duration_s": 13,
+  "center_world_m": [0.075,0,0],
+  "target_angle_rad": 1.7,
+  "minimum_angle_rad": 1.45,
+  "max_torque_nm": 0.02,
+  "mass_ranges_kg": {"rail":[0.1,2.0],"carrier":[0.01,0.1],"payload":[0.005,0.05]},
+  "gravity_m_s2": [0,0,-9.81],
+  "controller": "Settle1s; half-cosine rail target ramp1.7rad over10s; hold2s. Torque PD kp0.1Nm/rad,kd0.02Nms/rad,limit0.02Nm. Tiny independent lateral payload force0.0005N with seeded +/-0.0001N perpendicular jitter during6..6.5s. No pose/velocity writes during stepping.",
+  "acceptance": "All five seeds: rail, carrier and payload each advance >=1.45rad; identified carrier/rail and payload/carrier contact on >=90% of transport frames2..11s; carrier radial error<=7mm,height error<=4mm; payload radial error<=12mm,height error<=8mm,center remains >3mm above carrier and within25mm; penetration<=1.5mm, joint-anchor error<=1mm,axis error<=0.02rad,speed<=1m/s,spin<=20rad/s,finite native state and independent gravity witness. Exactly one rail revolute joint, no carrier/payload attachment.",
+  "source_fidelity": "All four original source assembly-world shape instances retained visibly at original world placement in metres/Z-up; identity assembly_from_source. Surface tolerance max(50um,0.001*part diagonal). Moving visual source must inherit the declared body; support stays static. Added collision approximations are invisible/proxy/guide, never replacements for source visuals.",
+  "normalization": "Evaluator disables authored joint drives, resets initial velocities to rest, uses Earth gravity and uniform solver iterations, enables contact reports, and creates a distant free-fall witness. Original collider geometry remains submitted geometry.",
+  "assumptions": "Authored masses, inertia and friction are simulation assumptions; geometry fidelity is relative to the independently meshed original STEP. No real-hardware or per-roller actuation validation."
+}

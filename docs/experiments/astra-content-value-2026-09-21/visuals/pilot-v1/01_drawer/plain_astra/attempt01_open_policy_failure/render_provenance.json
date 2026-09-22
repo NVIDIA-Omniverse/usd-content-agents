@@ -1,0 +1,21 @@
+{
+  "started_utc": "2026-09-21T23:57:51.243064+00:00",
+  "renderer_requested": "OVRTX",
+  "qualification_version": "0.4.1.364340",
+  "cuda_visible_devices": "[private runtime identifier]",
+  "usd_cli": "/opt/astra-content-value-20260921/repo/.venv/bin/usd-cli",
+  "ovrtx_venv": "/opt/astra-content-value-20260921/ovrtx-venv",
+  "snapshot_config_sha256": "261b8d1866168b6dfc9a225e6fe5de3650ca8c6ec8d8c1dc4059e3f8467a8529",
+  "script_sha256": "eac999f1c795efeea08353893e6e74bae6fa0c39d684f624015aa0acbee30cac",
+  "resolution": [
+    1024,
+    768
+  ],
+  "mode": "quality",
+  "source": "Packaged source-faithful static snapshots with actual independent native-trace poses; no author animation or physics code executed.",
+  "frames": [],
+  "finished_utc": "2026-09-21T23:57:53.964077+00:00",
+  "elapsed_seconds": 2.721031427383423,
+  "server_stop_returncode": 0,
+  "completed_frames": 0
+}

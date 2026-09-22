@@ -441,12 +441,14 @@ def physics_patch_from_workflow_decisions(
             raise UsdCliPhysicsError(
                 f"Physics decision {index} has no physical_properties."
             )
-        if author_rigid_body:
+        if author_rigid_body and decision.get("component_role", "body") != "unowned_static":
             operations["rigid_bodies"].append(
                 {
                     "path": body_root,
                     "density": properties.get("density"),
                     "mass": properties.get("estimated_mass_kg"),
+                    **({"mass_properties": decision["mass_properties"]}
+                       if decision.get("mass_properties") is not None else {}),
                 }
             )
         operations["colliders"].extend(

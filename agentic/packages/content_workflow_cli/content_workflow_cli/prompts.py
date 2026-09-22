@@ -466,6 +466,7 @@ Patch schema:
         "dynamic_friction": 0.0,
         "restitution": 0.0
       }},
+      "mass_properties": null,
       "rigid_body_grouping": "optional grouping description or null",
       "quality_warnings": [],
       "confidence": 0.7,
@@ -485,6 +486,18 @@ placeholder. Do not copy them: author each component's values from its
 own inferred material family -- density in kg/m^3 from that family, estimated
 mass as density x bounding volume x fill fraction (see the Decision task),
 friction and restitution from the reference band above.
+
+For a task requiring explicit inertia, an inspected body component may include
+`mass_properties` with `center_of_mass` (three body-local stage-distance values),
+`diagonal_inertia` (three positive principal moments about that center, in stage
+mass times squared stage distance), and `principal_axes` (normalized w,x,y,z
+quaternion, identity if omitted). Ground these estimates in the actual local
+geometry and selected mass, and state the approximation in the rationale;
+they are authored estimates, not measured values. Do not put vectors into the
+scalar `physical_properties` map. Omit `mass_properties` for `unowned_static`
+components. Their authoritative inspected role preserves static status while
+still allowing their collision and material operations; do not author or change
+`component_role` in the target-ID patch.
 
 Do not write `physics_assignments.json`, `validation_evidence.json`,
 `physics_behavior_assessment.json`, final summaries, or runtime validation

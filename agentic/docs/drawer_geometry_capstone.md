@@ -45,3 +45,30 @@ the source mesh. The focused regression file is
 `tests/test_drawer_capstone_geometry.py`; it contains source-fidelity positives,
 negative mutations/physics misuse, strict-default behavior and the nonidentical
 average witness. Synthetic tests are not the physical drawer demonstration.
+
+## Subsequent unscored Physics extension
+
+The native topology-only Joint handoff can require a guarded Physics endpoint
+promotion before its component inventory separates moving and static parts.
+If a one-shot decision cannot be rebased after that split, retain the failed
+attempt and use its exact prepared derivative in a fresh native Physics run.
+Do not relabel the failed attempt as accepted.
+
+The resolved Physics decision now carries the authoritative inspected component
+role. `unowned_static` components keep their collision/material operations and
+receive no new rigid-body operation. Zero mass on an actual body retains the
+existing USD automatic-mass behavior; zero alone does not mean static.
+
+An optional `mass_properties` decision record accepts body-local center of mass,
+positive principal moments of inertia, and a normalized `(w,x,y,z)` principal-axis
+quaternion. Values use USD stage units and describe estimates supplied by the
+reasoner, not measured ground truth. Invalid records fail before batch mutation.
+An explicit inertia record cannot be carried across merged bodies or a changed
+body-root path. This guard relies on the existing topology-plan operations,
+which do not edit transforms; any future operation that changes a body frame
+must reauthor or transform those values as well. The defaults remain scalar-only.
+
+`tests/test_drawer_capstone_physics.py` checks target resolution through native
+saved MassAPI readback, static preservation, invalid vectors and unchanged
+scalar defaults. These synthetic checks do not establish drawer contact or
+payload acceptance. The original frozen independent evaluator remains required.

@@ -200,6 +200,49 @@ def _validated_physical_properties(
     return properties
 
 
+class PhysicsMassProperties(BaseModel):
+    """Explicit body-local MassAPI values in stage distance/mass units.
+
+    Inertia is about the center of mass; principal_axes is (w, x, y, z).
+    These are caller-authored estimates, not inferred or measured properties.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    center_of_mass: tuple[float, float, float]
+    diagonal_inertia: tuple[float, float, float]
+    principal_axes: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)
+
+    @field_validator("center_of_mass", "diagonal_inertia", "principal_axes", mode="before")
+    @classmethod
+    def _plain_numeric_vectors(cls, value: Any) -> Any:
+        if not isinstance(value, (list, tuple)) or any(
+            isinstance(item, bool) or not isinstance(item, (int, float)) for item in value
+        ):
+            raise ValueError("mass-property vectors must contain plain numbers")
+        return value
+
+    @model_validator(mode="after")
+    def _physical_values(self) -> "PhysicsMassProperties":
+        import struct
+
+        values = (*self.center_of_mass, *self.diagonal_inertia, *self.principal_axes)
+        try:
+            stored = [struct.unpack("f", struct.pack("f", value))[0] for value in values]
+        except (OverflowError, struct.error) as exc:
+            raise ValueError("mass properties must be representable as finite USD floats") from exc
+        if not all(math.isfinite(value) for value in stored):
+            raise ValueError("mass properties must be finite")
+        inertia = stored[3:6]
+        if min(inertia) <= 0.0:
+            raise ValueError("diagonal inertia must be positive")
+        if 2 * max(inertia) > sum(inertia) + 1e-6 * max(inertia):
+            raise ValueError("diagonal inertia violates the principal-moment triangle inequality")
+        if abs(sum(value * value for value in stored[6:]) - 1.0) > 1e-5:
+            raise ValueError("principal_axes must be a normalized (w,x,y,z) quaternion")
+        return self
+
+
 class PhysicsComponentDecision(BaseModel):
     """One accepted V2 component-level physics authoring decision."""
 
@@ -207,6 +250,7 @@ class PhysicsComponentDecision(BaseModel):
 
     decision_id: str = Field(min_length=1)
     component_id: str = Field(min_length=1)
+    component_role: Literal["body", "unowned_static"] = "body"
     body_root_path: str = Field(min_length=1)
     visual_evidence_paths: list[str] = Field(default_factory=list)
     collider_paths: list[str] = Field(min_length=1)
@@ -216,6 +260,7 @@ class PhysicsComponentDecision(BaseModel):
     inferred_material_name: str | None = None
     collision_approximation: str = Field(min_length=1)
     physical_properties: dict[str, float]
+    mass_properties: PhysicsMassProperties | None = None
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str = Field(min_length=1)
     rigid_body_grouping: str | None = None
@@ -266,6 +311,7 @@ class PhysicsComponentTargetDecision(BaseModel):
     inferred_material_name: str | None = None
     collision_approximation: str = Field(min_length=1)
     physical_properties: dict[str, float]
+    mass_properties: PhysicsMassProperties | None = None
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str = Field(min_length=1)
     rigid_body_grouping: str | None = None
@@ -1046,6 +1092,7 @@ def infer_component_decisions(
             PhysicsComponentDecision(
                 decision_id=component.component_id,
                 component_id=component.component_id,
+                component_role=component.component_role,
                 body_root_path=component.body_root_path,
                 visual_evidence_paths=component.visual_evidence_paths,
                 collider_paths=authoring_paths,
@@ -1437,6 +1484,11 @@ def _bind_patch_targets_in_place(
             )
             raw_decision["body_root_path"] = component.body_root_path
             raw_decision["mass_authoring_path"] = component.body_root_path
+        # Mobility comes from the authoritative inspection, never a child hint.
+        supplied_role = raw_decision.get("component_role")
+        if supplied_role is not None and supplied_role != component.component_role:
+            raise RuntimeError(f"Physics decision for {component_id} changes component_role.")
+        raw_decision["component_role"] = component.component_role
 
 
 def _validate_component_decisions(
@@ -1471,6 +1523,10 @@ def _validate_component_decisions(
         )
     for decision in decisions:
         component = components_by_id[decision.component_id]
+        if decision.component_role != component.component_role:
+            raise RuntimeError(f"Physics decision {decision.decision_id} changes component_role.")
+        if component.component_role == "unowned_static" and decision.mass_properties is not None:
+            raise RuntimeError("Static components cannot request rigid-body mass properties.")
         targets = set(decision.collider_paths)
         helpers = set(component.helper_paths)
         if targets & helpers:
@@ -1704,6 +1760,13 @@ def _merge_rebased_component_decisions(
         )
     ordered = sorted(decisions, key=lambda decision: decision.decision_id)
     base = ordered[0]
+    if any(decision.mass_properties is not None for decision in ordered) and (
+        len(ordered) != 1 or base.body_root_path != component.body_root_path
+    ):
+        raise RuntimeError(
+            "Topology repair changes the body frame or mass grouping for explicit "
+            "mass_properties. Re-author them against the prepared derivative."
+        )
     collider_paths = sorted(
         {path for decision in ordered for path in decision.collider_paths}
     )
@@ -1718,6 +1781,7 @@ def _merge_rebased_component_decisions(
         update={
             "decision_id": component.component_id,
             "component_id": component.component_id,
+            "component_role": component.component_role,
             "body_root_path": component.body_root_path,
             "visual_evidence_paths": component.visual_evidence_paths,
             "collider_paths": collider_paths,

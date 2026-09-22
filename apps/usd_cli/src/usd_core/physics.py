@@ -24,23 +24,64 @@ def define_physics_scene(stage, path: str) -> str:
     return UsdPhysics.Scene.Define(stage, path).GetPath().pathString
 
 
-def apply_rigid_body(stage, path: str, *, density=None, mass=None) -> list[str]:
+def _validate_mass_properties(value):
+    """Validate explicit MassAPI vectors before any stage mutation."""
+    import math
+    import struct
+
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) - {
+        "center_of_mass", "diagonal_inertia", "principal_axes"
+    }:
+        raise ValueError("mass_properties must contain only explicit MassAPI vectors")
+    result = {}
+    for name, count in (("center_of_mass", 3), ("diagonal_inertia", 3), ("principal_axes", 4)):
+        vector = value.get(name, (1.0, 0.0, 0.0, 0.0) if name == "principal_axes" else None)
+        if not isinstance(vector, (list, tuple)) or len(vector) != count:
+            raise ValueError(f"mass_properties.{name} must have {count} values")
+        if any(isinstance(item, bool) or not isinstance(item, (int, float)) for item in vector):
+            raise ValueError(f"mass_properties.{name} must contain numbers")
+        try:
+            stored = [struct.unpack("f", struct.pack("f", item))[0] for item in vector]
+        except (OverflowError, struct.error) as exc:
+            raise ValueError("mass properties must be representable as finite USD floats") from exc
+        if not all(math.isfinite(item) for item in stored):
+            raise ValueError("mass properties must be finite")
+        result[name] = stored
+    inertia = result["diagonal_inertia"]
+    if min(inertia) <= 0:
+        raise ValueError("diagonal inertia must be positive")
+    if 2 * max(inertia) > sum(inertia) + 1e-6 * max(inertia):
+        raise ValueError("diagonal inertia violates the principal-moment triangle inequality")
+    if abs(sum(item * item for item in result["principal_axes"]) - 1.0) > 1e-5:
+        raise ValueError("principal_axes must be a normalized (w,x,y,z) quaternion")
+    return result
+
+
+def apply_rigid_body(stage, path: str, *, density=None, mass=None, mass_properties=None) -> list[str]:
     """Apply RigidBodyAPI (+ MassAPI when mass/density given); returns the API names
     authored so callers can report them instead of applying schema silently."""
-    from pxr import UsdPhysics
+    from pxr import Gf, UsdPhysics
 
+    vectors = _validate_mass_properties(mass_properties)
     prim = stage.GetPrimAtPath(path)
     if not prim.IsValid():
         raise ValueError(f"cannot apply rigid body: no prim at {path}")
     UsdPhysics.RigidBodyAPI.Apply(prim)
     authored = ["PhysicsRigidBodyAPI"]
-    if density is not None or mass is not None:
+    if density is not None or mass is not None or vectors is not None:
         mass_api = UsdPhysics.MassAPI.Apply(prim)
         authored.append("PhysicsMassAPI")
         if mass is not None:
             mass_api.CreateMassAttr().Set(float(mass))
         if density is not None:
             mass_api.CreateDensityAttr().Set(float(density))
+        if vectors is not None:
+            mass_api.CreateCenterOfMassAttr().Set(Gf.Vec3f(*vectors["center_of_mass"]))
+            mass_api.CreateDiagonalInertiaAttr().Set(Gf.Vec3f(*vectors["diagonal_inertia"]))
+            q = vectors["principal_axes"]
+            mass_api.CreatePrincipalAxesAttr().Set(Gf.Quatf(q[0], Gf.Vec3f(*q[1:])))
     return authored
 
 
@@ -124,6 +165,9 @@ def apply_operations(stage, operations: dict) -> dict:
     rigid_bodies, colliders, materials, bindings = (
         rows("rigid_bodies"), rows("colliders"), rows("materials"), rows("bindings")
     )
+    # Validate every vector record before earlier rows or scenes can mutate.
+    for row in rigid_bodies:
+        _validate_mass_properties(row.get("mass_properties"))
     target_paths = [
         str(row.get("path") or "") for row in [*rigid_bodies, *colliders]
     ] + [str(row.get("target_path") or "") for row in bindings]
@@ -172,7 +216,8 @@ def apply_operations(stage, operations: dict) -> dict:
         authored["scene"].append(define_physics_scene(stage, path))
     for row in rigid_bodies:
         path = str(row["path"])
-        note(path, apply_rigid_body(stage, path, density=row.get("density"), mass=row.get("mass")))
+        note(path, apply_rigid_body(stage, path, density=row.get("density"), mass=row.get("mass"),
+                                    mass_properties=row.get("mass_properties")))
         authored["rigid_body"].append(path)
     for row in colliders:
         path = str(row["path"])

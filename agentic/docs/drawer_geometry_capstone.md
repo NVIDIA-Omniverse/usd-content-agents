@@ -1,4 +1,4 @@
-# Unscored source-preserving drawer Geometry route
+# Unscored source-preserving drawer workflow
 
 This isolated branch is a follow-up to the frozen pilot, not a change to its
 scored code or results. It does not contain the direct Astra baseline solution.
@@ -72,3 +72,79 @@ must reauthor or transform those values as well. The defaults remain scalar-only
 saved MassAPI readback, static preservation, invalid vectors and unchanged
 scalar defaults. These synthetic checks do not establish drawer contact or
 payload acceptance. The original frozen independent evaluator remains required.
+
+For a model-authored Physics decision, provide the intended moving/static roles,
+mass assumptions, body-local frame and required collision openings as explicit
+guidance. For example, on an already prepared Joint output with a valid component
+inventory:
+
+```sh
+content-workflow-cli physics apply \
+  --usd /path/to/native-prepared-source.usdz \
+  --output-dir runs/drawer-physics-fresh \
+  --runner codex --model gpt-6-astra --model-reasoning-effort ultra \
+  --no-optimize --collision-approximation convexDecomposition \
+  --simulation-engine ovphysx --duration-s 3 --dt 0.004166666666666667 \
+  --runtime-placement-mode mounted --drop-height-m 0 \
+  --additional-instructions-file physics-guidance.md
+```
+
+The optional record belongs alongside `physical_properties` in a native V2
+component target decision, rather than inside its scalar dictionary. This is a
+synthetic example for a body with metre/kilogram units, not drawer ground truth:
+
+```json
+{
+  "physical_properties": {
+    "estimated_mass_kg": 2.0,
+    "density": 500.0,
+    "static_friction": 0.6,
+    "dynamic_friction": 0.6,
+    "restitution": 0.0
+  },
+  "mass_properties": {
+    "center_of_mass": [0.02, 0.03, 0.04],
+    "diagonal_inertia": [0.1, 0.2, 0.25],
+    "principal_axes": [1.0, 0.0, 0.0, 0.0]
+  }
+}
+```
+
+Use the actual inspected component/target IDs, source digest and body frame in
+the surrounding decision. Do not assign these synthetic numbers to arbitrary
+assets. The component role is derived from inspection and cannot be changed by
+the decision. Explicit vectors for a static component are rejected.
+
+When a native adapter rejects external texture locators, the supported
+`usd-cli open` followed by `usd-cli save /path/to/source.usdz --flatten` can
+produce a self-contained input. Verify source arrays, transforms and existing
+joint/body opinions after packaging, publish fresh preparation evidence, and
+retain the failed attempt. Packaging does not add physical validity. A successful
+three-second mounted smoke test likewise does not demonstrate opening, closing
+or free-payload retention; those require independent task execution.
+
+## Mounted validation and packaged identities
+
+Use `--runtime-placement-mode mounted` for an existing mounted mechanism. The
+default `drop` behavior is unchanged. A zero drop height alone still requests
+ground placement in drop mode; it does not preserve a constrained body's pose.
+Mounted mode keeps all authored transforms and joint frames, including empty
+world-anchor targets. It requires `metersPerUnit=1` and an omitted or zero drop
+gap, and fails explicitly for unsupported units rather than partially scaling
+a mechanism. Gravity remains 9.81 m/s² and initial velocities are reset as in
+the existing smoke policy. Settling, finite/bounded motion, pose continuity and
+the existing synthetic ground/penetration checks remain active. Mounted joints
+can resist gravity, so free-fall displacement is not required.
+
+After a harness defect is fixed, the supported deterministic executor can replay
+an unchanged native V2 decision patch with `physics apply --direct-executor
+--decision-patch /path/to/original-patch.json`, the same inspected source and the
+explicit mounted mode. Retain the original failed run and verify the patch and
+source hashes. Reapplying a decision does not substitute for actual solver or
+visual validation.
+
+A flattened USDA may retain a texture locator into a local USDZ. Dependency
+identity now binds that locator through the complete archive bytes. Archive
+changes invalidate the identity. Missing or unresolved members, remote locators,
+path traversal, malformed syntax, non-USDZ containers and nested package
+locators fail closed. This change does not alter the asset or extract textures.

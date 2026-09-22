@@ -1545,6 +1545,7 @@ def build_physics_tuning_session_prompt(
     revalidation_dt: float | None = None,
     revalidation_sample_fps: float | None = None,
     revalidation_drop_height_m: float | None = None,
+    revalidation_placement_mode: str = "drop",
     collision_approximation: str | None = None,
     protected_parameters: list[str] | None = None,
     allow_revise_patch: bool = True,
@@ -1567,6 +1568,7 @@ def build_physics_tuning_session_prompt(
         "dt": revalidation_dt,
         "sample_fps": revalidation_sample_fps,
         "drop_height_m": revalidation_drop_height_m,
+        "placement_mode": revalidation_placement_mode,
     }
     # Emit the penetration limit only when the run overrides it. The prompt
     # says to mirror the promotion_gate block exactly, and an explicit
@@ -1665,6 +1667,7 @@ def build_physics_tuning_session_prompt(
     # accepted, while the wrapper measured 0.0588 m from its configured 0.9 m drop
     # and refused to promote.
     gate_terms = [
+        f"`placement_mode={revalidation_placement_mode}`",
         f"`max_ground_penetration_m={revalidation_max_penetration_m}`"
         if revalidation_max_penetration_m is not None
         else "",

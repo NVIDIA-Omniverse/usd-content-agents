@@ -354,6 +354,7 @@ class PhysicsApplyWorkflowInput(BaseModel):
     simulation_dt: float = 1.0 / 240.0
     simulation_sample_fps: int = 30
     drop_height_m: float | None = None
+    runtime_placement_mode: Literal["drop", "mounted"] = "drop"
     vomp_mass: PhysicsVompMassConfig | None = None
     vomp_artifact_namespace: str | None = Field(
         default=None,
@@ -2304,6 +2305,7 @@ def validate_physics_runtime(
     dt: float = 1.0 / 240.0,
     sample_fps: int = 30,
     drop_height_m: float | None = None,
+    placement_mode: Literal["drop", "mounted"] = "drop",
     acceptance: dict[str, Any] | None = None,
     physics_properties_status: Literal["pass", "fail"] = "pass",
     usd_cli_session: WorkflowUsdCliSession | None = None,
@@ -2348,6 +2350,7 @@ def validate_physics_runtime(
             dt=dt,
             sample_fps=sample_fps,
             drop_height_m=drop_height_m,
+            placement_mode=placement_mode,
             acceptance=acceptance,
             usd_cli_session=usd_cli_session,
             scene_tool_timeout_seconds=scene_tool_timeout_seconds,
@@ -2657,6 +2660,7 @@ def validate_physics_runtime_multi_body(
     dt: float = 1.0 / 240.0,
     sample_fps: int = 30,
     drop_height_m: float | None = None,
+    placement_mode: Literal["drop", "mounted"] = "drop",
     acceptance: dict[str, Any] | None = None,
     physics_properties_status: Literal["pass", "fail"] = "pass",
     usd_cli_session: WorkflowUsdCliSession | None = None,
@@ -2664,7 +2668,7 @@ def validate_physics_runtime_multi_body(
     ground_clearance_support_cache: dict[str, dict[str, Any]] | None = None,
     ground_clearance_support_cache_key: str | None = None,
 ) -> tuple[ValidationEvidence, Path | None]:
-    """Validate each enabled rigid body with one whole-scene drop simulation.
+    """Validate each enabled rigid body with one whole-scene simulation.
 
     The available engines record one tracked trajectory per simulation (the
     ovphysx daemon and the version-checked remote executor both emit a
@@ -2676,6 +2680,9 @@ def validate_physics_runtime_multi_body(
     The per-body acceptance checks reuse the single-body gates; the asset
     passes only when every body passes, and per-body failures are listed in
     the aggregate runtime report.
+
+    Explicit mounted placement leaves every authored transform and anchor
+    unchanged, so disconnected roots do not require a common placement root.
     """
 
     if not body_prim_paths:
@@ -2712,7 +2719,7 @@ def validate_physics_runtime_multi_body(
         return evidence, report_path
 
     placement_prim_path = _xformable_placement_root(physics_usd_path, body_prim_paths)
-    if placement_prim_path is None:
+    if placement_prim_path is None and placement_mode == "drop":
         # No shared Xformable placement root: translating each tracked body
         # alone would break the relative poses and joint frames this
         # validation promises to preserve, and USD silently ignores xform
@@ -2779,6 +2786,7 @@ def validate_physics_runtime_multi_body(
                 dt=dt,
                 sample_fps=sample_fps,
                 drop_height_m=drop_height_m,
+                placement_mode=placement_mode,
                 acceptance=per_body_acceptance,
                 body_prim_path_hint=body_prim_path,
                 placement_prim_path_hint=placement_prim_path,
@@ -2912,6 +2920,7 @@ def validate_physics_runtime_multi_body(
         "recording_usda": aggregate_recording,
         "mode": "multi_body",
         "enabled_rigid_body_count": len(body_prim_paths),
+        "placement_mode": placement_mode,
         "body_prim_paths": list(body_prim_paths),
         "placement_prim_path": placement_prim_path,
         "trajectory_jsonl": str(aggregate_trajectory_path),
@@ -3780,6 +3789,7 @@ def run_physics_apply_workflow(
                         dt=params.simulation_dt,
                         sample_fps=params.simulation_sample_fps,
                         drop_height_m=params.drop_height_m,
+                        placement_mode=params.runtime_placement_mode,
                         acceptance=multi_body_acceptance,
                         physics_properties_status=cast(Any, physics_status),
                         usd_cli_session=params.usd_cli_session,
@@ -3814,6 +3824,7 @@ def run_physics_apply_workflow(
                 dt=params.simulation_dt,
                 sample_fps=params.simulation_sample_fps,
                 drop_height_m=params.drop_height_m,
+                placement_mode=params.runtime_placement_mode,
                 acceptance=acceptance,
                 physics_properties_status=cast(Any, physics_status),
                 usd_cli_session=params.usd_cli_session,

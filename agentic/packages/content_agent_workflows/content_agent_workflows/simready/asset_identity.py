@@ -10,7 +10,7 @@ import json
 import os
 import stat
 from collections.abc import Callable, Iterable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 ASSET_DEPENDENCY_MANIFEST_SCHEMA = "content-agent-workflows.usd-dependency-manifest.v1"
@@ -258,9 +258,33 @@ def _dependency_path(value: Any, default_root: Path) -> Path | None:
             f"Remote USD dependency cannot be content-bound locally: {text}"
         )
     if "[" in text or "]" in text:
-        raise AssetDependencyIdentityError(
-            f"Packaged dependency must be bound through the root USDZ archive: {text}"
-        )
+        # A flattened derivative can retain resolved texture/layer paths into its
+        # source USDZ. Bind the complete archive bytes, not an unhashable member
+        # locator. Unsupported or unresolved package references still fail closed.
+        from pxr import Ar
+
+        if not Ar.IsPackageRelativePath(text):
+            raise AssetDependencyIdentityError(f"Malformed packaged dependency: {text}")
+        archive, member = Ar.SplitPackageRelativePathOuter(text)
+        _reject_nonlocal_identifier(archive)
+        member_path = PurePosixPath(member)
+        if (
+            not archive.lower().endswith(".usdz")
+            or not member
+            or member_path.is_absolute()
+            or ".." in member_path.parts
+            or any(c in archive + member for c in "[]\\")
+            or ":" in member
+        ):
+            raise AssetDependencyIdentityError(f"Unsupported packaged dependency: {text}")
+        archive_path = Path(archive).expanduser()
+        if not archive_path.is_absolute():
+            archive_path = default_root / archive_path
+        archive_path = archive_path.resolve()
+        locator = f"{archive_path}[{member}]"
+        if not Ar.GetResolver().Resolve(locator):
+            raise AssetDependencyIdentityError(f"Unresolved packaged dependency: {text}")
+        return archive_path
     path = Path(text).expanduser()
     if not path.is_absolute():
         path = default_root / path

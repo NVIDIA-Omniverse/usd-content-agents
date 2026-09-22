@@ -1390,6 +1390,7 @@ def build_drop_settle_scene(
     output_scene_usd: Path,
     *,
     drop_height_m: float | None = None,
+    placement_mode: str = "drop",
     gravity: float = -9.81,
     ground_friction: float = 0.5,
     cameras: list[str] | None = None,
@@ -1401,7 +1402,7 @@ def build_drop_settle_scene(
     ground_clearance_support_cache: dict[str, dict[str, Any]] | None = None,
     ground_clearance_support_cache_key: str | None = None,
 ) -> dict[str, Any]:
-    """Build the drop_settle simulation scene.
+    """Build a drop-settle or explicitly mounted simulation scene.
 
     The body's bbox-min on the **stage's up-axis** (Y or Z, read from
     ``UsdGeom.GetStageUpAxis``) is translated to ``drop_height_m``.
@@ -1422,6 +1423,10 @@ def build_drop_settle_scene(
         drop_height_m: Gap (in meters) between body bottom and ground.
             Defaults to the body's bbox_height (so the body sits one
             own-height above the ground).
+        placement_mode: ``drop`` preserves the existing ground-placement
+            behavior. ``mounted`` preserves authored metric transforms and
+            joint frames, including world anchors. It accepts no drop gap
+            other than zero and checks settling around the initial body pose.
         gravity: Signed gravity in m/s² (negative = downward).
         ground_friction: Static + dynamic friction on the ground plane
             (0..2 typical). 0.5 is a reasonable concrete-like default.
@@ -1465,6 +1470,11 @@ def build_drop_settle_scene(
     )
     from world_understanding.utils.usd.scene import add_ground_plane
 
+    if placement_mode not in {"drop", "mounted"}:
+        raise ValueError("placement_mode must be drop or mounted")
+    if placement_mode == "mounted" and drop_height_m not in (None, 0.0):
+        raise ValueError("mounted placement requires drop_height_m to be zero or omitted")
+
     dependency_roots = _normalize_dependency_roots(
         tuple(approved_dependency_roots)
         if approved_dependency_roots is not None
@@ -1482,7 +1492,19 @@ def build_drop_settle_scene(
     # Rewrite the in-memory stage to metric so PhysX's stage-unit gravity
     # equals real Earth m/s². Without this a centimeter-scale source
     # USD ends up with effective gravity 100× too slow.
-    _bake_metric_units(scene_stage)
+    if placement_mode == "mounted":
+        # The legacy metric baker changes geometry/xforms but does not rebase
+        # all dimensional joint/mass properties. Never move world anchors or
+        # silently change a mounted mechanism's coordinate system.
+        if not math.isclose(
+            float(UsdGeom.GetStageMetersPerUnit(scene_stage)),
+            1.0,
+            rel_tol=0,
+            abs_tol=1e-9,
+        ):
+            raise ValueError("mounted placement requires metersPerUnit=1")
+    else:
+        _bake_metric_units(scene_stage)
 
     if body_prim_path_hint:
         body_prim = scene_stage.GetPrimAtPath(body_prim_path_hint)
@@ -1552,7 +1574,10 @@ def build_drop_settle_scene(
     # Default drop_height_m == bbox_height. Caller passes meters; we
     # operate in stage units inside the sim. Post metric-bake the two
     # are equivalent.
-    drop_h_m = float(drop_height_m) if drop_height_m is not None else bbox_height_m
+    if placement_mode == "mounted":
+        drop_h_m = 0.0
+    else:
+        drop_h_m = float(drop_height_m) if drop_height_m is not None else bbox_height_m
     if drop_h_m < 0:
         raise ValueError(f"drop_height_m must be >= 0, got {drop_h_m}")
     drop_h_stage = drop_h_m * units_per_meter
@@ -1569,14 +1594,15 @@ def build_drop_settle_scene(
     delta_axis_stage = drop_h_stage - bbox_min_stage[up_idx]
     new_translation_stage = list(current_translation_stage)
     new_translation_stage[up_idx] = current_translation_stage[up_idx] + delta_axis_stage
-    _set_body_translation(
-        placement_prim,
-        (
-            new_translation_stage[0],
-            new_translation_stage[1],
-            new_translation_stage[2],
-        ),
-    )
+    if placement_mode == "drop":
+        _set_body_translation(
+            placement_prim,
+            (
+                new_translation_stage[0],
+                new_translation_stage[1],
+                new_translation_stage[2],
+            ),
+        )
 
     # The metric-baked stage receives gravity in meters/s^2.
     _author_physics_scene(scene_stage, gravity_m_per_s2=gravity)
@@ -1632,7 +1658,15 @@ def build_drop_settle_scene(
     # SimReady's ladder bbox_min_pre = 0 → rest_translate = 0; for a
     # centered single-mesh asset like a lightbulb bbox_min_pre = -h/2
     # → rest_translate = h/2.
-    if placement_prim == body_prim:
+    if placement_mode == "mounted":
+        # A mounted body need not rest on the synthetic ground. Its complete
+        # authored frame remains the reference, including nonzero X/Y/Z and
+        # transformed parents. No joint relationship or local frame is edited.
+        body_world_transform = UsdGeom.Xformable(
+            body_prim
+        ).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        rest_position_stage = list(body_world_transform.ExtractTranslation())
+    elif placement_prim == body_prim:
         rest_position_stage = [0.0, 0.0, 0.0]
         rest_position_stage[up_idx] = -bbox_min_stage[up_idx]
     else:
@@ -1658,6 +1692,7 @@ def build_drop_settle_scene(
 
     body_path_str = str(body_prim.GetPath())
     result = {
+        "placement_mode": placement_mode,
         "body_prim_path": body_path_str,
         "body_pattern": str(body_pattern_hint or body_path_str),
         "placement_prim_path": str(placement_prim.GetPath()),

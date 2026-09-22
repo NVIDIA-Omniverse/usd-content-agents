@@ -1395,6 +1395,7 @@ class PhysicsApplyConfig:
     simulation_dt: float = 1.0 / 240.0
     simulation_sample_fps: int = 30
     drop_height_m: float | None = None
+    runtime_placement_mode: str = "drop"
     vomp_mass: PhysicsVompMassConfig | None = None
     fail_on_validation_error: bool = False
     runner: str = RUNNER_CODEX
@@ -17657,6 +17658,7 @@ def _physics_run_manifest_policy(config: PhysicsApplyConfig) -> dict[str, Any]:
         "simulation_dt": config.simulation_dt,
         "simulation_sample_fps": config.simulation_sample_fps,
         "drop_height_m": config.drop_height_m,
+        "runtime_placement_mode": config.runtime_placement_mode,
         "fail_on_validation_error": config.fail_on_validation_error,
         "visual_validation_max_iterations": config.vqa_refinement_max_iterations,
         "input_sha256": input_hashes,
@@ -18090,6 +18092,7 @@ def _build_physics_request(
             "dt": config.simulation_dt,
             "sample_fps": config.simulation_sample_fps,
             "drop_height_m": config.drop_height_m,
+            "runtime_placement_mode": config.runtime_placement_mode,
             # None means the runtime validator's default (scale-relative on
             # exact collider geometry, 0.005 m on the conservative bbox
             # fallback). Recorded so request.json can reconstruct the
@@ -20017,6 +20020,7 @@ def _run_physics_agentic_tuning_phase(
             revalidation_dt=config.simulation_dt,
             revalidation_sample_fps=config.simulation_sample_fps,
             revalidation_drop_height_m=config.drop_height_m,
+            revalidation_placement_mode=config.runtime_placement_mode,
             # Same value the apply phase authored with, so `revise_patch` cannot
             # silently degrade the collision shape to pass the settle metrics.
             # Read from the decision patch: per-decision shapes win over the
@@ -21899,6 +21903,7 @@ def _revalidate_tuned_physics_usd(
             dt=config.simulation_dt,
             sample_fps=config.simulation_sample_fps,
             drop_height_m=config.drop_height_m,
+            placement_mode=config.runtime_placement_mode,
             acceptance=(
                 {"max_ground_penetration_m": config.revalidation_max_penetration_m}
                 if config.revalidation_max_penetration_m is not None
@@ -23881,6 +23886,7 @@ def _finalize_physics_once(
             simulation_dt=config.simulation_dt,
             simulation_sample_fps=config.simulation_sample_fps,
             drop_height_m=config.drop_height_m,
+            runtime_placement_mode=config.runtime_placement_mode,
             vomp_mass=config.vomp_mass,
             vomp_artifact_namespace=f"finalize-{iteration:04d}",
             # The refinement child is told this limit applies; the apply-phase
@@ -25939,6 +25945,13 @@ def _validate_physics_config(config: PhysicsApplyConfig) -> None:
                 )
     if config.simulation_engine not in {"ovphysx", "fake", "none"}:
         raise ValueError("--simulation-engine must be one of: ovphysx, fake, none.")
+    if config.runtime_placement_mode not in {"drop", "mounted"}:
+        raise ValueError("--runtime-placement-mode must be drop or mounted.")
+    if config.runtime_placement_mode == "mounted" and config.drop_height_m not in (
+        None,
+        0.0,
+    ):
+        raise ValueError("mounted placement requires --drop-height-m zero or omitted.")
     if config.simulation_duration_s <= 0:
         raise ValueError("--duration-s must be greater than 0.")
     if config.simulation_dt <= 0:

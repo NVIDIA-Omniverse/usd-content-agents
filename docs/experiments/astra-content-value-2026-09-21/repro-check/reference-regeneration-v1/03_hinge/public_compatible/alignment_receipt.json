@@ -1,0 +1,79 @@
+{
+  "case_id": "03_hinge",
+  "completed_utc": "2026-09-21T23:26:24.908297+00:00",
+  "original_inventory_sha256": "c4fcc67778174cc387d847063096de1a8ca071eaea05fe12e627e31f5b1f55b3",
+  "aligned_inventory_sha256": "c4fcc67778174cc387d847063096de1a8ca071eaea05fe12e627e31f5b1f55b3",
+  "part_count": 8,
+  "same_npz_hash_multiset": true,
+  "every_aligned_npz_matches_frozen_hash": true,
+  "array_comparison_performed": false,
+  "every_array_exactly_equal": null,
+  "mappings": [
+    {
+      "frozen_source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_c13f78",
+      "rebuilt_source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_7bd6db",
+      "rebuilt_file": "geometry_0001.npz",
+      "frozen_file": "geometry_0000.npz",
+      "sha256": "ed9a608b55eba20e6f1c2b59fb5b38cdb75d06c9af02ddecc3e0c7ef099773ec",
+      "all_arrays_exactly_equal": null
+    },
+    {
+      "frozen_source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_d2eb44",
+      "rebuilt_source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_be60bc",
+      "rebuilt_file": "geometry_0002.npz",
+      "frozen_file": "geometry_0001.npz",
+      "sha256": "a10e05675b6fb0d4555a97a3eda7ae3f78bf7b39bbf0bdc275598e79da88d0ad",
+      "all_arrays_exactly_equal": null
+    },
+    {
+      "frozen_source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_f99424",
+      "rebuilt_source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_0fc216",
+      "rebuilt_file": "geometry_0000.npz",
+      "frozen_file": "geometry_0002.npz",
+      "sha256": "213a265c67f0279a0f7f35c42bd90755d618eeafefa544a53cd5f652a3cb33e9",
+      "all_arrays_exactly_equal": null
+    },
+    {
+      "frozen_source_id": "source/CommercialRefrigerator.glb#node:FridgeCase",
+      "rebuilt_source_id": "source/CommercialRefrigerator.glb#node:FridgeCase",
+      "rebuilt_file": "geometry_0003.npz",
+      "frozen_file": "geometry_0003.npz",
+      "sha256": "7c7185d5a25bb2dd9c43a5b4d52606c1a8385e4ca46593378e286af080ee099d",
+      "all_arrays_exactly_equal": null
+    },
+    {
+      "frozen_source_id": "source/CommercialRefrigerator.glb#node:FridgeDoor",
+      "rebuilt_source_id": "source/CommercialRefrigerator.glb#node:FridgeDoor",
+      "rebuilt_file": "geometry_0004.npz",
+      "frozen_file": "geometry_0004.npz",
+      "sha256": "7ff49feca3b409f00baad8b131cfd6adb143cba41dbc2f9dcd886d3a3c8fe2c5",
+      "all_arrays_exactly_equal": null
+    },
+    {
+      "frozen_source_id": "source/CommercialRefrigerator.glb#node:FridgeDoorInner",
+      "rebuilt_source_id": "source/CommercialRefrigerator.glb#node:FridgeDoorInner",
+      "rebuilt_file": "geometry_0005.npz",
+      "frozen_file": "geometry_0005.npz",
+      "sha256": "74f4f242aff2a9d24ede8bb10656308dfbdf454e99b1391b4ae47016b7eaf851",
+      "all_arrays_exactly_equal": null
+    },
+    {
+      "frozen_source_id": "source/CommercialRefrigerator.glb#node:FridgeGlass",
+      "rebuilt_source_id": "source/CommercialRefrigerator.glb#node:FridgeGlass",
+      "rebuilt_file": "geometry_0006.npz",
+      "frozen_file": "geometry_0006.npz",
+      "sha256": "14e84efcdea9503d0534fe1fc99d7224339f1f11f9ae6f4c66f24f530f7b6b64",
+      "all_arrays_exactly_equal": null
+    },
+    {
+      "frozen_source_id": "source/CommercialRefrigerator.glb#node:FridgeInterior",
+      "rebuilt_source_id": "source/CommercialRefrigerator.glb#node:FridgeInterior",
+      "rebuilt_file": "geometry_0007.npz",
+      "frozen_file": "geometry_0007.npz",
+      "sha256": "4c52a6bcd3578beafea52a46465866651460f8cecfcea810224bc0b4d1ddea77",
+      "all_arrays_exactly_equal": null
+    }
+  ],
+  "operation": "Only copy exact regenerated NPZ bytes to filenames selected by original expected SHA256; copy original complete inventory unchanged. Do not serialize arrays, modify importer code, or rewrite expected hashes.",
+  "scope": "Reference-reader byte compatibility established in this recorded runtime. Default operation needs the original inventory only, not original NPZ files. No authored asset or physical evaluation is read or rerun."
+}

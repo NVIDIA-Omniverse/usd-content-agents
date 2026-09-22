@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "case_id": "10_complex",
+  "arm": "content_agents",
+  "valid": true,
+  "status": "VALID_AUTHOR_PROTOCOL_OBSERVED",
+  "scope": "Per-arm author model, access, treatment, source, environment, repairs, wall budget and retained-artifact protocol. Experiment-wide simulation scheduling is separate.",
+  "audited_utc": "2026-09-22T00:46:37.498762+00:00",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All4 distinct reconciled sessions use gpt-6-astra ultra; full response usage reconciles with final counters.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/content_agents/usage_reconciled.json",
+          "sha256": "7e715430560bf84f7472d3066c00b46f3919acd96185f52fd9decfd3d367ef39"
+        }
+      ]
+    },
+    {
+      "id": "frozen_task_and_outputs",
+      "valid": true,
+      "finding": "All257 watchdog files, all frozen evaluator/reference checks and public task checksum remain unchanged; paired model/budget/task/host/GPU fields match.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/content_agents/protocol_probe.json",
+          "sha256": "6a78ae97f379f7c731e80153cc85869e959fde0d59774eecc82fea1c5d4ec891"
+        }
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All60 original curation source files retain their expected hashes.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/content_agents/protocol_probe.json",
+          "sha256": "6a78ae97f379f7c731e80153cc85869e959fde0d59774eecc82fea1c5d4ec891"
+        }
+      ]
+    },
+    {
+      "id": "native_treatment_and_failure_reporting",
+      "valid": true,
+      "finding": "Public native Geometry workflow failed its handoff. Both bounded repairs retained unsuccessful outcomes. Joint and Physics workflows were not started because Geometry had not passed; no manual mechanism bypass or physical acceptance claim was made. Public Validation records the failed static partial.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/content_agents/protocol_observations.json",
+          "sha256": "f7eaa2a977d571625a7b543e1f7fd4681795ac240494dce2f604f7ef3cd3cf2d"
+        }
+      ]
+    },
+    {
+      "id": "forbidden_content_access",
+      "valid": true,
+      "finding": "All171 command requests and20 process responses reviewed across4 sessions. Other-case/evaluator invocation metadata is exposed, but no foreign inline code, geometry, evaluator implementation/results or credential contents observed.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/content_agents/protocol_observations.json",
+          "sha256": "f7eaa2a977d571625a7b543e1f7fd4681795ac240494dce2f604f7ef3cd3cf2d"
+        }
+      ]
+    },
+    {
+      "id": "frozen_environment_mutation",
+      "valid": true,
+      "finding": "No package installation, shared repository/source/evaluator mutation, alternate model/provider or assigned-GPU change observed.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/content_agents/protocol_observations.json",
+          "sha256": "f7eaa2a977d571625a7b543e1f7fd4681795ac240494dce2f604f7ef3cd3cf2d"
+        }
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "2056.5814871415496seconds within 2400seconds; recorded human interventions0.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/10_complex/content_agents/execution.json",
+          "sha256": "bc43cccf40499e06eac8eca42a822f5c0b788f5117fad986f98e056030289d1d"
+        }
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "Conservatively count each invoked native repair workflow after the preserved failed first candidate, including the first invocation cancelled during nonmutating intake. Source extraction restart, API documentation/synthetic runtime preparation and final static bindings disposition are preparation/reporting, not additional candidate repairs.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/content_agents/protocol_observations.json",
+          "sha256": "f7eaa2a977d571625a7b543e1f7fd4681795ac240494dce2f604f7ef3cd3cf2d"
+        }
+      ]
+    },
+    {
+      "id": "terminal_claim_recorded",
+      "valid": true,
+      "finding": "claimed_accepted=false and the static partial are preserved. Independent physical acceptance is separate.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/10_complex/content_agents/submission.json",
+          "sha256": "82459ef233c4bdf90c0e324bddc406dfa1f63994488664586ad8ecf0f1f71867"
+        }
+      ]
+    }
+  ],
+  "violations": [],
+  "unknowns": [
+    "Shared-host process listings expose invocation metadata, including evaluator paths and another case identifier. This is an isolation limitation. The audit distinguishes paths/PIDs from foreign implementation, source geometry or result content; no such content was delivered in the reviewed responses.",
+    "Unrecorded activity is not certified; opaque collaboration message bodies were not decoded.",
+    "Some tool outputs are truncated; conclusions cover delivered content only.",
+    "Experiment-wide simulation scheduling is separate from this per-arm author-valid flag."
+  ],
+  "global_concurrency": {
+    "scope": "experiment-wide",
+    "status": "FAIL_CONFIRMED_OVERLAP",
+    "evidence": {
+      "path": "audits/pilot-v1/global_concurrency/overlap_02_05.json",
+      "sha256": "56224fbfb4d2fb4b429a8a0a2d7baddd0e411cdc8971be9aeb51905d061680f8"
+    },
+    "note": "Root owns global scheduling and unobserved remainder; this is separate from physical acceptance."
+  },
+  "coverage": {
+    "tool_requests": 212,
+    "tool_counts": {
+      "exec": 171,
+      "spawn_agent": 3,
+      "send_message": 36,
+      "sleep": 2
+    },
+    "first_tool_utc": "2026-09-21T23:51:31.801Z",
+    "last_tool_utc": "2026-09-22T00:25:06.201Z",
+    "command_requests_reviewed": 171,
+    "process_responses_reviewed": 20,
+    "process_request_selection": "Decode escaped newlines in request text before matching ps, pgrep, /proc/ and nvidia-smi. Include parent and all child sessions. Decode both nested JSON output objects and bare text blocks in responses.",
+    "review_method": "Reviewed every captured command request for access/treatment/environment scope and all20 selected process responses for actual foreign content exposure; cross-checked preserved native receipts and candidate hashes against independently rehashed watchdog outputs.",
+    "opaque_collaboration_message_bodies_decoded": false,
+    "private_tool_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "repair_counting": {
+    "declared_repairs": 2,
+    "audited_count": 2,
+    "limit": 2,
+    "convention": "Conservatively count each invoked native repair workflow after the preserved failed first candidate, including the first invocation cancelled during nonmutating intake. Source extraction restart, API documentation/synthetic runtime preparation and final static bindings disposition are preparation/reporting, not additional candidate repairs.",
+    "first_candidate": {
+      "path": "runs/pilot-v1/10_complex/content_agents/first_candidate/status.json",
+      "sha256": "a7077513f0c1d86c2942f19a6941dbc7791be88dd771dccf2b319f0e6d48494c"
+    },
+    "repair_1": {
+      "path": "runs/pilot-v1/10_complex/content_agents/repair_1/outer_cancellation_reason.json",
+      "sha256": "ab9aa58fc98100b8b1a43efeab3eb39de7eb0afbc6895e43d3a21db4ad76660f"
+    },
+    "repair_2": {
+      "path": "runs/pilot-v1/10_complex/content_agents/repair_2/outer_workflow_outcome.json",
+      "sha256": "ad1f9c3f72b15401cc2b0284994a447c32fb6b8aeae6a927a3bb24ddf20e6116"
+    },
+    "native_repair_certificate": {
+      "path": "runs/pilot-v1/10_complex/content_agents/repair_2/geometry_repair/final/repair_certificate.json",
+      "sha256": "029688f31a58fde0df16ec8c6f725b9adae38d66559e4efba99cc02e3f2785a8"
+    },
+    "public_bounded_repair_input": {
+      "path": "runs/pilot-v1/10_complex/content_agents/own_evidence/repair_2_public_input.json",
+      "sha256": "55ab6ce0dafccc41c31d8c5b074c27180c740c6d5f03c761ade36dc65014120e"
+    },
+    "findings": [
+      "First repair cancelled before candidate authoring when the CLI default8 attempts conflicted with the outer2-repair cap.",
+      "Second repair uses the public Geometry workflow API with max_attempts1 and450-second native repair budget; retained native outcome rejected, no operations applied and no promoted candidate.",
+      "Final USD remains byte-identical to the preserved first candidate; final bindings mark bodies nonmoving to report the static partial accurately."
+    ],
+    "candidate_manifest_hashes": [
+      {
+        "path": "runs/pilot-v1/10_complex/content_agents/bindings.json",
+        "sha256": "3a07cc734382609293457816562646800c7a5c0c73dd60b593df193a745bb5a3",
+        "size": 46102
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/content_agents/final.usd",
+        "sha256": "e02915da7d9985622209f66283a19c123dc7aa85855836a39637a417fefc135b",
+        "size": 77843667
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/content_agents/first_candidate/bindings.json",
+        "sha256": "9a7637f29ab0f8d12a8e811b71bd4426021eed3759d002446013c25ec5e53d9b",
+        "size": 46088
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/content_agents/first_candidate/scene.usd",
+        "sha256": "e02915da7d9985622209f66283a19c123dc7aa85855836a39637a417fefc135b",
+        "size": 77843667
+      }
+    ]
+  },
+  "private_tool_metadata_digest": {
+    "path": "audits/pilot-v1/10_complex/content_agents/tool_calls.private.json",
+    "sha256": "5207cc069ae2868cf6951c76003774f8c1cf4efd694fc233884535d0286cd6dc",
+    "publish": false
+  },
+  "detailed_report": {
+    "path": "audits/pilot-v1/10_complex/content_agents/protocol_observations.json",
+    "sha256": "f7eaa2a977d571625a7b543e1f7fd4681795ac240494dce2f604f7ef3cd3cf2d"
+  },
+  "usage_reconciled_sha256": "7e715430560bf84f7472d3066c00b46f3919acd96185f52fd9decfd3d367ef39",
+  "protocol_probe_sha256": "6a78ae97f379f7c731e80153cc85869e959fde0d59774eecc82fea1c5d4ec891",
+  "launch_sha256": "490de842a269f2b8ad8144ec2265d4c145f1601eae8dc092a9b073d35edff4d5",
+  "execution_sha256": "bc43cccf40499e06eac8eca42a822f5c0b788f5117fad986f98e056030289d1d",
+  "submission_sha256": "82459ef233c4bdf90c0e324bddc406dfa1f63994488664586ad8ecf0f1f71867",
+  "task_sha256": "8252d6cb86a9d22f92c2e865d9c270af6c23278121077d4c0fa8f7c7235518fc",
+  "no_scored_output_repaired": true
+}

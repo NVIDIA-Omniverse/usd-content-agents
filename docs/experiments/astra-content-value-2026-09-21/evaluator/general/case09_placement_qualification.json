@@ -1,0 +1,26 @@
+{
+  "scope": "Independent nonscored geometry-only fixtures, not source printer simulation",
+  "tests": [
+    {
+      "test": "clear_flat_source_patch",
+      "pass": true
+    },
+    {
+      "test": "reject_source_obstacle_and_select_clear_patch",
+      "pass": true
+    },
+    {
+      "test": "select_exposed_top_above_duplicated_internal_faces",
+      "pass": true
+    },
+    {
+      "test": "closed_volume_containment",
+      "pass": true
+    },
+    {
+      "test": "triangle_box_overlap",
+      "pass": true
+    }
+  ],
+  "pass": true
+}

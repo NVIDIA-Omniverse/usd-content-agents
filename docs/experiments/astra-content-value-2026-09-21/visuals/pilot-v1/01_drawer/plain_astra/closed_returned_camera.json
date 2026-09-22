@@ -1,0 +1,8 @@
+{
+  "command": "camera.use",
+  "ok": true,
+  "schema_version": "1",
+  "summary": {
+    "active": "/__ReplayPresentation/Camera"
+  }
+}

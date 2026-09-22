@@ -1,0 +1,16 @@
+{
+  "status": "not_accepted",
+  "accepted": false,
+  "concrete_failures": [
+    "submission_contract"
+  ],
+  "inconclusive_checks": [],
+  "reason": "Missing or null submitted final_scene/bindings within the completed run directory.",
+  "scope": "Contractual non-delivery; no physical acceptance inferred and no author output changed.",
+  "version": "v1_conservative_after_distance_erratum",
+  "case_id": "05_vise",
+  "arm": "content_agents",
+  "v1_acceptance_sha256": "2e4d23a014815a61751e28f8251a2ede6d2d9f2ff5680b5bcdf5248d53d1b234",
+  "adjudication_action": "skipped_non_submission",
+  "false_pass": false
+}

@@ -1,0 +1,51 @@
+{
+  "scope": "Only response items corresponding to process-inspection execution requests; no model reasoning or inter-agent payloads read into this evidence.",
+  "arm": "plain_astra",
+  "records": [
+    {
+      "index": 0,
+      "timestamp": "2026-09-21T22:23:03.283Z",
+      "output_found": true,
+      "output_characters": 444,
+      "output_sha256": "74724a52d5b4cd6596bb60ed39ea3e29bc8271e8391161b3ebda2778b9f70f4c",
+      "foreign_case_tokens": [],
+      "possible_credential_marker": false
+    },
+    {
+      "index": 1,
+      "timestamp": "2026-09-21T22:27:19.356Z",
+      "output_found": true,
+      "output_characters": 5205,
+      "output_sha256": "572265afa232e55ece4119ac46bc8d78c74553ef9009e42f9b909e26af78943c",
+      "foreign_case_tokens": [],
+      "possible_credential_marker": false
+    },
+    {
+      "index": 2,
+      "timestamp": "2026-09-21T22:27:34.554Z",
+      "output_found": true,
+      "output_characters": 279,
+      "output_sha256": "9bac8d7c141c7e8dcd0e32f6fc74a9319f68c072fd8f204d884aa64b65fd279b",
+      "foreign_case_tokens": [],
+      "possible_credential_marker": false
+    },
+    {
+      "index": 3,
+      "timestamp": "2026-09-21T22:28:04.786Z",
+      "output_found": true,
+      "output_characters": 2889,
+      "output_sha256": "65df7b8e1637d63aed7d7bd3edf146b2e7dc7fb4885c3e4e71c7eda7de71ae85",
+      "foreign_case_tokens": [],
+      "possible_credential_marker": false
+    },
+    {
+      "index": 4,
+      "timestamp": "2026-09-21T22:29:34.154Z",
+      "output_found": true,
+      "output_characters": 2444,
+      "output_sha256": "ff4eba8d501d7245060e95699b6e399f43dd66b186cc814c2143adcc18ba074d",
+      "foreign_case_tokens": [],
+      "possible_credential_marker": false
+    }
+  ]
+}

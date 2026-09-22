@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "/opt/astra-content-value-20260921/repo/agentic/packages/content_workflow_cli/node_modules/.bin/codex",
+    "exec",
+    "--ignore-user-config",
+    "--skip-git-repo-check",
+    "-C",
+    "/opt/astra-content-value-20260921/runs/pilot-v1/04_gripper/content_agents",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"ultra\"",
+    "-c",
+    "approval_policy=\"never\"",
+    "-s",
+    "danger-full-access",
+    "--json",
+    "-o",
+    "/opt/astra-content-value-20260921/runs/pilot-v1/04_gripper/content_agents/last_message.txt",
+    "-"
+  ],
+  "arm": "content_agents",
+  "budget_seconds": 2400,
+  "case": "04_gripper",
+  "gpu_index": 1,
+  "model": "gpt-6-astra",
+  "prompt_sha256": "b4d69200e6f17889b63588dd47d1c8c9682094da57632c90d0ca1b03442d2c7c",
+  "reasoning_effort": "ultra",
+  "scored": true,
+  "start_unix": 1790030382.1095052,
+  "task_file": "/opt/astra-content-value-20260921/protocol/tasks/04_gripper.json",
+  "task_sha256": "b86c962c09ca2b1675b0561bc10a9f9b8213a1e35c8f64fd14097003008fde5f"
+}

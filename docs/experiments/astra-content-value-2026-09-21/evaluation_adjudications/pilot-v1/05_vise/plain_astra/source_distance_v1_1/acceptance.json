@@ -1,0 +1,1936 @@
+{
+  "accepted": true,
+  "status": "accepted",
+  "concrete_failures": [],
+  "inconclusive_checks": [],
+  "checks": [
+    {
+      "name": "reference_inventory_frozen",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:evaluate.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:structural.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:cases.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:geometry.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:common.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:solver.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:bindings.schema.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "case_identity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "usd_stage_load",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "meters_and_z_up",
+      "passed": true,
+      "evidence": {
+        "meters_per_unit": 1.0,
+        "up_axis": "Z"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "no_prescribed_time_sampled_motion_or_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "frozen_source_coverage_complete",
+      "passed": true,
+      "evidence": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/1.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/2.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/3.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/4.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Base.SLDPRT",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Base.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Block.SLDPRT",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Block.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/End plate.SLDPRT",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/End plate.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Fixed Jaw.SLDPRT",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Fixed Jaw.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Machine Vice  Assembly.SLDASM",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Machine Vice  Assembly.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Readme.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Screw M8.SLDPRT",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Screw M8.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Screw Spindle.SLDPRT",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Screw Spindle.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Set Screw M6.SLDPRT",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Set Screw M6.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Set Screw M8.SLDPRT",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Set Screw M8.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Sliding Jaw.SLDPRT",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source/Sliding Jaw.STEP",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unique_body_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "required_body_roles",
+      "passed": true,
+      "evidence": {
+        "required": [
+          "moving_jaw",
+          "fixed_jaw",
+          "base"
+        ],
+        "given": {
+          "base": "/World/Base",
+          "fixed_jaw": "/World/FixedJaw",
+          "moving_jaw": "/World/MovingJaw"
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/Base",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/Base",
+      "passed": true,
+      "evidence": [
+        "/World/Base/Collision/Bottom",
+        "/World/Base/Collision/GuideLeft",
+        "/World/Base/Collision/GuideRight",
+        "/World/Base/Collision/BlockLower",
+        "/World/Base/Collision/BlockUpper"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/FixedJaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/FixedJaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/FixedJaw",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/FixedJaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/FixedJaw",
+      "passed": true,
+      "evidence": [
+        "/World/FixedJaw/Collision/Jaw"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/MovingJaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/MovingJaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/MovingJaw",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/MovingJaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/MovingJaw",
+      "passed": true,
+      "evidence": [
+        "/World/MovingJaw/Collision/Jaw"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/World/MovingJaw",
+      "passed": true,
+      "evidence": [
+        1.4682316780090332,
+        0.00122274539899081,
+        0.001490302849560976,
+        0.002403407823294401
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/World/MovingJaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "all_rigid_bodies_observed",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "unique_joint_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/World/Joints/JawSlide",
+      "passed": true,
+      "evidence": "prismatic",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/World/Joints/JawSlide",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/JawSlide:0",
+      "passed": true,
+      "evidence": "/World/Base",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/JawSlide:1",
+      "passed": true,
+      "evidence": "/World/MovingJaw",
+      "failure_class": null
+    },
+    {
+      "name": "all_joints_declared",
+      "passed": true,
+      "evidence": {
+        "undeclared": [],
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "required_joint_roles",
+      "passed": true,
+      "evidence": {
+        "jaw_slide": "/World/Joints/JawSlide"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:jaw_slide",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_drives_intended_body:jaw_slide",
+      "passed": true,
+      "evidence": {
+        "joint": "/World/Joints/JawSlide",
+        "intended_body": "/World/MovingJaw"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_parts_mapped_once",
+      "passed": true,
+      "evidence": {
+        "required": 13,
+        "mapped": 13,
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:source/Machine Vice  Assembly.STEP#solid:0000:Base",
+      "passed": true,
+      "evidence": {
+        "required_role": "base",
+        "mapped_body": "/World/Base"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:source/Machine Vice  Assembly.STEP#solid:0006:Fixed Jaw",
+      "passed": true,
+      "evidence": {
+        "required_role": "fixed_jaw",
+        "mapped_body": "/World/FixedJaw"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:source/Machine Vice  Assembly.STEP#solid:0009:Sliding Jaw",
+      "passed": true,
+      "evidence": {
+        "required_role": "moving_jaw",
+        "mapped_body": "/World/MovingJaw"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/World/Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/World/FixedJaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/World/MovingJaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "assembly_alignment_is_rigid",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0000:Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0000:Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0000:Base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0000:Base",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 6.385717657957959e-09,
+        "final_to_source_max_sample_distance_m": 6.3402368652987206e-09,
+        "area_ratio": 1.000000006008523,
+        "bounds_error_m": 6.340236863300319e-09,
+        "tolerance_m": 0.0002575364051935183,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0001:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0001:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0001:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0001:Screw M8",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.1678103354764916e-06,
+        "final_to_source_max_sample_distance_m": 8.182937977149408e-07,
+        "area_ratio": 0.9999996927937472,
+        "bounds_error_m": 1.5019569615803974e-09,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0002:Screw Spindle",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0002:Screw Spindle",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0002:Screw Spindle",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0002:Screw Spindle",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 6.88678820317733e-05,
+        "final_to_source_max_sample_distance_m": 3.6272694346152915e-05,
+        "area_ratio": 1.0000337748384525,
+        "bounds_error_m": 6.785338929615747e-09,
+        "tolerance_m": 0.00016089743600237563,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0003:End plate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0003:End plate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0003:End plate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0003:End plate",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.6181502289459904e-09,
+        "final_to_source_max_sample_distance_m": 1.8156834946385345e-09,
+        "area_ratio": 1.0000000033401213,
+        "bounds_error_m": 1.6181502249246194e-09,
+        "tolerance_m": 6.786015030929422e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0004:Block",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0004:Block",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0004:Block",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0004:Block",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 3.744076932919933e-09,
+        "final_to_source_max_sample_distance_m": 3.796774708475115e-09,
+        "area_ratio": 1.000000051865048,
+        "bounds_error_m": 3.1811906581191707e-09,
+        "tolerance_m": 0.00010073728207570426,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0005:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0005:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0005:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0005:Screw M8",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.1682186852546115e-06,
+        "final_to_source_max_sample_distance_m": 8.181596595831759e-07,
+        "area_ratio": 0.9999996623646834,
+        "bounds_error_m": 1.274154733110766e-09,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0006:Fixed Jaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0006:Fixed Jaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0006:Fixed Jaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0006:Fixed Jaw",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.4213511321288642e-09,
+        "final_to_source_max_sample_distance_m": 1.1540446111745983e-09,
+        "area_ratio": 0.9999999878528317,
+        "bounds_error_m": 3.8418221381952833e-10,
+        "tolerance_m": 0.00010073728207570423,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0007:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0007:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0007:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0007:Screw M8",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.1679936491707873e-06,
+        "final_to_source_max_sample_distance_m": 8.180706781961333e-07,
+        "area_ratio": 0.9999996868395056,
+        "bounds_error_m": 1.4026008549050673e-09,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0008:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0008:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0008:Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0008:Screw M8",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.1686734393382002e-06,
+        "final_to_source_max_sample_distance_m": 8.172173523841435e-07,
+        "area_ratio": 0.9999997160398062,
+        "bounds_error_m": 1.5019569615803974e-09,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0009:Sliding Jaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0009:Sliding Jaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0009:Sliding Jaw",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0009:Sliding Jaw",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.8518177500946018e-09,
+        "final_to_source_max_sample_distance_m": 1.8396953692154155e-09,
+        "area_ratio": 0.9999999792928296,
+        "bounds_error_m": 1.4989408880783373e-09,
+        "tolerance_m": 0.00011766477807738389,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0010:Set Screw M6",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0010:Set Screw M6",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0010:Set Screw M6",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0010:Set Screw M6",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 6.689819518092842e-07,
+        "final_to_source_max_sample_distance_m": 6.285585190672313e-07,
+        "area_ratio": 0.9999999299273901,
+        "bounds_error_m": 2.402851667637762e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0011:Set Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0011:Set Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0011:Set Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0011:Set Screw M8",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.8037871308567774e-09,
+        "final_to_source_max_sample_distance_m": 1.8209770786401776e-09,
+        "area_ratio": 1.000000099804566,
+        "bounds_error_m": 1.6601052199582966e-09,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source/Machine Vice  Assembly.STEP#solid:0012:Set Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source/Machine Vice  Assembly.STEP#solid:0012:Set Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source/Machine Vice  Assembly.STEP#solid:0012:Set Screw M8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source/Machine Vice  Assembly.STEP#solid:0012:Set Screw M8",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.758817340657973e-09,
+        "final_to_source_max_sample_distance_m": 1.790367237752809e-09,
+        "area_ratio": 1.000000101235714,
+        "bounds_error_m": 1.6601052199582966e-09,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters",
+        "non_distance_values_preserved_exactly_from_v1": true
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_visual_meshes_unique",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_unmapped_visible_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "exactly_one_physics_scene",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "earth_gravity_authored",
+      "passed": true,
+      "evidence": {
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "magnitude": 9.8100004196167
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.8197481632232666,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.2705463389944157e-09,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/Joints/JawSlide",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -1.8559188984246244e-08,
+          0.04999998777380452
+        ],
+        "authored": [
+          0.0,
+          0.05000000074505806
+        ],
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:required_joint_motion:jaw_slide",
+      "passed": true,
+      "evidence": 0.030266800429672003,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:jaw_slide",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.0013994362391531456,
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_return:jaw_slide",
+      "passed": true,
+      "evidence": [
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed11:slider_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:slider_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 0.05000000074505806,
+        "observed": 0.04999998777380452
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.8253799080848694,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.2705463389944157e-09,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:joint_limits:/World/Joints/JawSlide",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -1.1108608387322416e-08,
+          0.049999984048514225
+        ],
+        "authored": [
+          0.0,
+          0.05000000074505806
+        ],
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:required_joint_motion:jaw_slide",
+      "passed": true,
+      "evidence": 0.030254002194851637,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:target_holding_under_load:jaw_slide",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.0013587411679327477,
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:joint_return:jaw_slide",
+      "passed": true,
+      "evidence": [
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed23:slider_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:slider_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 0.05000000074505806,
+        "observed": 0.049999984048514225
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.8258835673332214,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.2705463389944157e-09,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:joint_limits:/World/Joints/JawSlide",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -1.2971253536553373e-08,
+          0.04999998777380452
+        ],
+        "authored": [
+          0.0,
+          0.05000000074505806
+        ],
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:required_joint_motion:jaw_slide",
+      "passed": true,
+      "evidence": 0.03025295166298747,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:target_holding_under_load:jaw_slide",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.0013554033078253258,
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:joint_return:jaw_slide",
+      "passed": true,
+      "evidence": [
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08,
+        -1.1108608387322416e-08
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed47:slider_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:slider_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 0.05000000074505806,
+        "observed": 0.04999998777380452
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.8213529586791992,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.2705463389944157e-09,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:joint_limits:/World/Joints/JawSlide",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -1.483389868578433e-08,
+          0.049999985911159374
+        ],
+        "authored": [
+          0.0,
+          0.05000000074505806
+        ],
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:required_joint_motion:jaw_slide",
+      "passed": true,
+      "evidence": 0.030262541025877,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:target_holding_under_load:jaw_slide",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.001385667100548743,
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:joint_return:jaw_slide",
+      "passed": true,
+      "evidence": [
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        -1.483389868578433e-08,
+        4.4770746089606295e-08,
+        4.4770746089606295e-08
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed83:slider_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:slider_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 0.05000000074505806,
+        "observed": 0.049999985911159374
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.8248756527900696,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 1.2705463389944157e-09,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:joint_limits:/World/Joints/JawSlide",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -1.1108608387322416e-08,
+          0.049999984048514225
+        ],
+        "authored": [
+          0.0,
+          0.05000000074505806
+        ],
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:required_joint_motion:jaw_slide",
+      "passed": true,
+      "evidence": 0.030255041550844908,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:target_holding_under_load:jaw_slide",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.0013620641268789757,
+        "tolerance": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:joint_return:jaw_slide",
+      "passed": true,
+      "evidence": [
+        -9.245963238091459e-09,
+        -9.245963238091459e-09,
+        -9.245963238091459e-09,
+        -9.245963238091459e-09,
+        -9.245963238091459e-09,
+        -9.245963238091459e-09,
+        -9.245963238091459e-09,
+        -9.245963238091459e-09
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed131:slider_authored_finite_limits",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:slider_upper_limit_exercised",
+      "passed": true,
+      "evidence": {
+        "upper": 0.05000000074505806,
+        "observed": 0.049999984048514225
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    }
+  ],
+  "version": "source_distance_v1_1",
+  "case_id": "05_vise",
+  "arm": "plain_astra",
+  "started_utc": "2026-09-21T23:41:52.328388+00:00",
+  "finished_utc": "2026-09-21T23:43:12.947205+00:00",
+  "worker_sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84",
+  "qualification_sha256": "692d21ef3ce06902aa8c189930d6f66b02586295fc96fc39a28a110fa9e28424",
+  "frozen_snapshot_manifest_sha256": "0bdb8d5d35d86bc761fcb61dfdd8aa1bd513f0c6bc5875a792b3bf944e65a6cc",
+  "frozen_code_sha256": {
+    "evaluate.py": "c88b9a1de90f85d9923c10640e502f287a86d1aec3ec9b94ce953b33f19db5f8",
+    "structural.py": "476f3bffc017a46fada8623fbf1c96361b2f3d8145d03f34815df34f10683a39",
+    "cases.json": "66affde6c3d1270f1b79e9b4a41d55c80fd25dacf35568bd6040def24b92cddb",
+    "geometry.py": "6f56755a187b6b11491a5168bc99c55a306e114ee51dd5195bd86286286592eb",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "solver.py": "f64ec843b7d3760f1f9661a96f673ea56cdd51e93b7d5fa337cfe52f2ab502ed",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b"
+  },
+  "v1_acceptance_sha256": "2232c641f8490abf1651568600805d92e9edfe132fdc2503474f4009ebd22c6e",
+  "input_scene_sha256": "6ed037a35e81cfd69e683742c1896a1784e5f2c62ad07fbf87122eaa53609646",
+  "bindings_sha256": "1df3489067261951c63a257d6c75e8ff4650d5856266379e58d7a8f85cd9bc05",
+  "source_inventory_sha256": "76c100c81816bce57e16b65f3c5dd37cc71f79f94bb152a9be17f34421bb662f",
+  "tolerances_changed": false,
+  "frozen_files_modified": false,
+  "scored_artifacts_modified": false,
+  "uniform_length_scale": 1000,
+  "source_surface_checks_replaced": 13,
+  "geometry_parts": [
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0000:Base",
+      "v1_passed": true,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00010949566625641024,
+      "v1_1_distance_m": 6.385717657957959e-09,
+      "tolerance_m": 0.0002575364051935183,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 6.340236863300319e-09,
+      "independent_meter_area_ratio": 1.000000006008523,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0001:Screw M8",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00023024195204446812,
+      "v1_1_distance_m": 1.1678103354764916e-06,
+      "tolerance_m": 5e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 1.5019569615803974e-09,
+      "independent_meter_area_ratio": 0.9999996927937472,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0002:Screw Spindle",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.0002559138416098084,
+      "v1_1_distance_m": 6.88678820317733e-05,
+      "tolerance_m": 0.00016089743600237563,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 6.785338929615747e-09,
+      "independent_meter_area_ratio": 1.0000337748384525,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0003:End plate",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00021611571664274554,
+      "v1_1_distance_m": 1.8156834946385345e-09,
+      "tolerance_m": 6.786015030929422e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 1.6181502249246194e-09,
+      "independent_meter_area_ratio": 1.0000000033401213,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0004:Block",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00021128140105359627,
+      "v1_1_distance_m": 3.796774708475115e-09,
+      "tolerance_m": 0.00010073728207570426,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 3.1811906581191707e-09,
+      "independent_meter_area_ratio": 1.000000051865048,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0005:Screw M8",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00023024197039554108,
+      "v1_1_distance_m": 1.1682186852546115e-06,
+      "tolerance_m": 5e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 1.274154733110766e-09,
+      "independent_meter_area_ratio": 0.9999996623646834,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0006:Fixed Jaw",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.0001554704109277295,
+      "v1_1_distance_m": 1.4213511321288642e-09,
+      "tolerance_m": 0.00010073728207570423,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 3.8418221381952833e-10,
+      "independent_meter_area_ratio": 0.9999999878528317,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0007:Screw M8",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00023024204929845027,
+      "v1_1_distance_m": 1.1679936491707873e-06,
+      "tolerance_m": 5e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 1.4026008549050673e-09,
+      "independent_meter_area_ratio": 0.9999996868395056,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0008:Screw M8",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.000230241707580709,
+      "v1_1_distance_m": 1.1686734393382002e-06,
+      "tolerance_m": 5e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 1.5019569615803974e-09,
+      "independent_meter_area_ratio": 0.9999997160398062,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0009:Sliding Jaw",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00019879054400139538,
+      "v1_1_distance_m": 1.8518177500946018e-09,
+      "tolerance_m": 0.00011766477807738389,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 1.4989408880783373e-09,
+      "independent_meter_area_ratio": 0.9999999792928296,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0010:Set Screw M6",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.0002950526488310052,
+      "v1_1_distance_m": 6.689819518092842e-07,
+      "tolerance_m": 5e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 2.402851667637762e-10,
+      "independent_meter_area_ratio": 0.9999999299273901,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0011:Set Screw M8",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00020825656999402939,
+      "v1_1_distance_m": 1.8209770786401776e-09,
+      "tolerance_m": 5e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 1.6601052199582966e-09,
+      "independent_meter_area_ratio": 1.000000099804566,
+      "non_distance_values_identical": true
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0012:Set Screw M8",
+      "v1_passed": false,
+      "v1_1_passed": true,
+      "v1_distance_m": 0.00020825660319440535,
+      "v1_1_distance_m": 1.790367237752809e-09,
+      "tolerance_m": 5e-05,
+      "bounds_pass": true,
+      "area_pass": true,
+      "independent_meter_bounds_error_m": 1.6601052199582966e-09,
+      "independent_meter_area_ratio": 1.000000101235714,
+      "non_distance_values_identical": true
+    }
+  ],
+  "native_physics": {
+    "all_five_complete": true,
+    "seeds": [
+      {
+        "seed": 11,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_11.json",
+        "sha256": "5ccb5b958ffced83635aceac02142ea1917e79cb915471bf743323af066515fa"
+      },
+      {
+        "seed": 23,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_23.json",
+        "sha256": "9f455fb94a7030fb3416dbf151c14a3e0097cc07dda44dac083f4af9836a7255"
+      },
+      {
+        "seed": 47,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_47.json",
+        "sha256": "0703c3083af8074f8adbb99ae84babf111585afbfe13df437c1c967ce0bc451f"
+      },
+      {
+        "seed": 83,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_83.json",
+        "sha256": "9ca010e44e0d43ca00cbde576a80ec5a6d87960cb58f95fb1be7c17e253a2f98"
+      },
+      {
+        "seed": 131,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_131.json",
+        "sha256": "2e4c16e5fb076ac6a9efe261b63ec72485eee58bd9d38694e98e11af40478c22"
+      }
+    ],
+    "configuration_and_result_hashes": {
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/runtime_config.json": "6a929c50e8a8024254a5aba7ff1c7ac0cb10bf86f58018ee47b32c53e7378061",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/instrumented.usda": "7500ba050a7140b90399792c2a9e1ad7963046304fed3cda26b5a282b344f313",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_11.json": "5ccb5b958ffced83635aceac02142ea1917e79cb915471bf743323af066515fa",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_23.json": "9f455fb94a7030fb3416dbf151c14a3e0097cc07dda44dac083f4af9836a7255",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_47.json": "0703c3083af8074f8adbb99ae84babf111585afbfe13df437c1c967ce0bc451f",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_83.json": "9ca010e44e0d43ca00cbde576a80ec5a6d87960cb58f95fb1be7c17e253a2f98",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra/seed_131.json": "2e4c16e5fb076ac6a9efe261b63ec72485eee58bd9d38694e98e11af40478c22"
+    }
+  },
+  "native_physics_origin": "unchanged_frozen_v1_results",
+  "native_physics_directory": "/opt/astra-content-value-20260921/evaluations/pilot-v1/05_vise/plain_astra",
+  "v1_native_config_and_results_unchanged": true,
+  "claimed_accepted": true,
+  "false_pass": false
+}

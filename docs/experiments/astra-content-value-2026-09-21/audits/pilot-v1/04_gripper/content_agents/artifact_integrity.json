@@ -1,0 +1,13 @@
+{
+  "case_id": "04_gripper",
+  "arm": "content_agents",
+  "output_manifest_sha256": "2e071bb557aea291e11601c0608030bba76e88f507fa0bb4ff30c3beb69c4b96",
+  "checked_files": 303,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034788.8589756
+}

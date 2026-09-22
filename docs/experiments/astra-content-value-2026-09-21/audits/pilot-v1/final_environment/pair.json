@@ -1,0 +1,14 @@
+{
+  "verified_utc": "2026-09-22T01:10:25.310797+00:00",
+  "all_20_author_runs_completed_before_check": true,
+  "baseline_commit": "a96faf9cb2f5c1f655fe0d60c0ccf57e3477b1aa",
+  "repository_manifest_sha256": "fd919f5ff3b769552e3e26ed0e349c1793a2970ebd15515e07b4095a033bd3b8",
+  "dataset_sha256": "34c8293ab1be49cd0bbdb8f8fe25278b60ba21c35d52b8009a5065278d25c87f",
+  "repository_files_checked": 2883,
+  "source_files_checked": 486,
+  "repository_unchanged": true,
+  "original_sources_unchanged": true,
+  "repository_mismatches": [],
+  "source_mismatches": [],
+  "scope": "Tracked baseline repository files and frozen original source closure only. Runtime-generated/untracked files are not claimed immutable; the unscored capstone uses a separate repository."
+}

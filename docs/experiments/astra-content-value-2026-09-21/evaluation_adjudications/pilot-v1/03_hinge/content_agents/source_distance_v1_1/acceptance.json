@@ -1,0 +1,30 @@
+{
+  "status": "not_accepted",
+  "accepted": false,
+  "concrete_failures": [
+    "submission_contract"
+  ],
+  "inconclusive_checks": [],
+  "reason": "Missing or null submitted final_scene/bindings within the completed run directory.",
+  "scope": "Contractual non-delivery; no physical acceptance inferred and no author output changed.",
+  "version": "source_distance_v1_1",
+  "case_id": "03_hinge",
+  "arm": "content_agents",
+  "adjudication_action": "skipped_non_submission",
+  "started_utc": "2026-09-21T23:41:18.270964+00:00",
+  "finished_utc": "2026-09-21T23:41:18.271736+00:00",
+  "worker_sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84",
+  "qualification_sha256": "692d21ef3ce06902aa8c189930d6f66b02586295fc96fc39a28a110fa9e28424",
+  "v1_acceptance_sha256": "2e4d23a014815a61751e28f8251a2ede6d2d9f2ff5680b5bcdf5248d53d1b234",
+  "author_manifest_sha256": "95fe922c1937604d64da305dffcedb7a694c039fd9e7cb4b721ec8a8d581868d",
+  "source_surface_checks_replaced": 0,
+  "claimed_accepted": false,
+  "false_pass": false,
+  "input_scene_sha256": null,
+  "bindings_sha256": null,
+  "native_physics_origin": "not_applicable_no_submitted_scene_or_bindings",
+  "tolerances_changed": false,
+  "frozen_files_modified": false,
+  "scored_artifacts_modified": false,
+  "skip_reason": "No nonempty scene/bindings pair was submitted. Original contractual failure is preserved; no geometry or physics verdict is invented."
+}

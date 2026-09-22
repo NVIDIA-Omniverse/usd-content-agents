@@ -1,0 +1,540 @@
+{
+  "schema_version": 1,
+  "version": "native_gravity_witness_origin_v1",
+  "scope": "Case-neutral synthetic numerical qualification; no automatic case verdict override",
+  "created_utc": "2026-09-22T00:22:48.121939+00:00",
+  "runtime": "ovphysx0.4.13 native CPU, TGS",
+  "status": "REPRODUCED_EVALUATOR_WITNESS_ORIGIN_SENSITIVITY",
+  "dt_s": 0.004166666666666667,
+  "steps": 24,
+  "gravity_m_s2": 9.81,
+  "witness_mass_kg": 1,
+  "original_thresholds": {
+    "max_position_error_m": 0.004,
+    "max_velocity_error_m_s": 0.03
+  },
+  "trials": [
+    {
+      "suite": "r2",
+      "name": "near_default",
+      "initial_pose": [
+        1.0,
+        1.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "position_iterations": null,
+      "companion_position_iterations": null,
+      "scene_sha256": "2bcbf1693a3d0760e79dcde0212f5003269b367447dbd4564c8f1931f7bff085",
+      "delta_z_m": -0.05109375715255737,
+      "vz_m_s": -0.9810003042221069,
+      "expected_continuous_delta_z_m": -0.04905000000000001,
+      "expected_vz_m_s": -0.981,
+      "position_error_m": 0.002043757152557363,
+      "velocity_error_m_s": 3.0422210695046914e-07,
+      "frozen_witness_threshold_pass": true
+    },
+    {
+      "suite": "r2",
+      "name": "far_default",
+      "initial_pose": [
+        1000.0,
+        1000.0,
+        1000.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "position_iterations": null,
+      "companion_position_iterations": null,
+      "scene_sha256": "67b0a17b4bc170767f87bccdde1350d05acbb88ef0fd3750d7f021b3a0cabc91",
+      "delta_z_m": -0.05108642578125,
+      "vz_m_s": -0.9810003042221069,
+      "expected_continuous_delta_z_m": -0.04905000000000001,
+      "expected_vz_m_s": -0.981,
+      "position_error_m": 0.0020364257812499897,
+      "velocity_error_m_s": 3.0422210695046914e-07,
+      "frozen_witness_threshold_pass": true
+    },
+    {
+      "suite": "r2",
+      "name": "near_128",
+      "initial_pose": [
+        1.0,
+        1.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "position_iterations": 128,
+      "companion_position_iterations": null,
+      "scene_sha256": "f395ad0800f31465a09c13683d7079f3c2a93947c717eb5f20ae962665a7dadd",
+      "delta_z_m": -0.05109375715255737,
+      "vz_m_s": -0.9810003042221069,
+      "expected_continuous_delta_z_m": -0.04905000000000001,
+      "expected_vz_m_s": -0.981,
+      "position_error_m": 0.002043757152557363,
+      "velocity_error_m_s": 3.0422210695046914e-07,
+      "frozen_witness_threshold_pass": true
+    },
+    {
+      "suite": "r2",
+      "name": "far_128",
+      "initial_pose": [
+        1000.0,
+        1000.0,
+        1000.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "position_iterations": 128,
+      "companion_position_iterations": null,
+      "scene_sha256": "3bacaf67f5c2c4f28e312639becd648f50610c47426b8966349b3b797a5273f0",
+      "delta_z_m": -0.05108642578125,
+      "vz_m_s": -0.9810003042221069,
+      "expected_continuous_delta_z_m": -0.04905000000000001,
+      "expected_vz_m_s": -0.981,
+      "position_error_m": 0.0020364257812499897,
+      "velocity_error_m_s": 3.0422210695046914e-07,
+      "frozen_witness_threshold_pass": true
+    },
+    {
+      "suite": "r2",
+      "name": "far_companion128",
+      "initial_pose": [
+        1000.0,
+        1000.0,
+        1000.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "position_iterations": null,
+      "companion_position_iterations": 128,
+      "scene_sha256": "5b0598c78c3c6127c3c7231c95b3577e722d25bf9f3fcee6be84710446379b32",
+      "delta_z_m": -0.05108642578125,
+      "vz_m_s": -0.9810003042221069,
+      "expected_continuous_delta_z_m": -0.04905000000000001,
+      "expected_vz_m_s": -0.981,
+      "position_error_m": 0.0020364257812499897,
+      "velocity_error_m_s": 3.0422210695046914e-07,
+      "frozen_witness_threshold_pass": true
+    },
+    {
+      "suite": "r2",
+      "name": "near_companion128",
+      "initial_pose": [
+        1.0,
+        1.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "position_iterations": null,
+      "companion_position_iterations": 128,
+      "scene_sha256": "29d46d3fbb20a89f76329fe668ebf0368ec713e90926de52e2e0965aa21fa9d8",
+      "delta_z_m": -0.05109375715255737,
+      "vz_m_s": -0.9810003042221069,
+      "expected_continuous_delta_z_m": -0.04905000000000001,
+      "expected_vz_m_s": -0.981,
+      "position_error_m": 0.002043757152557363,
+      "velocity_error_m_s": 3.0422210695046914e-07,
+      "frozen_witness_threshold_pass": true
+    },
+    {
+      "suite": "r3",
+      "name": "far_constrained128",
+      "initial_pose": [
+        1000.0,
+        1000.0,
+        1000.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "position_iterations": null,
+      "companion_position_iterations": 128,
+      "scene_sha256": "e1109779ec80ed13a47629bec61468aa8fa6998bd20247900f407cc8a517922a",
+      "delta_z_m": -0.015625,
+      "vz_m_s": -0.9810003042221069,
+      "expected_continuous_delta_z_m": -0.04905000000000001,
+      "expected_vz_m_s": -0.981,
+      "position_error_m": 0.03342500000000001,
+      "velocity_error_m_s": 3.0422210695046914e-07,
+      "frozen_witness_threshold_pass": false
+    },
+    {
+      "suite": "r3",
+      "name": "near_constrained128",
+      "initial_pose": [
+        1.0,
+        1.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "position_iterations": null,
+      "companion_position_iterations": 128,
+      "scene_sha256": "45efe9052e64dab1a89e2f6e2f01a9484fc5e7377b4c606a5bec948c036910b0",
+      "delta_z_m": -0.05109405517578125,
+      "vz_m_s": -0.9810003042221069,
+      "expected_continuous_delta_z_m": -0.04905000000000001,
+      "expected_vz_m_s": -0.981,
+      "position_error_m": 0.0020440551757812397,
+      "velocity_error_m_s": 3.0422210695046914e-07,
+      "frozen_witness_threshold_pass": true
+    }
+  ],
+  "finding": "With an unrelated world-fixed companion body configured for128 position iterations, an unconstrained gravity witness at[1000,1000,1000]m drops only0.015625m in0.1s while its velocity matches-0.981m/s. Moving only the witness to[1,1,1]m restores displacement within the unchanged4mm threshold. Six unconstrained/default-iteration controls pass. Exact native numerical implementation cause remains unproven.",
+  "diagnostics": [
+    {
+      "scope": "Synthetic, unscored; no author asset or frozen evaluator used as a solved fixture",
+      "entrypoint": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+        "sha256": "f7bbc0f1b2a1a7c12d18eff210ea10c4392a76b69391079451d86fbb9657101f"
+      },
+      "result": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/results.json",
+        "sha256": "ea7d88c08a6cbd0ccd10913d56e28e9ec64f6b7acf18bcab8ad09180affdf406"
+      },
+      "log": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.log",
+        "sha256": "42f3a59190f95312a1fa1cb61a6442f8dfe85b6a6c8eb848cef705496921a285"
+      },
+      "command": [
+        "env",
+        "TMPDIR=/opt/astra-content-value-20260921/tmp",
+        "UV_NO_CACHE=1",
+        "nice",
+        "-n",
+        "15",
+        "ionice",
+        "-c3",
+        "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py"
+      ],
+      "shell_setting": "ulimit -c 0",
+      "child_commands": [
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "0"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "1"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "2"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "3"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "4"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2.py",
+          "--trial",
+          "5"
+        ]
+      ],
+      "scenes": [
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/near_default.usda",
+          "sha256": "2bcbf1693a3d0760e79dcde0212f5003269b367447dbd4564c8f1931f7bff085"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/far_default.usda",
+          "sha256": "67b0a17b4bc170767f87bccdde1350d05acbb88ef0fd3750d7f021b3a0cabc91"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/near_128.usda",
+          "sha256": "f395ad0800f31465a09c13683d7079f3c2a93947c717eb5f20ae962665a7dadd"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/far_128.usda",
+          "sha256": "3bacaf67f5c2c4f28e312639becd648f50610c47426b8966349b3b797a5273f0"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/far_companion128.usda",
+          "sha256": "5b0598c78c3c6127c3c7231c95b3577e722d25bf9f3fcee6be84710446379b32"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r2/near_companion128.usda",
+          "sha256": "29d46d3fbb20a89f76329fe668ebf0368ec713e90926de52e2e0965aa21fa9d8"
+        }
+      ],
+      "measurements": [
+        {
+          "name": "near_default",
+          "initial_pose": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": null,
+          "scene_sha256": "2bcbf1693a3d0760e79dcde0212f5003269b367447dbd4564c8f1931f7bff085",
+          "delta_z_m": -0.05109375715255737,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.002043757152557363,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "far_default",
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": null,
+          "scene_sha256": "67b0a17b4bc170767f87bccdde1350d05acbb88ef0fd3750d7f021b3a0cabc91",
+          "delta_z_m": -0.05108642578125,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.0020364257812499897,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "near_128",
+          "initial_pose": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": 128,
+          "companion_position_iterations": null,
+          "scene_sha256": "f395ad0800f31465a09c13683d7079f3c2a93947c717eb5f20ae962665a7dadd",
+          "delta_z_m": -0.05109375715255737,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.002043757152557363,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "far_128",
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": 128,
+          "companion_position_iterations": null,
+          "scene_sha256": "3bacaf67f5c2c4f28e312639becd648f50610c47426b8966349b3b797a5273f0",
+          "delta_z_m": -0.05108642578125,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.0020364257812499897,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "far_companion128",
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": 128,
+          "scene_sha256": "5b0598c78c3c6127c3c7231c95b3577e722d25bf9f3fcee6be84710446379b32",
+          "delta_z_m": -0.05108642578125,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.0020364257812499897,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        },
+        {
+          "name": "near_companion128",
+          "initial_pose": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": 128,
+          "scene_sha256": "29d46d3fbb20a89f76329fe668ebf0368ec713e90926de52e2e0965aa21fa9d8",
+          "delta_z_m": -0.05109375715255737,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.002043757152557363,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        }
+      ]
+    },
+    {
+      "scope": "Synthetic, unscored; no author asset or frozen evaluator used as a solved fixture",
+      "entrypoint": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.py",
+        "sha256": "7719e3ef5e6ced89a3db8aae6a59b45041dd37dba54fbfb89d4cae4ef1858f79"
+      },
+      "result": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3/results.json",
+        "sha256": "e2b0f10246fec64b35d491146950843746d3e3c75eda71382b5980980b4a11a5"
+      },
+      "log": {
+        "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.log",
+        "sha256": "c260f2d7c3d8c4890851aeb83224160f39dbc80e330544611568298e20aecff6"
+      },
+      "command": [
+        "env",
+        "TMPDIR=/opt/astra-content-value-20260921/tmp",
+        "UV_NO_CACHE=1",
+        "nice",
+        "-n",
+        "15",
+        "ionice",
+        "-c3",
+        "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+        "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.py"
+      ],
+      "shell_setting": "ulimit -c 0",
+      "child_commands": [
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.py",
+          "--trial",
+          "0"
+        ],
+        [
+          "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+          "/opt/astra-content-value-20260921/evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3.py",
+          "--trial",
+          "1"
+        ]
+      ],
+      "scenes": [
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3/far_constrained128.usda",
+          "sha256": "e1109779ec80ed13a47629bec61468aa8fa6998bd20247900f407cc8a517922a"
+        },
+        {
+          "path": "evaluator/errata/engine_auxiliary_body_review/gravity_origin_probe_r3/near_constrained128.usda",
+          "sha256": "45efe9052e64dab1a89e2f6e2f01a9484fc5e7377b4c606a5bec948c036910b0"
+        }
+      ],
+      "measurements": [
+        {
+          "name": "far_constrained128",
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": 128,
+          "scene_sha256": "e1109779ec80ed13a47629bec61468aa8fa6998bd20247900f407cc8a517922a",
+          "delta_z_m": -0.015625,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.03342500000000001,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": false
+        },
+        {
+          "name": "near_constrained128",
+          "initial_pose": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_iterations": null,
+          "companion_position_iterations": 128,
+          "scene_sha256": "45efe9052e64dab1a89e2f6e2f01a9484fc5e7377b4c606a5bec948c036910b0",
+          "delta_z_m": -0.05109405517578125,
+          "vz_m_s": -0.9810003042221069,
+          "expected_continuous_delta_z_m": -0.04905000000000001,
+          "expected_vz_m_s": -0.981,
+          "position_error_m": 0.0020440551757812397,
+          "velocity_error_m_s": 3.0422210695046914e-07,
+          "frozen_witness_threshold_pass": true
+        }
+      ]
+    }
+  ],
+  "reuse_conditions": [
+    "Inspect actual submitted scene, native configuration and rejected witness traces independently. Bind any case assessment to immutable v1 and latest adjudication bytes.",
+    "Match native runtime, TGS, constrained high-iteration companion and distant evaluator-owned witness; a superficially similar rejection alone is insufficient.",
+    "Cover every remaining rejection individually; retain any independent supported failure.",
+    "Do not alter frozen/scored files, silently relax thresholds, promote acceptance, or count this invalid witness failure as a demonstrated false pass.",
+    "This receipt is synthetic numerical evidence only; it is not a corrected replay of any submitted mechanism."
+  ],
+  "frozen_files_modified": false,
+  "scored_artifacts_modified": false,
+  "verdict_override_applied": false,
+  "raw_auth_or_model_reasoning_included": false
+}

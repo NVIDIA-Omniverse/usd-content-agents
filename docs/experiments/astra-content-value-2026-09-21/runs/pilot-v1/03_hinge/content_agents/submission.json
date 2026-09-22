@@ -1,0 +1,19 @@
+{
+  "claimed_accepted": false,
+  "final_scene": null,
+  "bindings": null,
+  "reason": "Blocked at native Geometry handoff. The first candidate failed the topology gate; the documented source-preserving visual_only diagnosis then failed before producing a repair certificate. No articulated physical mechanism was produced. Non-mutating Validation of the preserved partial candidate confirms missing physics. Five-seed runtime acceptance is INCONCLUSIVE, not claimed.",
+  "repairs_used": 1,
+  "limitations": [
+    "Native first Geometry result: success=false, validation_status=fail, handoff_ready=no; 6655 boundary edges reported.",
+    "Repair 1 ended with tuple-valued error before diagnosis/certificate: (0.00038730049133300784, -0.00039816018939018203, 0.002172035425901413).",
+    "OpenUSD source-format compliance remained not_evaluated after Ndr pluginFactory initialization failure; frozen packages were not changed.",
+    "Converter authored metersPerUnit=0.001 and Y up although numerical source extents match the public inventory in meters; no valid final coordinate-normalized scene was published.",
+    "Original source closure remains byte-identical and preserved under source_preserved/. Partial candidate is first_candidate/candidate.usd, not a final mechanism.",
+    "Required Joint and Physics authoring were not run after the failed Geometry handoff; there are no rigid bodies, joints, masses, inertias, or colliders in the partial candidate.",
+    "All required seeds 11,23,47,83,131 and open/close/closure/overtravel/gravity runtime gates remain not_evaluated.",
+    "No final.usd or compliant bindings.json can be published; final_scene and bindings are null under the blocked-submission contract.",
+    "Only gpt-6-astra with ultra reasoning was used. One documentation-only collaboration child was used; no repository workflow coding-agent child or alternate model/provider was launched. Child cost telemetry is unavailable, not zero.",
+    "Partial Validation finalization has verdict=fail; native assessment returns authorized=false with canonical_assessment=null and terminal_receipt=null. Failure evidence is retained; no completed native chain is claimed."
+  ]
+}

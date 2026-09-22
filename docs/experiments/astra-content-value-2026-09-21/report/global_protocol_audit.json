@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "valid": false,
+  "scope": "Global max_sim_processes_concurrent=4 compliance, separate from author source/model/repair audits",
+  "status": "CONFIRMED_GLOBAL_SIMULATION_CONCURRENCY_VIOLATION",
+  "reason": "The global cap was four native simulation processes. A retained process table directly lists five simultaneous hinge workers at 2026-09-21T22:28:04.786Z, including an orphaned worker and four new workers. Separately, a conveyor process table and a reconstructed vise worker lifetime establish another interval with at least five. This is a harness protocol failure; the author prompts did not disclose the global process cap.",
+  "known_four_worker_interval": {
+    "case": "03_hinge",
+    "arm": "plain_astra",
+    "start_utc": "2026-09-21T22:27:58.162095Z",
+    "end_utc_derived": "2026-09-21T22:30:35.105987Z",
+    "seed_count": 4,
+    "backend": "GPU PhysX",
+    "overlap_with_other_native_simulations": "Not fully reconstructed",
+    "additional_orphan_worker_confirmed_by_direct_receipt": true
+  },
+  "effect": "No pair is labeled fully protocol-eligible. Independent physical outcomes, full-denominator configured-runtime results and run-level audits remain reported. The finding does not assert every arm violated the cap; it prevents certifying the frozen experiment globally.",
+  "required_next_experiment_controls": [
+    "OS process and filesystem isolation between author cases and private evaluator",
+    "Global simulation semaphore including author children and evaluator jobs",
+    "Complete workflow-dependency and repository-provenance qualification before freeze"
+  ],
+  "confirmed_overlap": {
+    "snapshot_utc": "2026-09-21T23:04:52Z",
+    "minimum_processes": 5,
+    "cap": 4,
+    "cases": [
+      "02_conveyor/plain_astra",
+      "05_vise/plain_astra"
+    ],
+    "evidence_receipt": "audits/pilot-v1/global_concurrency/overlap_02_05.json",
+    "original_retained_evidence_sha256": "56224fbfb4d2fb4b429a8a0a2d7baddd0e411cdc8971be9aeb51905d061680f8"
+  },
+  "confirmed_direct_observation": {
+    "snapshot_utc": "2026-09-21T22:28:04.786Z",
+    "minimum_processes": 5,
+    "cap": 4,
+    "case": "03_hinge/plain_astra",
+    "evidence_receipt": "audits/pilot-v1/global_concurrency/hinge_five_workers_direct.json",
+    "original_retained_evidence_sha256": "fc80b8ae7ed68cda80b21ea39587b2d1d3b2018895efd370cea4e5a12e202546"
+  }
+}

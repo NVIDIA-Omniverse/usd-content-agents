@@ -1,0 +1,14 @@
+{
+  "created_utc": "2026-09-22T01:07:06.075638+00:00",
+  "action": "Exact-byte copy of the independently qualified supplementary structural observation. No evaluation verdict is replaced by this copy.",
+  "original_receipt_path": "performance_research/structural_delivery_v1/10_complex_content_agents.json",
+  "original_receipt_sha256": "90fd749a8ea5357b6e6ec12a38f628f2a7988afe1578e00d737fa65fcb628731",
+  "canonical_receipt_sha256": "90fd749a8ea5357b6e6ec12a38f628f2a7988afe1578e00d737fa65fcb628731",
+  "qualified_auditor_sha256": "387c6608092d1fe0ad3464c677b62451f983e9151443fa899717be879c79fc22",
+  "qualification_path": "performance_research/structural_delivery_v1/qualification_pair/qualification.json",
+  "qualification_sha256": "7b43248633411ee34fb7188bf7c5f34ce678ad5d4bde8c82947a5756f3d7e24b",
+  "source_fidelity_status": "NOT_EVALUATED",
+  "native_runtime_status": "NOT_EVALUATED",
+  "scored_files_modified": false,
+  "frozen_files_modified": false
+}

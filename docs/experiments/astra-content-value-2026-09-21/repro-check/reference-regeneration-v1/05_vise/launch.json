@@ -1,0 +1,77 @@
+{
+  "case_id": "05_vise",
+  "started_utc": "2026-09-21T23:21:48.009490+00:00",
+  "argv": [
+    "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+    "/opt/astra-content-value-20260921/evaluator/general/frozen/05_vise/geometry.py",
+    "--asset-root",
+    "/opt/astra-content-value-20260921/assets/05_vise",
+    "--source",
+    "source/Machine Vice  Assembly.STEP",
+    "--unit",
+    "0.001",
+    "--output",
+    "/opt/astra-content-value-20260921/repro-check/reference-regeneration-v1/05_vise/rebuilt",
+    "--case",
+    "05_vise"
+  ],
+  "cwd": "/opt/astra-content-value-20260921/repro-check/reference-regeneration-v1/05_vise",
+  "environment_overrides": {
+    "CUDA_VISIBLE_DEVICES": "",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1"
+  },
+  "cpu_affinity": [
+    127
+  ],
+  "nice": 15,
+  "python": "3.12.13 (main, May 10 2026, 19:30:01) [Clang 22.1.3 ]",
+  "platform": "Linux-5.15.0-113-generic-x86_64-with-glibc2.35",
+  "zlib": "1.3.1",
+  "versions": {
+    "numpy": "2.5.3",
+    "trimesh": "4.12.2",
+    "cadquery-ocp": "7.8.1.1"
+  },
+  "original_inventory_sha256": "76c100c81816bce57e16b65f3c5dd37cc71f79f94bb152a9be17f34421bb662f",
+  "frozen_manifest_sha256": "0bdb8d5d35d86bc761fcb61dfdd8aa1bd513f0c6bc5875a792b3bf944e65a6cc",
+  "code_sha256": {
+    "evaluate.py": "c88b9a1de90f85d9923c10640e502f287a86d1aec3ec9b94ce953b33f19db5f8",
+    "structural.py": "476f3bffc017a46fada8623fbf1c96361b2f3d8145d03f34815df34f10683a39",
+    "cases.json": "66affde6c3d1270f1b79e9b4a41d55c80fd25dacf35568bd6040def24b92cddb",
+    "geometry.py": "6f56755a187b6b11491a5168bc99c55a306e114ee51dd5195bd86286286592eb",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "solver.py": "f64ec843b7d3760f1f9661a96f673ea56cdd51e93b7d5fa337cfe52f2ab502ed",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b"
+  },
+  "source_sha256": {
+    "source/1.JPG": "4cfa7d1e9736b8b277e677f7f6bad819e29ee522056cc9276081b28d4a77e0f4",
+    "source/2.JPG": "7361e0b2e2e144382f79b8eccb31a3e3efe3e3e8ab66587bc9c7c33affc4a554",
+    "source/3.JPG": "0058d00d4c7273b489a77c1940d362de6cbe74f26be1b75335a6b56fed0a3525",
+    "source/4.JPG": "dff6617cbf70cb68a5ad3699aa6a4a6f94697c05df78b0c34c9e875fa0712c03",
+    "source/Base.SLDPRT": "8d6949f9b5224c9e8f0d858133cb6b02c321fba52813c738f2684cbcfa48b5e5",
+    "source/Base.STEP": "447cc1c1fc13a386531c93e053258b4d0f38dc228a822cfb3ee3b5931bb3c02c",
+    "source/Block.SLDPRT": "e240376bbcf831977f7e431c5301df9b512467db8b55f23bf9fde8815a980bce",
+    "source/Block.STEP": "b60e7809758dac52bcb6a65c798533484f386cda7291b45e0d787561eb61ea7d",
+    "source/End plate.SLDPRT": "58ed399a656102d6265a8e7b0d9781ca1e6c1dfc7e91637bf397967b8e535dbe",
+    "source/End plate.STEP": "b95bd301db5d58c3fab9c7c7ce0e972641c169e39ddd2eb4c01b8ec56ece2cfa",
+    "source/Fixed Jaw.SLDPRT": "89644f5a32b6d2423e749f105ee7513fd043b8734e0c6b81cefc380e83d67d03",
+    "source/Fixed Jaw.STEP": "c8ad1fb38de202dfe0d8cba02d3717b48c0c8d2e084393762a710156fbd95563",
+    "source/Machine Vice  Assembly.SLDASM": "8cf6b062d37b9de616b6d196a31b9e3ba3cc9e1fda610635119b82f8f0bba50c",
+    "source/Machine Vice  Assembly.STEP": "0300d68d082e5d7b1d6cfa47a789dbf624bc59f2cf23934ea15d2858bbf3b766",
+    "source/Readme.md": "93d6d55887cfc68f94ee3f3e8f5c3f24489001afe36a2e8b97cc6a60686c2a8e",
+    "source/Screw M8.SLDPRT": "1fe5d1139a13411c576c53d00e30e07876788759f34867cdc2a4e0093943359d",
+    "source/Screw M8.STEP": "50b7ff9f9be06cd63131d77ce3bd4e237778e59572ad65f026f322b38321a02a",
+    "source/Screw Spindle.SLDPRT": "b3d3279d2b5f9199fc0af480bf7645d13e0ac8ab5c5e9a095306fa8a2da067a7",
+    "source/Screw Spindle.STEP": "a770a6c8eac274d84bda2f008fd3f2dc654d67b3e65f13c97292532f33889ebe",
+    "source/Set Screw M6.SLDPRT": "505666ee58959bdcf3750da88dc82bdf7372a483cf07d17466c31088a24e5c30",
+    "source/Set Screw M6.STEP": "210ff1c31538e485f7678fbba7d348e4f6725849a6cd2e20358ec325cee2f1e6",
+    "source/Set Screw M8.SLDPRT": "fa2e78523257ea2fcdf07dc19d6f3464f50614ffb7a7cfa07da9c74f9285f84c",
+    "source/Set Screw M8.STEP": "4d44b8db18eba79c95b70a96f90a6ea00943a1b4c7116a770512b286c0a0a348",
+    "source/Sliding Jaw.SLDPRT": "5535b497909f8ac361a880b2c1570663b538b9aea388cb088329c51de81760c1",
+    "source/Sliding Jaw.STEP": "5dcb45e049011d5e3b4692c760a5b807543616f1ac9b649dcd448d3236584c90"
+  },
+  "scope": "Original source and evaluator preparation only; no author outputs read."
+}

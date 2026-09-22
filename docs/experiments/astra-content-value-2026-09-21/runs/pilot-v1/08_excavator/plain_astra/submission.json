@@ -1,0 +1,15 @@
+{
+  "claimed_accepted": true,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "Own native OvPhysX tests pass all5 public seeds: minimum joint excursions15.55/15.95/17.56degrees; worst hold error4.00degrees; worst return error2.49degrees; max closure0.0319mm; fixed base; finite positive native mass/inertia; source coverage80/80. All geometry remains within5.08e-9m of native conversion. Claim applies to the explicitly documented abstract effective-inertia model, not hardware mass fidelity. Independent evaluator not invoked.",
+  "repairs_used": 1,
+  "limitations": [
+    "Moving-body principal rotational inertias are independently authored as12x the source-solid moments at unchanged masses/COMs. They are positive and satisfy triangle inequalities, but exceed what mass confined to these visible geometries can realize. This is an abstract effective-inertia simulation model, not native hardware mass distribution or a verified reflected drivetrain model.",
+    "Auxiliary actuator and small linkage source meshes are preserved and rigidly grouped to the four principal bodies. Hydraulic/lead-screw transmission and full native mate completeness are outside scope and are not simulated.",
+    "Collision shapes are invisible convex-hull proxies for main structural source parts; adjacent parent/child collision pairs are filtered for clevis/bore overlap.",
+    "Own protocol was implemented from the public description, without access to the independent evaluator. The outward limit witness commands upper_limit+0.15rad with the same bounded PD torque law; no independent evaluation result is claimed.",
+    "Native physics evidence uses pinned OvPhysX CPU dynamics on this Horde host; rendering uses pinned local OVRTX on the assigned GPU. CUDA_VISIBLE_DEVICES remains the assigned UUID.",
+    "The native converter resolved81 meshes after case normalization; final retains exactly the frozen required80. Additional converted native geometry is preserved in evidence/conversion/raw81.usda, and all72 original dependency files are preserved byte-for-byte."
+  ]
+}

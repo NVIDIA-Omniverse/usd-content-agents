@@ -1,0 +1,9 @@
+{
+  "released_utc": "2026-09-22T00:03:25.128118+00:00",
+  "rendered_frames": 3,
+  "renderer_server_stop_returncode": 0,
+  "gpu_compute_processes": [],
+  "owned_renderer_cwd_processes": [],
+  "released": true,
+  "render_provenance_sha256": "adadcb75509ce4a3fefbd29f735aade1bf5fea28b369030c5bf29e55a2ab14ce"
+}

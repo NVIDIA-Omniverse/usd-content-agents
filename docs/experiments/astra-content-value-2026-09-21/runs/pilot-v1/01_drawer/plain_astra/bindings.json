@@ -1,0 +1,24 @@
+{
+  "asset_id": "01_drawer",
+  "final_usd": "final.usd",
+  "drawer_body": "/World/drawer_cabinet_drawer_01",
+  "cabinet_body": "/World/Cabinet",
+  "drawer_joint": "/World/DrawerJoint",
+  "source_components": {
+    "drawer_cabinet": [
+      "/World/Cabinet/drawer_cabinet/Visual"
+    ],
+    "drawer_cabinet_drawer_01": [
+      "/World/drawer_cabinet_drawer_01/Visual"
+    ],
+    "drawer_cabinet_drawer_02": [
+      "/World/Cabinet/drawer_cabinet_drawer_02/Visual"
+    ],
+    "drawer_cabinet_drawer_03": [
+      "/World/Cabinet/drawer_cabinet_drawer_03/Visual"
+    ],
+    "drawer_cabinet_drawer_04": [
+      "/World/Cabinet/drawer_cabinet_drawer_04/Visual"
+    ]
+  }
+}

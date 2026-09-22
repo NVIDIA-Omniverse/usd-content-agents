@@ -1,0 +1,42 @@
+{
+  "schema_version": "astra-content-value-independent-acceptance.v1",
+  "recorded_utc": "2026-09-21T22:55:29.246017+00:00",
+  "case_id": "01_drawer",
+  "arm": "plain_astra",
+  "status": "PASS",
+  "accepted": true,
+  "claimed_accepted": true,
+  "false_pass": false,
+  "failure_kind": null,
+  "reason": "Verdict from the unchanged frozen evaluator across source/structural checks and all five native physics trials.",
+  "raw_evaluator_status": "PASS",
+  "raw_evaluator_report": "report.json",
+  "raw_evaluator_report_sha256": "bd2ca01c1c9d756d234c6091cb69e458e652fa24dc3a30038d5cb169ff23feef",
+  "raw_evaluator_error": null,
+  "submission_sha256": "de116612fc50fcce2ae81a8cb58030b381da2f8c2e2f6177810ed575a300e7be",
+  "inputs": {
+    "bindings_sha256": "5f7b86cc3fb038c254ead97dffe340aa69802b483dfe298e2770f1a3958dfeac",
+    "usd_sha256": "f375fa700f5bec4913e5c5deeb327d3a5073e89591c773a0e4b3017ba496d505",
+    "protocol_sha256": "cef4474f7bee05ce3be6c1e7bfa294ebfced78b62e99aace7aebc50cb14bb85d",
+    "evaluator_sha256": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+    "solver_adapter_sha256": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa",
+    "composed_stage_sha256": "59d4e0f0fb68e554eb33f55f6a9835695dd5f8b5c549db50727b95fdbb6e31c5"
+  },
+  "author_claim_reason": "All five locally simulated public seeds passed force-driven opening, closure, payload retention, contact, penetration, stability and interior-clearance checks. All five source surfaces match exactly, and the final packaged scene has the same geometry and physics as the tested first candidate. Independent acceptance has not been observed.",
+  "author_limitations": [
+    "Physics collision shapes approximate the source: drawer walls are axis-aligned slabs; the collision floor is 4.5 mm below the unchanged source floor, limiting the specified initial payload overlap to 3.5 mm.",
+    "Cabinet collision approximations omit thin source aperture lips that intersect the source drawer shell, plus decorative legs/upper shelving frame. Cabinet remains anchored; its full source visual mesh remains visible.",
+    "Drawer mass is an assumed 3 kg; center of mass, solid-envelope inertia and friction are documented simulation abstractions, not measured furniture properties.",
+    "The tests are our own implementation of the public force protocol on OvPhysX 0.4.13 CPU, not independent evaluator results. Exact evaluator random-number consumption and solver configuration were not inspected.",
+    "The pinned OvPhysX runtime crashed on a second initialization in one process. Completed seeds were therefore run in separate fresh processes; error logs are preserved. No installed packages or runtime source were changed.",
+    "The renderer completed on the assigned GPU with driver/display and fallback warnings recorded in its logs. No required physics capability was missing."
+  ],
+  "evaluation_limitations": [
+    "Force-limited drawer actuation and authored mass/inertia/friction are simulation abstractions, not physical furniture or robot manipulation validation.",
+    "Five deterministic seeds do not estimate general reliability.",
+    "Contact field payload_drawer_contact_force_n stores impulse in N*s; divide by1/240s for average force. The frozen contact detector remains0.01N*s (2.4N equivalent), with acceptance unchanged.",
+    "Native CPU evaluation ran at nice15/idle I/O on the shared authoring host; instantaneous load was not matched."
+  ],
+  "original_author_outputs_modified": false,
+  "evaluator_implementation_modified": false
+}

@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "case_id": "05_vise",
+  "arm": "content_agents",
+  "valid": true,
+  "status": "VALID_AUTHOR_PROTOCOL_OBSERVED",
+  "scope": "Per-arm author model, access, treatment, source, environment, repairs, wall budget and retained-artifact protocol. Experiment-wide simulation scheduling is explicitly separate.",
+  "audited_utc": "2026-09-22T00:00:25.761244+00:00",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All3 observed completed sessions used gpt-6-astra ultra; usage ledger reconciles with final counters and no final session is missing.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/content_agents/usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "frozen_task_and_outputs",
+      "valid": true,
+      "finding": "All195 retained watchdog-manifest files match their recorded bytes, and the public task hash matches launch. No scored artifact was repaired by this audit.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/content_agents/independent_protocol_probe.json"
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All25 source files match the frozen inventory or original curation hashes. Both the source closure and this author copy were independently compared.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/content_agents/source_integrity.json"
+      ]
+    },
+    {
+      "id": "control_treatment_separation",
+      "valid": true,
+      "finding": "Used native Geometry and re-admitted two unchanged-source tessellation repairs through Geometry. The first repair failed its triangle budget; the second passed Geometry scope. Native Asset launch specified Astra Ultra but stopped at package-owned usd-cli provenance verification because the supplied repository lacked .git. No child coordinator or Joint/Physics/Validation mechanism output followed. Null final_scene/bindings and claimed_accepted=false preserve the limitation.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/content_agents/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "forbidden_content_access",
+      "valid": true,
+      "finding": "The23:19:37.701Z listing showed common asset-catalog/preflight invocation metadata and the shell snapshot wrapper. No foreign asset code, geometry, evaluator implementation or results was observed in the returned response. Some output was truncated before delivery; only delivered content is audited.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/content_agents/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "frozen_environment_mutation",
+      "valid": true,
+      "finding": "No package installation, repository/source/evaluator mutation, alternate model provider, or assigned-GPU override observed. Own temporary code, test harnesses and run-local derived assets stay within author scope.",
+      "evidence": [
+        "audits/pilot-v1/05_vise/content_agents/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "1128.7518915757537 seconds within2400-second watchdog cap; human interventions recorded0.",
+      "evidence": [
+        "runs/pilot-v1/05_vise/content_agents/execution.json",
+        "audits/pilot-v1/05_vise/content_agents/usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "Initial converted Geometry candidate retained. Repair01 retessellated unchanged CAD with documented LOD4, then failed native Geometry triangle budget; repair02 used LOD3 and was readmitted through Geometry. Argument/preflight retries that never produced a mechanism candidate are not additional asset repairs.",
+      "count": 2,
+      "limit": 2,
+      "evidence": [
+        "audits/pilot-v1/05_vise/content_agents/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "terminal_claim_recorded",
+      "valid": true,
+      "finding": "Terminal claimed_accepted=false is retained. Author claims and independent physical verdicts are distinct; this protocol audit changes neither.",
+      "evidence": [
+        "runs/pilot-v1/05_vise/content_agents/submission.json"
+      ]
+    }
+  ],
+  "violations": [],
+  "unknowns": [
+    "No proof is claimed against unrecorded activity; opaque collaboration message bodies were not decoded.",
+    "Global scheduling is not certified by this per-arm valid flag. A separate confirmed global concurrency violation is retained."
+  ],
+  "global_concurrency": {
+    "scope": "experiment-wide",
+    "status": "FAIL_CONFIRMED_OVERLAP",
+    "evidence": "audits/pilot-v1/global_concurrency/overlap_02_05.json",
+    "note": "At least5 native solver processes overlap against cap4. Root owns global scope/adjudication and unobserved remainder."
+  },
+  "coverage": {
+    "tool_requests": 119,
+    "tool_counts": {
+      "exec": 104,
+      "spawn_agent": 2,
+      "send_message": 9,
+      "followup_task": 3,
+      "list_agents": 1
+    },
+    "first_tool_utc": "2026-09-21T23:18:17.269Z",
+    "last_tool_utc": "2026-09-21T23:36:39.301Z",
+    "review_method": "All captured tool requests, including child sessions, included in source/access/workflow/environment mutation scan; flagged calls and all process-listing responses inspected. Workflow and repair conclusions cross-checked against retained native receipts and output manifest.",
+    "opaque_collaboration_messages_decoded": false,
+    "private_request_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "repair_counting": {
+    "declared_repairs": 2,
+    "audited_count": 2,
+    "convention": "Initial converted Geometry candidate retained. Repair01 retessellated unchanged CAD with documented LOD4, then failed native Geometry triangle budget; repair02 used LOD3 and was readmitted through Geometry. Argument/preflight retries that never produced a mechanism candidate are not additional asset repairs.",
+    "evidence_paths": [
+      "audits/pilot-v1/05_vise/content_agents/author_evidence/repairs/repair_01/repair_request.json",
+      "audits/pilot-v1/05_vise/content_agents/author_evidence/repairs/repair_02/repair_request.json",
+      "audits/pilot-v1/05_vise/content_agents/author_evidence_manifest.json"
+    ],
+    "limit": 2
+  },
+  "private_tool_metadata_digest": {
+    "path": "audits/pilot-v1/05_vise/content_agents/tool_calls.private.json",
+    "sha256": "2ff04a07d648fa70be78792eb91b4ec0f0f52738fd9f7675d9b93385608de19d",
+    "publish": false
+  },
+  "detailed_report": {
+    "path": "audits/pilot-v1/05_vise/content_agents/protocol_observations.json",
+    "sha256": "8679f11a0b8426ac6b828a8d11dcb3da8c3c815c7668497b1eadce856e333c9c"
+  },
+  "usage_reconciled_sha256": "dbb0b557f448e2362658c98bdc7a3a2dd5961a4890aa263d56ff2a0c626281f3",
+  "independent_protocol_probe_sha256": "e353d1a4a2eb8af4d3aeda07c1ac22654e5dac0856ac3cdc496f2ca3db8a3434",
+  "source_integrity_sha256": "00682603002d8c31dda3d6329964c597fb81e14f34015910bc9c5a6c4105d794",
+  "launch_sha256": "a8360f90d0147775ada5903fae60eca59729916f9e12d7f225e1fd9eda0b400c",
+  "execution_sha256": "4f07a618807e2fb724e1295295803139a1402d110fadb6333a95909caaf02207",
+  "submission_sha256": "17de9d0978e25faf379f06585bd5d78f272fea6353dfcf974d144518a536a011",
+  "task_sha256": "a28238101478dde1f9ad3ed67e12a089ff1686b3bf30cd34030169348aa3324a",
+  "no_scored_output_repaired": true
+}

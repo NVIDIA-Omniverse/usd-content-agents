@@ -1,0 +1,13 @@
+{
+  "case_id": "08_excavator",
+  "arm": "plain_astra",
+  "output_manifest_sha256": "644c844125ba1ca4a27f407be61a2f23848a9e4a9c045ac7734b9c45078f6e28",
+  "checked_files": 265,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034806.674874
+}

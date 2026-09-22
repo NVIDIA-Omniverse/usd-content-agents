@@ -1,0 +1,15 @@
+{
+  "case_id": "06_engine",
+  "reference_inventory": "/opt/astra-content-value-20260921/evaluator/general/references/06_engine/source_inventory.json",
+  "reference_inventory_sha256": "c3dd99d6751573437f4219d8e8fcc981180eec66b8a8ab5d8086a2303caad9c4",
+  "code_sha256": {
+    "evaluate.py": "569b60b995d931a2b4af70392bc0667a129493f27425748ae6073ca6a36df8ff",
+    "structural.py": "04fba0b65c233321950d88bdf38ee483abc741489278f4fcbf76fc8b67549104",
+    "cases.json": "3c6e284907e6b34f67f2ab9901896575438bc456cb9d3df3619fa62224227cf9",
+    "geometry.py": "00de0861d86a68b33d9f671ea73c29020bef9d62369c129cb2e65e0724c6f1e9",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "solver.py": "8bf1bcd203747face921cbcebe3933402d4855298da26cdf72c735e801c6f0c3",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b"
+  },
+  "public_inventory_sha256": "c9998d35871fd1e8d3f58f7a04f25eedbe0cd4dd53419d061414b3017bc2f852"
+}

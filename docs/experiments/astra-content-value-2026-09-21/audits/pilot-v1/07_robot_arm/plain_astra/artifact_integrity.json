@@ -1,0 +1,13 @@
+{
+  "case_id": "07_robot_arm",
+  "arm": "plain_astra",
+  "output_manifest_sha256": "7b0018bbde42bd4efb7c0e91134121f38a08a88a7c468cad5fa010dd4ab889eb",
+  "checked_files": 1847,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034806.0297525
+}

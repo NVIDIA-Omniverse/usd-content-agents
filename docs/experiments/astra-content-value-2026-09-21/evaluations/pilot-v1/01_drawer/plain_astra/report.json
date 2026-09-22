@@ -1,0 +1,531 @@
+{
+  "protocol": "astra-drawer-independent-v1",
+  "pass": true,
+  "status": "PASS",
+  "started_utc": "2026-09-21T22:50:34Z",
+  "inputs": {
+    "bindings_sha256": "5f7b86cc3fb038c254ead97dffe340aa69802b483dfe298e2770f1a3958dfeac",
+    "usd_sha256": "f375fa700f5bec4913e5c5deeb327d3a5073e89591c773a0e4b3017ba496d505",
+    "protocol_sha256": "cef4474f7bee05ce3be6c1e7bfa294ebfced78b62e99aace7aebc50cb14bb85d",
+    "evaluator_sha256": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+    "solver_adapter_sha256": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa",
+    "composed_stage_sha256": "59d4e0f0fb68e554eb33f55f6a9835695dd5f8b5c549db50727b95fdbb6e31c5"
+  },
+  "trials": [
+    {
+      "status": "PASS",
+      "pass": true,
+      "seed": 11,
+      "backend": "ovphysx native USD / CPU PhysX",
+      "errors": [],
+      "scene_sha256": "691fe45869e59d2a09e42a9aa98d6b47c718900781cfb5582b4d5d4411726709",
+      "resolved_contact_sensor_paths": [
+        "/__EvaluatorPayload"
+      ],
+      "resolved_contact_filter_paths": [
+        [
+          "/World/drawer_cabinet_drawer_01"
+        ]
+      ],
+      "interior_queries": [
+        {
+          "position": [
+            -0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        }
+      ],
+      "import_pose_error_m": 0.0,
+      "metrics": {
+        "max_q_m": 0.24158190190792084,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 1.7881442545263637e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.09664197266101837,
+        "max_angular_speed_rad_s": 0.009855402633547783,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.6391287885976672,
+        "initial_drift_m": 5.634501576423645e-06,
+        "min_open_hold_q_m": 0.24001814424991608,
+        "max_closed_hold_error_m": 0.00018589943647384644,
+        "max_closed_hold_speed_m_s": 0.0012930913362652063
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      },
+      "pass_rule": "all checks"
+    },
+    {
+      "status": "PASS",
+      "pass": true,
+      "seed": 23,
+      "backend": "ovphysx native USD / CPU PhysX",
+      "errors": [],
+      "scene_sha256": "eb99ed0dd8ad904355b7ee06a4f278541c585ed95db23b3899883f5ebf4d64be",
+      "resolved_contact_sensor_paths": [
+        "/__EvaluatorPayload"
+      ],
+      "resolved_contact_filter_paths": [
+        [
+          "/World/drawer_cabinet_drawer_01"
+        ]
+      ],
+      "interior_queries": [
+        {
+          "position": [
+            -0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        }
+      ],
+      "import_pose_error_m": 0.0,
+      "metrics": {
+        "max_q_m": 0.24155353009700775,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 2.384192339368485e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.09631121903657913,
+        "max_angular_speed_rad_s": 0.053012385964393616,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.5932456024206806,
+        "initial_drift_m": 7.273629307746887e-06,
+        "min_open_hold_q_m": 0.23998214304447174,
+        "max_closed_hold_error_m": 6.52465969324112e-05,
+        "max_closed_hold_speed_m_s": 0.001163009786978364
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      },
+      "pass_rule": "all checks"
+    },
+    {
+      "status": "PASS",
+      "pass": true,
+      "seed": 47,
+      "backend": "ovphysx native USD / CPU PhysX",
+      "errors": [],
+      "scene_sha256": "2e383b87328d5f9fed6cacc647036ab1ba2f65009337e50c72469438939fb5a0",
+      "resolved_contact_sensor_paths": [
+        "/__EvaluatorPayload"
+      ],
+      "resolved_contact_filter_paths": [
+        [
+          "/World/drawer_cabinet_drawer_01"
+        ]
+      ],
+      "interior_queries": [
+        {
+          "position": [
+            -0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        }
+      ],
+      "import_pose_error_m": 0.0,
+      "metrics": {
+        "max_q_m": 0.24168892204761505,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 2.264982832017803e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.0971979945898056,
+        "max_angular_speed_rad_s": 0.0516592375934124,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.6048981554335435,
+        "initial_drift_m": 6.627291440963745e-06,
+        "min_open_hold_q_m": 0.2401495724916458,
+        "max_closed_hold_error_m": 0.00012025237083435059,
+        "max_closed_hold_speed_m_s": 0.001321346266195178
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      },
+      "pass_rule": "all checks"
+    },
+    {
+      "status": "PASS",
+      "pass": true,
+      "seed": 83,
+      "backend": "ovphysx native USD / CPU PhysX",
+      "errors": [],
+      "scene_sha256": "e44bc44f61ccd9ac5440c2fb42dd72d8c1eecdad21ef9577f0ef64bdb689d334",
+      "resolved_contact_sensor_paths": [
+        "/__EvaluatorPayload"
+      ],
+      "resolved_contact_filter_paths": [
+        [
+          "/World/drawer_cabinet_drawer_01"
+        ]
+      ],
+      "interior_queries": [
+        {
+          "position": [
+            -0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        }
+      ],
+      "import_pose_error_m": 0.0,
+      "metrics": {
+        "max_q_m": 0.24171213805675507,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 1.4305163252395605e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.09616171568632126,
+        "max_angular_speed_rad_s": 0.009484278038144112,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.6465734462026316,
+        "initial_drift_m": 5.295500159263611e-06,
+        "min_open_hold_q_m": 0.24012650549411774,
+        "max_closed_hold_error_m": 1.3211742043495178e-05,
+        "max_closed_hold_speed_m_s": 0.0006359820254147053
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      },
+      "pass_rule": "all checks"
+    },
+    {
+      "status": "PASS",
+      "pass": true,
+      "seed": 131,
+      "backend": "ovphysx native USD / CPU PhysX",
+      "errors": [],
+      "scene_sha256": "38dc964382666175846588182ddb4cdc7d044d01d444523dfc8c0ff3c1c3f8b2",
+      "resolved_contact_sensor_paths": [
+        "/__EvaluatorPayload"
+      ],
+      "resolved_contact_filter_paths": [
+        [
+          "/World/drawer_cabinet_drawer_01"
+        ]
+      ],
+      "interior_queries": [
+        {
+          "position": [
+            -0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            -0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            -0.08
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.04
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        },
+        {
+          "position": [
+            0.32,
+            1.03,
+            0.12
+          ],
+          "overlap_count": 0,
+          "collision_ids": []
+        }
+      ],
+      "import_pose_error_m": 0.0,
+      "metrics": {
+        "max_q_m": 0.24157612025737762,
+        "max_penetration_m": 0.003500012680888176,
+        "max_off_axis_m": 2.145773325730848e-06,
+        "max_rotation_deg": 0.0,
+        "max_linear_speed_m_s": 0.09719394147396088,
+        "max_angular_speed_rad_s": 0.04085073992609978,
+        "payload_contact_samples": 2280,
+        "payload_retained": true,
+        "max_force_n": 0.6738638231541331,
+        "initial_drift_m": 5.923211574554443e-06,
+        "min_open_hold_q_m": 0.23995546996593475,
+        "max_closed_hold_error_m": 7.041357457637787e-05,
+        "max_closed_hold_speed_m_s": 0.0012069521471858025
+      },
+      "checks": {
+        "opening": true,
+        "closing": true,
+        "closed_settled": true,
+        "payload_retained": true,
+        "payload_contact": true,
+        "penetration": true,
+        "off_axis": true,
+        "rotation": true,
+        "initial_drift": true,
+        "force_bounded": true,
+        "finite_and_stable": true,
+        "interior_clear": true
+      },
+      "pass_rule": "all checks"
+    }
+  ]
+}

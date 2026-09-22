@@ -1,0 +1,13 @@
+{
+  "case_id": "05_vise",
+  "arm": "plain_astra",
+  "output_manifest_sha256": "151d60003db42ad60651db3024d74442e9d793f11f9827d80199feff06ac1db6",
+  "checked_files": 259,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034793.1022365
+}

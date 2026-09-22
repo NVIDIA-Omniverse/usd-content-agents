@@ -1,0 +1,6 @@
+{
+  "phase": "USD open before rendering",
+  "reason": "server.allowed_roots was omitted; snapshots were outside the isolated renderer cwd. allowed_read_roots/allowed_write_roots did not grant this route.",
+  "scene_or_simulation_changes": false,
+  "environment_only_fix": "Explicit allowed_roots scoped to snapshot directory added."
+}

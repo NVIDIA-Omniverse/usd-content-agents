@@ -1,0 +1,13 @@
+{
+  "case_id": "01_drawer",
+  "arm": "content_agents",
+  "output_manifest_sha256": "8532f041c5c5820a8d68b1454fd2f16d82cd0b4bdb77ca84845265cde2a8230c",
+  "checked_files": 115,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034791.0055745
+}

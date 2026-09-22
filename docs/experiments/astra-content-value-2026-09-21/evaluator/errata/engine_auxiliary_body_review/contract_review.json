@@ -1,0 +1,774 @@
+{
+  "schema_version": 1,
+  "scope": "Independent post-freeze contract disclosure and native completeness diagnostic, not an altered acceptance evaluator",
+  "case_id": "06_engine",
+  "arm": "plain_astra",
+  "reviewed_utc": "2026-09-22T00:10:21.009192+00:00",
+  "disputed_check": "moving_body_has_source_geometry:/World/Bodies/beam_slider",
+  "contract_assessment": {
+    "classification": "UNDISCLOSED_OR_AMBIGUOUS_ADDITIONAL_STRUCTURAL_RESTRICTION",
+    "unambiguous_public_ban_on_auxiliary_dynamic_bodies": false,
+    "recommendation": "Do not count this auxiliary-source check alone as a demonstrated false pass. Preserve its frozen failure; separately report the contract-scope ambiguity. Do not silently drop it or promote task acceptance.",
+    "reasoning": [
+      "The public required_body_roles list is a required subset and does not limit the number of bodies. The bindings schema permits arbitrary role strings and has no maximum body count.",
+      "The public task explicitly requires declaration of ALL rigid bodies and ALL joints. It permits invisible/proxy/guide collision approximations and forbids substitute visual geometry.",
+      "Every required source instance and mandatory source/body role passes corrected independent geometry and mapping checks. The extra body is openly declared, dynamically observed, passive under the independent crank controller, and has only invisible guide collider geometry.",
+      "An extra dynamic linkage abstraction is not explicitly authorized in those words either; therefore the appropriate issue is contract ambiguity, not a retroactive unqualified acceptance.",
+      "Frozen structural.py:169-170 adds the universal requirement that every moving body owns at least one source_map instance. This restriction is absent from the public text and schema."
+    ],
+    "public_evidence": [
+      {
+        "json_pointer": "/submission_contract",
+        "quote": "Declare ALL rigid bodies and ALL joints."
+      },
+      {
+        "json_pointer": "/submission_contract",
+        "quote": "Collision approximations may differ, but mark added collision-only primitives/meshes purpose=proxy/guide or invisible."
+      },
+      {
+        "json_pointer": "/submission_contract",
+        "quote": "No time-sampled transforms/mesh points, prescribed pose updates, or substitute visual geometry."
+      },
+      {
+        "json_pointer": "/public_acceptance/required_body_roles",
+        "value": [
+          "crank",
+          "piston",
+          "beam",
+          "connecting_rod",
+          "base"
+        ]
+      }
+    ],
+    "frozen_gate_location": {
+      "path": "evaluator/general/frozen/06_engine/structural.py",
+      "line": 170
+    }
+  },
+  "author_disclosure": {
+    "claimed_accepted": true,
+    "exact_limitation": "An invisible internal slider models the original beam slot. Source master-sketch anchors idealize omitted pins in the educational CAD model."
+  },
+  "independent_auxiliary_readback": {
+    "path": "/World/Bodies/beam_slider",
+    "declared": true,
+    "dynamic": true,
+    "mass_kg": 4.999999873689376e-05,
+    "diagonal_inertia": [
+      2.000000026702864e-10,
+      2.000000026702864e-10,
+      2.000000026702864e-10
+    ],
+    "mapped_source_instances": 0,
+    "descendants": [
+      {
+        "path": "/World/Bodies/beam_slider/CollisionProxy",
+        "type": "Mesh",
+        "visibility": "invisible",
+        "purpose": "guide",
+        "collision": true
+      }
+    ],
+    "joint_connections": {
+      "/World/Joints/beam_slot": {
+        "path": "/World/Joints/beam_slot",
+        "kind": "prismatic",
+        "role": "beam_slot",
+        "axis": "X",
+        "body0": "/World/Bodies/beam",
+        "frame0": [
+          [
+            0.9847355019515892,
+            0.0,
+            0.1740574320633579,
+            -0.014999999664723873
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            -0.1740574320633579,
+            0.0,
+            0.9847355019515892,
+            0.0026513326447457075
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "body1": "/World/Bodies/beam_slider",
+        "frame1": [
+          [
+            0.9847355019515892,
+            0.0,
+            0.1740574320633579,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            -0.1740574320633579,
+            0.0,
+            0.9847355019515892,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "lower": -0.003000000026077032,
+        "upper": 0.003000000026077032
+      },
+      "/World/Joints/piston_clevis_pin": {
+        "path": "/World/Joints/piston_clevis_pin",
+        "kind": "revolute",
+        "role": "piston_clevis_pin",
+        "axis": "Y",
+        "body0": "/World/Bodies/piston",
+        "frame0": [
+          [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0002500000118743628
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.01571793667972088
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "body1": "/World/Bodies/beam_slider",
+        "frame1": [
+          [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "lower": null,
+        "upper": null
+      }
+    },
+    "independent_control_roles": [
+      "crank"
+    ]
+  },
+  "source_and_structure": {
+    "mapped_instances": 24,
+    "required_source_surface_checks": 24,
+    "source_surface_passed": 24,
+    "declared_bodies": 9,
+    "declared_joints": 11,
+    "other_structural_failures": []
+  },
+  "native_physics": {
+    "all_five_complete": true,
+    "seeds": [
+      {
+        "seed": 11,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_11.json",
+          "sha256": "d3b44d208814d9b14dff74209f7cb763f33a73ef45f82b0109e0a0af5afc0a1c"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880,
+        "only_control_writes": [
+          "RIGID_BODY_FORCE",
+          "RIGID_BODY_WRENCH"
+        ],
+        "gravity_witness": {
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "at_point_one_s": {
+            "t": 0.1,
+            "pose": [
+              1000.0,
+              1000.0,
+              999.984375,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "velocity": [
+              0.0,
+              0.0,
+              -0.9810003042221069,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "failed_checks": [
+          {
+            "name": "seed11:independent_freefall_witness",
+            "passed": false,
+            "evidence": {
+              "time": 0.1,
+              "delta_z": -0.015625,
+              "vz": -0.9810003042221069,
+              "expected_vz": -0.9810000000000001
+            },
+            "failure_class": "rejected"
+          }
+        ],
+        "passed_check_count": 18,
+        "motion_checks": [
+          {
+            "name": "seed11:full_crank_cycle",
+            "passed": true,
+            "evidence": 6.588713202368519,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:piston_stroke",
+            "passed": true,
+            "evidence": 0.008348152041435242,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:beam_swing",
+            "passed": true,
+            "evidence": 0.5401966492291819,
+            "failure_class": null
+          },
+          {
+            "name": "seed11:piston_cycle_repeat",
+            "passed": true,
+            "evidence": 1.102528594579105e-05,
+            "failure_class": null
+          }
+        ]
+      },
+      {
+        "seed": 23,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_23.json",
+          "sha256": "50518367b0ad9433a5b4aea6cf9a5cf636a573ab60212a21f0ada5b50349f380"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880,
+        "only_control_writes": [
+          "RIGID_BODY_FORCE",
+          "RIGID_BODY_WRENCH"
+        ],
+        "gravity_witness": {
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "at_point_one_s": {
+            "t": 0.1,
+            "pose": [
+              1000.0,
+              1000.0,
+              999.984375,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "velocity": [
+              0.0,
+              0.0,
+              -0.9810003042221069,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "failed_checks": [
+          {
+            "name": "seed23:independent_freefall_witness",
+            "passed": false,
+            "evidence": {
+              "time": 0.1,
+              "delta_z": -0.015625,
+              "vz": -0.9810003042221069,
+              "expected_vz": -0.9810000000000001
+            },
+            "failure_class": "rejected"
+          }
+        ],
+        "passed_check_count": 18,
+        "motion_checks": [
+          {
+            "name": "seed23:full_crank_cycle",
+            "passed": true,
+            "evidence": 6.587546280293555,
+            "failure_class": null
+          },
+          {
+            "name": "seed23:piston_stroke",
+            "passed": true,
+            "evidence": 0.008348099887371063,
+            "failure_class": null
+          },
+          {
+            "name": "seed23:beam_swing",
+            "passed": true,
+            "evidence": 0.5401933156938825,
+            "failure_class": null
+          },
+          {
+            "name": "seed23:piston_cycle_repeat",
+            "passed": true,
+            "evidence": 1.1025772980430603e-05,
+            "failure_class": null
+          }
+        ]
+      },
+      {
+        "seed": 47,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_47.json",
+          "sha256": "b771cfecea9c9460b3469df20df46798176445e83c7a0ddb5863b4b20424992f"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880,
+        "only_control_writes": [
+          "RIGID_BODY_FORCE",
+          "RIGID_BODY_WRENCH"
+        ],
+        "gravity_witness": {
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "at_point_one_s": {
+            "t": 0.1,
+            "pose": [
+              1000.0,
+              1000.0,
+              999.984375,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "velocity": [
+              0.0,
+              0.0,
+              -0.9810003042221069,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "failed_checks": [
+          {
+            "name": "seed47:independent_freefall_witness",
+            "passed": false,
+            "evidence": {
+              "time": 0.1,
+              "delta_z": -0.015625,
+              "vz": -0.9810003042221069,
+              "expected_vz": -0.9810000000000001
+            },
+            "failure_class": "rejected"
+          }
+        ],
+        "passed_check_count": 18,
+        "motion_checks": [
+          {
+            "name": "seed47:full_crank_cycle",
+            "passed": true,
+            "evidence": 6.5874479886457245,
+            "failure_class": null
+          },
+          {
+            "name": "seed47:piston_stroke",
+            "passed": true,
+            "evidence": 0.008348075672984123,
+            "failure_class": null
+          },
+          {
+            "name": "seed47:beam_swing",
+            "passed": true,
+            "evidence": 0.5401927423952011,
+            "failure_class": null
+          },
+          {
+            "name": "seed47:piston_cycle_repeat",
+            "passed": true,
+            "evidence": 1.1027675830679798e-05,
+            "failure_class": null
+          }
+        ]
+      },
+      {
+        "seed": 83,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_83.json",
+          "sha256": "4879324d933c3ccd4b598f2a3b92967b649a2cd6cbf70b785e27a4adebf580d8"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880,
+        "only_control_writes": [
+          "RIGID_BODY_FORCE",
+          "RIGID_BODY_WRENCH"
+        ],
+        "gravity_witness": {
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "at_point_one_s": {
+            "t": 0.1,
+            "pose": [
+              1000.0,
+              1000.0,
+              999.984375,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "velocity": [
+              0.0,
+              0.0,
+              -0.9810003042221069,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "failed_checks": [
+          {
+            "name": "seed83:independent_freefall_witness",
+            "passed": false,
+            "evidence": {
+              "time": 0.1,
+              "delta_z": -0.015625,
+              "vz": -0.9810003042221069,
+              "expected_vz": -0.9810000000000001
+            },
+            "failure_class": "rejected"
+          }
+        ],
+        "passed_check_count": 18,
+        "motion_checks": [
+          {
+            "name": "seed83:full_crank_cycle",
+            "passed": true,
+            "evidence": 6.588322487434063,
+            "failure_class": null
+          },
+          {
+            "name": "seed83:piston_stroke",
+            "passed": true,
+            "evidence": 0.008348124101758003,
+            "failure_class": null
+          },
+          {
+            "name": "seed83:beam_swing",
+            "passed": true,
+            "evidence": 0.54019529930981,
+            "failure_class": null
+          },
+          {
+            "name": "seed83:piston_cycle_repeat",
+            "passed": true,
+            "evidence": 1.1023458653902319e-05,
+            "failure_class": null
+          }
+        ]
+      },
+      {
+        "seed": 131,
+        "evidence": {
+          "path": "evaluations/pilot-v1/06_engine/plain_astra/seed_131.json",
+          "sha256": "da29823280cc50b7bb46974a74bf2ca72c7a3d16fb08b32f9f65d7ab03ea5c4b"
+        },
+        "completed_steps": 2880,
+        "expected_steps": 2880,
+        "only_control_writes": [
+          "RIGID_BODY_FORCE",
+          "RIGID_BODY_WRENCH"
+        ],
+        "gravity_witness": {
+          "initial_pose": [
+            1000.0,
+            1000.0,
+            1000.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "at_point_one_s": {
+            "t": 0.1,
+            "pose": [
+              1000.0,
+              1000.0,
+              999.984375,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "velocity": [
+              0.0,
+              0.0,
+              -0.9810003042221069,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "failed_checks": [
+          {
+            "name": "seed131:independent_freefall_witness",
+            "passed": false,
+            "evidence": {
+              "time": 0.1,
+              "delta_z": -0.015625,
+              "vz": -0.9810003042221069,
+              "expected_vz": -0.9810000000000001
+            },
+            "failure_class": "rejected"
+          }
+        ],
+        "passed_check_count": 18,
+        "motion_checks": [
+          {
+            "name": "seed131:full_crank_cycle",
+            "passed": true,
+            "evidence": 6.587642856699994,
+            "failure_class": null
+          },
+          {
+            "name": "seed131:piston_stroke",
+            "passed": true,
+            "evidence": 0.008348092436790466,
+            "failure_class": null
+          },
+          {
+            "name": "seed131:beam_swing",
+            "passed": true,
+            "evidence": 0.5401933230208305,
+            "failure_class": null
+          },
+          {
+            "name": "seed131:piston_cycle_repeat",
+            "passed": true,
+            "evidence": 1.1019374130200796e-05,
+            "failure_class": null
+          }
+        ]
+      }
+    ],
+    "paired_unloaded": {
+      "evidence": {
+        "path": "evaluations/pilot-v1/06_engine/plain_astra/unloaded_seed11.json",
+        "sha256": "4d1dccf34c468e0b98d962e984e72dac77ffac0b6815bc5714bde97d75e2a170"
+      },
+      "completed_steps": 2880,
+      "expected_steps": 2880
+    },
+    "paired_load_check": {
+      "name": "engine_paired_load_response",
+      "passed": true,
+      "evidence": {
+        "max_angle_change_rad": 0.042420073489375376,
+        "required_rad": 0.0001,
+        "input": "same seed, scene and controller; frozen inertia-normalized external shaft torque removed only in paired baseline"
+      },
+      "failure_class": null
+    },
+    "remaining_failures": [
+      {
+        "name": "moving_body_has_source_geometry:/World/Bodies/beam_slider",
+        "passed": false,
+        "evidence": null,
+        "failure_class": "rejected"
+      },
+      {
+        "name": "seed11:independent_freefall_witness",
+        "passed": false,
+        "evidence": {
+          "time": 0.1,
+          "delta_z": -0.015625,
+          "vz": -0.9810003042221069,
+          "expected_vz": -0.9810000000000001
+        },
+        "failure_class": "rejected"
+      },
+      {
+        "name": "seed23:independent_freefall_witness",
+        "passed": false,
+        "evidence": {
+          "time": 0.1,
+          "delta_z": -0.015625,
+          "vz": -0.9810003042221069,
+          "expected_vz": -0.9810000000000001
+        },
+        "failure_class": "rejected"
+      },
+      {
+        "name": "seed47:independent_freefall_witness",
+        "passed": false,
+        "evidence": {
+          "time": 0.1,
+          "delta_z": -0.015625,
+          "vz": -0.9810003042221069,
+          "expected_vz": -0.9810000000000001
+        },
+        "failure_class": "rejected"
+      },
+      {
+        "name": "seed83:independent_freefall_witness",
+        "passed": false,
+        "evidence": {
+          "time": 0.1,
+          "delta_z": -0.015625,
+          "vz": -0.9810003042221069,
+          "expected_vz": -0.9810000000000001
+        },
+        "failure_class": "rejected"
+      },
+      {
+        "name": "seed131:independent_freefall_witness",
+        "passed": false,
+        "evidence": {
+          "time": 0.1,
+          "delta_z": -0.015625,
+          "vz": -0.9810003042221069,
+          "expected_vz": -0.9810000000000001
+        },
+        "failure_class": "rejected"
+      }
+    ]
+  },
+  "gravity_witness_review": {
+    "classification": "REQUIRES_SEPARATE_DIAGNOSTIC",
+    "finding": "All five witness velocities match Earth gravity, but evaluator-owned witness displacement fails. Witness is placed at1000m in each axis. Origin alone and unconstrained high iteration counts did not reproduce failure in isolated controls; constrained-island interaction is being tested.",
+    "author_controlled": false
+  },
+  "provenance": {
+    "task": {
+      "path": "protocol/tasks/06_engine.json",
+      "sha256": "c9e74a00fb2c2b7b4a7624d78d2c4ef79586c4d8b6ee14707be3ba09cce167e4"
+    },
+    "source_public_inventory": {
+      "path": "protocol/tasks/06_engine_source_inventory.json",
+      "sha256": "c9998d35871fd1e8d3f58f7a04f25eedbe0cd4dd53419d061414b3017bc2f852"
+    },
+    "submission": {
+      "path": "runs/pilot-v1/06_engine/plain_astra/submission.json",
+      "sha256": "6031f980fb23f1a3a481868093e36d102f91de6e001d6701b99d27a709886870"
+    },
+    "scene": {
+      "path": "runs/pilot-v1/06_engine/plain_astra/final.usd",
+      "sha256": "59afe724de90b04fdc06895bb765b5a32ee6c4f837861c1075427f5375a74b32"
+    },
+    "bindings": {
+      "path": "runs/pilot-v1/06_engine/plain_astra/bindings.json",
+      "sha256": "59fe46ad7701bab8709c63af5aff04592dd9345deb0470d33bfe0fdcce296b63"
+    },
+    "frozen_v1_acceptance": {
+      "path": "evaluations/pilot-v1/06_engine/plain_astra/acceptance.json",
+      "sha256": "9a9efa7db05177a17e2e1993f424b7daa741fb4b68d35c8fb7ac2c456c45961d"
+    },
+    "distance_v1_1_acceptance": {
+      "path": "evaluation_adjudications/pilot-v1/06_engine/plain_astra/source_distance_v1_1/acceptance.json",
+      "sha256": "ada35a4a0a42f44f0ed5032807121970a412175b61d02b8c71f11653907d8ba3"
+    },
+    "runtime_config": {
+      "path": "evaluations/pilot-v1/06_engine/plain_astra/runtime_config.json",
+      "sha256": "cf9cec99a78258a81cee8d8d369b771dd0a795652e444ba94f5a4ed50a2e6e8c"
+    },
+    "frozen_manifest": {
+      "path": "evaluator/general/frozen/06_engine/frozen_manifest.json",
+      "sha256": "3370c473cb5daedf8840324d0383c2a63a96a85502deacc9dce30404ce2d3747"
+    },
+    "frozen_structural": {
+      "path": "evaluator/general/frozen/06_engine/structural.py",
+      "sha256": "04fba0b65c233321950d88bdf38ee483abc741489278f4fcbf76fc8b67549104"
+    },
+    "frozen_observer": {
+      "path": "evaluator/general/frozen/06_engine/evaluate.py",
+      "sha256": "569b60b995d931a2b4af70392bc0667a129493f27425748ae6073ca6a36df8ff"
+    }
+  },
+  "changes": {
+    "frozen_files_modified": false,
+    "v1_or_v1_1_receipts_modified": false,
+    "author_artifacts_modified": false,
+    "acceptance_promoted": false,
+    "physics_rerun_for_this_review": false
+  }
+}

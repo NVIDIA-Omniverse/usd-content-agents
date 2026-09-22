@@ -1,0 +1,16 @@
+{
+  "command": "open",
+  "ok": false,
+  "schema_version": "1",
+  "summary": {
+    "error_type": "policy",
+    "status": 400
+  },
+  "issues": [
+    {
+      "severity": "error",
+      "message": "daemon at http://127.0.0.1:49155 refused 'open' (400): file path is outside server.allowed_roots",
+      "detail": ""
+    }
+  ]
+}

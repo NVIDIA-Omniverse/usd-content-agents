@@ -1,0 +1,206 @@
+{
+  "schema_version": 2,
+  "case_id": "03_hinge",
+  "arm": "content_agents",
+  "created_utc": "2026-09-22T00:36:44.889437+00:00",
+  "valid": true,
+  "valid_scope": "Run-level access, model, task/allocation, wall-time, artifact integrity, treatment/control adherence and asset-repair checks only.",
+  "review_kind": "new_independent_retained_evidence_audit",
+  "audit_scope": "Fresh post-run audit. This receipt does not recover or reconstruct a lost prior receipt and does not certify global comparison eligibility or physical task acceptance.",
+  "superseded_current_receipt": {
+    "path": "audits/pilot-v1/03_hinge/content_agents/audit_history/pre_fresh_review_20260922_678123972352.json",
+    "sha256": "6781239723527527ecc62f7458c5880178701d924113d2e0415aeb9bbe678200",
+    "preservation": "Exact bytes of the current receipt at start of this fresh review; not asserted to be the lost original receipt."
+  },
+  "checks": [
+    {
+      "criterion": "pinned_model_and_effort",
+      "valid": true,
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra",
+      "observed_context_count": 2,
+      "details": "Freshly parsed turn_context metadata in every captured primary/child session matches launch and usage audit metadata.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/launch.json",
+          "sha256": "8e9297990b82df38c07aba27104c25af8a2bde84ea25d963ea9c130cfce67b76"
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/model_usage_audit.json",
+          "sha256": "08b7e40bc136d4024759115e60bc5b4b893ba3aa5a4b94d9c3f370dab03ac660"
+        },
+        {
+          "path": "audits/pilot-v1/03_hinge/content_agents/fresh_review_20260922/retained_metadata.json",
+          "sha256": "735a269266eabb3aa3e3b3ccae2bebf61341cf31d48a77bd3d7f6e715d7e37b3"
+        }
+      ]
+    },
+    {
+      "criterion": "task_and_paired_allocation_match",
+      "valid": true,
+      "task_sha256": "02282a061887e1358e7be6754ac2978e78ee02cdc204b4bf9f94bf173ce327a5",
+      "matched_fields": {
+        "model": true,
+        "reasoning_effort": true,
+        "budget_seconds": true,
+        "task_sha256": true
+      },
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/03_hinge/content_agents/fresh_review_20260922/protocol_probe.json",
+          "sha256": "40e694d2c5af5adbf05443e848cf1c95fb88b8e3aad5b713c363aec4ec253594"
+        }
+      ]
+    },
+    {
+      "criterion": "wall_time_cap",
+      "valid": true,
+      "elapsed_s": 691.8100549690425,
+      "cap_s": 2400,
+      "timed_out": false,
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/execution.json",
+          "sha256": "b6606fd896268e8b8e2d8504822eaa897c0163b72fdf0d13adc232ed572a5814"
+        }
+      ]
+    },
+    {
+      "criterion": "source_repository_frozen_evaluator_and_outputs_unchanged",
+      "valid": true,
+      "original_source_file_count": 3,
+      "repository_file_count": 2883,
+      "output_manifest_file_count": 110,
+      "frozen_checks": {
+        "evaluate.py": true,
+        "structural.py": true,
+        "cases.json": true,
+        "geometry.py": true,
+        "common.py": true,
+        "solver.py": true,
+        "bindings.schema.json": true,
+        "reference_inventory": true
+      },
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/03_hinge/repository_fresh_20260922.json",
+          "sha256": "25c4567385b517e4a699cc6abb3dfd07c5fcd7ad0ccedea5dbfcd4ae32d14702"
+        },
+        {
+          "path": "audits/pilot-v1/03_hinge/content_agents/fresh_review_20260922/protocol_probe.json",
+          "sha256": "40e694d2c5af5adbf05443e848cf1c95fb88b8e3aad5b713c363aec4ec253594"
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/output_manifest.json",
+          "sha256": "95fe922c1937604d64da305dffcedb7a694c039fd9e7cb4b721ec8a8d581868d"
+        }
+      ]
+    },
+    {
+      "criterion": "no_observed_forbidden_access_or_mutation",
+      "valid": true,
+      "execution_requests_reviewed": 53,
+      "details": "No ps, pgrep, or nvidia-smi inspection request found among extracted execution calls.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/03_hinge/content_agents/fresh_review_20260922/execution_review.json",
+          "sha256": "4733146512a09daafd149a030ba4b5af720aabbe8ab54a43496e2732bbbbf1e8"
+        },
+        {
+          "path": "audits/pilot-v1/03_hinge/content_agents/fresh_review_20260922/process_output_index.json",
+          "sha256": "8e1a52d5a59b56df7a8d4dbd04385577664cfe736754c8ab4511555d87504242"
+        }
+      ]
+    },
+    {
+      "criterion": "repair_chronology_within_two",
+      "valid": true,
+      "declared_repairs": 1,
+      "observed_asset_repair_attempts": 1,
+      "cap": 2,
+      "details": "One native Geometry invocation was followed by one visual_only diagnose repair at22:35:06Z. Its failed receipt was preserved. Subsequent Validation schema/assessment retries are non-mutating diagnostic closeout, not asset repair iterations.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/03_hinge/content_agents/fresh_review_20260922/execution_review.json",
+          "sha256": "4733146512a09daafd149a030ba4b5af720aabbe8ab54a43496e2732bbbbf1e8"
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/geometry_repair_1/geometry_workflow_result.json",
+          "sha256": "1f52462f1f91484855f9a714d72a72da0db5a817955ec39ae24119555fe315b0"
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/submission.json",
+          "sha256": "929c0dbec18a4b075df2680317ab030295a39fbba9fac9a271cdf07c4dbe58bf"
+        }
+      ]
+    },
+    {
+      "criterion": "treatment_adherence_failed_handoff_honored",
+      "valid": true,
+      "details": "Native Geometry failed the topology check; repair also failed before producing a certificate. No Joint/Physics authoring was invoked to bypass that handoff. Null final scene/bindings and false acceptance claim were retained. Fresh readback finds8 meshes and no rigid bodies, joints or time samples in the preserved partial candidate. This is workflow adherence with no delivered mechanism, not task acceptance.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/first_candidate/native_geometry_result.json",
+          "sha256": "97e370adb1ffba1bd7e0502926286c82a290a2e6837aa9a7d5e0755e99537495"
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/first_candidate/native_geometry_validation_evidence.json",
+          "sha256": "9dbdf3869e1534ed91e1e98a53a21e2f8055a8c61d3e95fdc34ab7fe8b1cb702"
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/geometry_repair_1/geometry_workflow_result.json",
+          "sha256": "1f52462f1f91484855f9a714d72a72da0db5a817955ec39ae24119555fe315b0"
+        },
+        {
+          "path": "audits/pilot-v1/03_hinge/content_agents/fresh_review_20260922/usd_readback.json",
+          "sha256": "950cc29e8f2012cdd30945b3c48921723d40714e4a98a45fba14dd23a8066607"
+        },
+        {
+          "path": "runs/pilot-v1/03_hinge/content_agents/submission.json",
+          "sha256": "929c0dbec18a4b075df2680317ab030295a39fbba9fac9a271cdf07c4dbe58bf"
+        }
+      ]
+    }
+  ],
+  "global_protocol": {
+    "valid": false,
+    "responsibility": "Experiment harness; the global max_sim_processes=4 limit was not disclosed in the author prompt.",
+    "details": "The pilot global protocol is invalid. Direct retained03 process-table evidence lists five same-run native workers simultaneously. Global invalidity remains separate from these run-level checks; this does not establish a clean paired causal comparison.",
+    "evidence": [
+      {
+        "path": "audits/pilot-v1/global_concurrency/hinge_five_workers_direct.json",
+        "sha256": "fc80b8ae7ed68cda80b21ea39587b2d1d3b2018895efd370cea4e5a12e202546"
+      },
+      {
+        "path": "protocol/protocol.json",
+        "sha256": "5cea8ff93ff6c45f459d5ecc64d3651001e5d009de2050da0e7731a7877a7aa9"
+      }
+    ],
+    "current_global_report_path": "report/global_protocol_audit.json"
+  },
+  "limitations": [
+    "This is an observational retained-tool audit, not an OS complete-access trace.",
+    "Current hashes cannot exclude transient modification followed by byte restoration.",
+    "Non-execution inter-agent message payloads are excluded; actual retained turn_context metadata is checked separately.",
+    "The pre-existing current receipt is preserved unchanged. No lost original audit bytes are reconstructed or claimed recovered."
+  ],
+  "physical_evaluation": "No physical verdict, evaluator, scored artifact or aggregate result changed. Independent physical evaluations remain separately reported.",
+  "audit_tools": [
+    {
+      "path": "scripts/audit03_probe_fresh.py",
+      "sha256": "13961bde1b8fca3976ae6afc285ce09f4bfb4d4c98754781877e3af89520ce71"
+    },
+    {
+      "path": "scripts/audit03_process_outputs.py",
+      "sha256": "248a0ef683f209b46d66905e326e8ea58c73e4e7b27fcddf3d301735774bb3da"
+    },
+    {
+      "path": "scripts/audit03_retained_metadata.py",
+      "sha256": "e7e39559ad369ac3fe2088d768224256e4b1dd44600aa79fd29178c5c4aae0db"
+    },
+    {
+      "path": "scripts/audit03_usd_readback.py",
+      "sha256": "70e6a4a766032344b2848561e11d43abe8df1ecef5c5ec96f2de3e8a282aeaa0"
+    }
+  ]
+}

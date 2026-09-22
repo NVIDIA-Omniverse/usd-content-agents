@@ -1,0 +1,13 @@
+{
+  "case_id": "03_hinge",
+  "arm": "content_agents",
+  "output_manifest_sha256": "95fe922c1937604d64da305dffcedb7a694c039fd9e7cb4b721ec8a8d581868d",
+  "checked_files": 110,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034788.5092804
+}

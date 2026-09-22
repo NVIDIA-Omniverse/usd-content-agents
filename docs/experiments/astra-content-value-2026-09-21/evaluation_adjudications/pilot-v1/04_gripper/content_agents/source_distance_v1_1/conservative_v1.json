@@ -1,0 +1,2235 @@
+{
+  "accepted": false,
+  "status": "not_accepted",
+  "concrete_failures": [
+    "body_collider:/Gripper/base",
+    "rigid_body_binding:/Gripper/turntable",
+    "body_collider:/Gripper/turntable",
+    "positive_finite_mass_inertia:/Gripper/turntable",
+    "rigid_body_binding:/Gripper/left_arm",
+    "body_collider:/Gripper/left_arm",
+    "positive_finite_mass_inertia:/Gripper/left_arm",
+    "rigid_body_binding:/Gripper/right_arm",
+    "body_collider:/Gripper/right_arm",
+    "positive_finite_mass_inertia:/Gripper/right_arm",
+    "rigid_body_binding:/Gripper/left_finger",
+    "body_collider:/Gripper/left_finger",
+    "positive_finite_mass_inertia:/Gripper/left_finger",
+    "rigid_body_binding:/Gripper/right_finger",
+    "body_collider:/Gripper/right_finger",
+    "positive_finite_mass_inertia:/Gripper/right_finger",
+    "required_joint_roles",
+    "actual_joint_graph_has_closed_loop",
+    "source_actual_rigid_ancestry:/Gripper/right_finger/solid_0000",
+    "source_actual_rigid_ancestry:/Gripper/left_finger/solid_0001",
+    "source_actual_rigid_ancestry:/Gripper/left_finger/solid_0003",
+    "source_actual_rigid_ancestry:/Gripper/right_finger/solid_0004",
+    "source_actual_rigid_ancestry:/Gripper/turntable/solid_0005",
+    "source_actual_rigid_ancestry:/Gripper/turntable/solid_0007",
+    "source_actual_rigid_ancestry:/Gripper/turntable/solid_0020",
+    "source_actual_rigid_ancestry:/Gripper/right_finger/solid_0021",
+    "source_actual_rigid_ancestry:/Gripper/turntable/solid_0022",
+    "source_actual_rigid_ancestry:/Gripper/left_finger/solid_0023",
+    "source_actual_rigid_ancestry:/Gripper/right_arm/solid_0024",
+    "source_actual_rigid_ancestry:/Gripper/left_arm/solid_0025",
+    "source_actual_rigid_ancestry:/Gripper/turntable/solid_0026",
+    "exactly_one_physics_scene"
+  ],
+  "inconclusive_checks": [
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0002:SOLID",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0006:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0007:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0008:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0009:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0010:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0011:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0012:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0013:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0014:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0015:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0016:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0017:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0018:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0020:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0021:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0022:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0023:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0024:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0025:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0026:unnamed",
+    "direct_task_runtime"
+  ],
+  "checks": [
+    {
+      "name": "reference_inventory_frozen",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:evaluate.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:case04_contract.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:structural.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:cases.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:geometry.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:common.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:case04_evaluate.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:case04_solver.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:solver.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:bindings.schema.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "case_identity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "usd_stage_load",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "meters_and_z_up",
+      "passed": true,
+      "evidence": {
+        "meters_per_unit": 1.0,
+        "up_axis": "Z"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "no_prescribed_time_sampled_motion_or_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "frozen_source_coverage_complete",
+      "passed": true,
+      "evidence": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/.gitignore",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/DIN Rail Holder.jpeg",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Final.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/IMG_3885.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Overview.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Readme.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/SO-Arm-101.jpeg",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 01.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 02.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 03.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 04.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 05.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 06.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 07.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 08.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 09.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 10.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 11.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 12.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 13.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 14.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 15.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 16.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 17.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 18.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 19.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 20.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 21.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 22.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 23.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 24.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 25.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Tools.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CHANGELOG.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/LICENSE",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Material/Readme.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/ReadMe.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Baseplate.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Baseplate_Multi.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Cam Holder.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/DIN Rail Holder ESP32 Adapter.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/DIN Rail Holder Serial Board.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Finger_1.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Finger_2.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Motorhousing Cover with Handle.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Motorhousing Cover.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Motorhousing SO-ARM-101.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Motorhousing.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Schwing Arm 1.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Schwing Arm 2.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Turnhead.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Waveshare Serial Board DIN Rail Holder.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/.gitignore",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/Readme.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/BOARD_DEV.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/CONNECT.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/PreferencesConfig.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/RGB_CTRL.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/STSCTRL.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/TcpIp_Server.ino",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/WEBPAGE.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/PythonExample/TcpIp_Bridge_CmdClient.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/PythonExample/TcpIp_Bridge_CmdServer.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/README.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/requirements.txt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/typings/rustypot/__init__.pyi",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Readme.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Step/DIN Rail Holder Serial Board.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Step/Gripper.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unique_body_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "required_body_roles",
+      "passed": true,
+      "evidence": {
+        "required": [
+          "base",
+          "left_finger",
+          "right_finger",
+          "left_arm",
+          "right_arm",
+          "turntable"
+        ],
+        "given": {
+          "base": "/Gripper/base",
+          "turntable": "/Gripper/turntable",
+          "left_arm": "/Gripper/left_arm",
+          "right_arm": "/Gripper/right_arm",
+          "left_finger": "/Gripper/left_finger",
+          "right_finger": "/Gripper/right_finger"
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/Gripper/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Gripper/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Gripper/base",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Gripper/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Gripper/base",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Gripper/turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Gripper/turntable",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "unobserved_dynamic_body:/Gripper/turntable",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Gripper/turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Gripper/turntable",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "positive_finite_mass_inertia:/Gripper/turntable",
+      "passed": false,
+      "evidence": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "inertia_triangle_inequality:/Gripper/turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/Gripper/left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Gripper/left_arm",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "unobserved_dynamic_body:/Gripper/left_arm",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Gripper/left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Gripper/left_arm",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "positive_finite_mass_inertia:/Gripper/left_arm",
+      "passed": false,
+      "evidence": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "inertia_triangle_inequality:/Gripper/left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/Gripper/right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Gripper/right_arm",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "unobserved_dynamic_body:/Gripper/right_arm",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Gripper/right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Gripper/right_arm",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "positive_finite_mass_inertia:/Gripper/right_arm",
+      "passed": false,
+      "evidence": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "inertia_triangle_inequality:/Gripper/right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/Gripper/left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Gripper/left_finger",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "unobserved_dynamic_body:/Gripper/left_finger",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Gripper/left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Gripper/left_finger",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "positive_finite_mass_inertia:/Gripper/left_finger",
+      "passed": false,
+      "evidence": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "inertia_triangle_inequality:/Gripper/left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/Gripper/right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Gripper/right_finger",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "unobserved_dynamic_body:/Gripper/right_finger",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Gripper/right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Gripper/right_finger",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "positive_finite_mass_inertia:/Gripper/right_finger",
+      "passed": false,
+      "evidence": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "inertia_triangle_inequality:/Gripper/right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "all_rigid_bodies_observed",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "unique_joint_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "all_joints_declared",
+      "passed": true,
+      "evidence": {
+        "undeclared": [],
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "required_joint_roles",
+      "passed": false,
+      "evidence": {},
+      "failure_class": "rejected"
+    },
+    {
+      "name": "actual_joint_graph_has_closed_loop",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_parts_mapped_once",
+      "passed": true,
+      "evidence": {
+        "required": 27,
+        "mapped": 27,
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Gripper/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Gripper/turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Gripper/left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Gripper/right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Gripper/left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Gripper/right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "assembly_alignment_is_rigid",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/right_finger/solid_0000",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00020517089646813168,
+          "final_to_source_max_sample_distance_m": 2.5956218863848936e-05,
+          "area_ratio": 0.9997786743615845,
+          "bounds_error_m": 2.5838613471051985e-09,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/left_finger/solid_0001",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00020516772212974554,
+          "final_to_source_max_sample_distance_m": 2.1409209067942593e-05,
+          "area_ratio": 0.9997786952186365,
+          "bounds_error_m": 2.0653009580318127e-09,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0002:SOLID",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0002:SOLID",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0002",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0002:SOLID",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0002:SOLID",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00017896114494510043,
+          "final_to_source_max_sample_distance_m": 5.724079185691387e-05,
+          "area_ratio": 0.9998337880178233,
+          "bounds_error_m": 2.980232241545089e-09,
+          "tolerance_m": 0.00015023994142703866,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/left_finger/solid_0003",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00024789984351534773,
+          "final_to_source_max_sample_distance_m": 0.0001126330394443513,
+          "area_ratio": 0.9996018018194966,
+          "bounds_error_m": 1.5363097183307417e-09,
+          "tolerance_m": 9.547381840141308e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/right_finger/solid_0004",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0002415569590911004,
+          "final_to_source_max_sample_distance_m": 0.00016467646892892547,
+          "area_ratio": 0.9996058537830214,
+          "bounds_error_m": 2.986192695897394e-09,
+          "tolerance_m": 9.547381840141308e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/turntable/solid_0005",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00016991446190614895,
+          "final_to_source_max_sample_distance_m": 0.00018697357843985979,
+          "area_ratio": 0.9996527290369576,
+          "bounds_error_m": 1.5793782368878073e-06,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0006:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0006:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0006",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0006:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0006:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00024327384433872251,
+          "final_to_source_max_sample_distance_m": 0.000151890994412679,
+          "area_ratio": 0.9995069269990828,
+          "bounds_error_m": 7.389893141862558e-09,
+          "tolerance_m": 6.265035853847925e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0007:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0007:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/turntable/solid_0007",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0007:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0007:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0001897942993611061,
+          "final_to_source_max_sample_distance_m": 0.0002095398347669434,
+          "area_ratio": 0.9999717944966836,
+          "bounds_error_m": 3.105888740639884e-09,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0008:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0008:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0008",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0008:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0008:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00015922145010899462,
+          "final_to_source_max_sample_distance_m": 0.0001441465342079562,
+          "area_ratio": 0.9999995962761953,
+          "bounds_error_m": 6.823649006948429e-09,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0009:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0009:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0009",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0009:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0009:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00015922129553424725,
+          "final_to_source_max_sample_distance_m": 0.00014414630658349088,
+          "area_ratio": 0.9999995788412572,
+          "bounds_error_m": 6.823649006948429e-09,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0010:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0010:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0010",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0010:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0010:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 1.943817927143282e-05,
+          "final_to_source_max_sample_distance_m": 4.24455550798285e-05,
+          "area_ratio": 0.9995918294280185,
+          "bounds_error_m": 6.185333341866828e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0011:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0011:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0011",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0011:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0011:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 2.195394152990178e-05,
+          "final_to_source_max_sample_distance_m": 6.198518563788053e-05,
+          "area_ratio": 0.9995919073507308,
+          "bounds_error_m": 6.183529558962536e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0012:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0012:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0012",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0012:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0012:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 1.9438582919725374e-05,
+          "final_to_source_max_sample_distance_m": 4.958860039725361e-05,
+          "area_ratio": 0.9995916854538737,
+          "bounds_error_m": 6.224118060142378e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0013:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0013:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0013",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0013:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0013:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 1.9438232536232548e-05,
+          "final_to_source_max_sample_distance_m": 4.2445568199678014e-05,
+          "area_ratio": 0.9995918294280185,
+          "bounds_error_m": 6.185333341866828e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0014:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0014:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0014",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0014:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0014:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 2.1953964304167212e-05,
+          "final_to_source_max_sample_distance_m": 6.198516276053545e-05,
+          "area_ratio": 0.9995919073507308,
+          "bounds_error_m": 6.183529558962536e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0015:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0015:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0015",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0015:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0015:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 1.9438459909492803e-05,
+          "final_to_source_max_sample_distance_m": 4.958862805915201e-05,
+          "area_ratio": 0.9995916854538737,
+          "bounds_error_m": 6.224118060142378e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0016:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0016:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0016",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0016:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0016:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00018164718706355058,
+          "final_to_source_max_sample_distance_m": 0.00011214710431114491,
+          "area_ratio": 1.0000220669190039,
+          "bounds_error_m": 6.571707344971145e-09,
+          "tolerance_m": 5.7096352635587015e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0017:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0017:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0017",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0017:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0017:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00018398416643016988,
+          "final_to_source_max_sample_distance_m": 5.949626626474019e-05,
+          "area_ratio": 0.999404817187357,
+          "bounds_error_m": 2.942572936232013e-06,
+          "tolerance_m": 5.6727508493696444e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0018:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0018:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0018",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0018:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0018:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0002754625291746824,
+          "final_to_source_max_sample_distance_m": 0.00013453346790724067,
+          "area_ratio": 0.9997727765754526,
+          "bounds_error_m": 8.22186874605002e-06,
+          "tolerance_m": 0.00010153054322830206,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/base/solid_0019",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0003188927813249864,
+          "final_to_source_max_sample_distance_m": 0.00014763064161453895,
+          "area_ratio": 0.9995682329745564,
+          "bounds_error_m": 3.546476348703642e-09,
+          "tolerance_m": 0.00018161291253652643,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0020:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0020:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/turntable/solid_0020",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0020:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0020:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0002175277583960652,
+          "final_to_source_max_sample_distance_m": 0.00013611900244366956,
+          "area_ratio": 0.9995405000033197,
+          "bounds_error_m": 1.8365100829739744e-06,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0021:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0021:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/right_finger/solid_0021",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0021:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0021:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00021753109177154566,
+          "final_to_source_max_sample_distance_m": 0.00011471685574198983,
+          "area_ratio": 0.9995406306518249,
+          "bounds_error_m": 1.8354042049910368e-06,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0022:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0022:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/turntable/solid_0022",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0022:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0022:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00021091699255310715,
+          "final_to_source_max_sample_distance_m": 9.387627434334e-05,
+          "area_ratio": 0.9994576130636781,
+          "bounds_error_m": 1.4205159356156516e-06,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0023:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0023:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/left_finger/solid_0023",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0023:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0023:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0002109155157033098,
+          "final_to_source_max_sample_distance_m": 9.387637642926767e-05,
+          "area_ratio": 0.9994575049353541,
+          "bounds_error_m": 1.4207639822683138e-06,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0024:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0024:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/right_arm/solid_0024",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0024:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0024:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00016707953515906525,
+          "final_to_source_max_sample_distance_m": 0.00013866709156794065,
+          "area_ratio": 0.9998958690089214,
+          "bounds_error_m": 5.984264384844423e-06,
+          "tolerance_m": 5.237657272562455e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0025:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0025:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/left_arm/solid_0025",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0025:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0025:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0001670859296822655,
+          "final_to_source_max_sample_distance_m": 0.0001386687205875014,
+          "area_ratio": 0.9998961363206935,
+          "bounds_error_m": 5.9867425381207595e-06,
+          "tolerance_m": 5.237657272562456e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0026:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0026:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Gripper/turntable/solid_0026",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0026:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0026:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0002349600639973664,
+          "final_to_source_max_sample_distance_m": 0.00017811384090058038,
+          "area_ratio": 0.9991415444711539,
+          "bounds_error_m": 2.5801964440297365e-06,
+          "tolerance_m": 7.655529140794538e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "source_visual_meshes_unique",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_unmapped_visible_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "exactly_one_physics_scene",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "no_authored_external_forces",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_upright",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_roles_distinct",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:0",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0000:Carrier 1"
+        ],
+        "required_role": "right_finger"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:1",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0001:Carrier 2"
+        ],
+        "required_role": "left_finger"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:2",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0002:SOLID"
+        ],
+        "required_role": "base"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:3",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0003:Finger 1"
+        ],
+        "required_role": "left_finger"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:4",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0004:Finger 2"
+        ],
+        "required_role": "right_finger"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:5",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0005:Servo horn2"
+        ],
+        "required_role": "turntable"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:19",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0019:Baseplate"
+        ],
+        "required_role": "base"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:24",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0024:unnamed"
+        ],
+        "required_role": "right_arm"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:25",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0025:unnamed"
+        ],
+        "required_role": "left_arm"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:26",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0026:unnamed"
+        ],
+        "required_role": "turntable"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "direct_task_runtime",
+      "passed": false,
+      "evidence": "Structural-only mode or unsafe/missing runtime bindings; no functional acceptance.",
+      "failure_class": "evaluator_insufficient"
+    }
+  ],
+  "version": "v1_conservative_after_distance_erratum",
+  "case_id": "04_gripper",
+  "arm": "content_agents",
+  "v1_acceptance_sha256": "9160610e2c8ff6820cda4c3c2118a6bdfe50f3f08f671f5f21f1c9a49e4143ed",
+  "false_pass": false
+}

@@ -1,0 +1,284 @@
+{
+  "schema_version": 1,
+  "case_id": "10_complex",
+  "arm": "plain_astra",
+  "valid": true,
+  "status": "VALID_AUTHOR_PROTOCOL_OBSERVED",
+  "audited_utc": "2026-09-22T01:16:32.045233+00:00",
+  "scope": "Per-arm observed author model/access/treatment/source/environment/repair/wall-budget/retained-output protocol; experiment-wide simulation scheduling is separate.",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All four observed sessions use gpt-6-astra ultra; all three explicit child launches specify the same model/effort and reconciled usage is complete.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/plain_astra/usage_reconciled.json",
+          "sha256": "acc49ec3720fc2c89981178a6eead071b5b010246710e3229b45d016bb94e569"
+        }
+      ]
+    },
+    {
+      "id": "frozen_task_and_outputs",
+      "valid": true,
+      "finding": "All365 watchdog files rehashed unchanged locally; source/frozen reference/task/pair checks remain true.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/plain_astra/protocol_probe.json",
+          "sha256": "2063b86a6ebe4ee8b00da2cd0bf17b550f181fcbc3e65da724ae5e6c018d8fa2"
+        },
+        {
+          "path": "runs/pilot-v1/10_complex/plain_astra/output_manifest.json",
+          "sha256": "345e9511bce07ff8b037189f1e673be154476c1b9d92eacf58f8d9e32cbf2ecc"
+        }
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All60 original source closure files retain expected hashes.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/plain_astra/protocol_probe.json",
+          "sha256": "2063b86a6ebe4ee8b00da2cd0bf17b550f181fcbc3e65da724ae5e6c018d8fa2"
+        }
+      ]
+    },
+    {
+      "id": "plain_treatment",
+      "valid": true,
+      "finding": "Direct source CAD extraction, task-specific OpenUSD authoring and own OvPhysX validation using allowed common low-level APIs. No Content Agents workflow skills, coordinator or decision-helper reads/invocations observed.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/plain_astra/protocol_observations.json",
+          "sha256": "416eec10c20817ccae144b6df0bbfd208f55bf34025aee9ba982bd762ae3a61e"
+        }
+      ]
+    },
+    {
+      "id": "forbidden_content_access",
+      "valid": true,
+      "finding": "Reviewed all207 execution requests across four sessions. No process-inspection requests, foreign output/source reads or evaluator implementation/result reads observed.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/plain_astra/protocol_observations.json",
+          "sha256": "416eec10c20817ccae144b6df0bbfd208f55bf34025aee9ba982bd762ae3a61e"
+        }
+      ]
+    },
+    {
+      "id": "frozen_environment_mutation",
+      "valid": true,
+      "finding": "No installed-package/source/repository/evaluator mutation or assigned-GPU override observed; independent post-run repository hashes match all2883 frozen manifest files.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/plain_astra/repository_integrity.json",
+          "sha256": "a24f5e22c9e0c37fbba4e88e881996c36cc378c1c43b580891ece789b72be2b8"
+        },
+        {
+          "path": "audits/pilot-v1/10_complex/plain_astra/protocol_observations.json",
+          "sha256": "416eec10c20817ccae144b6df0bbfd208f55bf34025aee9ba982bd762ae3a61e"
+        }
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "2303.147261828184 seconds within 2400; recorded human interventions0.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/10_complex/plain_astra/execution.json",
+          "sha256": "4be7714fdd20a94d84cd2a1261476842dad0e2a9482ac8f663713c218f39a5b0"
+        }
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "Count separately authored post-first-candidate USD mechanism revisions. Nonmutating mathematical orientation searches, own test-harness fixes and a failed metadata read before scene creation are preparation, not additional candidate revisions. The first candidate and each of the two actual revised scenes remain separately retained.",
+      "evidence": [
+        {
+          "path": "audits/pilot-v1/10_complex/plain_astra/protocol_observations.json",
+          "sha256": "416eec10c20817ccae144b6df0bbfd208f55bf34025aee9ba982bd762ae3a61e"
+        }
+      ]
+    },
+    {
+      "id": "terminal_claim_recorded",
+      "valid": true,
+      "finding": "claimed_accepted=false with final scene/bindings and both endpoint failures retained. This audit makes no independent physics claim.",
+      "evidence": [
+        {
+          "path": "runs/pilot-v1/10_complex/plain_astra/submission.json",
+          "sha256": "f9cce195ac4dabf3f9bd14525d13e66276140dbebbed085e13ae036d87334d22"
+        },
+        {
+          "path": "runs/pilot-v1/10_complex/plain_astra/evidence/native_validation_summary.json",
+          "sha256": "f46caf180d6f301fe97b53d0e3b7c941438e34f102f10629d3840abd26534cbe"
+        }
+      ]
+    }
+  ],
+  "violations": [],
+  "unknowns": [
+    "Observed per-arm author protocol validity is separate from independent geometry/physics acceptance and experiment-wide concurrency compliance.",
+    "Opaque collaboration message bodies were not decrypted. All distinct child sessions and their captured execution requests are covered; unrecorded activity is not certified.",
+    "The shared scored repository is an exported tree without .git. Its recorded source commit is provenance, while all2883 listed file hashes were independently verified unchanged.",
+    "The execution record incorrectly marks nested_usage_requires_separate_aggregation=false and contains only parent usage. Four-session usage_reconciled.json supplies the complete totals.",
+    "Own native tests and source audits are author evidence only. No fresh independent simulation or physical-verdict inference is part of this author audit."
+  ],
+  "coverage": {
+    "tool_requests": 290,
+    "execution_requests_reviewed": 207,
+    "tool_counts": {
+      "exec": 207,
+      "spawn_agent": 3,
+      "send_message": 73,
+      "followup_task": 2,
+      "wait_agent": 5
+    },
+    "first_tool_utc": "2026-09-22T00:25:51.414Z",
+    "last_tool_utc": "2026-09-22T01:03:49.650Z",
+    "process_requests_selected": 0,
+    "process_responses_requiring_review": 0,
+    "selection_method": "Decoded escaped newlines in every captured execution request; scanned process commands and alternative /proc, top, htop and psutil access; manually reviewed request scope, external paths and scene mutations across parent and all three children.",
+    "screening_hits": {
+      "process_inspection": [],
+      "content_agents_workflow": [],
+      "network_or_package_install": []
+    },
+    "review_method": "Manual access/treatment/environment and repair chronology review, captured command/event evidence, direct current-byte checks of all365 watchdog files, and independent remote hashes of2883 frozen repository files. No independent scored evaluator results were opened.",
+    "opaque_collaboration_message_bodies_decoded": false,
+    "private_tool_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "repair_counting": {
+    "declared_repairs": 2,
+    "audited_count": 2,
+    "limit": 2,
+    "convention": "Count separately authored post-first-candidate USD mechanism revisions. Nonmutating mathematical orientation searches, own test-harness fixes and a failed metadata read before scene creation are preparation, not additional candidate revisions. The first candidate and each of the two actual revised scenes remain separately retained.",
+    "first_candidate": {
+      "created_request_utc": "2026-09-22T00:31:04.919Z",
+      "scene": {
+        "path": "runs/pilot-v1/10_complex/plain_astra/candidate_0/scene.usd",
+        "sha256": "23c3ae032d16d5b3f5d35ebc26322ac005da430c4f3a3cedcffd79c404c6346e"
+      },
+      "authoring_source": {
+        "path": "runs/pilot-v1/10_complex/plain_astra/candidate_0/build_scene.py",
+        "sha256": "9e85d5c76b8224141d2c536eb46b3b57aa69b6d27c2c30f7a5f11a00fc8fa50a"
+      }
+    },
+    "repair_1": {
+      "request_utc": "2026-09-22T00:39:07.601Z",
+      "change": "One rigid initial assembly mounting rotation and camera reframing.",
+      "record": {
+        "path": "runs/pilot-v1/10_complex/plain_astra/repair_1/repair.json",
+        "sha256": "9f7508bfdb92ae0fded69a48a416a88e3296938ab72e0719dd8cad015dac4d4d"
+      },
+      "authoring_source": {
+        "path": "runs/pilot-v1/10_complex/plain_astra/repair_1/orient_repair.py",
+        "sha256": "64c9bcf5df512d1acaa8f2871c36140fbbbde5f3242014f8498a0b194b6d1a44"
+      }
+    },
+    "repair_2": {
+      "first_launch_utc": "2026-09-22T00:46:49.301Z",
+      "successful_launch_utc": "2026-09-22T00:47:14.201Z",
+      "change": "Revised rigid assembly mounting, lower joint limit -2 degrees, and passive linear/angular damping4 per second.",
+      "record": {
+        "path": "runs/pilot-v1/10_complex/plain_astra/repair_2/repair.json",
+        "sha256": "01487c582c7a26b758ae0b1ae2bfe461ac0e269595b0706e5b86cac39c32052d"
+      },
+      "authoring_source": {
+        "path": "runs/pilot-v1/10_complex/plain_astra/repair_2/orient_repair.py",
+        "sha256": "4464a2ac8e44f37ca39e70853ab158a70579258e900c2b5e006a365639b8c707"
+      },
+      "first_launch_disposition": "KeyError on metadata source_gravity_direction at line11, before Usd.Stage.Open/Export. Event line104 records exit1; line110 records the corrected invocation exit0. No additional USD candidate was produced by the failed metadata read.",
+      "failure_event": {
+        "path": "runs/pilot-v1/10_complex/plain_astra/events.jsonl",
+        "sha256": "17b397a31adb60852ed311c4c8b43d493f05c6a25f40122db062c31ba9975785",
+        "line": 104,
+        "item_id": "item_55",
+        "delivered_output_sha256": "901a856c01da9e56235b17bb63bbed9d8586b34686e9ede9a1d9b17d81e5df3b",
+        "publish": false
+      }
+    },
+    "candidate_hashes": [
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/candidate_0/scene.usd",
+        "sha256": "23c3ae032d16d5b3f5d35ebc26322ac005da430c4f3a3cedcffd79c404c6346e"
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/candidate_0/bindings.json",
+        "sha256": "f6f27a6a28d2e92efb4d4c64d737e4db93e753521371f88abf66c0a734dcca48"
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/repair_1/scene.usd",
+        "sha256": "bafc0b2906c454f78b332ec6f6d4c6d6288ef1589118008c0fce796a5379ab9a"
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/repair_1/bindings.json",
+        "sha256": "52844e78d261d7f12417649156b2c09a9ab043e7b0050d501381e4a4c065ad8b"
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/repair_2/scene.usd",
+        "sha256": "b60986a7f6d6c6d0282dec202cbdee5807358429df5f581cb3f20730278a8248"
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/repair_2/bindings.json",
+        "sha256": "c131c020ca0e7f374d22b4b5195f57434ccc3e08cd86371f255b4aafc946bb40"
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/final.usd",
+        "sha256": "b60986a7f6d6c6d0282dec202cbdee5807358429df5f581cb3f20730278a8248"
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/bindings.json",
+        "sha256": "c131c020ca0e7f374d22b4b5195f57434ccc3e08cd86371f255b4aafc946bb40"
+      }
+    ],
+    "final_identical_to_repair_2": true,
+    "own_geometry_equivalence_receipts": [
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/audit/repair_1_geometry_equivalence_report.json",
+        "sha256": "a2764a90b2e20dbf7b39e07d21eabbeb5613f872188d173c58514af832ab6010"
+      },
+      {
+        "path": "runs/pilot-v1/10_complex/plain_astra/audit/repair_2_geometry_equivalence_report.json",
+        "sha256": "6dee3e3b52403c48bb796959b204898463814aab1c639c09ab8a258450364b25"
+      }
+    ],
+    "own_parameter_receipt": {
+      "path": "runs/pilot-v1/10_complex/plain_astra/audit/repair_2_parameter_report.json",
+      "sha256": "58367c055df02b6ee7b991507f7d31dbab4b200a0928a4ddc769e98709916957"
+    },
+    "own_checks_are_not_independent_acceptance": true
+  },
+  "global_concurrency": {
+    "scope": "experiment-wide",
+    "status": "FAIL_CONFIRMED_OVERLAP",
+    "evidence": {
+      "path": "audits/pilot-v1/global_concurrency/overlap_02_05.json",
+      "sha256": "56224fbfb4d2fb4b429a8a0a2d7baddd0e411cdc8971be9aeb51905d061680f8"
+    },
+    "note": "Separate known experiment scheduling violation; root owns global scheduling review and unobserved remainder."
+  },
+  "private_tool_metadata_digest": {
+    "path": "audits/pilot-v1/10_complex/plain_astra/tool_calls.private.json",
+    "sha256": "f3043dc4cbf09d1f0a639ca940e3976470126aaed8e0654dafedd9b171a96253",
+    "publish": false
+  },
+  "detailed_report": {
+    "path": "audits/pilot-v1/10_complex/plain_astra/protocol_observations.json",
+    "sha256": "416eec10c20817ccae144b6df0bbfd208f55bf34025aee9ba982bd762ae3a61e"
+  },
+  "usage_reconciled_sha256": "acc49ec3720fc2c89981178a6eead071b5b010246710e3229b45d016bb94e569",
+  "protocol_probe_sha256": "2063b86a6ebe4ee8b00da2cd0bf17b550f181fcbc3e65da724ae5e6c018d8fa2",
+  "repository_integrity_sha256": "a24f5e22c9e0c37fbba4e88e881996c36cc378c1c43b580891ece789b72be2b8",
+  "launch_sha256": "7c06a17e3eaf067a7c1d81e24b165e864e6fa8f3a20dbb1bcc159178f402c2f0",
+  "execution_sha256": "4be7714fdd20a94d84cd2a1261476842dad0e2a9482ac8f663713c218f39a5b0",
+  "submission_sha256": "f9cce195ac4dabf3f9bd14525d13e66276140dbebbed085e13ae036d87334d22",
+  "task_sha256": "8252d6cb86a9d22f92c2e865d9c270af6c23278121077d4c0fa8f7c7235518fc",
+  "no_scored_output_repaired": true,
+  "independent_physical_evaluation_read": false
+}

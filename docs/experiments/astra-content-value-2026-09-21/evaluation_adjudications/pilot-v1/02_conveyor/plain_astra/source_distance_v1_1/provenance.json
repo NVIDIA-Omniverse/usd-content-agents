@@ -1,0 +1,53 @@
+{
+  "version": "source_distance_v1_1",
+  "hashes": {
+    "conservative_v1.json": "bff1315bdaaaff56af48536ed354ecea8c11cb361a778d449c8da500ff7e6cc4",
+    "acceptance.json": "2499fbb4e7b296c3b69fb270abe1a5731e794c8c1b29904fb007e3f84df3ec44"
+  },
+  "author_manifest_sha256": "c445f9f0ab4fac35c615fd020509036b131e057819a7bd620bc0b87dd0674e3b",
+  "v1_physics_before": {
+    "all_five_complete": true,
+    "seeds": [
+      {
+        "seed": 11,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_11/report.json",
+        "sha256": "3fc1bab4292422515f3ccad97990298e6d369d703faa4af09ad01dcd4ebc2e80"
+      },
+      {
+        "seed": 23,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_23/report.json",
+        "sha256": "0b76c8d36fe5645c9b6786a3565094f351f20b679782a910658b17fd1531ebee"
+      },
+      {
+        "seed": 47,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_47/report.json",
+        "sha256": "ce8121778aafe572f08b904be3da74c17354b05d2cedc167a5ccd8b49088299c"
+      },
+      {
+        "seed": 83,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_83/report.json",
+        "sha256": "090518028df4744a174f96e4b26f0837a9826a00338ac3be391ef57f0b17f38f"
+      },
+      {
+        "seed": 131,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_131/report.json",
+        "sha256": "2ce3ee83432b81ebdd7e3f1c1ebc14ed66b90b45e7f19b0c560f774b5cbef1dc"
+      }
+    ],
+    "configuration_and_result_hashes": {
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/runtime_config.json": "b99a454d0968ccc87255940ab4437d61e0f5ef6f06ba786f5a9800981a6127f9",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/instrumented.usda": "6f03ce4552b435148ed8690323c7674ec9b218d1af906f1c3e40b50efba6c1b3",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_11/report.json": "3fc1bab4292422515f3ccad97990298e6d369d703faa4af09ad01dcd4ebc2e80",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_23/report.json": "0b76c8d36fe5645c9b6786a3565094f351f20b679782a910658b17fd1531ebee",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_47/report.json": "ce8121778aafe572f08b904be3da74c17354b05d2cedc167a5ccd8b49088299c",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_83/report.json": "090518028df4744a174f96e4b26f0837a9826a00338ac3be391ef57f0b17f38f",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/02_conveyor/plain_astra/seed_131/report.json": "2ce3ee83432b81ebdd7e3f1c1ebc14ed66b90b45e7f19b0c560f774b5cbef1dc"
+    }
+  },
+  "worker_sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84"
+}

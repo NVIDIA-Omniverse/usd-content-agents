@@ -1,0 +1,14 @@
+{
+  "claimed_accepted": true,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "All five fixed seeds passed the complete native nine-second CPU protocol and all five GPU cross-checks. Both contacts retained the independent 10 g payload under gravity and the additional 0.2 N load; opening released it by over 33 mm. Source and contract audits passed with all 27 original solids intact. This is an own pre-evaluation claim; no evaluator result was accessed.",
+  "repairs_used": 0,
+  "limitations": [
+    "Documented bounded torque actuator abstraction, not an electrical servo model or certified hardware calibration.",
+    "Mass/inertia use stated source-volume material density assumptions; collision-only source hulls approximate concavities and ideal internal bearing pairs are filtered.",
+    "The original arm25 placement mismatch of 0.164 mm is preserved; ideal joint frames use the matching cam/finger pin axes.",
+    "GPU tensor initialization performs a warmup step; exact 2160-step nine-second trials also passed on native CPU.",
+    "Native runtime ignores CCD on the explicitly kinematic base."
+  ]
+}

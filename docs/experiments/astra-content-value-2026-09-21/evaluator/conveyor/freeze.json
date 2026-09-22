@@ -1,0 +1,17 @@
+{
+  "case_id": "02_conveyor",
+  "frozen_utc": "2026-09-21T22:37:20.645745+00:00",
+  "files": {
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "structural.py": "3b06984cfb911f8c9685b5f17f3e7ea730a031dbf111837fa5a4bc157cb608bd",
+    "geometry.py": "4c8949f782a7eda10aa870cb31a1a29fda141241498f4ecdd370cb706ad3dd5f",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b",
+    "solver.py": "51f9b5186dc0394ae3a640c76212925a8359bd3695f228a3afe8b1dc307a8417",
+    "evaluate.py": "ff09f8ac53c843bc6f21c383db6720bfac0ee3db4ecd49028b917f333234186c",
+    "contract.json": "2119c39f274497f29f7f38918b9e39a46262d96f28ad78d25ac19ed2d5a1c8dc"
+  },
+  "source_inventory_sha256": "86c694f6d012bf8e787cc640af12742b385e15f3264b1f0d650de36f1f4f1ff1",
+  "qualification": "Synthetic native positive transfer; locked and missing-contact negatives; full five-seed synthetic acceptance; hidden-source, attached-payload and kinematic-carrier structural negatives. All passed.",
+  "scored_online_asset_runs": 0,
+  "contact_units": "Runtime contact-binding output is impulse; solver divides bydt before logging force. Qualification confirmed normal gravity/contact transfer."
+}

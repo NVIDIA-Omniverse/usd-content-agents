@@ -1,0 +1,388 @@
+{
+  "accepted": false,
+  "status": "not_accepted",
+  "inconclusive_checks": [],
+  "concrete_failures": [
+    "seed11:max_angular_speed_rad_s",
+    "seed11:target_holding_under_load:joint1",
+    "seed11:joint_return:joint1",
+    "seed11:required_joint_motion:joint2",
+    "seed11:target_holding_under_load:joint2",
+    "seed11:joint_return:joint2",
+    "seed11:target_holding_under_load:joint3",
+    "seed11:joint_return:joint3",
+    "seed11:target_holding_under_load:joint4",
+    "seed11:joint_return:joint4",
+    "seed11:joint_return:joint5"
+  ],
+  "checks": [
+    {
+      "name": "seed11:direct_run_completed",
+      "passed": true,
+      "evidence": 2880,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:finite_solver_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 2.063505657517496,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_angular_speed_rad_s",
+      "passed": false,
+      "evidence": {
+        "measured": 70.35541154793829,
+        "limit": 30.0
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0012680676060084954,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 0.03134979284427193,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0,
+        "limit": 0.003
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_mass_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:native_inertia_finite_positive",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:independent_freefall_witness",
+      "passed": true,
+      "evidence": {
+        "time": 0.1,
+        "delta_z": -0.05078125,
+        "vz": -0.9810003042221069,
+        "expected_vz": -0.9810000000000001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/joint1",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -0.6107250001591358,
+          0.610865856602679
+        ],
+        "authored": [
+          -0.6108652381980153,
+          0.6108652381980153
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/joint2",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -0.6316249485015755,
+          0.007109254296405965
+        ],
+        "authored": [
+          -0.6108652381980153,
+          0.6108652381980153
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/joint3",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -0.6109161824670779,
+          0.543238936888017
+        ],
+        "authored": [
+          -0.6108652381980153,
+          0.6108652381980153
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/joint4",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -0.4235155701242328,
+          0.6214720534234028
+        ],
+        "authored": [
+          -0.6108652381980153,
+          0.6108652381980153
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/joint5",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -0.39255336077133984,
+          0.6091812464012105
+        ],
+        "authored": [
+          -0.6108652381980153,
+          0.6108652381980153
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_limits:/World/joint6",
+      "passed": true,
+      "evidence": {
+        "observed": [
+          -0.31097827800758315,
+          0.6070848343621331
+        ],
+        "authored": [
+          -0.6108652381980153,
+          0.6108652381980153
+        ],
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:required_joint_motion:joint1",
+      "passed": true,
+      "evidence": 0.6740161662933759,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:joint1",
+      "passed": false,
+      "evidence": {
+        "max_error": 0.3508587667657179,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:joint_return:joint1",
+      "passed": false,
+      "evidence": [
+        0.6108533403103942,
+        0.6108530560800784,
+        0.6108534688489575,
+        0.610853603540888,
+        0.6108530350802432,
+        0.610853546694829,
+        0.6108535466948282,
+        0.6108528496956578
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:required_joint_motion:joint2",
+      "passed": false,
+      "evidence": 0.11488365255972033,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:target_holding_under_load:joint2",
+      "passed": false,
+      "evidence": {
+        "max_error": 0.32302079856644617,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:joint_return:joint2",
+      "passed": false,
+      "evidence": [
+        -0.5894015676622577,
+        -0.5894259925435206,
+        -0.5893876492012331,
+        -0.5893393984667425,
+        -0.5893169308377195,
+        -0.5893279007101402,
+        -0.5893560496802284,
+        -0.5893743204574791
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:required_joint_motion:joint3",
+      "passed": true,
+      "evidence": 0.2117211909565797,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:joint3",
+      "passed": false,
+      "evidence": {
+        "max_error": 0.8656007502002636,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:joint_return:joint3",
+      "passed": false,
+      "evidence": [
+        -0.6049867052528608,
+        -0.6049884543163762,
+        -0.6049868631369182,
+        -0.6049848340541368,
+        -0.6049832526374548,
+        -0.6049838173032853,
+        -0.6049851012493916,
+        -0.604986213597388
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:required_joint_motion:joint4",
+      "passed": true,
+      "evidence": 1.0337587509085426,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:joint4",
+      "passed": false,
+      "evidence": {
+        "max_error": 0.3499199207857526,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:joint_return:joint4",
+      "passed": false,
+      "evidence": [
+        0.5871080874535015,
+        0.5871555412826637,
+        0.5872350208649011,
+        0.5872700797902475,
+        0.587266034716369,
+        0.5872350255201169,
+        0.5872086247624706,
+        0.5871992249424194
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:required_joint_motion:joint5",
+      "passed": true,
+      "evidence": 0.2647007353951385,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:joint5",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.03191086402566623,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_return:joint5",
+      "passed": false,
+      "evidence": [
+        -0.1333539141991813,
+        -0.1335991285588376,
+        -0.13370821780520625,
+        -0.1336606852294011,
+        -0.1335717773798044,
+        -0.133520992507973,
+        -0.13352353797626693,
+        -0.13355949102554643
+      ],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed11:required_joint_motion:joint6",
+      "passed": true,
+      "evidence": 0.2691363229768373,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:target_holding_under_load:joint6",
+      "passed": true,
+      "evidence": {
+        "max_error": 0.03412897947185489,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_return:joint6",
+      "passed": true,
+      "evidence": [
+        -0.055570251737656395,
+        -0.05541436780841513,
+        -0.055277045212614784,
+        -0.05527470228538078,
+        -0.05535134037307188,
+        -0.05541181097639347,
+        -0.055418203578808,
+        -0.05539476656725606
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed11:end_effector_moved",
+      "passed": true,
+      "evidence": 0.508633873210722,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:base_stayed_fixed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    }
+  ]
+}

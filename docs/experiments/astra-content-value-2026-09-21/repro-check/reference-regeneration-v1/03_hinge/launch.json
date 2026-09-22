@@ -1,0 +1,55 @@
+{
+  "case_id": "03_hinge",
+  "started_utc": "2026-09-21T23:21:12.822691+00:00",
+  "argv": [
+    "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+    "/opt/astra-content-value-20260921/evaluator/general/frozen/03_hinge/geometry.py",
+    "--asset-root",
+    "/opt/astra-content-value-20260921/assets/03_hinge",
+    "--source",
+    "source/CommercialRefrigerator.glb",
+    "--unit",
+    "1",
+    "--output",
+    "/opt/astra-content-value-20260921/repro-check/reference-regeneration-v1/03_hinge/rebuilt",
+    "--case",
+    "03_hinge"
+  ],
+  "cwd": "/opt/astra-content-value-20260921/repro-check/reference-regeneration-v1/03_hinge",
+  "environment_overrides": {
+    "CUDA_VISIBLE_DEVICES": "",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1"
+  },
+  "cpu_affinity": [
+    127
+  ],
+  "nice": 15,
+  "python": "3.12.13 (main, May 10 2026, 19:30:01) [Clang 22.1.3 ]",
+  "platform": "Linux-5.15.0-113-generic-x86_64-with-glibc2.35",
+  "zlib": "1.3.1",
+  "versions": {
+    "numpy": "2.5.3",
+    "trimesh": "4.12.2",
+    "cadquery-ocp": "7.8.1.1"
+  },
+  "original_inventory_sha256": "c4fcc67778174cc387d847063096de1a8ca071eaea05fe12e627e31f5b1f55b3",
+  "frozen_manifest_sha256": "c971d96003d6ee1091090ccbce484b513a609710bee6a0dc357a6808463d386b",
+  "code_sha256": {
+    "evaluate.py": "d06ad3771d31fbdb9b6d344766a4e20ef34e0a482f010026da6cab46250611a1",
+    "structural.py": "3b06984cfb911f8c9685b5f17f3e7ea730a031dbf111837fa5a4bc157cb608bd",
+    "cases.json": "5e6fb947ed79d453e4d20d8c4b16b39c7840db9957784a78d3a510e94c80f90e",
+    "geometry.py": "4c8949f782a7eda10aa870cb31a1a29fda141241498f4ecdd370cb706ad3dd5f",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "solver.py": "a66ea624e89f72990bb883ae3270d36bd1bdcc42067f57fcab2f0b70014b5094",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b"
+  },
+  "source_sha256": {
+    "source/CommercialRefrigerator.glb": "ef8da8b144e650c277ac953e6d9e50ac1689ff1ee88c2c5bd9551ae8bccb6065",
+    "source/README.upstream.md": "d4ea5fa49f6cfabe1bed7a00cf2594573cd04e3eb739abe474f2900dee4baaaf",
+    "source/screenshot_Large.jpg": "d8a5964d9f0b19fb53e07e3382156b2426042dc74ab0f2a23041cd921238bc59"
+  },
+  "scope": "Original source and evaluator preparation only; no author outputs read."
+}

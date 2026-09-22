@@ -1,0 +1,464 @@
+{
+  "schema_version": 1,
+  "case_id": "05_vise",
+  "source_root": "/opt/astra-content-value-20260921/assets/05_vise",
+  "source_files": [
+    {
+      "path": "source/1.JPG",
+      "sha256": "4cfa7d1e9736b8b277e677f7f6bad819e29ee522056cc9276081b28d4a77e0f4"
+    },
+    {
+      "path": "source/2.JPG",
+      "sha256": "7361e0b2e2e144382f79b8eccb31a3e3efe3e3e8ab66587bc9c7c33affc4a554"
+    },
+    {
+      "path": "source/3.JPG",
+      "sha256": "0058d00d4c7273b489a77c1940d362de6cbe74f26be1b75335a6b56fed0a3525"
+    },
+    {
+      "path": "source/4.JPG",
+      "sha256": "dff6617cbf70cb68a5ad3699aa6a4a6f94697c05df78b0c34c9e875fa0712c03"
+    },
+    {
+      "path": "source/Base.SLDPRT",
+      "sha256": "8d6949f9b5224c9e8f0d858133cb6b02c321fba52813c738f2684cbcfa48b5e5"
+    },
+    {
+      "path": "source/Base.STEP",
+      "sha256": "447cc1c1fc13a386531c93e053258b4d0f38dc228a822cfb3ee3b5931bb3c02c"
+    },
+    {
+      "path": "source/Block.SLDPRT",
+      "sha256": "e240376bbcf831977f7e431c5301df9b512467db8b55f23bf9fde8815a980bce"
+    },
+    {
+      "path": "source/Block.STEP",
+      "sha256": "b60e7809758dac52bcb6a65c798533484f386cda7291b45e0d787561eb61ea7d"
+    },
+    {
+      "path": "source/End plate.SLDPRT",
+      "sha256": "58ed399a656102d6265a8e7b0d9781ca1e6c1dfc7e91637bf397967b8e535dbe"
+    },
+    {
+      "path": "source/End plate.STEP",
+      "sha256": "b95bd301db5d58c3fab9c7c7ce0e972641c169e39ddd2eb4c01b8ec56ece2cfa"
+    },
+    {
+      "path": "source/Fixed Jaw.SLDPRT",
+      "sha256": "89644f5a32b6d2423e749f105ee7513fd043b8734e0c6b81cefc380e83d67d03"
+    },
+    {
+      "path": "source/Fixed Jaw.STEP",
+      "sha256": "c8ad1fb38de202dfe0d8cba02d3717b48c0c8d2e084393762a710156fbd95563"
+    },
+    {
+      "path": "source/Machine Vice  Assembly.SLDASM",
+      "sha256": "8cf6b062d37b9de616b6d196a31b9e3ba3cc9e1fda610635119b82f8f0bba50c"
+    },
+    {
+      "path": "source/Machine Vice  Assembly.STEP",
+      "sha256": "0300d68d082e5d7b1d6cfa47a789dbf624bc59f2cf23934ea15d2858bbf3b766"
+    },
+    {
+      "path": "source/Readme.md",
+      "sha256": "93d6d55887cfc68f94ee3f3e8f5c3f24489001afe36a2e8b97cc6a60686c2a8e"
+    },
+    {
+      "path": "source/Screw M8.SLDPRT",
+      "sha256": "1fe5d1139a13411c576c53d00e30e07876788759f34867cdc2a4e0093943359d"
+    },
+    {
+      "path": "source/Screw M8.STEP",
+      "sha256": "50b7ff9f9be06cd63131d77ce3bd4e237778e59572ad65f026f322b38321a02a"
+    },
+    {
+      "path": "source/Screw Spindle.SLDPRT",
+      "sha256": "b3d3279d2b5f9199fc0af480bf7645d13e0ac8ab5c5e9a095306fa8a2da067a7"
+    },
+    {
+      "path": "source/Screw Spindle.STEP",
+      "sha256": "a770a6c8eac274d84bda2f008fd3f2dc654d67b3e65f13c97292532f33889ebe"
+    },
+    {
+      "path": "source/Set Screw M6.SLDPRT",
+      "sha256": "505666ee58959bdcf3750da88dc82bdf7372a483cf07d17466c31088a24e5c30"
+    },
+    {
+      "path": "source/Set Screw M6.STEP",
+      "sha256": "210ff1c31538e485f7678fbba7d348e4f6725849a6cd2e20358ec325cee2f1e6"
+    },
+    {
+      "path": "source/Set Screw M8.SLDPRT",
+      "sha256": "fa2e78523257ea2fcdf07dc19d6f3464f50614ffb7a7cfa07da9c74f9285f84c"
+    },
+    {
+      "path": "source/Set Screw M8.STEP",
+      "sha256": "4d44b8db18eba79c95b70a96f90a6ea00943a1b4c7116a770512b286c0a0a348"
+    },
+    {
+      "path": "source/Sliding Jaw.SLDPRT",
+      "sha256": "5535b497909f8ac361a880b2c1570663b538b9aea388cb088329c51de81760c1"
+    },
+    {
+      "path": "source/Sliding Jaw.STEP",
+      "sha256": "5dcb45e049011d5e3b4692c760a5b807543616f1ac9b649dcd448d3236584c90"
+    }
+  ],
+  "length_scale_to_m": 0.001,
+  "parts": [
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0000:Base",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0000.npz",
+      "geometry_sha256": "855fd61bbff72d8f9b0e525287392bd73e09f20a5190f64337456ecd9ca71a2b",
+      "required": true,
+      "vertices": 4304,
+      "triangles": 4204,
+      "bounds_m": [
+        [
+          -0.12000000000000002,
+          0.0,
+          -0.045
+        ],
+        [
+          0.12000000000000005,
+          0.025,
+          0.045
+        ]
+      ],
+      "area_m2": 0.06155870553447183,
+      "abs_volume_m3": 0.0002798227677343754,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "c483217b63f4476c2c46bd478036b5eb3b9a9fec8d60e06295b750eb05baccfe"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0001:Screw M8",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0001.npz",
+      "geometry_sha256": "6adaec0312fcfe9ba343c75e60a13a1ddff625623b1ab563591c7146ec383ab4",
+      "required": true,
+      "vertices": 19980,
+      "triangles": 20074,
+      "bounds_m": [
+        [
+          -0.07899995438046468,
+          0.006000000000000022,
+          0.018000220086575175
+        ],
+        [
+          -0.06500004561953536,
+          0.051000000000000045,
+          0.03199977991342486
+        ]
+      ],
+      "area_m2": 0.0016114983913294964,
+      "abs_volume_m3": 2.2658838517890503e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "180c3557e40631661834395d15bb82b77d4e08021e0f4caa0a7798adbb8e1fbf"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0002:Screw Spindle",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0002.npz",
+      "geometry_sha256": "9bcb5cfcc365c70e387cc87535f3baad3bcbfa1a92d2b7739abae53ff00f23da",
+      "required": true,
+      "vertices": 70525,
+      "triangles": 73894,
+      "bounds_m": [
+        [
+          -0.12870000000000004,
+          0.029000255145369455,
+          -0.005999945871885106
+        ],
+        [
+          0.03129999999999998,
+          0.04099974485463048,
+          0.00599993574652621
+        ]
+      ],
+      "area_m2": 0.009326385254429397,
+      "abs_volume_m3": 1.3560703428088853e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "f6aab1f9431185bd2f9253ba86536b60018781335614f5a92aadfd1f5b3258f6"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0003:End plate",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0003.npz",
+      "geometry_sha256": "266ddd4a02ac16cd60522f1a58388c400604b1e73beff5055204d93452bbcf56",
+      "required": true,
+      "vertices": 1936,
+      "triangles": 2284,
+      "bounds_m": [
+        [
+          0.004999999999999975,
+          0.008000000000000004,
+          0.03799999999999999
+        ],
+        [
+          0.054999999999999986,
+          0.05200000000000002,
+          0.051000000000000004
+        ]
+      ],
+      "area_m2": 0.006347665363014442,
+      "abs_volume_m3": 1.4414911372203395e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "67ba8fb44ecf5b620afcaee50c4e11c56f4c8caa45433dbacc9e471547ef8144"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0004:Block",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0004.npz",
+      "geometry_sha256": "004f06ffc320e016cfac407884b178d0a0fd229300c845660529a5551eed2c40",
+      "required": true,
+      "vertices": 19466,
+      "triangles": 19748,
+      "bounds_m": [
+        [
+          -0.08799999999999998,
+          0.018999999999999982,
+          -0.04499999999999999
+        ],
+        [
+          -0.05599999999999993,
+          0.05100000000000001,
+          0.04500000000000002
+        ]
+      ],
+      "area_m2": 0.01725809776982519,
+      "abs_volume_m3": 8.439009046625426e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "dc4a96a7caf6f1f4b9d9203a05de7616584ca551db3fffcb87b78a4082c342ae"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0005:Screw M8",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0005.npz",
+      "geometry_sha256": "c104c0dc089dc74f2324ca6f8e801e9f3e505e6872130a78c2dd7b5437643be9",
+      "required": true,
+      "vertices": 19980,
+      "triangles": 20074,
+      "bounds_m": [
+        [
+          0.06500018655981507,
+          0.006000000000000042,
+          0.01800003110952745
+        ],
+        [
+          0.07899981344018497,
+          0.05100000000000006,
+          0.03199996889047258
+        ]
+      ],
+      "area_m2": 0.0016114983913294969,
+      "abs_volume_m3": 2.2658838517890503e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "180c3557e40631661834395d15bb82b77d4e08021e0f4caa0a7798adbb8e1fbf"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0006:Fixed Jaw",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0006.npz",
+      "geometry_sha256": "4c4fcf6a70fa8808959261feadadd0e4049f1ffa29905a3c008bcdcbfaa012fe",
+      "required": true,
+      "vertices": 1942,
+      "triangles": 2288,
+      "bounds_m": [
+        [
+          0.055999999999999966,
+          0.01899999999999999,
+          -0.045
+        ],
+        [
+          0.08799999999999997,
+          0.051000000000000004,
+          0.045000000000000005
+        ]
+      ],
+      "area_m2": 0.015310562369133788,
+      "abs_volume_m3": 8.485968942941228e-05,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "27c26226bff6ac027a89c97a03782b56f117ea030725ecb4178853cf7d871cfb"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0007:Screw M8",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0007.npz",
+      "geometry_sha256": "075353b25215a151bd2e59ce5de1ad99c6f735c8ddf17857698759fb4e3ff097",
+      "required": true,
+      "vertices": 19980,
+      "triangles": 20074,
+      "bounds_m": [
+        [
+          0.06499999999999999,
+          0.006000000000000036,
+          -0.03192820323027548
+        ],
+        [
+          0.07899999999999995,
+          0.05100000000000006,
+          -0.018071796769724497
+        ]
+      ],
+      "area_m2": 0.0016114983913294964,
+      "abs_volume_m3": 2.265883851789051e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "180c3557e40631661834395d15bb82b77d4e08021e0f4caa0a7798adbb8e1fbf"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0008:Screw M8",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0008.npz",
+      "geometry_sha256": "bd77fd300bd1ff6ecac7205a43a77eb107d2d97be083779b24b3f39fd3dcb697",
+      "required": true,
+      "vertices": 19980,
+      "triangles": 20074,
+      "bounds_m": [
+        [
+          -0.07899940044473218,
+          0.006000000000000023,
+          -0.03199893940952503
+        ],
+        [
+          -0.06500059955526791,
+          0.051000000000000045,
+          -0.018001060590474925
+        ]
+      ],
+      "area_m2": 0.0016114983913294964,
+      "abs_volume_m3": 2.2658838517890516e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "180c3557e40631661834395d15bb82b77d4e08021e0f4caa0a7798adbb8e1fbf"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0009:Sliding Jaw",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0009.npz",
+      "geometry_sha256": "139fcc0ba75b8d96bb69797f63f19b3693749f865226975e6445b1ec35e73af8",
+      "required": true,
+      "vertices": 2644,
+      "triangles": 2792,
+      "bounds_m": [
+        [
+          0.004999999999999983,
+          0.007000000000000007,
+          -0.05199999999999995
+        ],
+        [
+          0.054999999999999986,
+          0.05100000000000002,
+          0.045000000000000054
+        ]
+      ],
+      "area_m2": 0.022719244004220568,
+      "abs_volume_m3": 0.0001576407005456566,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "733109393fcc1edc8274f8553f88d2c65a58a9d1b3a03bd34e9c20dd5e3760eb"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0010:Set Screw M6",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0010.npz",
+      "geometry_sha256": "b517defa189fe6a5bbd753ef0d2165b7c635c4dcd30548519130a3c7f73823cb",
+      "required": true,
+      "vertices": 7556,
+      "triangles": 7682,
+      "bounds_m": [
+        [
+          0.015001818362721213,
+          0.0377,
+          -0.005916079783099577
+        ],
+        [
+          0.02699818163727875,
+          0.050699999999999995,
+          0.005916079783099682
+        ]
+      ],
+      "area_m2": 0.00047908718865151976,
+      "abs_volume_m3": 3.6754249781116637e-07,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "9cd1ea62b1e19ce885f9d27695dd028336b2e7202289e0e4220a73caa52c6194"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0011:Set Screw M8",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0011.npz",
+      "geometry_sha256": "d57ff8cbc9b32d32b95896234140d4a694a963585fb389db088b176b3c9998c5",
+      "required": true,
+      "vertices": 968,
+      "triangles": 1128,
+      "bounds_m": [
+        [
+          0.023071796769724456,
+          0.03699999999999999,
+          0.030999999999999986
+        ],
+        [
+          0.03692820323027551,
+          0.051000000000000024,
+          0.05099999999999999
+        ]
+      ],
+      "area_m2": 0.0007933294542273735,
+      "abs_volume_m3": 1.1210476108470891e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "a05e98420be279d38f70a4cb12d20905e5d8653949af57bdc16be712b3f7f2ee"
+    },
+    {
+      "source_id": "source/Machine Vice  Assembly.STEP#solid:0012:Set Screw M8",
+      "source_file": "source/Machine Vice  Assembly.STEP",
+      "frame": "source_assembly_world",
+      "geometry_file": "geometry_0012.npz",
+      "geometry_sha256": "5e023dc348648f47440766626fb4ddca7531be63822b5a6c87be2738a0207157",
+      "required": true,
+      "vertices": 968,
+      "triangles": 1128,
+      "bounds_m": [
+        [
+          0.023000882272060545,
+          0.019000467516490965,
+          0.030999999999999986
+        ],
+        [
+          0.03699911772793943,
+          0.032999532483509036,
+          0.05099999999999999
+        ]
+      ],
+      "area_m2": 0.0007933294542273735,
+      "abs_volume_m3": 1.1210476108470908e-06,
+      "watertight": false,
+      "triangle_edge_multiset_sha256_0p1um": "a05e98420be279d38f70a4cb12d20905e5d8653949af57bdc16be712b3f7f2ee"
+    }
+  ],
+  "source_coverage_complete": true,
+  "coverage_note": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+  "importer_versions": {
+    "numpy": "2.5.3",
+    "trimesh": "4.12.2",
+    "cadquery-ocp": "7.8.1.1"
+  },
+  "excluded_ids": [],
+  "dataset_sha256": "34c8293ab1be49cd0bbdb8f8fe25278b60ba21c35d52b8009a5065278d25c87f",
+  "source_closure_sha256": "b8deaf61903a35d5324b649b3ba2efbfad0a6304fdccf1641fe66e21e8007aef",
+  "primary_input": "source/Machine Vice  Assembly.STEP",
+  "source_body_role_requirements": {
+    "source/Machine Vice  Assembly.STEP#solid:0000:Base": "base",
+    "source/Machine Vice  Assembly.STEP#solid:0006:Fixed Jaw": "fixed_jaw",
+    "source/Machine Vice  Assembly.STEP#solid:0009:Sliding Jaw": "moving_jaw"
+  }
+}

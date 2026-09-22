@@ -1,0 +1,644 @@
+{
+  "version": "source_distance_v1_1",
+  "qualified_utc": "2026-09-21T23:29:19.449567+00:00",
+  "scope": "Unscored synthetic regressions only",
+  "all_passed": true,
+  "tests": [
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0001,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0001,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0001,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0001,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0001,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5000000000005683e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0001,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.500000000000284e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0001,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0001,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.49999999996362e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0001,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.49999999998181e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0002,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0002,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0002,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0002,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0002,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5000000000005683e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0002,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.500000000000284e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0002,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0002,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.49999999996362e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0002,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.49999999998181e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0005,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0005,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0005,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0005,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0005,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5000000000005683e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0005,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.500000000000284e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0005,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0005,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.49999999996362e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.0005,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.49999999998181e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.001,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.001,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.001,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.001,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.001,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5000000000005683e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.001,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.500000000000284e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.001,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.001,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.49999999996362e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.001,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.49999999998181e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.01,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.01,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.01,
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.5e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.01,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.01,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.5000000000005683e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.01,
+      "origin_m": [
+        0.0,
+        0.1,
+        0.065
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.500000000000284e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.01,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 0,
+      "measured_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.01,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 2.5e-05,
+      "measured_m": 2.49999999996362e-05,
+      "passed": true
+    },
+    {
+      "name": "analytic_point_distance",
+      "edge_m": 0.01,
+      "origin_m": [
+        1.2,
+        -2.3,
+        3.4
+      ],
+      "expected_m": 7.5e-05,
+      "measured_m": 7.49999999998181e-05,
+      "passed": true
+    },
+    {
+      "name": "identity",
+      "expected_accepted": true,
+      "actual_accepted": true,
+      "detail": {
+        "source_to_final_max_sample_distance_m": 5.551115123125783e-20,
+        "final_to_source_max_sample_distance_m": 5.551115123125783e-20,
+        "area_ratio": 1.0,
+        "bounds_error_m": 0.0,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters"
+      },
+      "meter_area_ratio": 1.0,
+      "meter_bounds_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "name": "25um_offset_below50um",
+      "expected_accepted": true,
+      "actual_accepted": true,
+      "detail": {
+        "source_to_final_max_sample_distance_m": 2.5000000000005683e-05,
+        "final_to_source_max_sample_distance_m": 2.5000000000005683e-05,
+        "area_ratio": 1.0,
+        "bounds_error_m": 2.5000000000005683e-05,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters"
+      },
+      "meter_area_ratio": 1.0,
+      "meter_bounds_error_m": 2.4999999999997247e-05,
+      "passed": true
+    },
+    {
+      "name": "75um_offset_above50um",
+      "expected_accepted": false,
+      "actual_accepted": false,
+      "detail": {
+        "source_to_final_max_sample_distance_m": 7.500000000000284e-05,
+        "final_to_source_max_sample_distance_m": 7.500000000000284e-05,
+        "area_ratio": 1.0,
+        "bounds_error_m": 7.500000000000284e-05,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters"
+      },
+      "meter_area_ratio": 1.0,
+      "meter_bounds_error_m": 7.500000000000562e-05,
+      "passed": true
+    },
+    {
+      "name": "quadruple_area",
+      "expected_accepted": false,
+      "actual_accepted": false,
+      "detail": {
+        "source_to_final_max_sample_distance_m": 5.551115123125783e-20,
+        "final_to_source_max_sample_distance_m": 0.0005,
+        "area_ratio": 4.0,
+        "bounds_error_m": 0.0005,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim; versioned uniform x1000 length-unit evaluation, reported lengths converted back to meters"
+      },
+      "meter_area_ratio": 4.0,
+      "meter_bounds_error_m": 0.0005000000000000004,
+      "passed": true
+    },
+    {
+      "name": "frozen_identity_defect_is_reproduced",
+      "expected_accepted": false,
+      "actual_accepted": false,
+      "detail": {
+        "source_to_final_max_sample_distance_m": 0.0005000000000000004,
+        "final_to_source_max_sample_distance_m": 0.0005000000000000004,
+        "area_ratio": 1.0,
+        "bounds_error_m": 0.0,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "passed": true
+    }
+  ],
+  "worker_sha256": "9e9c61430d58bf10f931d31a27b2150d278d9db62c0eca08f1fa333db0c40ac1",
+  "surface_compare_source_sha256": "e402e7a4511ead7db0ef45f28c7de7ac8c58a1ec59279ddbce7abd827e2c99dd",
+  "frozen_geometry_sha256": "d4e9d3d625a81f3d4eada59ddd35145caf7d980a9853edb1d2090b92e55d8fe8",
+  "trimesh_version": "4.12.2",
+  "numpy_version": "2.5.3",
+  "length_scale_factor": 1000,
+  "tolerance_changes": false,
+  "applies_to_cases": [
+    "02_conveyor",
+    "03_hinge",
+    "04_gripper",
+    "05_vise",
+    "06_engine",
+    "07_robot_arm",
+    "08_excavator",
+    "09_printer",
+    "10_complex"
+  ]
+}

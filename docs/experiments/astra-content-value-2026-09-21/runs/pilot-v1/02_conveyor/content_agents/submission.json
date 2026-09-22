@@ -1,0 +1,16 @@
+{
+  "claimed_accepted": false,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "Native Geometry failed topology validation and source-preserving repair was rejected. Scene Optimizer Core and Geogram were unavailable. Their two failed repair attempts are retained. The saved final scene is an unchanged source-visual partial artifact in metres/Z-up, not a dynamic conveyor. No workflow failure was bypassed or relabeled.",
+  "repairs_used": 2,
+  "limitations": [
+    "Geometry reports four support boundary edges and two support self-intersections; native failed/rejected dispositions retained.",
+    "Scene Optimizer Core and Geogram are missing; no package installation or repository modification was performed.",
+    "Joint and Physics authoring were blocked; final.usd contains no rigid bodies, joint, collisions, mass or inertia.",
+    "All four identifier roles are mapped, but moving=false and joints=[] reflect the partial artifact; the dynamic submission contract is not met.",
+    "No prescribed torque/contact simulation, five-seed acceptance test or gravity witness was executed.",
+    "Original source meshes and assembly-world placement are preserved; the final export changes only unit representation.",
+    "OpenUSD validation extension/material plugin checks were partly unavailable in the frozen runtime."
+  ]
+}

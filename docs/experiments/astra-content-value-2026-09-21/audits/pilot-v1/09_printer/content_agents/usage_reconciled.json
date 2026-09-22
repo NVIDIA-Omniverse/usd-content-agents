@@ -1,0 +1,22 @@
+{
+  "input_tokens": 14777510,
+  "cached_input_tokens": 14427776,
+  "cache_write_input_tokens": 0,
+  "output_tokens": 52829,
+  "reasoning_output_tokens": 15472,
+  "total_tokens": 14830339,
+  "schema_version": 1,
+  "case_id": "09_printer",
+  "arm": "content_agents",
+  "complete": true,
+  "observed_contexts": [
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra"
+    }
+  ],
+  "observed_model_effort_match": true,
+  "policy": "Sum per-response usage for each distinct session once, checked against its final cumulative counter. Parent turn usage excludes child sessions. Missing or interrupted sessions make completeness false. This is client telemetry, not an invoice.",
+  "generated_unix": 1790038124.8057132,
+  "missing_final_session_count": 0
+}

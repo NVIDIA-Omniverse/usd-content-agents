@@ -1,0 +1,15 @@
+{
+  "note": "Samples include primary and transient workflow shadow homes while alive. Sum each distinct session once; final bridge usage records take precedence over last periodic sample for deleted shadow sessions. Audit any uncaptured children from workflow launch and usage receipts.",
+  "observed_turn_contexts": [
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra"
+    },
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra"
+    }
+  ],
+  "requested_effort": "ultra",
+  "requested_model": "gpt-6-astra"
+}

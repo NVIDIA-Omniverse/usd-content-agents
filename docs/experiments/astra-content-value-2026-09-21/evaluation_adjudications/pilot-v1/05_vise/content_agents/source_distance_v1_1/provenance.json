@@ -1,0 +1,9 @@
+{
+  "version": "source_distance_v1_1",
+  "adjudication_action": "skipped_non_submission",
+  "hashes": {
+    "conservative_v1.json": "ede0b8b03ae14ea1f50d584fc89ab141cb5f3ad3077691cde0fed46fe456996c",
+    "acceptance.json": "630c82071c33423e5764c89557902bfb7baedd69e8056c83d210f886338cc4b5"
+  },
+  "worker_sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84"
+}

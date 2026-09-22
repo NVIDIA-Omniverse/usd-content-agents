@@ -1,0 +1,16 @@
+#usda 1.0
+
+def Xform "World"
+{
+    def Xform "Base"
+    {
+    }
+
+    def Xform "Moving"
+    {
+        def Cube "Shape"
+        {
+        }
+    }
+}
+

@@ -1,0 +1,17 @@
+{
+  "scope": "Unscored null-submission batch orchestration regression; no source asset or physics",
+  "all_passed": true,
+  "tests": [
+    {
+      "arm": "plain_astra",
+      "passed": true,
+      "receipt": "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/tests/non_submission_fixture/evaluation_adjudications/synthetic-qualification/03_hinge/plain_astra/source_distance_v1_1/acceptance.json"
+    },
+    {
+      "arm": "content_agents",
+      "passed": true,
+      "receipt": "/opt/astra-content-value-20260921/evaluator/errata/source_distance_v1_1/tests/non_submission_fixture/evaluation_adjudications/synthetic-qualification/03_hinge/content_agents/source_distance_v1_1/acceptance.json"
+    }
+  ],
+  "worker_sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84"
+}

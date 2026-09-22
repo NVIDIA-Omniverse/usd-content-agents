@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "case_id": "02_conveyor",
+  "arm": "plain_astra",
+  "valid": false,
+  "status": "INVALID_PROTOCOL",
+  "scope": "Per-arm author model, access, treatment, source, environment, repairs, wall budget and retained-artifact protocol. Experiment-wide simulation scheduling is explicitly separate.",
+  "audited_utc": "2026-09-22T00:00:25.761244+00:00",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All4 observed completed sessions used gpt-6-astra ultra; usage ledger reconciles with final counters and no final session is missing.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/plain_astra/usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "frozen_task_and_outputs",
+      "valid": true,
+      "finding": "All123 retained watchdog-manifest files match their recorded bytes, and the public task hash matches launch. No scored artifact was repaired by this audit.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/plain_astra/independent_protocol_probe.json"
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All18 source files match the frozen inventory or original curation hashes.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/plain_astra/source_integrity.json"
+      ]
+    },
+    {
+      "id": "control_treatment_separation",
+      "valid": true,
+      "finding": "Used original STEP/OCP, OpenUSD, low-level usd-cli and native OvPhysX. No Content Agents workflow skill, coordinator or workflow decision-helper access observed. This treatment-separation finding does not excuse the separately confirmed foreign-code exposure.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/plain_astra/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "forbidden_content_access",
+      "valid": false,
+      "finding": "At22:54:35.901Z a broad process diagnostic returned PID68636 with inline Python from05_vise/plain_astra scripts/extract_source.py, including original source inventory, native meshing logic and file writes. It is another case author output, even though delivered through a process command line. A later23:00:28 listing showed only another renderer path and common daemon startup code. No causal reuse of the foreign code is established; exposure alone violates the stated read scope.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/plain_astra/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "frozen_environment_mutation",
+      "valid": true,
+      "finding": "No package installation, repository/source/evaluator mutation, alternate model provider, or assigned-GPU override observed. Own temporary code, test harnesses and run-local derived assets stay within author scope.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/plain_astra/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "1523.5759777389467 seconds within2400-second watchdog cap; human interventions recorded0.",
+      "evidence": [
+        "runs/pilot-v1/02_conveyor/plain_astra/execution.json",
+        "audits/pilot-v1/02_conveyor/plain_astra/usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "Final USD and bindings are byte-identical to the preserved first candidate. Own observer/contact-sign corrections and repeated tests do not change submitted asset geometry or physics and are not scene repairs.",
+      "count": 0,
+      "limit": 2,
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/plain_astra/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "terminal_claim_recorded",
+      "valid": true,
+      "finding": "Terminal claimed_accepted=true is retained. Author claims and independent physical verdicts are distinct; this protocol audit changes neither.",
+      "evidence": [
+        "runs/pilot-v1/02_conveyor/plain_astra/submission.json"
+      ]
+    }
+  ],
+  "violations": [
+    {
+      "id": "cross_case_author_code_exposure",
+      "at_utc": "2026-09-21T22:54:35.901Z",
+      "source_case": "05_vise",
+      "source_arm": "plain_astra",
+      "source_pid": 68636,
+      "receiving_case": "02_conveyor",
+      "receiving_arm": "plain_astra",
+      "decoded_output_sha256": "936e73aae13e76b6e09cc154997244a0ffb234899b0360cc0134dec6ac469c06",
+      "event_evidence": {
+        "path": "runs/pilot-v1/02_conveyor/plain_astra/events.jsonl",
+        "line": 22,
+        "item_id": "item_10"
+      },
+      "finding": "Actual foreign inline source-extraction code entered the author context via ps output. Intentional file opening or demonstrated reuse is not required for this content-isolation violation.",
+      "qualification": "Author disclosed incidental exposure; no claim of deliberate copying or causal effect is made."
+    }
+  ],
+  "unknowns": [
+    "No proof is claimed against unrecorded activity; opaque collaboration message bodies were not decoded.",
+    "Global scheduling is not certified by this per-arm valid flag. A separate confirmed global concurrency violation is retained."
+  ],
+  "global_concurrency": {
+    "scope": "experiment-wide",
+    "status": "FAIL_CONFIRMED_OVERLAP",
+    "evidence": "audits/pilot-v1/global_concurrency/overlap_02_05.json",
+    "note": "At least5 native solver processes overlap against cap4. Root owns global scope/adjudication and unobserved remainder."
+  },
+  "coverage": {
+    "tool_requests": 196,
+    "tool_counts": {
+      "exec": 136,
+      "spawn_agent": 3,
+      "send_message": 45,
+      "followup_task": 1,
+      "sleep": 7,
+      "wait_agent": 4
+    },
+    "first_tool_utc": "2026-09-21T22:52:18.201Z",
+    "last_tool_utc": "2026-09-21T23:17:03.944Z",
+    "review_method": "All captured tool requests, including child sessions, included in source/access/workflow/environment mutation scan; flagged calls and all process-listing responses inspected. Workflow and repair conclusions cross-checked against retained native receipts and output manifest.",
+    "opaque_collaboration_messages_decoded": false,
+    "private_request_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "repair_counting": {
+    "declared_repairs": 0,
+    "audited_count": 0,
+    "convention": "Final USD and bindings are byte-identical to the preserved first candidate. Own observer/contact-sign corrections and repeated tests do not change submitted asset geometry or physics and are not scene repairs.",
+    "evidence_paths": [
+      "audits/pilot-v1/02_conveyor/plain_astra/candidate_final_comparison.json",
+      "runs/pilot-v1/02_conveyor/plain_astra/evidence/protocol_notes.json"
+    ],
+    "limit": 2
+  },
+  "private_tool_metadata_digest": {
+    "path": "audits/pilot-v1/02_conveyor/plain_astra/tool_calls.private.json",
+    "sha256": "eeae741ce323b4bc4facb5b46cd71651fc73e72a84d366a0b4187e7909aae1e9",
+    "publish": false
+  },
+  "detailed_report": {
+    "path": "audits/pilot-v1/02_conveyor/plain_astra/protocol_observations.json",
+    "sha256": "60083cd57db571a93a840a287b4445c56aa152a77e767a54d46154b808cea587"
+  },
+  "usage_reconciled_sha256": "447d2db8893eaa67b731829a5d3cf8e160fc43b7db1fd27753e898be13d92bc2",
+  "independent_protocol_probe_sha256": "fed3e53680ccc8f9e2fd4c75f1f2c98a68d0e8899d4ea830324729317a63d112",
+  "source_integrity_sha256": "e610b39e0877d53151ddf0fbe026339c90221d73b31e09e9c5e005547a004c5f",
+  "launch_sha256": "8fdc7bbc7366e231e69573f896ba56fef2b1f35117b185de821a6e7eaf7bb863",
+  "execution_sha256": "55992c8c6c736f12d773b04654b5eae36d22b6df675bd08ad6e6117f81a9619a",
+  "submission_sha256": "d632a7af94a150cc7dd294856f4829168081ad752cff7f5417bbd309732eaba1",
+  "task_sha256": "43e4bb90e18dfbc799eb454b5b0f20eedd724252c0137a63eb9fe610ab7fd8a9",
+  "no_scored_output_repaired": true
+}

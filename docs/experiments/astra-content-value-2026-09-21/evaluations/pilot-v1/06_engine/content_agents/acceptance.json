@@ -1,0 +1,1835 @@
+{
+  "accepted": false,
+  "status": "not_accepted",
+  "inconclusive_checks": [
+    "direct_task_runtime"
+  ],
+  "concrete_failures": [
+    "body_collider:/Engine/beam_003",
+    "body_collider:/Engine/machine_base_",
+    "body_collider:/Engine/middle_beam_001",
+    "body_collider:/Engine/piston001",
+    "body_collider:/Engine/piston_mount_001",
+    "body_collider:/Engine/small_beam_001",
+    "body_collider:/Engine/small_wheel_001",
+    "body_collider:/Engine/spoke_wheel_001",
+    "body_collider:/Engine/spoke_wheel_rod_",
+    "body_collider:/Engine/valve_001",
+    "required_joint_roles",
+    "actual_joint_graph_has_closed_loop",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/valve_001/valve_/Body004",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/small_wheel_001/small_wheel_/Body011",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/small_beam_001/small_beam_/Body015",
+    "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/middle_beam_001/middle_beam_/Body016",
+    "exactly_one_physics_scene"
+  ],
+  "checks": [
+    {
+      "name": "reference_inventory_frozen",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:evaluate.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:structural.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:cases.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:geometry.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:common.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:solver.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:bindings.schema.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "case_identity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "usd_stage_load",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "meters_and_z_up",
+      "passed": true,
+      "evidence": {
+        "meters_per_unit": 1.0,
+        "up_axis": "Z"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "no_prescribed_time_sampled_motion_or_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "frozen_source_coverage_complete",
+      "passed": true,
+      "evidence": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:original/LICENSE",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:original/README.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:original/steam_engine_mechanism.FCStd",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:original/steam_engine_overview.png",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unique_body_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "required_body_roles",
+      "passed": true,
+      "evidence": {
+        "required": [
+          "crank",
+          "piston",
+          "beam",
+          "connecting_rod",
+          "base"
+        ],
+        "given": {
+          "beam": "/Engine/beam_003",
+          "base": "/Engine/machine_base_",
+          "valve_link": "/Engine/middle_beam_001",
+          "piston": "/Engine/piston_mount_001",
+          "coupler": "/Engine/small_beam_001",
+          "crank": "/Engine/spoke_wheel_001",
+          "connecting_rod": "/Engine/spoke_wheel_rod_",
+          "valve": "/Engine/valve_001"
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/Engine/beam_003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/beam_003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/beam_003",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/beam_003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/beam_003",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Engine/machine_base_",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/machine_base_",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/machine_base_",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/machine_base_",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/machine_base_",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Engine/middle_beam_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/middle_beam_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/middle_beam_001",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/middle_beam_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/middle_beam_001",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Engine/piston001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/piston001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/piston001",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/piston001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/piston001",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Engine/piston_mount_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/piston_mount_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/piston_mount_001",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/piston_mount_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/piston_mount_001",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Engine/small_beam_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/small_beam_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/small_beam_001",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/small_beam_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/small_beam_001",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Engine/small_wheel_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/small_wheel_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/small_wheel_001",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/small_wheel_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/small_wheel_001",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Engine/spoke_wheel_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/spoke_wheel_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/spoke_wheel_001",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/spoke_wheel_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/spoke_wheel_001",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Engine/spoke_wheel_rod_",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/spoke_wheel_rod_",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/spoke_wheel_rod_",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/spoke_wheel_rod_",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/spoke_wheel_rod_",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "body_exists:/Engine/valve_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/Engine/valve_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/Engine/valve_001",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/Engine/valve_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/Engine/valve_001",
+      "passed": false,
+      "evidence": [],
+      "failure_class": "rejected"
+    },
+    {
+      "name": "all_rigid_bodies_observed",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "unique_joint_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "all_joints_declared",
+      "passed": true,
+      "evidence": {
+        "undeclared": [],
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "required_joint_roles",
+      "passed": false,
+      "evidence": {},
+      "failure_class": "rejected"
+    },
+    {
+      "name": "actual_joint_graph_has_closed_loop",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_parts_mapped_once",
+      "passed": true,
+      "evidence": {
+        "required": 24,
+        "mapped": 24,
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body007",
+      "passed": true,
+      "evidence": {
+        "required_role": "base",
+        "mapped_body": "/Engine/machine_base_"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+      "passed": true,
+      "evidence": {
+        "required_role": "base",
+        "mapped_body": "/Engine/machine_base_"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+      "passed": true,
+      "evidence": {
+        "required_role": "base",
+        "mapped_body": "/Engine/machine_base_"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+      "passed": true,
+      "evidence": {
+        "required_role": "base",
+        "mapped_body": "/Engine/machine_base_"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+      "passed": true,
+      "evidence": {
+        "required_role": "base",
+        "mapped_body": "/Engine/machine_base_"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+      "passed": true,
+      "evidence": {
+        "required_role": "piston",
+        "mapped_body": "/Engine/piston001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Torus",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+      "passed": true,
+      "evidence": {
+        "required_role": "crank",
+        "mapped_body": "/Engine/spoke_wheel_001"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+      "passed": true,
+      "evidence": {
+        "required_role": "connecting_rod",
+        "mapped_body": "/Engine/spoke_wheel_rod_"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_part_correct_mechanism_role:original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+      "passed": true,
+      "evidence": {
+        "required_role": "beam",
+        "mapped_body": "/Engine/beam_003"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/beam_003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/machine_base_",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/middle_beam_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/piston001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/piston_mount_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/small_beam_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/small_wheel_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/spoke_wheel_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/spoke_wheel_rod_",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/Engine/valve_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "assembly_alignment_is_rigid",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/valve_001/valve_/Body004",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/valve_001/valve_/Body004",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/valve_001/Body004",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/valve_001/valve_/Body004",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/valve_001/valve_/Body004",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/valve_001/valve_/Body004",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00016775457592566463,
+        "final_to_source_max_sample_distance_m": 0.0001475240198665912,
+        "area_ratio": 1.0000585072090558,
+        "bounds_error_m": 8.194014637702071e-07,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body007",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body007",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/machine_base_/Body007",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body007",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body007",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body007",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.359740419906694e-09,
+        "final_to_source_max_sample_distance_m": 1.3573686064027903e-09,
+        "area_ratio": 0.9999999893799317,
+        "bounds_error_m": 1.3573686064027868e-09,
+        "tolerance_m": 5.4240206489282476e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/machine_base_/Body005",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.0001479550465681319,
+        "final_to_source_max_sample_distance_m": 0.0001827704712285046,
+        "area_ratio": 1.0000398828794121,
+        "bounds_error_m": 4.1175101342643544e-07,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/machine_base_/Body001",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00011314044294680402,
+        "final_to_source_max_sample_distance_m": 0.00010038817701890126,
+        "area_ratio": 1.000008658965228,
+        "bounds_error_m": 2.641762993308566e-07,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/machine_base_/Body",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00010440817905604584,
+        "final_to_source_max_sample_distance_m": 3.740991891377997e-05,
+        "area_ratio": 0.9999999322232282,
+        "bounds_error_m": 6.109476084759091e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/machine_base_/Body010",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00012514166328104326,
+        "final_to_source_max_sample_distance_m": 0.00014235334917440197,
+        "area_ratio": 1.000041854222003,
+        "bounds_error_m": 1.1920928966180355e-09,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/piston001/Body003",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00010303521554676985,
+        "final_to_source_max_sample_distance_m": 0.00012431170318219232,
+        "area_ratio": 0.9999999209063009,
+        "bounds_error_m": 1.649681918847179e-09,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Tube",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.0001235353959348659,
+        "final_to_source_max_sample_distance_m": 8.51865507655725e-05,
+        "area_ratio": 1.0000155438826683,
+        "bounds_error_m": 1.0879396772703331e-06,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Torus",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Torus",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Torus",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Torus",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Torus",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Torus",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 3.476663177611063e-05,
+        "final_to_source_max_sample_distance_m": 3.549372442185396e-05,
+        "area_ratio": 1.0001852147583608,
+        "bounds_error_m": 3.4610005956534767e-06,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Tube001",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00015139995265246273,
+        "final_to_source_max_sample_distance_m": 0.00013552270165995996,
+        "area_ratio": 1.0001537776412306,
+        "bounds_error_m": 4.323613393274195e-06,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Cylinder_0",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.0001398397202577009,
+        "final_to_source_max_sample_distance_m": 0.00014695264984302322,
+        "area_ratio": 1.0000000162315528,
+        "bounds_error_m": 2.314544597648016e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Cylinder_1",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.000139839720257701,
+        "final_to_source_max_sample_distance_m": 0.000146952649843025,
+        "area_ratio": 1.0000000162315525,
+        "bounds_error_m": 2.586509999236153e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Cylinder_2",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00013983972025770117,
+        "final_to_source_max_sample_distance_m": 0.00014695264984302496,
+        "area_ratio": 1.0000000162315534,
+        "bounds_error_m": 2.314544597648016e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Cylinder_3",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00013983972025770182,
+        "final_to_source_max_sample_distance_m": 0.00014695264984302485,
+        "area_ratio": 1.000000016231553,
+        "bounds_error_m": 2.586509981888918e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Cylinder_4",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00013983972025770076,
+        "final_to_source_max_sample_distance_m": 0.00014695264984301948,
+        "area_ratio": 1.0000000162315525,
+        "bounds_error_m": 2.3145445803007814e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Cylinder_5",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.0001398397202577013,
+        "final_to_source_max_sample_distance_m": 0.00014695264984302423,
+        "area_ratio": 1.0000000162315528,
+        "bounds_error_m": 2.5865100339306224e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Cylinder_6",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.0001398397202577011,
+        "final_to_source_max_sample_distance_m": 0.00014695264984301786,
+        "area_ratio": 1.000000016231553,
+        "bounds_error_m": 2.314544597648016e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_001/Cylinder_7",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00013983972025770016,
+        "final_to_source_max_sample_distance_m": 0.00014695264984301834,
+        "area_ratio": 1.0000000162315525,
+        "bounds_error_m": 2.5865099645416834e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/small_wheel_001/small_wheel_/Body011",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/small_wheel_001/small_wheel_/Body011",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/small_wheel_001/Body011",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/small_wheel_001/small_wheel_/Body011",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/small_wheel_001/small_wheel_/Body011",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/small_wheel_001/small_wheel_/Body011",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.0001590927801080254,
+        "final_to_source_max_sample_distance_m": 0.00021855593251701236,
+        "area_ratio": 1.000091322228219,
+        "bounds_error_m": 1.4441778211256306e-06,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/spoke_wheel_rod_/Body012",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 5.1845868823486214e-05,
+        "final_to_source_max_sample_distance_m": 8.55962437009425e-05,
+        "area_ratio": 1.0000000091581802,
+        "bounds_error_m": 2.384185800174965e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/beam_003/Body013",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00019816808734882542,
+        "final_to_source_max_sample_distance_m": 0.00010477218148554876,
+        "area_ratio": 1.0000000269495157,
+        "bounds_error_m": 8.423832395521025e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/piston_mount_001/piston_mount_/Body014",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/piston_mount_001/piston_mount_/Body014",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/piston_mount_001/Body014",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/piston_mount_001/piston_mount_/Body014",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/piston_mount_001/piston_mount_/Body014",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/piston_mount_001/piston_mount_/Body014",
+      "passed": true,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 1.8232200751832314e-05,
+        "final_to_source_max_sample_distance_m": 2.911842336450366e-05,
+        "area_ratio": 1.0000000789337626,
+        "bounds_error_m": 1.899898051382909e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/small_beam_001/small_beam_/Body015",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/small_beam_001/small_beam_/Body015",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/small_beam_001/Body015",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/small_beam_001/small_beam_/Body015",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/small_beam_001/small_beam_/Body015",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/small_beam_001/small_beam_/Body015",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 0.00016761842245146394,
+        "final_to_source_max_sample_distance_m": 0.00012349435444062576,
+        "area_ratio": 1.0000000043479655,
+        "bounds_error_m": 4.307202927655851e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "frozen_geometry_hash:original/steam_engine_mechanism.FCStd#/Assembly/middle_beam_001/middle_beam_/Body016",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:original/steam_engine_mechanism.FCStd#/Assembly/middle_beam_001/middle_beam_/Body016",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/Engine/middle_beam_001/Body016",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:original/steam_engine_mechanism.FCStd#/Assembly/middle_beam_001/middle_beam_/Body016",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "part_alignment_is_rigid:original/steam_engine_mechanism.FCStd#/Assembly/middle_beam_001/middle_beam_/Body016",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:original/steam_engine_mechanism.FCStd#/Assembly/middle_beam_001/middle_beam_/Body016",
+      "passed": false,
+      "evidence": {
+        "source_to_final_max_sample_distance_m": 9.449965772230512e-05,
+        "final_to_source_max_sample_distance_m": 6.308751236252342e-05,
+        "area_ratio": 1.0000000565725333,
+        "bounds_error_m": 8.436202708628215e-10,
+        "tolerance_m": 5e-05,
+        "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "source_visual_meshes_unique",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_unmapped_visible_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "exactly_one_physics_scene",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "rejected"
+    },
+    {
+      "name": "no_authored_external_forces",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "direct_task_runtime",
+      "passed": false,
+      "evidence": "Structural-only mode or unsafe/missing runtime bindings; no functional acceptance.",
+      "failure_class": "evaluator_insufficient"
+    }
+  ],
+  "case_id": "06_engine",
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "input_sha256": "4beef90dcdb79072c8596c4c7ab1a2c2bd4844b46bd6c08734fbe6eb327a0aa4",
+  "bindings_sha256": "3b7bf44c859d26b2807c09bd4bdb966a28de80b93f38761b6527c66dff9d1d3f",
+  "inventory_sha256": "c3dd99d6751573437f4219d8e8fcc981180eec66b8a8ab5d8086a2303caad9c4",
+  "cases_sha256": "3c6e284907e6b34f67f2ab9901896575438bc456cb9d3df3619fa62224227cf9",
+  "evidence_policy": "Only evaluator-owned source inspection and fresh solver trajectories used. Inconclusive capability checks are not failures or false passes. A false-pass comparison additionally requires the author arm explicit accepted claim and at least one concrete failing check."
+}

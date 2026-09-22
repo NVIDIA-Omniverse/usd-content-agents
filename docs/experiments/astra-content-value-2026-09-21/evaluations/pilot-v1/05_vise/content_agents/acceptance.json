@@ -1,0 +1,10 @@
+{
+  "status": "not_accepted",
+  "accepted": false,
+  "concrete_failures": [
+    "submission_contract"
+  ],
+  "inconclusive_checks": [],
+  "reason": "Missing or null submitted final_scene/bindings within the completed run directory.",
+  "scope": "Contractual non-delivery; no physical acceptance inferred and no author output changed."
+}

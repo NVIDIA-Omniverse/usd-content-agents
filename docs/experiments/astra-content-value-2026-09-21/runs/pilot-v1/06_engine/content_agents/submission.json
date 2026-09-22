@@ -1,0 +1,16 @@
+{
+  "claimed_accepted": false,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "INCONCLUSIVE: the frozen native asset launcher stopped before Joint authoring because it could not verify the committed in-tree usd-cli source; the provided repository has no .git directory. The saved final scene is source-preserving geometry only, with no rigid bodies or joints, so the physical task is not demonstrated.",
+  "repairs_used": 1,
+  "limitations": [
+    "Geometry_01 failed its native triangle budget at433060 triangles and remains failed; Repair1 re-tessellated the same cached original BREP to165080 triangles and preserves that first candidate.",
+    "Geometry_02 returned a conditional handoff with co-located-point warnings; its disposition is preserved.",
+    "Native asset setup failed before the sole workflow model child and usd-cli daemon started. No execution graph, Joint, Physics or Validation leaf ran.",
+    "final.usd is a partial static source-only scene; required moving bodies, joints, closed loop and finite mass/inertia were not authored.",
+    "No integrated crank cycle, piston repeatability, beam oscillation, external shaft-load response, penetration gate or native gravity witness was measured.",
+    "The source-surface comparison is own evidence against another tessellation of the same saved BREP, not independent evaluator results or hardware certification.",
+    "No installed package, repository source, original closure or evaluator was modified."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "claimed_accepted": true,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "All required source instances are preserved and mapped, all source/structure checks pass, and fresh native OvPhysX runs pass six-joint target/return, bounded effort, limit, closure, contact, speed, fixed-base, end-effector motion, and gravity checks. Both inertia-scaling interpretations and all five public seed labels were checked.",
+  "repairs_used": 2,
+  "limitations": [
+    "This is the agent's own acceptance claim; the independent evaluator was not run or inspected.",
+    "Five seed labels use the public deterministic zero-velocity protocol; no unpublished evaluator perturbations are reproduced.",
+    "Mass properties use effective uniform density 1200 kg/m\u00b3 and diagonalized body-axis inertia; no real-hardware load rating is claimed.",
+    "Joint limits \u00b135\u00b0 are conservative modeled operating limits, not certified physical travel ranges.",
+    "Seven invisible collision proxies approximate source geometry; native penetration measurements apply to those proxies.",
+    "Native OvPhysX dynamics ran on the assigned Horde host using one CPU worker; OVRTX used the assigned GPU and CUDA visibility was preserved.",
+    "A broad host process listing accidentally surfaced unrelated workload command arguments; no unrelated files or evaluator results were opened or used. See evidence/process_listing_scope_note.json."
+  ]
+}

@@ -1,0 +1,278 @@
+{
+  "case_id": "09_printer",
+  "source_inventory_sha256": "92937c66acf4a6f70259b7f0f12b202fa77a45784f1d2995f025aedf7d38a962",
+  "bed_source_ids": [
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0546:120x120mm MIC6",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0547:100x100mm Silicone Bed Heater",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0548:Magnetic Sheet",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0549:unnamed",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0550:unnamed"
+  ],
+  "payload_spec": {
+    "mass_kg": 0.05,
+    "size_m": [
+      0.015,
+      0.015,
+      0.015
+    ],
+    "initial_surface_clearance_m": 0.001,
+    "source_patch_edge_margin_m": 0.002,
+    "source_patch_grid_points_per_axis": 5,
+    "source_planarity_tolerance_m": 5e-05,
+    "friction": 0.6,
+    "restitution": 0.0,
+    "contact_offset_m": 0.0002,
+    "rest_offset_m": 0.0,
+    "observation_start_s": 1.0,
+    "minimum_contact_force_N": 0.01,
+    "minimum_contact_frame_fraction": 0.9,
+    "maximum_payload_drift_relative_to_bed_m": 0.003,
+    "minimum_bed_world_Z_rise_m": 0.02,
+    "payload_force_policy": "The block is a free nonkinematic rigid body with no joints, pose writes, or external support forces. Only the printer mechanism receives the generic bounded controller efforts; known block weight may be included in bed-actuator gravity compensation.",
+    "placement_policy": "Freeze one clear source-bed top patch from independently tessellated original CAD before either arm runs. Transform that fixed point only by the declared source assembly alignment; its source top normal must map to world+Z. Do not select placement from submitted colliders, meshes or suggested author locations.",
+    "contact_unit_policy": "Pinned ovphysx0.4.13 step_sync contact matrix is empirically impulse in Ns; divide each step by its actual dt to obtain N."
+  },
+  "placement": {
+    "source_center_m": [
+      4.028763082447595e-06,
+      -0.04518345351119067,
+      0.22745026967885912
+    ],
+    "source_top_normal": [
+      0,
+      0,
+      1
+    ],
+    "source_surface_height_m": 0.2189502696788591,
+    "source_support_probes_m": [
+      [
+        -0.009495971236917552,
+        -0.05468345351119067,
+        0.2189502696788591
+      ],
+      [
+        -0.009495971236917552,
+        -0.04993345351119067,
+        0.2189502696788591
+      ],
+      [
+        -0.009495971236917552,
+        -0.04518345351119067,
+        0.2189502696788591
+      ],
+      [
+        -0.009495971236917552,
+        -0.040433453511190674,
+        0.2189502696788591
+      ],
+      [
+        -0.009495971236917552,
+        -0.03568345351119067,
+        0.2189502696788591
+      ],
+      [
+        -0.004745971236917552,
+        -0.05468345351119067,
+        0.2189502696788591
+      ],
+      [
+        -0.004745971236917552,
+        -0.04993345351119067,
+        0.2189502696788591
+      ],
+      [
+        -0.004745971236917552,
+        -0.04518345351119067,
+        0.2189502696788591
+      ],
+      [
+        -0.004745971236917552,
+        -0.040433453511190674,
+        0.2189502696788591
+      ],
+      [
+        -0.004745971236917552,
+        -0.03568345351119067,
+        0.2189502696788591
+      ],
+      [
+        4.028763082447595e-06,
+        -0.05468345351119067,
+        0.2189502696788591
+      ],
+      [
+        4.028763082447595e-06,
+        -0.04993345351119067,
+        0.2189502696788591
+      ],
+      [
+        4.028763082447595e-06,
+        -0.04518345351119067,
+        0.2189502696788591
+      ],
+      [
+        4.028763082447595e-06,
+        -0.040433453511190674,
+        0.2189502696788591
+      ],
+      [
+        4.028763082447595e-06,
+        -0.03568345351119067,
+        0.2189502696788591
+      ],
+      [
+        0.004754028763082447,
+        -0.05468345351119067,
+        0.2189502696788591
+      ],
+      [
+        0.004754028763082447,
+        -0.04993345351119067,
+        0.2189502696788591
+      ],
+      [
+        0.004754028763082447,
+        -0.04518345351119067,
+        0.2189502696788591
+      ],
+      [
+        0.004754028763082447,
+        -0.040433453511190674,
+        0.2189502696788591
+      ],
+      [
+        0.004754028763082447,
+        -0.03568345351119067,
+        0.2189502696788591
+      ],
+      [
+        0.009504028763082447,
+        -0.05468345351119067,
+        0.2189502696788591
+      ],
+      [
+        0.009504028763082447,
+        -0.04993345351119067,
+        0.2189502696788591
+      ],
+      [
+        0.009504028763082447,
+        -0.04518345351119067,
+        0.2189502696788591
+      ],
+      [
+        0.009504028763082447,
+        -0.040433453511190674,
+        0.2189502696788591
+      ],
+      [
+        0.009504028763082447,
+        -0.03568345351119067,
+        0.2189502696788591
+      ]
+    ],
+    "support_probe_pass": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "source_plane_area_m2": 0.014392262980399941,
+    "source_plane_xy_bounds_m": [
+      [
+        -0.05999597123690616,
+        -0.09185012017785733
+      ],
+      [
+        0.060004028763071066,
+        0.028149879822142662
+      ]
+    ],
+    "payload_source_geometry_clear": true
+  },
+  "rejected_candidates": [
+    {
+      "source_center_m": [
+        4.0287630824510645e-06,
+        -0.031850120177857336,
+        0.22745026967885912
+      ],
+      "obstacle_source_ids": [
+        "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0509:SOLID"
+      ]
+    },
+    {
+      "source_center_m": [
+        4.028763082447595e-06,
+        -0.031850120177857336,
+        0.22745026967885912
+      ],
+      "obstacle_source_ids": [
+        "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0509:SOLID"
+      ]
+    },
+    {
+      "source_center_m": [
+        0.013337362096411988,
+        -0.031850120177857336,
+        0.22745026967885912
+      ],
+      "obstacle_source_ids": [
+        "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0428:Front Cowling (1)"
+      ]
+    },
+    {
+      "source_center_m": [
+        -0.01332930457024709,
+        -0.031850120177857336,
+        0.22745026967885912
+      ],
+      "obstacle_source_ids": [
+        "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0428:Front Cowling (1)"
+      ]
+    },
+    {
+      "source_center_m": [
+        4.028763082447595e-06,
+        -0.018516786844524007,
+        0.22745026967885912
+      ],
+      "obstacle_source_ids": [
+        "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0509:SOLID"
+      ]
+    }
+  ],
+  "method": "Original source only: horizontal source-plane area,25 footprint support probes, triangle/AABB separating-axis clearance and closed-mesh center containment against every overlapping original part",
+  "source_geometry_hashes_consulted": {
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0546:120x120mm MIC6": "79e5f516c0b814576d17e7161de2cb993d27f1c12d5322988b6d00a7770ecfd9",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0547:100x100mm Silicone Bed Heater": "71908af32effe1d7d43673500b4e8bb4fae54f8d2b2f2c20d6558ceb34df8278",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0548:Magnetic Sheet": "3fc0a91181d300b98aec3afab447e793abd7a5a552cffece4cd40f39981213fd",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0549:unnamed": "8f00bc7ecec023e93645a473d018af3853026febcb02d083643a80248cc3e900",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0550:unnamed": "d3fbd9ccaed5a69b874ade8608a444817c1db4b2c98c3af4e9df43a66fc63eef",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0428:Front Cowling (1)": "711ca5062d5970c2ecfb1e7bb6938d2253e0f554d85cc31c1e5836551b62fc7b",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:0509:SOLID": "a87cabcf28c7efb86072f3436492df048c552cfcc90a9f7da8d1091fbe85ed2f",
+    "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step#solid:3090:Banana": "3beccca587c509916bb0cf3687f694cad291cae054754e27ce249147cdcd4eba"
+  },
+  "benchmark_arm_outputs_read": false
+}

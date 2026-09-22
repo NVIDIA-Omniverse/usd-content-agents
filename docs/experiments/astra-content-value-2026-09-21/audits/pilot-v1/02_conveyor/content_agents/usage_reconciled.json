@@ -1,0 +1,22 @@
+{
+  "input_tokens": 10158813,
+  "cached_input_tokens": 9698048,
+  "cache_write_input_tokens": 0,
+  "output_tokens": 48257,
+  "reasoning_output_tokens": 9744,
+  "total_tokens": 10207070,
+  "schema_version": 1,
+  "case_id": "02_conveyor",
+  "arm": "content_agents",
+  "complete": true,
+  "observed_contexts": [
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra"
+    }
+  ],
+  "observed_model_effort_match": true,
+  "policy": "Sum per-response usage for each distinct session once, checked against its final cumulative counter. Parent turn usage excludes child sessions. Missing or interrupted sessions make completeness false. This is client telemetry, not an invoice.",
+  "generated_unix": 1790036232.5056155,
+  "missing_final_session_count": 0
+}

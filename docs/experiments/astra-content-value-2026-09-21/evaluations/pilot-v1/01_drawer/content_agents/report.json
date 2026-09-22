@@ -1,0 +1,15 @@
+{
+  "protocol": "astra-drawer-independent-v1",
+  "pass": false,
+  "status": "INCONCLUSIVE",
+  "started_utc": "2026-09-21T22:50:34Z",
+  "inputs": {
+    "bindings_sha256": "a9261269e167f6411859db968a2751817491bc7213885b33db1ec4fedb947d20",
+    "usd_sha256": "8bb8642cd820efe828f749c3459524b9fde8464ae3954334a64cbf9111ee30a6",
+    "protocol_sha256": "cef4474f7bee05ce3be6c1e7bfa294ebfced78b62e99aace7aebc50cb14bb85d",
+    "evaluator_sha256": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+    "solver_adapter_sha256": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa"
+  },
+  "trials": [],
+  "error": "ArgumentError: Python argument types in\n    Stage.GetPrimAtPath(Stage, NoneType)\ndid not match C++ signature:\n    GetPrimAtPath(pxrInternal_v0_25_5__pxrReserved__::UsdStage {lvalue}, pxrInternal_v0_25_5__pxrReserved__::SdfPath path)"
+}

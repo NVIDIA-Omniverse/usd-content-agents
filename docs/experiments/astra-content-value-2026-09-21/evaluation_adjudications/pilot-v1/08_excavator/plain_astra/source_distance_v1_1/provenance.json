@@ -1,0 +1,53 @@
+{
+  "version": "source_distance_v1_1",
+  "hashes": {
+    "conservative_v1.json": "9f781ded450437110519a47eb3d386506ec0bb7f612132e7d8421dc6f7cb352e",
+    "acceptance.json": "feaf4b11c55b2b464505a02452ade98553b05a2212f9bdd6ee00e113d463847b"
+  },
+  "author_manifest_sha256": "644c844125ba1ca4a27f407be61a2f23848a9e4a9c045ac7734b9c45078f6e28",
+  "v1_physics_before": {
+    "all_five_complete": true,
+    "seeds": [
+      {
+        "seed": 11,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_11.json",
+        "sha256": "3635828de50fbcb5d9a91261518336963cf8db069150bd1dc6a5d807c8c939bf"
+      },
+      {
+        "seed": 23,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_23.json",
+        "sha256": "69d595816218f9bd67534c467dcfc2e552cabf797e3a2fda65f2aa9802f0384b"
+      },
+      {
+        "seed": 47,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_47.json",
+        "sha256": "3b1fc25629e1bf8aac08d9fc6f04ed1457f34e712fbad4546475bb05d379b4ea"
+      },
+      {
+        "seed": 83,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_83.json",
+        "sha256": "0e4c69ac700319976f46a5219e801a60c96f19de7d81bb5765c8702bd1d6e9c4"
+      },
+      {
+        "seed": 131,
+        "complete": true,
+        "path": "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_131.json",
+        "sha256": "0ca298d77cb58537e08c50753e7619d9af81a60989d7addb8fdd3466e08abf3f"
+      }
+    ],
+    "configuration_and_result_hashes": {
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/runtime_config.json": "cb481b6c615608ce428a3512610d60eb667559b51066a9341bb9d62a240ec78d",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/instrumented.usda": "d7f3c591508ebaf5054d2bee979f00f939d8b4b291184dd7b7b7e674618d98ab",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_11.json": "3635828de50fbcb5d9a91261518336963cf8db069150bd1dc6a5d807c8c939bf",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_23.json": "69d595816218f9bd67534c467dcfc2e552cabf797e3a2fda65f2aa9802f0384b",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_47.json": "3b1fc25629e1bf8aac08d9fc6f04ed1457f34e712fbad4546475bb05d379b4ea",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_83.json": "0e4c69ac700319976f46a5219e801a60c96f19de7d81bb5765c8702bd1d6e9c4",
+      "/opt/astra-content-value-20260921/evaluations/pilot-v1/08_excavator/plain_astra/seed_131.json": "0ca298d77cb58537e08c50753e7619d9af81a60989d7addb8fdd3466e08abf3f"
+    }
+  },
+  "worker_sha256": "8d07ceff782dfa87a60fb0e07f5a03615fbd3aa0ab536d8f400f11898a53af84"
+}

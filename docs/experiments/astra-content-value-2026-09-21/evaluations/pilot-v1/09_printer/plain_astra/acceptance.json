@@ -1,0 +1,175 @@
+{
+  "measurement_owner": "harness_bounded_attempt_closeout",
+  "acceptance_wrapper": true,
+  "source_checks_complete": false,
+  "native_checks_complete": false,
+  "closeout_script": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/closeout.py",
+    "sha256": "73be392ac4585ca7712f41cb02939fc88c2727a16ca2035bc73832a9b76a4ba2",
+    "bytes": 6058
+  },
+  "version": "bounded_evaluator_timeout_closeout_v1",
+  "observed_utc": "2026-09-22T01:46:18.626510+00:00",
+  "case_id": "09_printer",
+  "arm": "plain_astra",
+  "status": "inconclusive",
+  "accepted": false,
+  "concrete_failures": [],
+  "inconclusive_checks": [
+    "independent_evaluator_time_limit_exceeded_before_verdict"
+  ],
+  "origin": "Independent bounded-attempt closeout; not a verdict emitted by the frozen evaluator",
+  "existing_time_limit_seconds": 5400,
+  "original_attempt_started_utc": "2026-09-22T00:16:07Z",
+  "original_attempt_deadline_utc": "2026-09-22T01:46:07Z",
+  "frozen_evaluator_verdict_produced": false,
+  "native_physics_status": "NOT_EVALUATED",
+  "source_fidelity_status": "INCOMPLETE_NOT_ASSESSED",
+  "false_pass_supported": false,
+  "partial_output_files_before_assessment": [],
+  "before_deadline_receipt": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/before_deadline.json",
+    "sha256": "beca64b8e5e694015c0e63c4bfa7473be17bb834dc26a3e1607b8dc1bb3ad185",
+    "bytes": 7932
+  },
+  "raw_timeout_error": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/original_timeout_error.json",
+    "sha256": "f9a9e6cef9bc0af5033449a69c9cca1eee166b40a047784a5d48c46ec34b9fc0",
+    "bytes": 2419
+  },
+  "raw_evaluator_log": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/final_evaluator_log.txt",
+    "sha256": "5c6906095c73fbff5c4ec7f94df7ae32187b6c028ec4c68d0b8c6687d59d9b16",
+    "bytes": 213
+  },
+  "final_worker_status": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/final_worker_status.json",
+    "sha256": "1621ba79ec3d6348860fdd50a637e9d2861f10eea06021ad62e7070f368140ed",
+    "bytes": 381
+  },
+  "dispatcher_stop": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/dispatcher_stop.json",
+    "sha256": "aa70b286f42a30fb6b236ad12b28990fc872d6806040a57597cd31bdc3d51bfb",
+    "bytes": 703
+  },
+  "input_and_frozen_hash_rechecks": [
+    {
+      "path": "evaluator/general/frozen/09_printer/evaluate.py",
+      "before_sha256": "f7822febe17e612bd808c5612506d4554d0a872a3eda18677d4a16418d2e771b",
+      "after_sha256": "f7822febe17e612bd808c5612506d4554d0a872a3eda18677d4a16418d2e771b",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/structural.py",
+      "before_sha256": "12859b0886d79f73a218abcab9a586c8cede8200300e0dd7ce8f417b65bafaf9",
+      "after_sha256": "12859b0886d79f73a218abcab9a586c8cede8200300e0dd7ce8f417b65bafaf9",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/cases.json",
+      "before_sha256": "f2d41de2ed85fc4ff7a03289a6b0c7b856343ff2320dd7e410f154392cf7eb05",
+      "after_sha256": "f2d41de2ed85fc4ff7a03289a6b0c7b856343ff2320dd7e410f154392cf7eb05",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/geometry.py",
+      "before_sha256": "8ed38f600d338cca30a3d4d6bcbe7a511922e41598b1189f4dde823ef6e464f1",
+      "after_sha256": "8ed38f600d338cca30a3d4d6bcbe7a511922e41598b1189f4dde823ef6e464f1",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/common.py",
+      "before_sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+      "after_sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/case09_placement.json",
+      "before_sha256": "12a3a51078fbfbd812ff49ba70b2dded4f7e8b3a508ca4d0ec4d526a4086fa3b",
+      "after_sha256": "12a3a51078fbfbd812ff49ba70b2dded4f7e8b3a508ca4d0ec4d526a4086fa3b",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/case09_payload_contract.json",
+      "before_sha256": "cb843047b5f74cac6af037d8db04194b34ba3217e58d6d29b50ca5e0f0bc6096",
+      "after_sha256": "cb843047b5f74cac6af037d8db04194b34ba3217e58d6d29b50ca5e0f0bc6096",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/case09_payload.py",
+      "before_sha256": "2a6c20b761f7ad4aa0f6cabddebc73b20697bb03e7b7ae44bd39832821296d0d",
+      "after_sha256": "2a6c20b761f7ad4aa0f6cabddebc73b20697bb03e7b7ae44bd39832821296d0d",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/solver.py",
+      "before_sha256": "ad24b111295c99ba5d2f228110d1ffb91167cabd9d7effc78cafc6ec868c0554",
+      "after_sha256": "ad24b111295c99ba5d2f228110d1ffb91167cabd9d7effc78cafc6ec868c0554",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/bindings.schema.json",
+      "before_sha256": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b",
+      "after_sha256": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b",
+      "unchanged": true
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/plain_astra/output_manifest.json",
+      "before_sha256": "9562da0bd1288e92079b6c677fec0aa75ab88326ba8bd3f3c42a63bc5e758fbe",
+      "after_sha256": "9562da0bd1288e92079b6c677fec0aa75ab88326ba8bd3f3c42a63bc5e758fbe",
+      "unchanged": true
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/plain_astra/submission.json",
+      "before_sha256": "63d2cba3d38f03c16aa359425fdb1597f772ac91eb74be8e8cf7f412b8ba5e9e",
+      "after_sha256": "63d2cba3d38f03c16aa359425fdb1597f772ac91eb74be8e8cf7f412b8ba5e9e",
+      "unchanged": true
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/plain_astra/final.usd",
+      "before_sha256": "c51eadb4c57ece0f1a5a29b051d1139580fc480fc7e2899e870589c030bf65a4",
+      "after_sha256": "c51eadb4c57ece0f1a5a29b051d1139580fc480fc7e2899e870589c030bf65a4",
+      "unchanged": true
+    },
+    {
+      "path": "runs/pilot-v1/09_printer/plain_astra/bindings.json",
+      "before_sha256": "f2f8bee9521a473f74e02a43108ed062d5dca2ff868430129a820dba0e77e900",
+      "after_sha256": "f2f8bee9521a473f74e02a43108ed062d5dca2ff868430129a820dba0e77e900",
+      "unchanged": true
+    },
+    {
+      "path": "protocol/tasks/09_printer.json",
+      "before_sha256": "7573fe13b6a67b1a8e87aee8e608f81ccb027278e5afc31701a088441d1e4c13",
+      "after_sha256": "7573fe13b6a67b1a8e87aee8e608f81ccb027278e5afc31701a088441d1e4c13",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/frozen/09_printer/frozen_manifest.json",
+      "before_sha256": "1c423f97dd7e671a810aefc123eeba9208bb72ca919951c1b29c3e65e26fa61b",
+      "after_sha256": "1c423f97dd7e671a810aefc123eeba9208bb72ca919951c1b29c3e65e26fa61b",
+      "unchanged": true
+    },
+    {
+      "path": "evaluator/general/references/09_printer/source_inventory.json",
+      "before_sha256": "92937c66acf4a6f70259b7f0f12b202fa77a45784f1d2995f025aedf7d38a962",
+      "after_sha256": "92937c66acf4a6f70259b7f0f12b202fa77a45784f1d2995f025aedf7d38a962",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/evaluate_finished.py",
+      "before_sha256": "5224e90f80fd3a4869427492306d2510048a994a2f9897b4eb31187e907e1455",
+      "after_sha256": "5224e90f80fd3a4869427492306d2510048a994a2f9897b4eb31187e907e1455",
+      "unchanged": true
+    }
+  ],
+  "scored_author_artifacts_modified": false,
+  "frozen_implementation_modified": false,
+  "attempt_extended": false,
+  "expensive_scoring_restarted": false,
+  "scope": "Timeout does not establish source mismatch, physical task failure or an author false pass. No native trajectories were produced. The separate CA09 mandatory-physics non-delivery receipt remains independent.",
+  "closeout_assessment": {
+    "path": "evaluation_attempts/pilot-v1/09_printer/plain_astra/bounded_closeout_20260922/timeout_assessment.json",
+    "sha256": "34b0efae107478c16b3720fbb98f764056a06b0f225bc6d0364466a58bf49ab5",
+    "bytes": 8000
+  }
+}

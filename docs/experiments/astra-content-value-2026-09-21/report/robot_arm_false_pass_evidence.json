@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "case_id": "07_robot_arm",
+  "arm": "plain_astra",
+  "demonstrated_false_pass": true,
+  "status": "concrete_physical_rejection",
+  "author_claimed_accepted": true,
+  "author_submission_sha256": "8ef717a01fa18f9469f3c6a1fc110d8d4b0241843dc2c24a1c236427e63fd4ba",
+  "frozen_acceptance_sha256": "4ed3f61d9a1fa522fb9379518cc5e4b155b7116190f9a27962b4c928970cacb3",
+  "public_task_sha256": "a9488b7ed6e5e6077cb78f1a9ad0bdf1d2a87f02f90b2c731a8d0bfc4df389f7",
+  "frozen_joint5_holding_checks": [
+    {
+      "name": "seed11:target_holding_under_load:joint5",
+      "passed": false,
+      "evidence": {
+        "max_error": 0.12433831612530777,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed23:target_holding_under_load:joint5",
+      "passed": false,
+      "evidence": {
+        "max_error": 0.1026158272071378,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed47:target_holding_under_load:joint5",
+      "passed": false,
+      "evidence": {
+        "max_error": 0.1009156316237505,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed83:target_holding_under_load:joint5",
+      "passed": false,
+      "evidence": {
+        "max_error": 0.1167424476008534,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": "rejected"
+    },
+    {
+      "name": "seed131:target_holding_under_load:joint5",
+      "passed": false,
+      "evidence": {
+        "max_error": 0.10431594657565912,
+        "tolerance": 0.08726646259971647
+      },
+      "failure_class": "rejected"
+    }
+  ],
+  "post_freeze_controller_diagnostic": {
+    "scope": "No effort jitter or startup perturbation; public nominal gains/effort cap preserved; one seed only, not a replacement evaluation.",
+    "checks_failed": [
+      {
+        "name": "seed11:target_holding_under_load:joint5",
+        "passed": false,
+        "evidence": {
+          "max_error": 0.10969956421600968,
+          "tolerance": 0.08726646259971647
+        },
+        "failure_class": "rejected"
+      }
+    ],
+    "files": [
+      {
+        "path": "evaluator/errata/robot_arm_controller_review_v1/no_jitter/receipt.json",
+        "sha256": "61f853816990324e7577557a4c6c17e8cfb1b455e748a051a8caf3d875019a8c"
+      },
+      {
+        "path": "evaluator/errata/robot_arm_controller_review_v1/no_jitter/seed11_no_jitter.json",
+        "sha256": "d9c62690ab3225d4be8feaa1fcf913d8727399d47553a218b8e82c05beb83719"
+      },
+      {
+        "path": "evaluator/errata/robot_arm_controller_review_v1/no_jitter/observer_checks.json",
+        "sha256": "3dee87ad1bd28166ffab27fc5eb6c2fc45459519b999bd091590aa2a09aea89c"
+      }
+    ]
+  },
+  "interpretation": "All five frozen native trials violate the declared five-degree holding tolerance. The violation also persists with nominal controller settings after removing the undisclosed stochastic effort terms. The geometry numerical erratum is separately adjudicated; it cannot explain this measured physical failure. The author run has a separate cross-case exposure violation; this report does not claim an eligible matched pair.",
+  "frozen_files_modified": false,
+  "scored_artifacts_modified": false
+}

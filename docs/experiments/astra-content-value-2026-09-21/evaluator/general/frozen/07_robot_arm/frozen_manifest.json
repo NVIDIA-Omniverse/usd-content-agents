@@ -1,0 +1,15 @@
+{
+  "case_id": "07_robot_arm",
+  "reference_inventory": "/opt/astra-content-value-20260921/evaluator/general/references/07_robot_arm/source_inventory.json",
+  "reference_inventory_sha256": "3826423c14926c83d6ed318f9e12134f0bfb8a4a0adecc97e409035c842470ab",
+  "code_sha256": {
+    "evaluate.py": "569b60b995d931a2b4af70392bc0667a129493f27425748ae6073ca6a36df8ff",
+    "structural.py": "12859b0886d79f73a218abcab9a586c8cede8200300e0dd7ce8f417b65bafaf9",
+    "cases.json": "34bca971648ca8a9d665f9aa4ab0349398d612ace801df38c7fe0712392b6b2b",
+    "geometry.py": "8ed38f600d338cca30a3d4d6bcbe7a511922e41598b1189f4dde823ef6e464f1",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "solver.py": "ad24b111295c99ba5d2f228110d1ffb91167cabd9d7effc78cafc6ec868c0554",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b"
+  },
+  "public_inventory_sha256": "869f053fa11a5fc15056d891cf52868d72101a095b1586fc48969c14d7ab9221"
+}

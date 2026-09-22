@@ -1,0 +1,8 @@
+{
+  "python": "3.12.13 (main, May 10 2026, 19:30:01) [Clang 22.1.3 ]",
+  "platform": "Linux-5.15.0-113-generic-x86_64-with-glibc2.35",
+  "packages": {
+    "numpy": "2.4.4",
+    "ovphysx": "0.4.13"
+  }
+}

@@ -1,0 +1,596 @@
+{
+  "case_id": "03_hinge",
+  "started_utc": "2026-09-21T23:21:12.822691+00:00",
+  "import_duration_s": 6.832995176315308,
+  "returncode": 0,
+  "error": null,
+  "expected_parts": 8,
+  "versions": {
+    "numpy": "2.5.3",
+    "trimesh": "4.12.2",
+    "cadquery-ocp": "7.8.1.1"
+  },
+  "original_inventory_sha256": "c4fcc67778174cc387d847063096de1a8ca071eaea05fe12e627e31f5b1f55b3",
+  "parts": [
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_c13f78",
+      "geometry_file": "geometry_0000.npz",
+      "expected_sha256": "ed9a608b55eba20e6f1c2b59fb5b38cdb75d06c9af02ddecc3e0c7ef099773ec",
+      "original_sha256": "ed9a608b55eba20e6f1c2b59fb5b38cdb75d06c9af02ddecc3e0c7ef099773ec",
+      "rebuilt_sha256": "213a265c67f0279a0f7f35c42bd90755d618eeafefa544a53cd5f652a3cb33e9",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            51224,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            3420,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": false,
+          "dtype_equal": true,
+          "original_array_sha256": "d7333aee3f9d76ab4a8b3b4944ce515392368fdc1f2ed506c1e24ec977f4510d",
+          "rebuilt_array_sha256": "f9ca98d2dd72fb09e4a46d7d907ae2a15d24a0d4608c3a30657b97c264eea4be"
+        },
+        "faces": {
+          "shape": [
+            93024,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            4864,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": false,
+          "dtype_equal": true,
+          "original_array_sha256": "e13d38fba233dda05b026de03e56ba42fd132a82f63bf7e425eac1cc64bb9fd0",
+          "rebuilt_array_sha256": "b1344d7527780460c0660cbb1b22e03f89de4251a57b4dcebce2ab8601c49127"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": false,
+      "array_keys_equal": true,
+      "original_zip_metadata": [
+        {
+          "filename": "vertices.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 706482399,
+          "file_size": 1229504,
+          "compress_size": 996357,
+          "create_system": 3,
+          "external_attr": 25165824
+        },
+        {
+          "filename": "faces.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 3404956354,
+          "file_size": 2232704,
+          "compress_size": 382739,
+          "create_system": 3,
+          "external_attr": 25165824
+        }
+      ],
+      "rebuilt_zip_metadata": [
+        {
+          "filename": "vertices.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 1454851406,
+          "file_size": 82208,
+          "compress_size": 68530,
+          "create_system": 3,
+          "external_attr": 25165824
+        },
+        {
+          "filename": "faces.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 1165005194,
+          "file_size": 116864,
+          "compress_size": 19392,
+          "create_system": 3,
+          "external_attr": 25165824
+        }
+      ]
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_d2eb44",
+      "geometry_file": "geometry_0001.npz",
+      "expected_sha256": "a10e05675b6fb0d4555a97a3eda7ae3f78bf7b39bbf0bdc275598e79da88d0ad",
+      "original_sha256": "a10e05675b6fb0d4555a97a3eda7ae3f78bf7b39bbf0bdc275598e79da88d0ad",
+      "rebuilt_sha256": "ed9a608b55eba20e6f1c2b59fb5b38cdb75d06c9af02ddecc3e0c7ef099773ec",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            58216,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            51224,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": false,
+          "dtype_equal": true,
+          "original_array_sha256": "a1a56fc5d146ac33f74139b0ac9533931d8f035b32b8657064bc86f7dc8d6943",
+          "rebuilt_array_sha256": "d7333aee3f9d76ab4a8b3b4944ce515392368fdc1f2ed506c1e24ec977f4510d"
+        },
+        "faces": {
+          "shape": [
+            107616,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            93024,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": false,
+          "dtype_equal": true,
+          "original_array_sha256": "21152ef2b1be87e48b451994f04ada6eeb91d10d911b9b6c2f8f3be8e073e872",
+          "rebuilt_array_sha256": "e13d38fba233dda05b026de03e56ba42fd132a82f63bf7e425eac1cc64bb9fd0"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": false,
+      "array_keys_equal": true,
+      "original_zip_metadata": [
+        {
+          "filename": "vertices.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 1582134982,
+          "file_size": 1397312,
+          "compress_size": 1143065,
+          "create_system": 3,
+          "external_attr": 25165824
+        },
+        {
+          "filename": "faces.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 2328212185,
+          "file_size": 2582912,
+          "compress_size": 433221,
+          "create_system": 3,
+          "external_attr": 25165824
+        }
+      ],
+      "rebuilt_zip_metadata": [
+        {
+          "filename": "vertices.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 706482399,
+          "file_size": 1229504,
+          "compress_size": 996357,
+          "create_system": 3,
+          "external_attr": 25165824
+        },
+        {
+          "filename": "faces.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 3404956354,
+          "file_size": 2232704,
+          "compress_size": 382739,
+          "create_system": 3,
+          "external_attr": 25165824
+        }
+      ]
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_f99424",
+      "geometry_file": "geometry_0002.npz",
+      "expected_sha256": "213a265c67f0279a0f7f35c42bd90755d618eeafefa544a53cd5f652a3cb33e9",
+      "original_sha256": "213a265c67f0279a0f7f35c42bd90755d618eeafefa544a53cd5f652a3cb33e9",
+      "rebuilt_sha256": "a10e05675b6fb0d4555a97a3eda7ae3f78bf7b39bbf0bdc275598e79da88d0ad",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            3420,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            58216,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": false,
+          "dtype_equal": true,
+          "original_array_sha256": "f9ca98d2dd72fb09e4a46d7d907ae2a15d24a0d4608c3a30657b97c264eea4be",
+          "rebuilt_array_sha256": "a1a56fc5d146ac33f74139b0ac9533931d8f035b32b8657064bc86f7dc8d6943"
+        },
+        "faces": {
+          "shape": [
+            4864,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            107616,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": false,
+          "dtype_equal": true,
+          "original_array_sha256": "b1344d7527780460c0660cbb1b22e03f89de4251a57b4dcebce2ab8601c49127",
+          "rebuilt_array_sha256": "21152ef2b1be87e48b451994f04ada6eeb91d10d911b9b6c2f8f3be8e073e872"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": false,
+      "array_keys_equal": true,
+      "original_zip_metadata": [
+        {
+          "filename": "vertices.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 1454851406,
+          "file_size": 82208,
+          "compress_size": 68530,
+          "create_system": 3,
+          "external_attr": 25165824
+        },
+        {
+          "filename": "faces.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 1165005194,
+          "file_size": 116864,
+          "compress_size": 19392,
+          "create_system": 3,
+          "external_attr": 25165824
+        }
+      ],
+      "rebuilt_zip_metadata": [
+        {
+          "filename": "vertices.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 1582134982,
+          "file_size": 1397312,
+          "compress_size": 1143065,
+          "create_system": 3,
+          "external_attr": 25165824
+        },
+        {
+          "filename": "faces.npy",
+          "date_time": [
+            1980,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "compress_type": 8,
+          "CRC": 2328212185,
+          "file_size": 2582912,
+          "compress_size": 433221,
+          "create_system": 3,
+          "external_attr": 25165824
+        }
+      ]
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeCase",
+      "geometry_file": "geometry_0003.npz",
+      "expected_sha256": "7c7185d5a25bb2dd9c43a5b4d52606c1a8385e4ca46593378e286af080ee099d",
+      "original_sha256": "7c7185d5a25bb2dd9c43a5b4d52606c1a8385e4ca46593378e286af080ee099d",
+      "rebuilt_sha256": "7c7185d5a25bb2dd9c43a5b4d52606c1a8385e4ca46593378e286af080ee099d",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            720,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            720,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "3257f8351f0f24cc97d2b14044407f56fe670d0aa7b312bb8562d8dd7724f661",
+          "rebuilt_array_sha256": "3257f8351f0f24cc97d2b14044407f56fe670d0aa7b312bb8562d8dd7724f661"
+        },
+        "faces": {
+          "shape": [
+            496,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            496,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "64ab1dbc7eed0c4bc9a91b57606511445551827cea6f8060d3c642ac88af4672",
+          "rebuilt_array_sha256": "64ab1dbc7eed0c4bc9a91b57606511445551827cea6f8060d3c642ac88af4672"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeDoor",
+      "geometry_file": "geometry_0004.npz",
+      "expected_sha256": "7ff49feca3b409f00baad8b131cfd6adb143cba41dbc2f9dcd886d3a3c8fe2c5",
+      "original_sha256": "7ff49feca3b409f00baad8b131cfd6adb143cba41dbc2f9dcd886d3a3c8fe2c5",
+      "rebuilt_sha256": "7ff49feca3b409f00baad8b131cfd6adb143cba41dbc2f9dcd886d3a3c8fe2c5",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            582,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            582,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "ea4705005bf197ef7adbfa3cba542f834602b9504e507a9e59f3039507380d78",
+          "rebuilt_array_sha256": "ea4705005bf197ef7adbfa3cba542f834602b9504e507a9e59f3039507380d78"
+        },
+        "faces": {
+          "shape": [
+            388,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            388,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "6d5d69d88068b2610dcc6aaf6fb152d3d75190550b8b34f6c7bbb349e5be61ef",
+          "rebuilt_array_sha256": "6d5d69d88068b2610dcc6aaf6fb152d3d75190550b8b34f6c7bbb349e5be61ef"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeDoorInner",
+      "geometry_file": "geometry_0005.npz",
+      "expected_sha256": "74f4f242aff2a9d24ede8bb10656308dfbdf454e99b1391b4ae47016b7eaf851",
+      "original_sha256": "74f4f242aff2a9d24ede8bb10656308dfbdf454e99b1391b4ae47016b7eaf851",
+      "rebuilt_sha256": "74f4f242aff2a9d24ede8bb10656308dfbdf454e99b1391b4ae47016b7eaf851",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            42,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            42,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "e3c1528e5cdb53a19c956da8b21b4b62eaa06f5e557ac3589cdc7c8f2b823de7",
+          "rebuilt_array_sha256": "e3c1528e5cdb53a19c956da8b21b4b62eaa06f5e557ac3589cdc7c8f2b823de7"
+        },
+        "faces": {
+          "shape": [
+            28,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            28,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "90ebf063d75180f4b97db1d08b5e459c8b5ab9af21223651bf824b2bdf36967b",
+          "rebuilt_array_sha256": "90ebf063d75180f4b97db1d08b5e459c8b5ab9af21223651bf824b2bdf36967b"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeGlass",
+      "geometry_file": "geometry_0006.npz",
+      "expected_sha256": "14e84efcdea9503d0534fe1fc99d7224339f1f11f9ae6f4c66f24f530f7b6b64",
+      "original_sha256": "14e84efcdea9503d0534fe1fc99d7224339f1f11f9ae6f4c66f24f530f7b6b64",
+      "rebuilt_sha256": "14e84efcdea9503d0534fe1fc99d7224339f1f11f9ae6f4c66f24f530f7b6b64",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            4,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            4,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "f16262d1d017ecd21582059884c4b02d0b0aa55bf8d9036f9a049e88497ed9da",
+          "rebuilt_array_sha256": "f16262d1d017ecd21582059884c4b02d0b0aa55bf8d9036f9a049e88497ed9da"
+        },
+        "faces": {
+          "shape": [
+            2,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            2,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "4e4a89b0c54b7bb3c933bd3ad82e6ebe75d7d9d1540920cde67ecb0738d7ee05",
+          "rebuilt_array_sha256": "4e4a89b0c54b7bb3c933bd3ad82e6ebe75d7d9d1540920cde67ecb0738d7ee05"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeInterior",
+      "geometry_file": "geometry_0007.npz",
+      "expected_sha256": "4c52a6bcd3578beafea52a46465866651460f8cecfcea810224bc0b4d1ddea77",
+      "original_sha256": "4c52a6bcd3578beafea52a46465866651460f8cecfcea810224bc0b4d1ddea77",
+      "rebuilt_sha256": "4c52a6bcd3578beafea52a46465866651460f8cecfcea810224bc0b4d1ddea77",
+      "arrays": {
+        "vertices": {
+          "shape": [
+            2612,
+            3
+          ],
+          "dtype": "float64",
+          "rebuilt_shape": [
+            2612,
+            3
+          ],
+          "rebuilt_dtype": "float64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "ba5a0e6d765a71e46143d6cc0783ab6afe9dbe2eb991cd7e0484b14ad137de16",
+          "rebuilt_array_sha256": "ba5a0e6d765a71e46143d6cc0783ab6afe9dbe2eb991cd7e0484b14ad137de16"
+        },
+        "faces": {
+          "shape": [
+            2261,
+            3
+          ],
+          "dtype": "int64",
+          "rebuilt_shape": [
+            2261,
+            3
+          ],
+          "rebuilt_dtype": "int64",
+          "values_equal": true,
+          "dtype_equal": true,
+          "original_array_sha256": "edf8a316671b16088537ccc3351d608886e9ed81e74319900ca0a3546c95ee7f",
+          "rebuilt_array_sha256": "edf8a316671b16088537ccc3351d608886e9ed81e74319900ca0a3546c95ee7f"
+        }
+      },
+      "original_matches_inventory": true,
+      "rebuilt_matches_inventory": true,
+      "array_keys_equal": true
+    }
+  ],
+  "regenerated_parts": 8,
+  "source_id_order_equal": false,
+  "all_npz_byte_identical": false,
+  "all_arrays_exactly_equal": false,
+  "copied_original_inventory_sha256": "c4fcc67778174cc387d847063096de1a8ca071eaea05fe12e627e31f5b1f55b3",
+  "original_inventory_plus_rebuilt_npz_compatible": false,
+  "original_inventory_unchanged": true,
+  "frozen_code_unchanged": true,
+  "original_source_closure_unchanged": true,
+  "elapsed_seconds": 7.77845311164856,
+  "finished_utc": "2026-09-21T23:21:20.601151+00:00",
+  "scope_limit": "Exact regeneration was tested in the recorded existing pinned Linux runtime, on original source bytes. This is not a new-environment installation or redownload test, does not establish cross-version/platform byte stability, and does not rerun author physics. Original inventory hashes were never rewritten."
+}

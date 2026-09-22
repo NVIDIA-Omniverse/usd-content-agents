@@ -1,0 +1,13 @@
+{
+  "case_id": "04_gripper",
+  "arm": "plain_astra",
+  "output_manifest_sha256": "4ce5e238975e7da34acab2cc17ea03b0d7459ab170242d9c862e471a79bb4af8",
+  "checked_files": 184,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034789.5958436
+}

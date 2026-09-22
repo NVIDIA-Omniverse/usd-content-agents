@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "case_id": "02_conveyor",
+  "arm": "content_agents",
+  "valid": true,
+  "status": "VALID_AUTHOR_PROTOCOL_OBSERVED",
+  "scope": "Per-arm author model, access, treatment, source, environment, repairs, wall budget and retained-artifact protocol. Experiment-wide simulation scheduling is explicitly separate.",
+  "audited_utc": "2026-09-22T00:00:25.761244+00:00",
+  "validity_is_separate_from_physical_acceptance": true,
+  "checks": [
+    {
+      "id": "model_effort",
+      "valid": true,
+      "finding": "All4 observed completed sessions used gpt-6-astra ultra; usage ledger reconciles with final counters and no final session is missing.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/content_agents/usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "frozen_task_and_outputs",
+      "valid": true,
+      "finding": "All189 retained watchdog-manifest files match their recorded bytes, and the public task hash matches launch. No scored artifact was repaired by this audit.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/content_agents/independent_protocol_probe.json"
+      ]
+    },
+    {
+      "id": "source_immutable",
+      "valid": true,
+      "finding": "All18 source files match the frozen inventory or original curation hashes.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/content_agents/source_integrity.json"
+      ]
+    },
+    {
+      "id": "control_treatment_separation",
+      "valid": true,
+      "finding": "Used native Geometry, retained its failed topology disposition, and retained rejected Geometry repair. Scene Optimizer Core and Geogram were unavailable. Joint and Physics were not run; final Validation retained a non-authorizing failure. Units-only packaging of the original visuals did not turn this partial into a passing asset.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/content_agents/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "forbidden_content_access",
+      "valid": true,
+      "finding": "No captured request reads another case output, opposite arm, evaluator implementation, hidden evaluation evidence or private authentication. Public plugin skill files below this run own private-runs cache are documentation, not credentials.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/content_agents/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "frozen_environment_mutation",
+      "valid": true,
+      "finding": "No package installation, repository/source/evaluator mutation, alternate model provider, or assigned-GPU override observed. Own temporary code, test harnesses and run-local derived assets stay within author scope.",
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/content_agents/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "wall_budget",
+      "valid": true,
+      "finding": "845.4421120733023 seconds within2400-second watchdog cap; human interventions recorded0.",
+      "evidence": [
+        "runs/pilot-v1/02_conveyor/content_agents/execution.json",
+        "audits/pilot-v1/02_conveyor/content_agents/usage_reconciled.json"
+      ]
+    },
+    {
+      "id": "repair_budget",
+      "valid": true,
+      "finding": "Count the two non-noop native repair operations, although both returned unavailable with output_path=null and changed=false. Native identity inspection is not a scene repair; final unit representation packaging preserves original visual geometry. No third repaired candidate was authored.",
+      "count": 2,
+      "limit": 2,
+      "evidence": [
+        "audits/pilot-v1/02_conveyor/content_agents/protocol_observations.json"
+      ]
+    },
+    {
+      "id": "terminal_claim_recorded",
+      "valid": true,
+      "finding": "Terminal claimed_accepted=false is retained. Author claims and independent physical verdicts are distinct; this protocol audit changes neither.",
+      "evidence": [
+        "runs/pilot-v1/02_conveyor/content_agents/submission.json"
+      ]
+    }
+  ],
+  "violations": [],
+  "unknowns": [
+    "No proof is claimed against unrecorded activity; opaque collaboration message bodies were not decoded.",
+    "Global scheduling is not certified by this per-arm valid flag. A separate confirmed global concurrency violation is retained."
+  ],
+  "global_concurrency": {
+    "scope": "experiment-wide",
+    "status": "FAIL_CONFIRMED_OVERLAP",
+    "evidence": "audits/pilot-v1/global_concurrency/overlap_02_05.json",
+    "note": "At least5 native solver processes overlap against cap4. Root owns global scope/adjudication and unobserved remainder."
+  },
+  "coverage": {
+    "tool_requests": 120,
+    "tool_counts": {
+      "exec": 94,
+      "spawn_agent": 3,
+      "send_message": 22,
+      "followup_task": 1
+    },
+    "first_tool_utc": "2026-09-21T22:38:12.120Z",
+    "last_tool_utc": "2026-09-21T22:51:25.521Z",
+    "review_method": "All captured tool requests, including child sessions, included in source/access/workflow/environment mutation scan; flagged calls and all process-listing responses inspected. Workflow and repair conclusions cross-checked against retained native receipts and output manifest.",
+    "opaque_collaboration_messages_decoded": false,
+    "private_request_contents_published": false,
+    "raw_model_rollouts_or_chain_of_thought_published": false
+  },
+  "repair_counting": {
+    "declared_repairs": 2,
+    "audited_count": 2,
+    "convention": "Count the two non-noop native repair operations, although both returned unavailable with output_path=null and changed=false. Native identity inspection is not a scene repair; final unit representation packaging preserves original visual geometry. No third repaired candidate was authored.",
+    "evidence_paths": [
+      "runs/pilot-v1/02_conveyor/content_agents/evidence/workflow_dispositions.json",
+      "runs/pilot-v1/02_conveyor/content_agents/repairs/repair_1/worker_result.json",
+      "runs/pilot-v1/02_conveyor/content_agents/repairs/repair_2/worker_result.json"
+    ],
+    "limit": 2
+  },
+  "private_tool_metadata_digest": {
+    "path": "audits/pilot-v1/02_conveyor/content_agents/tool_calls.private.json",
+    "sha256": "35f3912f6ea20ae6b199fb7901d4db7a814f6b7133bea0a30d31553bea7cb2a6",
+    "publish": false
+  },
+  "detailed_report": {
+    "path": "audits/pilot-v1/02_conveyor/content_agents/protocol_observations.json",
+    "sha256": "41b5ba4fce0917bcd362003f64b9c99f9bacff07b8d5ce94427452cb66a59a5d"
+  },
+  "usage_reconciled_sha256": "f9a1045c9ce563c2589b8b60005f5b61802826105f967e2699601c3a8ac59e0d",
+  "independent_protocol_probe_sha256": "7b4a631b1ea7cb6e4fefa1b8a944ed54355848240b1a046025190b50bba40015",
+  "source_integrity_sha256": "e8d314f1a460f2d2b0fd8d45a4e72ccbda8b1eb8a674f4ad9375a7693e485c44",
+  "launch_sha256": "c2a666b3a403d5156bcad48c209466148261b383775b47e6f39cedf74f5b2d6d",
+  "execution_sha256": "33703afaa77bea9a20836423bc81f808b4401dab1eb444b57b56ad7b07b3c62a",
+  "submission_sha256": "3c30f3aeb26d45cab7ce50e001d3bc82d180df38fbc63857c26af665535e2f8e",
+  "task_sha256": "43e4bb90e18dfbc799eb454b5b0f20eedd724252c0137a63eb9fe610ab7fd8a9",
+  "no_scored_output_repaired": true
+}

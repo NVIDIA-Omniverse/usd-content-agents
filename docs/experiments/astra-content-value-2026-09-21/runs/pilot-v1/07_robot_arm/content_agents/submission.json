@@ -1,0 +1,17 @@
+{
+  "claimed_accepted": false,
+  "final_scene": "final.usd",
+  "bindings": "bindings.json",
+  "reason": "Native Geometry failed CAD topology and triangle-budget gates after roughly 24 minutes. No accepted handoff could enter Joint, Physics, or Validation; the remaining frozen budget was insufficient for qualified repair. Complete source geometry is preserved as an unaccepted partial submission.",
+  "repairs_used": 0,
+  "limitations": [
+    "Partial artifact has 0 authored joints and 0 authored rigid bodies; the required six-axis physical task has not been demonstrated.",
+    "Native Geometry disposition: completed with success=false, validation_status=fail, handoff_ready=no. No failed, cancelled, conditional, or incomplete workflow has been promoted to success.",
+    "Native Geometry completed with success=false, validation_status=fail, and handoff_ready=no. CAD topology and triangle-budget failures blocked Joint, Physics, and final Validation; the remaining budget was insufficient for a qualified repair.",
+    "No robot bounded-torque, target-return, limit-load, contact, or gravity-witness simulation was executed.",
+    "Native OVRTX produced four asset views, which were visually reviewed. These geometry renders do not demonstrate physical acceptance.",
+    "The 566 source instances pass inventory coverage, mandatory-role, bounds/area, and exact normalization-preservation diagnostics; an independent symmetric surface-distance evaluation was not run.",
+    "Source joint anchor proposals, Physics proxy preparation, and torque-test helpers are retained as unexecuted preparation, not acceptance evidence.",
+    "No hardware mass, load rating, or mechanical-limit accuracy is certified."
+  ]
+}

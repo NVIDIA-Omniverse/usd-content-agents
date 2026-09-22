@@ -1,0 +1,4323 @@
+{
+  "accepted": false,
+  "status": "inconclusive",
+  "concrete_failures": [],
+  "inconclusive_checks": [
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0002:SOLID",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0006:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0007:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0008:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0009:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0010:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0011:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0012:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0013:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0014:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0015:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0016:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0017:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0018:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0020:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0021:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0022:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0023:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0024:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0025:unnamed",
+    "source_surface_retained:source_repo/Step/Gripper.step#solid:0026:unnamed"
+  ],
+  "checks": [
+    {
+      "name": "reference_inventory_frozen",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:evaluate.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:case04_contract.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:structural.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:cases.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:geometry.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:common.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:case04_evaluate.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:case04_solver.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:solver.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "evaluator_snapshot:bindings.schema.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "case_identity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "usd_stage_load",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "meters_and_z_up",
+      "passed": true,
+      "evidence": {
+        "meters_per_unit": 1.0,
+        "up_axis": "Z"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "no_prescribed_time_sampled_motion_or_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "frozen_source_coverage_complete",
+      "passed": true,
+      "evidence": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/.gitignore",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/DIN Rail Holder.jpeg",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Final.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/IMG_3885.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Overview.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Readme.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/SO-Arm-101.jpeg",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 01.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 02.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 03.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 04.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 05.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 06.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 07.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 08.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 09.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 10.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 11.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 12.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 13.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 14.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 15.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 16.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 17.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 18.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 19.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 20.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 21.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 22.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 23.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 24.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Step 25.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Assembly/Tools.JPG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CHANGELOG.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/LICENSE",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Material/Readme.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/ReadMe.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Baseplate.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Baseplate_Multi.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Cam Holder.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/DIN Rail Holder ESP32 Adapter.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/DIN Rail Holder Serial Board.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Finger_1.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Finger_2.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Motorhousing Cover with Handle.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Motorhousing Cover.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Motorhousing SO-ARM-101.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Motorhousing.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Schwing Arm 1.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Schwing Arm 2.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Turnhead.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/STL/Waveshare Serial Board DIN Rail Holder.stl",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/.gitignore",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/Readme.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/BOARD_DEV.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/CONNECT.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/PreferencesConfig.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/RGB_CTRL.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/STSCTRL.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/TcpIp_Server.ino",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/ESP32/TcpIp_Server/WEBPAGE.h",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/PythonExample/TcpIp_Bridge_CmdClient.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/PythonExample/TcpIp_Bridge_CmdServer.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/README.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/requirements.txt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Python TcpIp Bridge/typings/rustypot/__init__.pyi",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Software/Readme.md",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Step/DIN Rail Holder Serial Board.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/Step/Gripper.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unique_body_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "required_body_roles",
+      "passed": true,
+      "evidence": {
+        "required": [
+          "base",
+          "left_finger",
+          "right_finger",
+          "left_arm",
+          "right_arm",
+          "turntable"
+        ],
+        "given": {
+          "base": "/World/base",
+          "left_finger": "/World/left_finger",
+          "right_finger": "/World/right_finger",
+          "left_arm": "/World/left_arm",
+          "right_arm": "/World/right_arm",
+          "turntable": "/World/turntable"
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/base",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/base",
+      "passed": true,
+      "evidence": [
+        "/World/base/Collision/solid_0002_hull",
+        "/World/base/Collision/solid_0006_hull",
+        "/World/base/Collision/solid_0016_hull",
+        "/World/base/Collision/solid_0017_hull",
+        "/World/base/Collision/solid_0018_hull",
+        "/World/base/Collision/solid_0019_hull"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/left_finger",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/left_finger",
+      "passed": true,
+      "evidence": [
+        "/World/left_finger/Collision/solid_0001_hull",
+        "/World/left_finger/Collision/solid_0003_hull"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/World/left_finger",
+      "passed": true,
+      "evidence": [
+        0.06389210373163223,
+        1.060023805621313e-05,
+        2.7303698516334407e-05,
+        3.172078504576348e-05
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/World/left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/right_finger",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/right_finger",
+      "passed": true,
+      "evidence": [
+        "/World/right_finger/Collision/solid_0000_hull",
+        "/World/right_finger/Collision/solid_0004_hull"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/World/right_finger",
+      "passed": true,
+      "evidence": [
+        0.06384586542844772,
+        1.0577951798040885e-05,
+        2.7277110348222777e-05,
+        3.1676456273999065e-05
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/World/right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/left_arm",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/left_arm",
+      "passed": true,
+      "evidence": [
+        "/World/left_arm/Collision/solid_0025_hull"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/World/left_arm",
+      "passed": true,
+      "evidence": [
+        0.002921395469456911,
+        3.125948211391005e-08,
+        5.668953235726804e-07,
+        5.844450470249285e-07
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/World/left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/right_arm",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/right_arm",
+      "passed": true,
+      "evidence": [
+        "/World/right_arm/Collision/solid_0024_hull"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/World/right_arm",
+      "passed": true,
+      "evidence": [
+        0.002921395469456911,
+        3.125948211391005e-08,
+        5.668953235726804e-07,
+        5.844450470249285e-07
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/World/right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/World/turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/World/turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/World/turntable",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/World/turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/World/turntable",
+      "passed": true,
+      "evidence": [
+        "/World/turntable/Collision/solid_0026_hull"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/World/turntable",
+      "passed": true,
+      "evidence": [
+        0.020197685807943344,
+        2.12804206967121e-06,
+        5.381578375818208e-06,
+        5.631422936858144e-06
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/World/turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "all_rigid_bodies_observed",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "unique_joint_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/World/Joints/actuator",
+      "passed": true,
+      "evidence": "revolute",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/World/Joints/actuator",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/actuator:0",
+      "passed": true,
+      "evidence": "/World/base",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/actuator:1",
+      "passed": true,
+      "evidence": "/World/turntable",
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/World/Joints/left_slide",
+      "passed": true,
+      "evidence": "prismatic",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/World/Joints/left_slide",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/left_slide:0",
+      "passed": true,
+      "evidence": "/World/base",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/left_slide:1",
+      "passed": true,
+      "evidence": "/World/left_finger",
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/World/Joints/right_slide",
+      "passed": true,
+      "evidence": "prismatic",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/World/Joints/right_slide",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/right_slide:0",
+      "passed": true,
+      "evidence": "/World/base",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/right_slide:1",
+      "passed": true,
+      "evidence": "/World/right_finger",
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/World/Joints/left_inner",
+      "passed": true,
+      "evidence": "revolute",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/World/Joints/left_inner",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/left_inner:0",
+      "passed": true,
+      "evidence": "/World/turntable",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/left_inner:1",
+      "passed": true,
+      "evidence": "/World/left_arm",
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/World/Joints/left_outer",
+      "passed": true,
+      "evidence": "revolute",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/World/Joints/left_outer",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/left_outer:0",
+      "passed": true,
+      "evidence": "/World/left_arm",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/left_outer:1",
+      "passed": true,
+      "evidence": "/World/left_finger",
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/World/Joints/right_inner",
+      "passed": true,
+      "evidence": "revolute",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/World/Joints/right_inner",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/right_inner:0",
+      "passed": true,
+      "evidence": "/World/turntable",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/right_inner:1",
+      "passed": true,
+      "evidence": "/World/right_arm",
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/World/Joints/right_outer",
+      "passed": true,
+      "evidence": "revolute",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/World/Joints/right_outer",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/right_outer:0",
+      "passed": true,
+      "evidence": "/World/right_arm",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/World/Joints/right_outer:1",
+      "passed": true,
+      "evidence": "/World/right_finger",
+      "failure_class": null
+    },
+    {
+      "name": "all_joints_declared",
+      "passed": true,
+      "evidence": {
+        "undeclared": [],
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "required_joint_roles",
+      "passed": true,
+      "evidence": {
+        "actuator": "/World/Joints/actuator",
+        "left_slide": "/World/Joints/left_slide",
+        "right_slide": "/World/Joints/right_slide",
+        "left_inner": "/World/Joints/left_inner",
+        "left_outer": "/World/Joints/left_outer",
+        "right_inner": "/World/Joints/right_inner",
+        "right_outer": "/World/Joints/right_outer"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:actuator",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:left_slide",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:right_slide",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:left_inner",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:left_outer",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:right_inner",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:right_outer",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "actual_joint_graph_has_closed_loop",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_parts_mapped_once",
+      "passed": true,
+      "evidence": {
+        "required": 27,
+        "mapped": 27,
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/World/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/World/left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/World/right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/World/left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/World/right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "moving_body_has_source_geometry:/World/turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "assembly_alignment_is_rigid",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/right_finger/Visuals/solid_0000",
+      "passed": true,
+      "evidence": [
+        "/World/right_finger"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 2.5674995420873223e-05,
+          "final_to_source_max_sample_distance_m": 3.260667744174717e-05,
+          "area_ratio": 1.000001802029403,
+          "bounds_error_m": 6.095736276856556e-10,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/left_finger/Visuals/solid_0001",
+      "passed": true,
+      "evidence": [
+        "/World/left_finger"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 2.645535302110854e-05,
+          "final_to_source_max_sample_distance_m": 3.260656560054388e-05,
+          "area_ratio": 1.0000018029542497,
+          "bounds_error_m": 5.178038657571715e-10,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0002:SOLID",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0002:SOLID",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0002",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0002:SOLID",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0002:SOLID",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00011330481623669473,
+          "final_to_source_max_sample_distance_m": 5.79283410644657e-05,
+          "area_ratio": 1.0000011544067846,
+          "bounds_error_m": 3.0227292890927515e-09,
+          "tolerance_m": 0.00015023994142703866,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/left_finger/Visuals/solid_0003",
+      "passed": true,
+      "evidence": [
+        "/World/left_finger"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0003:Finger 1",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00026026526172257496,
+          "final_to_source_max_sample_distance_m": 0.0002711464957280695,
+          "area_ratio": 0.9999226921737827,
+          "bounds_error_m": 8.549147084702113e-10,
+          "tolerance_m": 9.547381840141308e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/right_finger/Visuals/solid_0004",
+      "passed": true,
+      "evidence": [
+        "/World/right_finger"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0004:Finger 2",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00027073069915632675,
+          "final_to_source_max_sample_distance_m": 0.00027114617791251555,
+          "area_ratio": 0.999924982120028,
+          "bounds_error_m": 7.315333477864172e-10,
+          "tolerance_m": 9.547381840141308e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/turntable/Visuals/solid_0005",
+      "passed": true,
+      "evidence": [
+        "/World/turntable"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00016991630450681144,
+          "final_to_source_max_sample_distance_m": 0.00019928644768679333,
+          "area_ratio": 1.0001402088999056,
+          "bounds_error_m": 1.3123379458690465e-06,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0006:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0006:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0006",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0006:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0006:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0001535322658301927,
+          "final_to_source_max_sample_distance_m": 0.00018621055707094584,
+          "area_ratio": 1.00000642509241,
+          "bounds_error_m": 4.647384664602239e-10,
+          "tolerance_m": 6.265035853847925e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0007:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0007:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/turntable/Visuals/solid_0007",
+      "passed": true,
+      "evidence": [
+        "/World/turntable"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0007:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0007:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00022159946780680648,
+          "final_to_source_max_sample_distance_m": 0.0002102385267856989,
+          "area_ratio": 1.0000011872504007,
+          "bounds_error_m": 6.997113877887928e-10,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0008:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0008:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0008",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0008:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0008:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00018001936566581697,
+          "final_to_source_max_sample_distance_m": 0.00013938826950745593,
+          "area_ratio": 1.0000004654771832,
+          "bounds_error_m": 6.588637690985166e-10,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0009:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0009:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0009",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0009:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0009:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00018001957130639058,
+          "final_to_source_max_sample_distance_m": 0.00013298962389322798,
+          "area_ratio": 1.0000004422258437,
+          "bounds_error_m": 6.588637690985166e-10,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0010:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0010:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0010",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0010:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0010:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 5.988761754321865e-05,
+          "final_to_source_max_sample_distance_m": 3.8146867920416245e-05,
+          "area_ratio": 1.0000735195932493,
+          "bounds_error_m": 6.231066978883149e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0011:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0011:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0011",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0011:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0011:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 5.2044987953166635e-05,
+          "final_to_source_max_sample_distance_m": 6.509859470343696e-05,
+          "area_ratio": 1.0000735445862283,
+          "bounds_error_m": 6.235159207435698e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0012:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0012:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0012",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0012:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0012:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 1.7603853372910213e-05,
+          "final_to_source_max_sample_distance_m": 5.8447092198578915e-05,
+          "area_ratio": 1.0000735127327056,
+          "bounds_error_m": 6.205898515562747e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0013:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0013:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0013",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0013:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0013:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 5.988756809512922e-05,
+          "final_to_source_max_sample_distance_m": 3.8146881040265785e-05,
+          "area_ratio": 1.0000735483499514,
+          "bounds_error_m": 6.236962990339989e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0014:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0014:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0014",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0014:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0014:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 5.204499192701902e-05,
+          "final_to_source_max_sample_distance_m": 6.509861328420114e-05,
+          "area_ratio": 1.000073551427565,
+          "bounds_error_m": 6.232870761700704e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0015:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0015:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0015",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0015:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0015:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 1.7603815601671802e-05,
+          "final_to_source_max_sample_distance_m": 5.8447074365388127e-05,
+          "area_ratio": 1.0000735330951875,
+          "bounds_error_m": 6.219054540356622e-08,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0016:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0016:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0016",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0016:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0016:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 7.990376986425954e-05,
+          "final_to_source_max_sample_distance_m": 0.00016706058761205533,
+          "area_ratio": 1.0000008475224573,
+          "bounds_error_m": 6.916891781560963e-10,
+          "tolerance_m": 5.7096352635587015e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0017:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0017:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0017",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0017:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0017:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00021416446243244206,
+          "final_to_source_max_sample_distance_m": 0.00011695427945867627,
+          "area_ratio": 1.0001601711527188,
+          "bounds_error_m": 1.793508063230309e-06,
+          "tolerance_m": 5.6727508493696444e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0018:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0018:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0018",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0018:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0018:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.0002690503851729087,
+          "final_to_source_max_sample_distance_m": 0.00019360596200862786,
+          "area_ratio": 1.0000888256140281,
+          "bounds_error_m": 8.220193284974586e-06,
+          "tolerance_m": 0.00010153054322830206,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/base/Visuals/solid_0019",
+      "passed": true,
+      "evidence": [
+        "/World/base"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0019:Baseplate",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00022309977689731822,
+          "final_to_source_max_sample_distance_m": 0.0002232662051772536,
+          "area_ratio": 0.9999616700090829,
+          "bounds_error_m": 3.71259556430914e-09,
+          "tolerance_m": 0.00018161291253652643,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0020:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0020:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/turntable/Visuals/solid_0020",
+      "passed": true,
+      "evidence": [
+        "/World/turntable"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0020:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0020:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00015290258869583568,
+          "final_to_source_max_sample_distance_m": 0.0001296114580020943,
+          "area_ratio": 1.0000899630556175,
+          "bounds_error_m": 6.526836076881093e-07,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0021:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0021:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/right_finger/Visuals/solid_0021",
+      "passed": true,
+      "evidence": [
+        "/World/right_finger"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0021:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0021:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00013838436499781525,
+          "final_to_source_max_sample_distance_m": 7.402153877838846e-05,
+          "area_ratio": 1.0000899703394341,
+          "bounds_error_m": 6.521040475382378e-07,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0022:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0022:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/turntable/Visuals/solid_0022",
+      "passed": true,
+      "evidence": [
+        "/World/turntable"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0022:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0022:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 6.198347288984861e-05,
+          "final_to_source_max_sample_distance_m": 0.0001319525130390774,
+          "area_ratio": 1.0000899158695948,
+          "bounds_error_m": 3.1605412521840126e-07,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0023:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0023:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/left_finger/Visuals/solid_0023",
+      "passed": true,
+      "evidence": [
+        "/World/left_finger"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0023:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0023:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00010631255505439164,
+          "final_to_source_max_sample_distance_m": 0.0001319516495077324,
+          "area_ratio": 1.0000900046838257,
+          "bounds_error_m": 3.160897013992914e-07,
+          "tolerance_m": 5e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0024:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0024:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/right_arm/Visuals/solid_0024",
+      "passed": true,
+      "evidence": [
+        "/World/right_arm"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0024:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0024:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00015228930339586508,
+          "final_to_source_max_sample_distance_m": 0.00012060108220414657,
+          "area_ratio": 1.0000239287170791,
+          "bounds_error_m": 1.1196486729356248e-06,
+          "tolerance_m": 5.237657272562455e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0025:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0025:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/left_arm/Visuals/solid_0025",
+      "passed": true,
+      "evidence": [
+        "/World/left_arm"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0025:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0025:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00015228930339587172,
+          "final_to_source_max_sample_distance_m": 0.0001196951097318104,
+          "area_ratio": 1.0000239287170791,
+          "bounds_error_m": 1.1196486729356248e-06,
+          "tolerance_m": 5.237657272562456e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/Step/Gripper.step#solid:0026:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/Step/Gripper.step#solid:0026:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_actual_rigid_ancestry:/World/turntable/Visuals/solid_0026",
+      "passed": true,
+      "evidence": [
+        "/World/turntable"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/Step/Gripper.step#solid:0026:unnamed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/Step/Gripper.step#solid:0026:unnamed",
+      "passed": false,
+      "evidence": {
+        "frozen_v1_evidence": {
+          "source_to_final_max_sample_distance_m": 0.00016971651909872325,
+          "final_to_source_max_sample_distance_m": 0.00023121315707486185,
+          "area_ratio": 1.000100114223545,
+          "bounds_error_m": 5.039318843880203e-07,
+          "tolerance_m": 7.655529140794538e-05,
+          "method": "all vertices + deterministic area-weighted surface samples, symmetric nearest triangle distances; 3% area tolerance; no topology-preservation claim"
+        },
+        "erratum": "Meter closest-point distance is numerically unqualified for tiny triangles; only bounds/area remain independent."
+      },
+      "failure_class": "evaluator_insufficient"
+    },
+    {
+      "name": "source_visual_meshes_unique",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_unmapped_visible_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "exactly_one_physics_scene",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "earth_gravity_authored",
+      "passed": true,
+      "evidence": {
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "magnitude": 9.8100004196167
+      },
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_external_forces",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_upright",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_roles_distinct",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:left_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:right_finger",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:left_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:right_arm",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_dynamic_identity:turntable",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:0",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0000:Carrier 1"
+        ],
+        "required_role": "right_finger"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:1",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0001:Carrier 2"
+        ],
+        "required_role": "left_finger"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:2",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0002:SOLID"
+        ],
+        "required_role": "base"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:3",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0003:Finger 1"
+        ],
+        "required_role": "left_finger"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:4",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0004:Finger 2"
+        ],
+        "required_role": "right_finger"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:5",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0005:Servo horn2"
+        ],
+        "required_role": "turntable"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:19",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0019:Baseplate"
+        ],
+        "required_role": "base"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:24",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0024:unnamed"
+        ],
+        "required_role": "right_arm"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:25",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0025:unnamed"
+        ],
+        "required_role": "left_arm"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_group:26",
+      "passed": true,
+      "evidence": {
+        "source_id": [
+          "source_repo/Step/Gripper.step#solid:0026:unnamed"
+        ],
+        "required_role": "turntable"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_endpoints:actuator",
+      "passed": true,
+      "evidence": {
+        "expected": [
+          "/World/turntable",
+          "/World/base"
+        ],
+        "actual": [
+          "/World/turntable",
+          "/World/base"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_endpoints:left_slide",
+      "passed": true,
+      "evidence": {
+        "expected": [
+          "/World/base",
+          "/World/left_finger"
+        ],
+        "actual": [
+          "/World/base",
+          "/World/left_finger"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_endpoints:right_slide",
+      "passed": true,
+      "evidence": {
+        "expected": [
+          "/World/right_finger",
+          "/World/base"
+        ],
+        "actual": [
+          "/World/right_finger",
+          "/World/base"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_endpoints:left_inner",
+      "passed": true,
+      "evidence": {
+        "expected": [
+          "/World/left_arm",
+          "/World/turntable"
+        ],
+        "actual": [
+          "/World/left_arm",
+          "/World/turntable"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_endpoints:left_outer",
+      "passed": true,
+      "evidence": {
+        "expected": [
+          "/World/left_arm",
+          "/World/left_finger"
+        ],
+        "actual": [
+          "/World/left_arm",
+          "/World/left_finger"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_endpoints:right_inner",
+      "passed": true,
+      "evidence": {
+        "expected": [
+          "/World/right_arm",
+          "/World/turntable"
+        ],
+        "actual": [
+          "/World/right_arm",
+          "/World/turntable"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_endpoints:right_outer",
+      "passed": true,
+      "evidence": {
+        "expected": [
+          "/World/right_arm",
+          "/World/right_finger"
+        ],
+        "actual": [
+          "/World/right_arm",
+          "/World/right_finger"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_axis:actuator",
+      "passed": true,
+      "evidence": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_bounded_joint:actuator",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_axis:left_slide",
+      "passed": true,
+      "evidence": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_bounded_joint:left_slide",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_axis:right_slide",
+      "passed": true,
+      "evidence": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_bounded_joint:right_slide",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_axis:left_inner",
+      "passed": true,
+      "evidence": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_bounded_joint:left_inner",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_axis:left_outer",
+      "passed": true,
+      "evidence": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_bounded_joint:left_outer",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_axis:right_inner",
+      "passed": true,
+      "evidence": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_bounded_joint:right_inner",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_joint_axis:right_outer",
+      "passed": true,
+      "evidence": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_bounded_joint:right_outer",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/right_finger/Visuals/solid_0000",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/right_finger",
+        "enabled_rigid_ancestors": [
+          "/World/right_finger"
+        ],
+        "dynamic_ancestors": [
+          "/World/right_finger"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/left_finger/Visuals/solid_0001",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/left_finger",
+        "enabled_rigid_ancestors": [
+          "/World/left_finger"
+        ],
+        "dynamic_ancestors": [
+          "/World/left_finger"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0002",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/left_finger/Visuals/solid_0003",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/left_finger",
+        "enabled_rigid_ancestors": [
+          "/World/left_finger"
+        ],
+        "dynamic_ancestors": [
+          "/World/left_finger"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/right_finger/Visuals/solid_0004",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/right_finger",
+        "enabled_rigid_ancestors": [
+          "/World/right_finger"
+        ],
+        "dynamic_ancestors": [
+          "/World/right_finger"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/turntable/Visuals/solid_0005",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/turntable",
+        "enabled_rigid_ancestors": [
+          "/World/turntable"
+        ],
+        "dynamic_ancestors": [
+          "/World/turntable"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0006",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/turntable/Visuals/solid_0007",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/turntable",
+        "enabled_rigid_ancestors": [
+          "/World/turntable"
+        ],
+        "dynamic_ancestors": [
+          "/World/turntable"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0008",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0009",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0010",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0011",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0012",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0013",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0014",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0015",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0016",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0017",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0018",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/base/Visuals/solid_0019",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/base",
+        "enabled_rigid_ancestors": [
+          "/World/base"
+        ],
+        "dynamic_ancestors": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/turntable/Visuals/solid_0020",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/turntable",
+        "enabled_rigid_ancestors": [
+          "/World/turntable"
+        ],
+        "dynamic_ancestors": [
+          "/World/turntable"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/right_finger/Visuals/solid_0021",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/right_finger",
+        "enabled_rigid_ancestors": [
+          "/World/right_finger"
+        ],
+        "dynamic_ancestors": [
+          "/World/right_finger"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/turntable/Visuals/solid_0022",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/turntable",
+        "enabled_rigid_ancestors": [
+          "/World/turntable"
+        ],
+        "dynamic_ancestors": [
+          "/World/turntable"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/left_finger/Visuals/solid_0023",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/left_finger",
+        "enabled_rigid_ancestors": [
+          "/World/left_finger"
+        ],
+        "dynamic_ancestors": [
+          "/World/left_finger"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/right_arm/Visuals/solid_0024",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/right_arm",
+        "enabled_rigid_ancestors": [
+          "/World/right_arm"
+        ],
+        "dynamic_ancestors": [
+          "/World/right_arm"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/left_arm/Visuals/solid_0025",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/left_arm",
+        "enabled_rigid_ancestors": [
+          "/World/left_arm"
+        ],
+        "dynamic_ancestors": [
+          "/World/left_arm"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_source_dynamic_ancestry:/World/turntable/Visuals/solid_0026",
+      "passed": true,
+      "evidence": {
+        "expected_body": "/World/turntable",
+        "enabled_rigid_ancestors": [
+          "/World/turntable"
+        ],
+        "dynamic_ancestors": [
+          "/World/turntable"
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "gripper_no_authored_external_force",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "gripper_evaluator_namespace_free",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_direct_run_completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_finite_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0004301357257645577,
+        "limit": 0.001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.7755113244063088,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.8215329051017785,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 3.906576754506111e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 2.038558366233188e-05,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_native_inertia",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_independent_gravity_witness",
+      "passed": true,
+      "evidence": {
+        "initial_pose": [
+          1000.0,
+          1000.0,
+          1000.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "at_point_one_s": {
+          "t": 0.1,
+          "pose": [
+            1000.0,
+            1000.0,
+            999.94921875,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "velocity": [
+            0.0,
+            0.0,
+            -0.9810003042221069,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_bilateral_contact_under_load",
+      "passed": true,
+      "evidence": 1.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_payload_retained_without_fixture",
+      "passed": true,
+      "evidence": 1.0336566731203033e-06,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_both_fingers_closed",
+      "passed": true,
+      "evidence": [
+        0.0014282399788498878,
+        0.0014287307858467102
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_release_drop",
+      "passed": true,
+      "evidence": 0.033686891198158264,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_fixture_removed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_torque_bounded",
+      "passed": true,
+      "evidence": 0.04512176919683562,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_joint_limits:/World/Joints/actuator",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -1.9073486385856597e-06,
+          0.08550920896686787
+        ],
+        "authored": [
+          -0.08726646259971647,
+          0.3490658503988659
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_joint_limits:/World/Joints/left_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -3.906491293642622e-08,
+          0.0014282716944526222
+        ],
+        "authored": [
+          -0.04500000178813934,
+          0.009999999776482582
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_joint_limits:/World/Joints/right_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.0014287637971629116,
+          3.497523174550432e-08
+        ],
+        "authored": [
+          -0.009999999776482582,
+          0.04500000178813934
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_joint_limits:/World/Joints/left_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.03652362623297689,
+          6.85458068083733e-07
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_joint_limits:/World/Joints/left_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.04898577418592076,
+          1.4007052566711309e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_joint_limits:/World/Joints/right_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.036512319036266394,
+          1.2666043338604993e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed11:gripper_joint_limits:/World/Joints/right_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.04899728031174977,
+          1.0430765087221516e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_direct_run_completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_finite_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.00021405400184448808,
+        "limit": 0.001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.7723333835601857,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 2.573260307312018,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 3.99166103399463e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 2.1002725496803912e-05,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_native_inertia",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_independent_gravity_witness",
+      "passed": true,
+      "evidence": {
+        "initial_pose": [
+          1000.0,
+          1000.0,
+          1000.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "at_point_one_s": {
+          "t": 0.1,
+          "pose": [
+            1000.0,
+            1000.0,
+            999.94921875,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "velocity": [
+            0.0,
+            0.0,
+            -0.9810003042221069,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_bilateral_contact_under_load",
+      "passed": true,
+      "evidence": 1.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_payload_retained_without_fixture",
+      "passed": true,
+      "evidence": 1.050945226783096e-06,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_both_fingers_closed",
+      "passed": true,
+      "evidence": [
+        0.0014282753691077232,
+        0.0014287782832980156
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_release_drop",
+      "passed": true,
+      "evidence": 0.03368688374757767,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_fixture_removed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_torque_bounded",
+      "passed": true,
+      "evidence": 0.05,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_joint_limits:/World/Joints/actuator",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -3.337860107421875e-06,
+          0.0855159534222718
+        ],
+        "authored": [
+          -0.08726646259971647,
+          0.3490658503988659
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_joint_limits:/World/Joints/left_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -5.6760041854120313e-08,
+          0.0014282921835492637
+        ],
+        "authored": [
+          -0.04500000178813934,
+          0.009999999776482582
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_joint_limits:/World/Joints/right_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.0014287982560981724,
+          5.267036066319841e-08
+        ],
+        "authored": [
+          -0.009999999776482582,
+          0.04500000178813934
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_joint_limits:/World/Joints/left_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.03652642795371985,
+          1.2517016916291368e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_joint_limits:/World/Joints/left_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.04898980666081476,
+          2.145767894035089e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_joint_limits:/World/Joints/right_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.03651481237231469,
+          1.654028666475682e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed23:gripper_joint_limits:/World/Joints/right_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.04900158837793356,
+          1.8775423309413952e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_direct_run_completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_finite_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0001323659234913066,
+        "limit": 0.001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.7714540362366502,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 2.5862634181976762,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 4.002792373629338e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 2.044659780309097e-05,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_native_inertia",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_independent_gravity_witness",
+      "passed": true,
+      "evidence": {
+        "initial_pose": [
+          1000.0,
+          1000.0,
+          1000.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "at_point_one_s": {
+          "t": 0.1,
+          "pose": [
+            1000.0,
+            1000.0,
+            999.94921875,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "velocity": [
+            0.0,
+            0.0,
+            -0.9810003042221069,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_bilateral_contact_under_load",
+      "passed": true,
+      "evidence": 1.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_payload_retained_without_fixture",
+      "passed": true,
+      "evidence": 1.0533655381401006e-06,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_both_fingers_closed",
+      "passed": true,
+      "evidence": [
+        0.0014282763004302979,
+        0.0014287829399108887
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_release_drop",
+      "passed": true,
+      "evidence": 0.03368689864873886,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_fixture_removed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_torque_bounded",
+      "passed": true,
+      "evidence": 0.05,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_joint_limits:/World/Joints/actuator",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -3.1590461717634355e-06,
+          0.08551713932990124
+        ],
+        "authored": [
+          -0.08726646259971647,
+          0.3490658503988659
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_joint_limits:/World/Joints/left_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -6.048533215258223e-08,
+          0.0014282959088395622
+        ],
+        "authored": [
+          -0.04500000178813934,
+          0.009999999776482582
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_joint_limits:/World/Joints/right_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.0014288019813884709,
+          4.615110264089006e-08
+        ],
+        "authored": [
+          -0.009999999776482582,
+          0.04500000178813934
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_joint_limits:/World/Joints/left_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.036526931302447,
+          1.3411021209108753e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_joint_limits:/World/Joints/left_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.04899052623051281,
+          1.8179440557375415e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_joint_limits:/World/Joints/right_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.036515343357383045,
+          1.6093257713123421e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed47:gripper_joint_limits:/World/Joints/right_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.04900230341904521,
+          1.5497204008951826e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_direct_run_completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_finite_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.0004102650855202228,
+        "limit": 0.001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.7749714851380693,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 1.5164862871170106,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 3.92959064240339e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 2.009283869497014e-05,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_native_inertia",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_independent_gravity_witness",
+      "passed": true,
+      "evidence": {
+        "initial_pose": [
+          1000.0,
+          1000.0,
+          1000.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "at_point_one_s": {
+          "t": 0.1,
+          "pose": [
+            1000.0,
+            1000.0,
+            999.94921875,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "velocity": [
+            0.0,
+            0.0,
+            -0.9810003042221069,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_bilateral_contact_under_load",
+      "passed": true,
+      "evidence": 1.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_payload_retained_without_fixture",
+      "passed": true,
+      "evidence": 1.041496636218062e-06,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_both_fingers_closed",
+      "passed": true,
+      "evidence": [
+        0.0014282530173659325,
+        0.0014287419617176056
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_release_drop",
+      "passed": true,
+      "evidence": 0.03368689492344856,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_fixture_removed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_torque_bounded",
+      "passed": true,
+      "evidence": 0.045464991168170696,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_joint_limits:/World/Joints/actuator",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -3.606080579920956e-06,
+          0.0855114174185081
+        ],
+        "authored": [
+          -0.08726646259971647,
+          0.3490658503988659
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_joint_limits:/World/Joints/left_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -6.793591274950606e-08,
+          0.0014282828703235176
+        ],
+        "authored": [
+          -0.04500000178813934,
+          0.009999999776482582
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_joint_limits:/World/Joints/right_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.0014287740417112324,
+          5.8258296110891283e-08
+        ],
+        "authored": [
+          -0.009999999776482582,
+          0.04500000178813934
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_joint_limits:/World/Joints/left_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.03652461549047592,
+          1.5348118971303393e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_joint_limits:/World/Joints/left_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.048987040404422366,
+          2.250076476695284e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_joint_limits:/World/Joints/right_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.03651321076141745,
+          1.594422448292221e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed83:gripper_joint_limits:/World/Joints/right_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.0489987670619314,
+          2.01165858415564e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_direct_run_completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_finite_state",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_max_contact_penetration_m",
+      "passed": true,
+      "evidence": {
+        "measured": 0.00027092432719655335,
+        "limit": 0.001
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_max_linear_speed_m_s",
+      "passed": true,
+      "evidence": {
+        "measured": 0.7729316353797941,
+        "limit": 5.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_max_angular_speed_rad_s",
+      "passed": true,
+      "evidence": {
+        "measured": 2.5728549957275546,
+        "limit": 30.0
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_max_joint_closure_m",
+      "passed": true,
+      "evidence": {
+        "measured": 3.988861329519733e-06,
+        "limit": 0.002
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_max_joint_axis_error_rad",
+      "passed": true,
+      "evidence": {
+        "measured": 2.2495191918300066e-05,
+        "limit": 0.05
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_native_inertia",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_independent_gravity_witness",
+      "passed": true,
+      "evidence": {
+        "initial_pose": [
+          1000.0,
+          1000.0,
+          1000.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "at_point_one_s": {
+          "t": 0.1,
+          "pose": [
+            1000.0,
+            1000.0,
+            999.94921875,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "velocity": [
+            0.0,
+            0.0,
+            -0.9810003042221069,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_bilateral_contact_under_load",
+      "passed": true,
+      "evidence": 1.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_payload_retained_without_fixture",
+      "passed": true,
+      "evidence": 1.0573832325541175e-06,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_both_fingers_closed",
+      "passed": true,
+      "evidence": [
+        0.0014282669872045517,
+        0.0014287810772657394
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_release_drop",
+      "passed": true,
+      "evidence": 0.03368688374757767,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_fixture_removed",
+      "passed": true,
+      "evidence": 0.0,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_torque_bounded",
+      "passed": true,
+      "evidence": 0.05,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_joint_limits:/World/Joints/actuator",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -3.665685665232843e-06,
+          0.08551568544650401
+        ],
+        "authored": [
+          -0.08726646259971647,
+          0.3490658503988659
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_joint_limits:/World/Joints/left_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -6.234797730181318e-08,
+          0.0014282847329686668
+        ],
+        "authored": [
+          -0.04500000178813934,
+          0.009999999776482582
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_joint_limits:/World/Joints/right_slide",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.0014288001187433216,
+          6.943416700627703e-08
+        ],
+        "authored": [
+          -0.009999999776482582,
+          0.04500000178813934
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_joint_limits:/World/Joints/left_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.03652637139648318,
+          1.5348342765619805e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_joint_limits:/World/Joints/left_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.04898959518738799,
+          2.175576808483015e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_joint_limits:/World/Joints/right_inner",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.03651488981298989,
+          1.877557592511181e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    },
+    {
+      "name": "seed131:gripper_joint_limits:/World/Joints/right_outer",
+      "passed": true,
+      "evidence": {
+        "range": [
+          -0.04900137982410424,
+          1.996754008803947e-06
+        ],
+        "authored": [
+          -0.7853981633974483,
+          0.7853981633974483
+        ]
+      },
+      "failure_class": null
+    }
+  ],
+  "version": "v1_conservative_after_distance_erratum",
+  "case_id": "04_gripper",
+  "arm": "plain_astra",
+  "v1_acceptance_sha256": "68bf01ae55ba37bb58e6f51d7e4403237c3965f44dab1c6839aabfcd61e9135e",
+  "false_pass": false
+}

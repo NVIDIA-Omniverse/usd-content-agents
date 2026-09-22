@@ -1,0 +1,182 @@
+{
+  "started_utc": "2026-09-22T00:00:13.471234+00:00",
+  "renderer_requested": "OVRTX",
+  "qualification_version": "0.4.1.364340",
+  "cuda_visible_devices": "[private runtime identifier]",
+  "usd_cli": "/opt/astra-content-value-20260921/repo/.venv/bin/usd-cli",
+  "ovrtx_venv": "/opt/astra-content-value-20260921/ovrtx-venv",
+  "snapshot_config_sha256": "261b8d1866168b6dfc9a225e6fe5de3650ca8c6ec8d8c1dc4059e3f8467a8529",
+  "script_sha256": "43aec72273fe35c3ee8c5f175e0f6643f50bc20c5cc14fd45f6574f895f3e102",
+  "resolution": [
+    1024,
+    768
+  ],
+  "mode": "quality",
+  "source": "Packaged source-faithful static snapshots with actual independent native-trace poses; no author animation or physics code executed.",
+  "frames": [
+    {
+      "frame": "closed_initial",
+      "snapshot_sha256": "1d56033c861ea680c7d07b8265c9f8d6a233fd71cc30c207ed6deff2cad4d63f",
+      "steps": [
+        {
+          "name": "open",
+          "returncode": 0,
+          "started_epoch": 1790035213.4742804,
+          "duration_s": 1.5863382816314697
+        },
+        {
+          "name": "camera",
+          "returncode": 0,
+          "started_epoch": 1790035215.0608163,
+          "duration_s": 0.6550643444061279
+        },
+        {
+          "name": "render",
+          "returncode": 0,
+          "started_epoch": 1790035215.71609,
+          "duration_s": 9.145253419876099
+        }
+      ],
+      "image": {
+        "sha256": "aa01e5515466b568939e9de4ab6610f1961909ee7b2b943794dc3b25dbc22a1d",
+        "bytes": 296698,
+        "shape": [
+          768,
+          1024,
+          3
+        ],
+        "std": 42.54482637034497,
+        "unique_rgb": 29021
+      },
+      "allocated_gpu_processes_after_render": [
+        "[private runtime identifier], 104672, /opt/astra-content-value-20260921/ovrtx-venv/bin/python, 2744",
+        "[private runtime identifier], 104672, /opt/astra-content-value-20260921/ovrtx-venv/bin/python, 2744"
+      ],
+      "gpu_query_returncode": 0
+    },
+    {
+      "frame": "open_loaded",
+      "snapshot_sha256": "fbcbcf1539cac4e39bd4f429634a50666c4dacb36f556129bc88121c83e4891d",
+      "steps": [
+        {
+          "name": "open",
+          "returncode": 0,
+          "started_epoch": 1790035226.979748,
+          "duration_s": 0.5790712833404541
+        },
+        {
+          "name": "camera",
+          "returncode": 0,
+          "started_epoch": 1790035227.5590847,
+          "duration_s": 0.4897780418395996
+        },
+        {
+          "name": "render",
+          "returncode": 0,
+          "started_epoch": 1790035228.049112,
+          "duration_s": 2.013213872909546
+        }
+      ],
+      "image": {
+        "sha256": "e07ca44f194e0d7b52dcf7688d51a01e77d29d8263bdb2ed1b8713e46370caae",
+        "bytes": 297596,
+        "shape": [
+          768,
+          1024,
+          3
+        ],
+        "std": 44.15184667127333,
+        "unique_rgb": 35756
+      },
+      "allocated_gpu_processes_after_render": [
+        "[private runtime identifier], 104672, /opt/astra-content-value-20260921/ovrtx-venv/bin/python, 2937",
+        "[private runtime identifier], 104672, /opt/astra-content-value-20260921/ovrtx-venv/bin/python, 2937"
+      ],
+      "gpu_query_returncode": 0
+    },
+    {
+      "frame": "closed_returned",
+      "snapshot_sha256": "41c20393d6e15cbbbac061c613f61634c3adc58ee658485b2b0c97e54fcfc31f",
+      "steps": [
+        {
+          "name": "open",
+          "returncode": 0,
+          "started_epoch": 1790035231.6323454,
+          "duration_s": 0.7194769382476807
+        },
+        {
+          "name": "camera",
+          "returncode": 0,
+          "started_epoch": 1790035232.352106,
+          "duration_s": 0.25192689895629883
+        },
+        {
+          "name": "render",
+          "returncode": 0,
+          "started_epoch": 1790035232.6043174,
+          "duration_s": 2.5515570640563965
+        }
+      ],
+      "image": {
+        "sha256": "08dca9998ae36f1bd88fe1f7d52bfa277dfdb0d20f7f6b830822724bcf603641",
+        "bytes": 297202,
+        "shape": [
+          768,
+          1024,
+          3
+        ],
+        "std": 42.549782490236616,
+        "unique_rgb": 29265
+      },
+      "allocated_gpu_processes_after_render": [
+        "[private runtime identifier], 104672, /opt/astra-content-value-20260921/ovrtx-venv/bin/python, 3133",
+        "[private runtime identifier], 104672, /opt/astra-content-value-20260921/ovrtx-venv/bin/python, 3133"
+      ],
+      "gpu_query_returncode": 0
+    }
+  ],
+  "active_frame": {
+    "frame": "closed_returned",
+    "snapshot_sha256": "41c20393d6e15cbbbac061c613f61634c3adc58ee658485b2b0c97e54fcfc31f",
+    "steps": [
+      {
+        "name": "open",
+        "returncode": 0,
+        "started_epoch": 1790035231.6323454,
+        "duration_s": 0.7194769382476807
+      },
+      {
+        "name": "camera",
+        "returncode": 0,
+        "started_epoch": 1790035232.352106,
+        "duration_s": 0.25192689895629883
+      },
+      {
+        "name": "render",
+        "returncode": 0,
+        "started_epoch": 1790035232.6043174,
+        "duration_s": 2.5515570640563965
+      }
+    ],
+    "image": {
+      "sha256": "08dca9998ae36f1bd88fe1f7d52bfa277dfdb0d20f7f6b830822724bcf603641",
+      "bytes": 297202,
+      "shape": [
+        768,
+        1024,
+        3
+      ],
+      "std": 42.549782490236616,
+      "unique_rgb": 29265
+    },
+    "allocated_gpu_processes_after_render": [
+      "[private runtime identifier], 104672, /opt/astra-content-value-20260921/ovrtx-venv/bin/python, 3133",
+      "[private runtime identifier], 104672, /opt/astra-content-value-20260921/ovrtx-venv/bin/python, 3133"
+    ],
+    "gpu_query_returncode": 0
+  },
+  "finished_utc": "2026-09-22T00:00:39.895116+00:00",
+  "elapsed_seconds": 26.423912286758423,
+  "server_stop_returncode": 0,
+  "completed_frames": 3
+}

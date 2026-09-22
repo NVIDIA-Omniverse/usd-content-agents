@@ -1,0 +1,87 @@
+{
+  "drawer_cabinet": {
+    "triangle_count": 18198,
+    "bounds_min_m": [
+      -0.5705390572547913,
+      0.0,
+      -0.24765323102474213
+    ],
+    "bounds_max_m": [
+      0.5705388188362122,
+      1.881253957748413,
+      0.238848015666008
+    ],
+    "area_m2": 8.338460036115624,
+    "welded_boundary_edges": 644,
+    "welded_nonmanifold_edges": 0,
+    "welded_closed": false
+  },
+  "drawer_cabinet_drawer_01": {
+    "triangle_count": 2052,
+    "bounds_min_m": [
+      -0.5193020105361938,
+      0.954371452331543,
+      -0.18753623962402344
+    ],
+    "bounds_max_m": [
+      0.5145469903945923,
+      1.1032557487487793,
+      0.24043147265911102
+    ],
+    "area_m2": 1.5046582380266906,
+    "welded_boundary_edges": 0,
+    "welded_nonmanifold_edges": 0,
+    "welded_closed": true
+  },
+  "drawer_cabinet_drawer_02": {
+    "triangle_count": 2052,
+    "bounds_min_m": [
+      -0.5193020105361938,
+      0.7794284820556641,
+      -0.18753623962402344
+    ],
+    "bounds_max_m": [
+      0.5145469903945923,
+      0.9283127188682556,
+      0.24043147265911102
+    ],
+    "area_m2": 1.5046581949557742,
+    "welded_boundary_edges": 0,
+    "welded_nonmanifold_edges": 0,
+    "welded_closed": true
+  },
+  "drawer_cabinet_drawer_03": {
+    "triangle_count": 2052,
+    "bounds_min_m": [
+      -0.5193020105361938,
+      0.6044896841049194,
+      -0.18753623962402344
+    ],
+    "bounds_max_m": [
+      0.5145469903945923,
+      0.7533739805221558,
+      0.24043147265911102
+    ],
+    "area_m2": 1.5046583013054977,
+    "welded_boundary_edges": 0,
+    "welded_nonmanifold_edges": 0,
+    "welded_closed": true
+  },
+  "drawer_cabinet_drawer_04": {
+    "triangle_count": 2052,
+    "bounds_min_m": [
+      -0.5193020105361938,
+      0.42955005168914795,
+      -0.18753623962402344
+    ],
+    "bounds_max_m": [
+      0.5145469903945923,
+      0.5784343481063843,
+      0.24043147265911102
+    ],
+    "area_m2": 1.5046582608437213,
+    "welded_boundary_edges": 0,
+    "welded_nonmanifold_edges": 0,
+    "welded_closed": true
+  }
+}

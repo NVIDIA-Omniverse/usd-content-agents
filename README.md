@@ -112,6 +112,13 @@ domain-specific quality measurements, so a visually plausible output cannot
 hide an incomplete workflow. See [Benchmarking USD Content Agents](agentic/docs/benchmarks.md)
 for the evaluation design, coverage, reproducibility rules, and limitations.
 
+The [ten-source Astra Ultra pilot](docs/experiments/astra-content-value-2026-09-21/README.md)
+publishes paired authoring measurements, source hashes, independent evaluators,
+and a force-driven drawer task with five native-physics trials. Its report
+separates physical task acceptance from experimental eligibility and documents
+installation failures, protocol deviations, and evaluator errata. These pilot
+results do not establish a causal Content Agents advantage.
+
 ## 2. Quick Start
 
 <a id="requirements"></a>

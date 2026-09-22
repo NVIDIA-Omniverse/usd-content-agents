@@ -1,0 +1,13 @@
+{
+  "created_utc": "2026-09-22T00:34:02.575340+00:00",
+  "arm": "content_agents",
+  "scene": {
+    "path": "runs/pilot-v1/03_hinge/content_agents/first_candidate/candidate.usd",
+    "sha256": "b812300282342f4cb07cc0c252274ec844941cd8996fb3c0639414f03d6f0a97"
+  },
+  "mesh_count": 8,
+  "rigid_bodies": [],
+  "joints": [],
+  "time_sampled_attributes": [],
+  "scene_bytes_unchanged": true
+}

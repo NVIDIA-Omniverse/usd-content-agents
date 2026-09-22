@@ -1,0 +1,140 @@
+{
+  "version": "1.0",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "ultra",
+  "source_commit": "a96faf9cb2f5c1f655fe0d60c0ccf57e3477b1aa",
+  "status": "FROZEN_GLOBAL_PROTOCOL_BEFORE_SCORED_RUNS",
+  "arms": [
+    "plain_astra",
+    "content_agents"
+  ],
+  "cases": 10,
+  "unit": "source asset paired across two isolated fresh model contexts",
+  "per_arm_wall_time_limit_s": 2400,
+  "per_arm_repair_limit": 2,
+  "max_sim_processes_concurrent": 4,
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "report_scope": "public reproducible development-set pilot; no sealed-test or sim-to-real claim",
+  "same_in_both": [
+    "model",
+    "reasoning effort",
+    "original immutable source closure",
+    "task specification and declared acceptance tolerances",
+    "hardware allocation",
+    "installed low-level authoring/render/simulation tools",
+    "wall time cap",
+    "repair cap",
+    "five evaluation seeds"
+  ],
+  "treatment": "repository Content Agents workflow prompts, orchestration, artifact and validation contracts",
+  "control": "direct Astra authoring with same low-level tools; no Content Agents workflow instructions or coordinator",
+  "metrics": [
+    "independent task acceptance",
+    "false passes: agent claimed accepted but independent evaluator rejects",
+    "human interventions and timed review where observable",
+    "elapsed wall time including repairs",
+    "token usage and cache counts",
+    "GPU allocation seconds",
+    "cost per accepted asset with explicit rate provenance or unknown"
+  ],
+  "cost_policy": "Never equate subscription with zero marginal dollar cost. Missing model or Horde rates remain unknown; retain usage and a rate calculator. Zero accepted assets means undefined per-accepted cost.",
+  "fail_closed": [
+    "missing solver trace",
+    "animation-only motion",
+    "missing source geometry fidelity",
+    "missing independent evaluation",
+    "model/effort drift",
+    "modified source or evaluator",
+    "unsupported physics claims"
+  ],
+  "preserve": [
+    "first output",
+    "every repair",
+    "stdout event logs",
+    "model metadata",
+    "source hashes",
+    "workflow and evaluator hashes",
+    "simulation traces",
+    "renders",
+    "contact/constraint logs",
+    "terminal agent claims"
+  ],
+  "hardware": "4 full48GB L40 GPUs across two Horde DGXC nodes, matched host and GPU per paired asset",
+  "codex_runtime": "0.154.0 for both arms; dependency compatibility override from pinned repository0.147.0",
+  "source_partition": "development",
+  "indeterminate_policy": "Evaluator insufficient, backend unavailable, or missing independent ground truth is INCONCLUSIVE, never a demonstrated false pass. Report measured subset and full-denominator lower bounds separately.",
+  "repair_limit_enforcement": "Declared2repair policy, audit output chronology; wall-time hard-enforced by process-group watchdog. Violations invalidate pair.",
+  "pair_order": {
+    "01": [
+      "plain_astra",
+      "content_agents"
+    ],
+    "02": [
+      "content_agents",
+      "plain_astra"
+    ],
+    "03": [
+      "plain_astra",
+      "content_agents"
+    ],
+    "04": [
+      "content_agents",
+      "plain_astra"
+    ],
+    "05": [
+      "plain_astra",
+      "content_agents"
+    ],
+    "06": [
+      "content_agents",
+      "plain_astra"
+    ],
+    "07": [
+      "plain_astra",
+      "content_agents"
+    ],
+    "08": [
+      "content_agents",
+      "plain_astra"
+    ],
+    "09": [
+      "plain_astra",
+      "content_agents"
+    ],
+    "10": [
+      "content_agents",
+      "plain_astra"
+    ]
+  },
+  "independent_human_review": "No human intervention during arms; unmeasured later review minutes remain null. Root/curation/evaluator preparation is automated setup, reported separately.",
+  "freeze_utc": "2026-09-21T22:02:33.890844+00:00",
+  "dataset_sha256": "34c8293ab1be49cd0bbdb8f8fe25278b60ba21c35d52b8009a5065278d25c87f",
+  "case_freeze_policy": "Each independent evaluator and task contract freezes before its first scored run. Evaluator authors remain blind to scored outputs. Shared thresholds cannot change after a scored run starts; any discovered evaluator defect is reported and versioned separately.",
+  "budget_definition": "Equal2400-second hard wall-time cap and declared two repairs. No token cap; model usage is measured as an outcome.",
+  "hardware_mapping": {
+    "pair_gpu0": [
+      "01_drawer",
+      "05_vise",
+      "09_printer"
+    ],
+    "pair_gpu1": [
+      "02_conveyor",
+      "06_engine",
+      "10_complex"
+    ],
+    "codex_gpu0": [
+      "03_hinge",
+      "07_robot_arm"
+    ],
+    "codex_gpu1": [
+      "04_gripper",
+      "08_excavator"
+    ]
+  }
+}

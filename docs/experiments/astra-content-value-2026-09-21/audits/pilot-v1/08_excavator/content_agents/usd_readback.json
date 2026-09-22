@@ -1,0 +1,498 @@
+{
+  "checked_utc": "2026-09-21T23:49:31.562326+00:00",
+  "final_mesh_count": 80,
+  "final_rigid_bodies": 0,
+  "final_joints": 0,
+  "final_physics_scenes": 0,
+  "repair1_points_topology_comparison": [
+    {
+      "path": "/Excavator/base/part_000/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_001/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_002/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_003/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_004/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_005/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_006/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_007/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_008/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_009/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_010/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_011/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_012/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_013/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_014/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_015/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_016/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_017/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_018/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_019/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_020/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_021/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_022/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_023/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_024/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_025/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_026/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_027/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_028/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_029/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_030/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_031/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_032/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_033/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_034/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_035/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_036/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_037/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_038/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_039/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_040/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_041/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_042/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_043/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_044/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_045/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_046/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_047/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_048/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_055/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_062/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_063/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_064/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_068/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_069/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_070/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_071/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_072/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/base/part_073/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/boom/part_049/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/boom/part_050/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/boom/part_051/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/boom/part_056/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/boom/part_065/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/boom/part_066/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/boom/part_067/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/stick/part_052/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/stick/part_053/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/stick/part_054/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/stick/part_057/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/stick/part_074/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/stick/part_075/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/stick/part_076/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/bucket/part_058/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/bucket/part_059/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/bucket/part_060/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/bucket/part_061/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/bucket/part_077/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/bucket/part_078/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    },
+    {
+      "path": "/Excavator/bucket/part_079/Mesh",
+      "points_equal": true,
+      "face_counts_equal": true,
+      "face_indices_equal": true
+    }
+  ],
+  "all80_points_topology_unchanged": true,
+  "final_matches_preserved_repair": true,
+  "hashes": {
+    "prepared/excavator_geometry_grouped.usda": "cde7ab9eb7ff36554e6f98a2dbb763b910f8f53ea92434aec40d1a429d4f6d0e",
+    "repair_01/normalized.usda": "c690568d89e20212b936386d64b3536b9e08041f9766dab0d0e962450e03b1c4",
+    "final.usd": "c10cc875d79cc2fd1e01074176054f4c6fcbf115ff5a07ab5c3ab776cde49759",
+    "repair_01/scene.usd": "c10cc875d79cc2fd1e01074176054f4c6fcbf115ff5a07ab5c3ab776cde49759"
+  },
+  "author_files_unchanged_by_audit": true
+}

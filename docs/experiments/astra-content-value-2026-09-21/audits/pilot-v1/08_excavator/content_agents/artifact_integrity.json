@@ -1,0 +1,13 @@
+{
+  "case_id": "08_excavator",
+  "arm": "content_agents",
+  "output_manifest_sha256": "25930c9b5c92fbcd770cba67898f71a460c33534e747110a62e87865db39a326",
+  "checked_files": 247,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034806.112794
+}

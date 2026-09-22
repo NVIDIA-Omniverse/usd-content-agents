@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "/opt/astra-content-value-20260921/repo/agentic/packages/content_workflow_cli/node_modules/.bin/codex",
+    "exec",
+    "--ignore-user-config",
+    "--skip-git-repo-check",
+    "-C",
+    "/opt/astra-content-value-20260921/runs/pilot-v1/02_conveyor/content_agents",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"ultra\"",
+    "-c",
+    "approval_policy=\"never\"",
+    "-s",
+    "danger-full-access",
+    "--json",
+    "-o",
+    "/opt/astra-content-value-20260921/runs/pilot-v1/02_conveyor/content_agents/last_message.txt",
+    "-"
+  ],
+  "arm": "content_agents",
+  "budget_seconds": 2400,
+  "case": "02_conveyor",
+  "gpu_index": 1,
+  "model": "gpt-6-astra",
+  "prompt_sha256": "31a35ff9b7230e6c5ebe2d4420a09e3c6d8f8c187d1657404302ff2f596f94b5",
+  "reasoning_effort": "ultra",
+  "scored": true,
+  "start_unix": 1790030271.6089427,
+  "task_file": "/opt/astra-content-value-20260921/protocol/tasks/02_conveyor.json",
+  "task_sha256": "43e4bb90e18dfbc799eb454b5b0f20eedd724252c0137a63eb9fe610ab7fd8a9"
+}

@@ -1,0 +1,16 @@
+{
+  "case_id": "08_excavator",
+  "reference_inventory": "/opt/astra-content-value-20260921/evaluator/case08_10/references/08_excavator/source_inventory.json",
+  "reference_inventory_sha256": "581fd12722d13c5ad5ce5cc09c572b9c6ec789ab53c441a32e5febd325e19c87",
+  "code_sha256": {
+    "case_hooks.py": "bc73524830314e305c067e5b0aa9a2494c2e0c9fb3d3b0ca288c370aaca85611",
+    "evaluate.py": "f8263ceb3a0390651862e225e6efb2067b2fc6664336c4d2883cf298da6813c8",
+    "structural.py": "3b06984cfb911f8c9685b5f17f3e7ea730a031dbf111837fa5a4bc157cb608bd",
+    "cases.json": "1064f4027959c5e6b3ed6a3ec013b6b097b48122aa48e8401312307f44e9bfd3",
+    "geometry.py": "4c8949f782a7eda10aa870cb31a1a29fda141241498f4ecdd370cb706ad3dd5f",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "solver.py": "3231719b868a882a937eda05fb9f8ed9ed87daf1f43a767328112072747e1240",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b"
+  },
+  "public_inventory_sha256": "ea1c0f2e1cd183343087602a75a79673e219ce6cdd2c9b287b474fa4d207fcf2"
+}

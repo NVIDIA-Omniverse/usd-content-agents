@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "platform": "Horde DGXC",
+  "verified_utc": "2026-09-21T21:40:44.204942+00:00",
+  "distinct_full_gpu_count": 4,
+  "layout": "two nodes with two full GPUs each",
+  "four_render_intervals_overlap_seconds": 300.0539529323578,
+  "lanes": [
+    {
+      "node_alias": "node_0",
+      "gpu_lane": 0,
+      "model": "NVIDIA L40",
+      "recorded_memory_mib": 49140,
+      "all_preflight_commands_succeeded": true,
+      "assigned_gpu_present_in_compute_samples_during_render": true,
+      "matching_sample_count": 139,
+      "render_started_epoch": 1790028252.8085666,
+      "render_ended_epoch": 1790028554.5675719,
+      "fixture_sha256": "a36d093a1467ae0b03d9dabf013aa8b8e41335fe41ef0b686977331272456f90",
+      "image": {
+        "shape": [
+          600,
+          800,
+          3
+        ],
+        "bytes": 119430,
+        "sha256": "1e65faff2a872a92ff5e3dbece9f954eb08b3b7efe347e70351005f7ceb35b58",
+        "rgb_min": 14,
+        "rgb_max": 236,
+        "std": 43.03824750268967,
+        "nonblack_fraction": 1.0,
+        "unique_rgb": 10120
+      },
+      "retained_node_result_sha256": "1471156fd6281bfd6ffd7014a5c988ceab4daed32c54576d0652be12a191a878",
+      "retained_gpu_inventory_sha256": "43c6a4ff36420a36c626b531dc5d48b34edb7f24033d1129ff3622adf751ded2",
+      "retained_gpu_process_samples_sha256": "d6cce5a9148cef405bde587c764fde9a52a1e37860d47398353e1727bd1a141c"
+    },
+    {
+      "node_alias": "node_0",
+      "gpu_lane": 1,
+      "model": "NVIDIA L40",
+      "recorded_memory_mib": 49140,
+      "all_preflight_commands_succeeded": true,
+      "assigned_gpu_present_in_compute_samples_during_render": true,
+      "matching_sample_count": 138,
+      "render_started_epoch": 1790028252.8095562,
+      "render_ended_epoch": 1790028552.899662,
+      "fixture_sha256": "a36d093a1467ae0b03d9dabf013aa8b8e41335fe41ef0b686977331272456f90",
+      "image": {
+        "shape": [
+          600,
+          800,
+          3
+        ],
+        "bytes": 119430,
+        "sha256": "1e65faff2a872a92ff5e3dbece9f954eb08b3b7efe347e70351005f7ceb35b58",
+        "rgb_min": 14,
+        "rgb_max": 236,
+        "std": 43.03824750268967,
+        "nonblack_fraction": 1.0,
+        "unique_rgb": 10120
+      },
+      "retained_node_result_sha256": "1471156fd6281bfd6ffd7014a5c988ceab4daed32c54576d0652be12a191a878",
+      "retained_gpu_inventory_sha256": "43c6a4ff36420a36c626b531dc5d48b34edb7f24033d1129ff3622adf751ded2",
+      "retained_gpu_process_samples_sha256": "d6cce5a9148cef405bde587c764fde9a52a1e37860d47398353e1727bd1a141c"
+    },
+    {
+      "node_alias": "node_1",
+      "gpu_lane": 0,
+      "model": "NVIDIA L40",
+      "recorded_memory_mib": 49140,
+      "all_preflight_commands_succeeded": true,
+      "assigned_gpu_present_in_compute_samples_during_render": true,
+      "matching_sample_count": 157,
+      "render_started_epoch": 1790028252.8409157,
+      "render_ended_epoch": 1790028602.2582948,
+      "fixture_sha256": "a36d093a1467ae0b03d9dabf013aa8b8e41335fe41ef0b686977331272456f90",
+      "image": {
+        "shape": [
+          600,
+          800,
+          3
+        ],
+        "bytes": 119430,
+        "sha256": "1e65faff2a872a92ff5e3dbece9f954eb08b3b7efe347e70351005f7ceb35b58",
+        "rgb_min": 14,
+        "rgb_max": 236,
+        "std": 43.03824750268967,
+        "nonblack_fraction": 1.0,
+        "unique_rgb": 10120
+      },
+      "retained_node_result_sha256": "8df1b0848ad1445bc92bbd2b1deaa5702d06bb218a0d35039e4b6818f07a2aad",
+      "retained_gpu_inventory_sha256": "f449b8651c4bda9b54560a84133ab44ecbe5151aa97057076bdf4427b0b1b06d",
+      "retained_gpu_process_samples_sha256": "af716ee6d0733dba9924aca900ff05b9e9cf397f860c0a1a9389c8421758650b"
+    },
+    {
+      "node_alias": "node_1",
+      "gpu_lane": 1,
+      "model": "NVIDIA L40",
+      "recorded_memory_mib": 49140,
+      "all_preflight_commands_succeeded": true,
+      "assigned_gpu_present_in_compute_samples_during_render": true,
+      "matching_sample_count": 157,
+      "render_started_epoch": 1790028252.845709,
+      "render_ended_epoch": 1790028603.1474786,
+      "fixture_sha256": "a36d093a1467ae0b03d9dabf013aa8b8e41335fe41ef0b686977331272456f90",
+      "image": {
+        "shape": [
+          600,
+          800,
+          3
+        ],
+        "bytes": 119430,
+        "sha256": "1e65faff2a872a92ff5e3dbece9f954eb08b3b7efe347e70351005f7ceb35b58",
+        "rgb_min": 14,
+        "rgb_max": 236,
+        "std": 43.03824750268967,
+        "nonblack_fraction": 1.0,
+        "unique_rgb": 10120
+      },
+      "retained_node_result_sha256": "8df1b0848ad1445bc92bbd2b1deaa5702d06bb218a0d35039e4b6818f07a2aad",
+      "retained_gpu_inventory_sha256": "f449b8651c4bda9b54560a84133ab44ecbe5151aa97057076bdf4427b0b1b06d",
+      "retained_gpu_process_samples_sha256": "af716ee6d0733dba9924aca900ff05b9e9cf397f860c0a1a9389c8421758650b"
+    }
+  ],
+  "retained_hardware_record_sha256": "9a0c5e366b458e0d9cbd2edc934bebdb60394db644886e4c46dfbdb5668faeda",
+  "scope": "Derived from retained GPU inventories, distinct device identities, command receipts, actual PNG hashes and timestamped compute-process samples. Device IDs and service addresses remain private. The synthetic renderer fixture tests environment readiness; it is not an asset-acceptance test or proof of GPU-exclusive PhysX execution."
+}

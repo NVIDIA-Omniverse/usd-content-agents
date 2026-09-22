@@ -1,0 +1,13 @@
+{
+  "case_id": "06_engine",
+  "arm": "content_agents",
+  "output_manifest_sha256": "abfab56597041d1e4c8c4a20aa8230d2d856a06a4922432b47d4f662fed11764",
+  "checked_files": 204,
+  "all_manifest_files_unchanged": true,
+  "mismatches": [],
+  "submitted_artifacts_unchanged": true,
+  "task_contract_unchanged": true,
+  "requested_model_effort_match": true,
+  "budget_seconds": 2400,
+  "checked_unix": 1790034793.707025
+}

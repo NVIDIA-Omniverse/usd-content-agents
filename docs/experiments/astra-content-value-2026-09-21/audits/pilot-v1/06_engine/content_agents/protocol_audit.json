@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "case_id": "06_engine",
+  "arm": "content_agents",
+  "valid": false,
+  "created_utc": "2026-09-21T23:58:17.653878+00:00",
+  "scope": "Author-level observational audit; global scheduling is evaluated separately in report/global_protocol_audit.json. No hidden reasoning inspected.",
+  "tool_requests_reviewed": 127,
+  "checks": [
+    {
+      "criterion": "model_effort_all_observed_sessions",
+      "valid": true,
+      "model": "gpt-6-astra",
+      "effort": "ultra"
+    },
+    {
+      "criterion": "wall_time_cap",
+      "valid": true,
+      "elapsed_seconds": 1134.3129711672664,
+      "cap_seconds": 2400
+    },
+    {
+      "criterion": "unchanged_output_and_task",
+      "valid": true,
+      "evidence_sha256": "41b423adba8fe92fe637801d28110f519fa6deeb6808efae222b08f3336a8c4f"
+    },
+    {
+      "criterion": "source_and_repository_unchanged",
+      "valid": true,
+      "evidence": "../independent_hash_verification.json"
+    },
+    {
+      "criterion": "repair_limit",
+      "valid": true,
+      "declared": 1,
+      "reviewed": 1,
+      "details": "Preserved first Geometry candidate433060triangles; one cached-BREP retessellation165080triangles; first failed and second conditional receipts retained."
+    },
+    {
+      "criterion": "treatment_or_control_adherence",
+      "valid": true,
+      "details": "Native Geometry and repaired Geometry receipts followed by asset-launch provenance rejection; no physical workaround labeled workflow success."
+    },
+    {
+      "criterion": "no_cross_case_code_exposure",
+      "valid": false,
+      "details": "Child broad process listing exposed05CA source-copy/hash code and detailed vise workflow prompt at23:21:02.801UTC. Second targeted PID listing and parent Geometry listing exposed no foreign code. No independent evaluator file/result read observed.",
+      "exposure_output_sha256": "0ae7057b51be6192315ce54d51178470c93e11cdbf9d3c954d110f905bf627b4",
+      "private_selected_response_sha256": "761fba1fb99dc80dbee936c6064da19c57e06574f8d998a407c7398f68c91b90"
+    }
+  ],
+  "limitations": [
+    "Instruction-based isolation is not complete OS mediation. Unchanged current hashes do not exclude transient edits restored before inspection.",
+    "Physical acceptance is decided separately by frozen evaluator and versioned numerical adjudication."
+  ],
+  "tool_requests_sha256": "45ccce6b3f79cad07f0c1e7526e9eb1a1cd5b2a7ca29d9988628bfdbd0d0b21e"
+}

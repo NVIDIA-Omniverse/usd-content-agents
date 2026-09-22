@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "four_gpu_verified_utc": "2026-09-21T21:40:44.204942+00:00",
+  "gpus": 4,
+  "gpu_model": "NVIDIA L40 48GB",
+  "reservation_end_utc": "2026-09-22T04:54:31.971417+00:00",
+  "benchmark_first_author_start_utc": "2026-09-21T22:12:08.036674+00:00",
+  "benchmark_last_author_end_utc": "2026-09-22T01:03:59.154515+00:00",
+  "reserved_gpu_seconds_since_hardware_verification": 82529.290196,
+  "scope": "Descriptive allocation accounting, not a Horde invoice. Per-arm allocated GPU time is tracked in results. The shared environment additionally incurs setup, idle-lane, evaluation, export, and separately labeled capstone time. Reservation time and per-arm allocation overlap and must not be added together. Earlier failed provisioning/setup allocation is not fully measured.",
+  "human_setup_seconds": null,
+  "automated_setup_model_usage_complete": false,
+  "dollar_rates_available": false,
+  "author_window_time_note": "End time derived from recorded launch wall clock plus monotonic elapsed duration; excludes teardown/export.",
+  "completed_author_runs": 20,
+  "node_allocations": [
+    {
+      "node_alias": "node_0",
+      "gpus": 2,
+      "verified_start_utc": "2026-09-21T21:40:44.204942+00:00",
+      "stop_confirmed_utc": "2026-09-22T04:54:31.971417+00:00",
+      "state": "stopped",
+      "allocated_gpu_seconds_through_stop_confirmation": 52055.53295,
+      "stop_requested_utc": "2026-09-22T04:54:20.641659+00:00",
+      "retained_stop_receipt_sha256": "0e18910044ae2a0a1012c998502611f721c6992b6ad3169626bfc0d58cc8dfef",
+      "retention_archive_sha256": "e09978c6ad921204e1de775900ad7a603d67839888e6bf3a0c16ee7d6cd8ebdf"
+    },
+    {
+      "node_alias": "node_1",
+      "gpus": 2,
+      "verified_start_utc": "2026-09-21T21:40:44.204942+00:00",
+      "stop_requested_utc": "2026-09-22T01:54:26.397500+00:00",
+      "stop_confirmed_utc": "2026-09-22T01:54:41.083565+00:00",
+      "state": "stopped",
+      "allocated_gpu_seconds_through_stop_confirmation": 30473.757246,
+      "retained_stop_receipt_sha256": "e5f973fb7f0f8a01db6b6c0c78e8a22ae25281e56087381fa92fa8c648ee5c65",
+      "retention_archive_sha256": "2c18e35ae07703aae10b468d6f287e9faf9136c2e57b70af43547be9f2bb740f"
+    }
+  ],
+  "allocation_end_note": "Node intervals end at stop confirmation, a conservative allocation boundary rather than a billing timestamp. Sum per-node GPU-seconds after both nodes stop; do not multiply the latest end time by four because nodes stop separately.",
+  "reserved_gpu_hours_since_hardware_verification": 22.924802832222223
+}

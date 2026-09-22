@@ -1,0 +1,18 @@
+{
+  "case_id": "09_printer",
+  "reference_inventory": "/opt/astra-content-value-20260921/evaluator/general/references/09_printer/source_inventory.json",
+  "reference_inventory_sha256": "92937c66acf4a6f70259b7f0f12b202fa77a45784f1d2995f025aedf7d38a962",
+  "code_sha256": {
+    "evaluate.py": "f7822febe17e612bd808c5612506d4554d0a872a3eda18677d4a16418d2e771b",
+    "structural.py": "12859b0886d79f73a218abcab9a586c8cede8200300e0dd7ce8f417b65bafaf9",
+    "cases.json": "f2d41de2ed85fc4ff7a03289a6b0c7b856343ff2320dd7e410f154392cf7eb05",
+    "geometry.py": "8ed38f600d338cca30a3d4d6bcbe7a511922e41598b1189f4dde823ef6e464f1",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "case09_placement.json": "12a3a51078fbfbd812ff49ba70b2dded4f7e8b3a508ca4d0ec4d526a4086fa3b",
+    "case09_payload_contract.json": "cb843047b5f74cac6af037d8db04194b34ba3217e58d6d29b50ca5e0f0bc6096",
+    "case09_payload.py": "2a6c20b761f7ad4aa0f6cabddebc73b20697bb03e7b7ae44bd39832821296d0d",
+    "solver.py": "ad24b111295c99ba5d2f228110d1ffb91167cabd9d7effc78cafc6ec868c0554",
+    "bindings.schema.json": "1db295614d7aa1a4fb2c5943d801512de8bd86b81280019596bbde45cdb4414b"
+  },
+  "public_inventory_sha256": "a3b6223ee9e5c4bf2100a9681caaa44c3e03335a12cdfa137c6e7042c500bbd1"
+}

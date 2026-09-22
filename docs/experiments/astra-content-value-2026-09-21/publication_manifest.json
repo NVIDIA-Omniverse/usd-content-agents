@@ -2005,10 +2005,10 @@
     },
     {
       "path": "report/compute_accounting.json",
-      "sha256": "ccbea4ff4a9361e06d19b2230377d397804b66df3d8c17ec18e412865dc812c0",
-      "original_retained_sha256": "ccbea4ff4a9361e06d19b2230377d397804b66df3d8c17ec18e412865dc812c0",
+      "sha256": "60bc2ef3048195b7d751033f6b7ef719467376e31290d72908d55101893914b0",
+      "original_retained_sha256": "60bc2ef3048195b7d751033f6b7ef719467376e31290d72908d55101893914b0",
       "projection": true,
-      "bytes": 2162
+      "bytes": 2554
     },
     {
       "path": "report/global_protocol_audit.json",

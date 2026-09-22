@@ -1,0 +1,25 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "f65c9e73a1a3f0efa11989e4a0f7bf5d66cfdb0de654a7cbc32f1169dd0dcc7b"
+  },
+  "articulation_roots": 0,
+  "axis": "Z",
+  "joint_path": "/Asset/Joints/candidate_0001_ed11071c24ea",
+  "joint_type": "PhysicsPrismaticJoint",
+  "limits_m": [
+    0,
+    0.3
+  ],
+  "output": "runs/drawer_joint_02/joint_rigger/rigged.usdz",
+  "output_sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+  "passed": true,
+  "physics_task_accepted": false,
+  "source": "runs/drawer_packaging_02/source.usdz",
+  "source_fidelity": {
+    "claim_scope": "Exact prepared/source-derived render points, face arrays, part paths, visibility, purpose, surface orientation, units and default transforms only; collision and runtime validation remain required downstream.",
+    "passed": true,
+    "source_mesh_count": 5
+  }
+}

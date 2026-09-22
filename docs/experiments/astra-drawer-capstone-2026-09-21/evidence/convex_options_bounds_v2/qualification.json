@@ -1,0 +1,193 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "e9bf7befb99a98cd2941287a82539263b91837b943d6497c3329d9a054c3c08a"
+  },
+  "artifacts": [
+    {
+      "path": "candidate_overlay.tgz",
+      "sha256": "57daa10dd0e5615a91cb44c9c650865171d812d1d09644050bb3498ff8080246",
+      "size": 2690634
+    },
+    {
+      "path": "correction.patch",
+      "sha256": "11032266bf9b8df2c837cc29fc0696aeb9035c97eb0edd5e5369ede3943496a8",
+      "size": 8983
+    },
+    {
+      "path": "overlay_manifest.json",
+      "sha256": "83f9ba23e1180b292409fd09da576470ebfbd688133a1ae06c5e5e94763bd54e",
+      "size": 47419
+    },
+    {
+      "path": "qualify_backend_bounds.py",
+      "sha256": "9a0b660e006a77ee851fad65d4eb0928ab8bc2a96aee9f62fd230eeeec5b1712",
+      "size": 6129
+    },
+    {
+      "path": "results/build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "results/cook.log",
+      "sha256": "090bf4a4d39ef3804ec9bd098847cf10906b09e1d91001ba24c936463c613979",
+      "size": 14090
+    },
+    {
+      "path": "results/cooking/many_hulls.usda",
+      "sha256": "11eb4595cf4abe0bba7b39631ba79610a5ae60d0d336fbf5ee9847c7198e9be1",
+      "size": 1821
+    },
+    {
+      "path": "results/cooking/one_hull.usda",
+      "sha256": "a65365a2d4ea0da7776cbb98f55d70c2c7fc9fdcd55f6c206cc724c8701c5f6c",
+      "size": 1820
+    },
+    {
+      "path": "results/cooking/prepared.json",
+      "sha256": "daa7592ec0f81d50190676b51e46edbc851eec2dda9d462f6ba2d8c28ebe3efa",
+      "size": 1568
+    },
+    {
+      "path": "results/cooking/queries.json",
+      "sha256": "10b9f2bf0f7fc88f57c8073902915c9102110f380a6cb161efece5ab5e0c11c4",
+      "size": 1032
+    },
+    {
+      "path": "results/cooking/result.json",
+      "sha256": "66f3f9a12577316aaa929b375a66b2a98258a1c038cfcd0d57c51f5e3592ec5d",
+      "size": 1912
+    },
+    {
+      "path": "results/skills_check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "results/tests.log",
+      "sha256": "fdd4e49928f5c48fe9e1939cc3911aaa899435383ebb0f4b9b57b30edcf42827",
+      "size": 1427
+    },
+    {
+      "path": "results/tests_initial_no_cov_plugin.log",
+      "sha256": "867466f36c927df90138002b7448f34ad243c188029320019d599f7794f5ab5a",
+      "size": 296
+    },
+    {
+      "path": "results/tests_overlay_shadowed_by_repository_conftest.log",
+      "sha256": "31ec24332cbd066729827b893a82c48f857432a59fc91fcda652769ccafd9814",
+      "size": 8384
+    },
+    {
+      "path": "results.tgz",
+      "sha256": "f8387506a251939865b155a3e73bfb3b452c3aa8643bbbf3b38aa847c617a2e6",
+      "size": 4474
+    }
+  ],
+  "base_commit": "155aaf16dfc2afb70a44ffb15f137075199a884c",
+  "code_files": [
+    {
+      "matches_tested_snapshot": true,
+      "path": "agentic/packages/content_agent_workflows/content_agent_workflows/physics/workflow.py",
+      "sha256": "feca8d322df5cd8827a0db694db3c76384031ae75faa9eb592d7d76c59dfcbe9"
+    },
+    {
+      "matches_tested_snapshot": true,
+      "path": "apps/usd_cli/src/usd_core/physics.py",
+      "sha256": "f30cc5989307a8dabc66a578912e8a7b0506885f2157e9feae1ee79ebc628eb3"
+    },
+    {
+      "matches_tested_snapshot": true,
+      "path": "agentic/packages/content_workflow_cli/content_workflow_cli/prompts.py",
+      "sha256": "9370aabee2aee28221d64a409130745529e1b92a46164f26452726ad030292d8"
+    },
+    {
+      "matches_tested_snapshot": true,
+      "path": "agentic/docs/drawer_geometry_capstone.md",
+      "sha256": "f3db44aaa39e37ad6fbbf65b6ac1fa9404296a89e7620830a7130ba8da3a590b"
+    },
+    {
+      "matches_tested_snapshot": true,
+      "path": "tests/test_drawer_capstone_convex_decomposition.py",
+      "sha256": "fb98d55fc29c97501be519c5a01f1e86b868ab9abe6b51ac2a0884c7221ef2ee"
+    }
+  ],
+  "commands": {
+    "build": "<same isolated source PYTHONPATH> <existing python> qualify_backend_bounds.py build",
+    "cook": "OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TMPDIR=/opt/astra-content-value-20260921/tmp UV_NO_CACHE=1 nice -n15 ionice -c3 /opt/astra-content-value-20260921/ovphysx-venv/bin/python qualify_backend_bounds.py cook",
+    "skills": "./scripts/sync_agent_skills.sh --check",
+    "test": "PYTHONPATH=<isolated-repo>/agentic/packages/content_agent_workflows:<isolated-repo>/agentic/packages/content_workflow_cli:<isolated-repo>/apps/usd_cli/src OVPHYSX_GENERATED_SCHEMA=<installed native schema> <existing python> -m pytest -o addopts= tests/test_drawer_capstone_convex_decomposition.py tests/test_public_quickstart_regression.py tests/test_packaging_requests_declared.py tests/test_pyproject_fallback_version.py agentic/packages/content_workflow_cli/tests/test_physics_apply_prompt_constraints.py -q"
+  },
+  "commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+  "correction": {
+    "backend": "ovphysx0.4.13 omni.convexdecomposition.plugin",
+    "effective_decomposition_backend_range": [
+      8,
+      64
+    ],
+    "evidence": "native08_cooked_clearance_v1.log: Invalid max hull vertices(128) must be between8and64. USD integer schema/readback did not establish backend support.",
+    "new_behavior": "Typed decisions and direct authoring reject out-of-range values before mutation. Default64 unchanged; omitted record preserves existing attrs including old128 unchanged.",
+    "previous_authored_range": [
+      4,
+      255
+    ],
+    "previous_qualification_preserved": true,
+    "prior_claim_correction": "Earlier schema readback and native64 fixture did not qualify every value in4..255; this receipt narrows that claim and interface."
+  },
+  "limitations": [
+    "No claim that all other cooking options or every geometry are qualified.",
+    "8 and64 are exercised by separate synthetic native witnesses;32-hull cavity behavior does not measure every resulting hull vertex count.",
+    "Original08 and all5 task failures remain unchanged."
+  ],
+  "native8_witness": {
+    "cpu_process_count": 1,
+    "invalid_hull_vertex_warning_present": false,
+    "many_hulls_floor_y_m": 0.013120874762535095,
+    "many_hulls_query_distance_m": 0.08687912672758102,
+    "native_steps": 2,
+    "one_hull_query_distance_m": 0.0,
+    "other_backend_plugin_cpu_fallback_and_unload_warnings_retained": true,
+    "passed": true,
+    "result_sha256": "66f3f9a12577316aaa929b375a66b2a98258a1c038cfcd0d57c51f5e3592ec5d",
+    "script_sha256": "9a0b660e006a77ee851fad65d4eb0928ab8bc2a96aee9f62fd230eeeec5b1712",
+    "source_floor_y_m": 0.012,
+    "source_geometry_synthetic_only": true
+  },
+  "native_drawer_acceptance_claim": false,
+  "patch_sha256": "11032266bf9b8df2c837cc29fc0696aeb9035c97eb0edd5e5369ede3943496a8",
+  "preserved08_asset_sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+  "prior64_witness": {
+    "path": "capstone/evidence/convex_options_qualification/cooking/result.json",
+    "preserved": true,
+    "sha256": "6e3c3e13b1cea638911f0c4e27e3508dc8367bffc8f6ff3aac9320c5a8f51493"
+  },
+  "qualified_utc": "2026-09-22T03:00:31.373079+00:00",
+  "remote_active_checkout_mutated": false,
+  "schema_version": 1,
+  "scored_or_frozen_files_modified": false,
+  "setup_attempts_preserved": [
+    {
+      "path": "results/tests_initial_no_cov_plugin.log",
+      "reason": "Repository pytest default addopts required unavailable coverage plugin; final run used -o addopts= without installing packages."
+    },
+    {
+      "path": "results/tests_overlay_shadowed_by_repository_conftest.log",
+      "reason": "Initial overlay test invoked from active repo; its conftest prepended old source. Tests correctly exposed old permissive range. Final qualification ran from a new isolated full source tree with candidate overlay, leaving active checkout unchanged."
+    }
+  ],
+  "status": "qualified_bounded_correction",
+  "tests": {
+    "coverage": [
+      "8/64 survive full target-resolution to saved native attrs",
+      "4/7/65/128/255 rejected by typed model and batch guard with no stage mutation",
+      "None options preserve legacy128 byte-for-byte",
+      "all prior applicability/type/batch tests and required AGENTS modules/prompt constraints"
+    ],
+    "duration_s": 5.2,
+    "native_schema_readback_included": true,
+    "required_skills_check": "passed",
+    "result": "100 passed,14 skipped,3 warnings"
+  }
+}

@@ -1,0 +1,17 @@
+......................s.s..s.s.sssss.ss..........s.......ss..            [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1434
+  /opt/astra-content-value-20260921/capstone/repo/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1434: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_public_quickstart_regression.py::test_joint_byoa_template_loads_after_input_and_authoring_opt_in
+  /opt/astra-content-value-20260921/repo/.venv/lib/python3.12/site-packages/typer/__init__.py:24: DeprecationWarning: 'click.utils.get_binary_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_binary_stream as get_binary_stream
+
+tests/test_public_quickstart_regression.py::test_joint_byoa_template_loads_after_input_and_authoring_opt_in
+  /opt/astra-content-value-20260921/repo/.venv/lib/python3.12/site-packages/typer/__init__.py:25: DeprecationWarning: 'click.utils.get_text_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_text_stream as get_text_stream
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+47 passed, 14 skipped, 3 warnings in 23.82s

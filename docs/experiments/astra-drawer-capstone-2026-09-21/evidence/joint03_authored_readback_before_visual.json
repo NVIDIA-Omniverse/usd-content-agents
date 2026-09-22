@@ -1,0 +1,62 @@
+{
+  "asset_sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+  "joint_path": "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24",
+  "body0": [
+    "/Asset/drawer_cabinet_0/Primitive_0"
+  ],
+  "body1": [
+    "/Asset/drawer_cabinet_drawer_01_1"
+  ],
+  "axis": "Z",
+  "limits_m": [
+    0,
+    0.3
+  ],
+  "local_positions": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "local_rotations_wxyz": [
+    [
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      1,
+      0,
+      0,
+      0
+    ]
+  ],
+  "collision_enabled": false,
+  "rigid_body_count": 0,
+  "collider_count": 0,
+  "articulation_root_count": 0,
+  "joint_attributes": {
+    "physics:axis": "Z",
+    "physics:breakForce": "inf",
+    "physics:breakTorque": "inf",
+    "physics:collisionEnabled": "False",
+    "physics:excludeFromArticulation": "False",
+    "physics:jointEnabled": "True",
+    "physics:localPos0": "(0, 0, 0)",
+    "physics:localPos1": "(0, 0, 0)",
+    "physics:localRot0": "(1, 0, 0, 0)",
+    "physics:localRot1": "(1, 0, 0, 0)",
+    "physics:lowerLimit": "0.0",
+    "physics:upperLimit": "0.30000001192092896",
+    "purpose": "default",
+    "visibility": "inherited"
+  },
+  "joint_api_tokens": []
+}

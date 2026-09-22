@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-09-22T04:13:22.794424+00:00",
+  "scope": "Read-only provenance clarification and exact links to independent reviews; no acceptance promotion.",
+  "native_review_sha256": "1f954b973ee0ba50e0b1d663885d208afcab78ed895bea9270cbed1d521dbc92",
+  "task_audit_sha256": "fe57652db03858ff741effca47cfd4695a8fb93613b807b83ded523b7747fea3",
+  "workflow_manifest_sha256": "f13f28b94762b0922e18fdf80d2dc08dfb06a585d49951ca2a4f49531d873cc2",
+  "code_commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+  "usd_cli_subtree_sha": "c3f7c8cb0fd44bfbc79441a35f2f1acd62a46a06",
+  "manifest_subtree_matches": true,
+  "readback_command": [
+    "git",
+    "-C",
+    "work/public-repo-review-2026-09-21/astra-drawer-capstone",
+    "rev-parse",
+    "e640b8d6aa667745830db5e9bf87fd1b4cd763cb:apps/usd_cli"
+  ],
+  "meaning": "usd_cli_source_revision is the apps/usd_cli committed subtree identity, rather than the repository HEAD. The two distinct hashes are expected.",
+  "native_api_source": "agentic/packages/content_agent_workflows/content_agent_workflows/common/usd_cli.py:1412",
+  "api_source_sha256": "8e2049d7cead76191773ab727e4774869091f40e183fdce1a74747c4f4cd2c60",
+  "task_audit_scope": "The unchanged qualified auditor reconciles39 bound inputs,5 seeds,2460 samples per seed and declared frozen metrics. Its task_acceptance_attested=false is intentional; original solver reports supply the task verdict and actual native Validation is separate."
+}

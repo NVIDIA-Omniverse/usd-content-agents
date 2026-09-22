@@ -1,0 +1,28 @@
+{
+  "captured_utc": "2026-09-22T03:51:54.159382+00:00",
+  "native_status_at_capture": "pass",
+  "check_names": [
+    "physics_properties",
+    "runtime_loadability",
+    "no_explosions"
+  ],
+  "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+  "artifacts": [
+    {
+      "source": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/validation_evidence.json",
+      "saved": "/opt/astra-content-value-20260921/capstone/evidence/native10_pre_visual_runtime/validation_evidence.json",
+      "sha256": "e27572313ec94e18fcb89e01d2182e607980b0616971b4b69b19bc1f21261685"
+    },
+    {
+      "source": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/runtime_validation_report.json",
+      "saved": "/opt/astra-content-value-20260921/capstone/evidence/native10_pre_visual_runtime/runtime_validation_report.json",
+      "sha256": "377637b643bafe0d935153b658e126ba6b6384ec76057f06dc4a3d717d280869"
+    },
+    {
+      "source": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/raw/physics_decision_patch.json",
+      "saved": "/opt/astra-content-value-20260921/capstone/evidence/native10_pre_visual_runtime/physics_decision_patch.json",
+      "sha256": "a4fde80605393eb28b4fd6d9f0c280d128265fbd1beee279bd8ae96db31af740"
+    }
+  ],
+  "scope": "Exact observed clean native evidence before visual merge; no synthetic status or removed check. Use only if asset SHA still matches later candidate."
+}

@@ -1,0 +1,126 @@
+{
+  "schema": "capstone.native10-outcome.v1",
+  "generated_utc": "2026-09-22T04:08:35.900676+00:00",
+  "native_physics_workflow": "PASS: genuine native runtime and Astra Ultra OVRTX review; mounted-rest scope",
+  "independent_frozen_task": "PASS: all five source_clear_v1 seeds",
+  "native_validation": "PENDING; owned by root, separate genuine stage required",
+  "independent_trace_audit": "PENDING; owned by root/independent reviewer",
+  "final_conjunction": "PENDING native Validation and independent trace audit",
+  "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+  "report_sha256": "35954e143077af36b7ee34981eb370a897858f07ae2edc6b6864791b3e0f147c",
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "checks_by_seed": {
+    "11": {
+      "opening": true,
+      "closing": true,
+      "closed_settled": true,
+      "payload_retained": true,
+      "payload_contact": true,
+      "penetration": true,
+      "off_axis": true,
+      "rotation": true,
+      "initial_drift": true,
+      "force_bounded": true,
+      "finite_and_stable": true,
+      "interior_clear": true
+    },
+    "23": {
+      "opening": true,
+      "closing": true,
+      "closed_settled": true,
+      "payload_retained": true,
+      "payload_contact": true,
+      "penetration": true,
+      "off_axis": true,
+      "rotation": true,
+      "initial_drift": true,
+      "force_bounded": true,
+      "finite_and_stable": true,
+      "interior_clear": true
+    },
+    "47": {
+      "opening": true,
+      "closing": true,
+      "closed_settled": true,
+      "payload_retained": true,
+      "payload_contact": true,
+      "penetration": true,
+      "off_axis": true,
+      "rotation": true,
+      "initial_drift": true,
+      "force_bounded": true,
+      "finite_and_stable": true,
+      "interior_clear": true
+    },
+    "83": {
+      "opening": true,
+      "closing": true,
+      "closed_settled": true,
+      "payload_retained": true,
+      "payload_contact": true,
+      "penetration": true,
+      "off_axis": true,
+      "rotation": true,
+      "initial_drift": true,
+      "force_bounded": true,
+      "finite_and_stable": true,
+      "interior_clear": true
+    },
+    "131": {
+      "opening": true,
+      "closing": true,
+      "closed_settled": true,
+      "payload_retained": true,
+      "payload_contact": true,
+      "penetration": true,
+      "off_axis": true,
+      "rotation": true,
+      "initial_drift": true,
+      "force_bounded": true,
+      "finite_and_stable": true,
+      "interior_clear": true
+    }
+  },
+  "maximums": {
+    "max_q_m": 0.24322553724050522,
+    "max_penetration_m": 1.8596649169921875e-05,
+    "max_off_axis_m": 6.43730224207196e-06,
+    "max_closed_hold_error_m": 0.00015838444232940674,
+    "max_closed_hold_speed_m_s": 0.0009337039082311094
+  },
+  "scope": [
+    "Unscored follow-up after preserved 08/09 task failures; frozen pilot unchanged.",
+    "Original five source meshes and 26,406 triangles retained exactly.",
+    "Explicit static-Mesh joint endpoint resolves actual actor; existing connected-actor collision exclusion is intentional ideal-joint semantics, not realistic rail friction/clearance.",
+    "Source-clear fixture changes only payload spawn and protocol ID; original intersecting spawn retained and all other controls/thresholds unchanged.",
+    "All five trials use CPU PhysX; known exact documented registry startup warning separately reviewed, other warnings retained.",
+    "Final accepted asset must remain exact SHA; any portable derivative has separate identity and does not automatically inherit acceptance."
+  ],
+  "task_timing": {
+    "started_utc": "2026-09-22T04:01:55.407242+00:00",
+    "command": [
+      "/opt/astra-content-value-20260921/capstone/repo/.venv/bin/python",
+      "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_evaluate.py",
+      "--bindings",
+      "/opt/astra-content-value-20260921/capstone/evidence/native10_task_bindings.json",
+      "--output",
+      "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1",
+      "--solver",
+      "/opt/astra-content-value-20260921/ovphysx-venv/bin/python"
+    ],
+    "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+    "scope": "Five sequential independent unscored task trials; native workflow/visual outcome reported separately; same source_clear_v1 thresholds and declared static-Mesh endpoint.",
+    "fixture_unchanged": true,
+    "completed_utc": "2026-09-22T04:06:41.550152+00:00",
+    "returncode": 0,
+    "asset_unchanged": true
+  },
+  "full_task_archive_sha256": "c5a31909a4ffade80c881a3a688625af772d574d67ba2368a5f822b257a8833b",
+  "full_task_archive_verified_files": 35
+}

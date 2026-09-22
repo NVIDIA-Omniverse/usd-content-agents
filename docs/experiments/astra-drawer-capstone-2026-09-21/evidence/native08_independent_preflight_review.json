@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "reviewed_utc": "2026-09-22T02:51:46.240500+00:00",
+  "reviewer_script_sha256": "e0ac600939ff179aa55d19278156181d0441a6ec06995220c79909a6e8efc98d",
+  "input_hashes": {
+    "runs/drawer_physics_08/physics.usda": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+    "runs/drawer_physics_03/physics.usda": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+    "evidence/native08_cooked_clearance_v1.json": "0e4570a1dd03ffa277ac3ac7f9786699e9636d4388eb7d379686d8ae41ecc129",
+    "evidence/native08_cooked_clearance_v1.log": "37b274224b61c9dc0e6c58c584984059d4470a9599bcf5dd95fe3443b70d5d19",
+    "evidence/original_source_drawer_physics_08.json": "a55a6c81ae56e45e249958072b13dbe7f3c2d432639b8976a27ad6978b3c8b3e",
+    "evidence/authored_contract_drawer_physics_08.json": "183ae3238c0ecdeffc397e52eab24a4df9dc7777a9fdf709856a5f9999d1546a",
+    "evidence/native08_query_preflight_correction.json": "5a46a5f2dd28d82d39aa9b438a55f43011cb3030ac01383d40800815f6b7a431",
+    "probe_cooked_drawer_clearance.py": "096e1900f294c8d7fbf30f878c30f7989b1e89db5fdbd24ba10cf006a612b8b7",
+    "verify_original_drawer_geometry.py": "cff78b65e68ad47372c0dcd2a1a2da5ff65f5ec1ab00005c63e3e2afd883c280",
+    "audit_native_drawer_contract.py": "eec857b3076423cd5c01aabacfad8e65ec4044edfe6711e4ba6e352d7e8d447f",
+    "evaluator/source_clear_v1/drawer_acceptance.json": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd"
+  },
+  "checks": [
+    {
+      "name": "exact08_sha",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "query_binds_asset_and_spec",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "original_source_hashes",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_arrays_drawer_cabinet",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_world_transform_drawer_cabinet",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "collider_enabled_drawer_cabinet",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_arrays_drawer_cabinet_drawer_01",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_world_transform_drawer_cabinet_drawer_01",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "collider_enabled_drawer_cabinet_drawer_01",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_arrays_drawer_cabinet_drawer_02",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_world_transform_drawer_cabinet_drawer_02",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "collider_enabled_drawer_cabinet_drawer_02",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_arrays_drawer_cabinet_drawer_03",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_world_transform_drawer_cabinet_drawer_03",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "collider_enabled_drawer_cabinet_drawer_03",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_arrays_drawer_cabinet_drawer_04",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "source_world_transform_drawer_cabinet_drawer_04",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "collider_enabled_drawer_cabinet_drawer_04",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "complete_source_node_bijection",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "unchanged_physics:mass",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "unchanged_physics:density",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "unchanged_physics:centerOfMass",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "unchanged_physics:diagonalInertia",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "unchanged_physics:principalAxes",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "yaw_envelope_monotone_for_frozen_dimensions",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "full_seed_envelope_exact",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "populated_initial_pose_no_steps",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "known_overlap_positive_control",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "all25_floor_rays_positive",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "payload_envelope_clear",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "six_frozen_interior_spheres_clear",
+      "pass": true,
+      "detail": null
+    }
+  ],
+  "supported_preflight_claims_pass": true,
+  "all_inputs_unchanged": true,
+  "floor_rays_y_range_m": [
+    1.0129997730255127,
+    1.017181396484375
+  ],
+  "central_floor_y_m": 1.0129997730255127,
+  "minimum_measured_payload_bottom_gap_m": 0.005818376541137704,
+  "blocking_overclaim": {
+    "code": "requested_hull_limit_not_runtime_qualified",
+    "warning": "[Warning] [omni.convexdecomposition.plugin] Invalid max hull vertices(128) must be between 8 and 64",
+    "authored_hull_vertex_limit": 128,
+    "observed_backend_valid_range": [
+      8,
+      64
+    ],
+    "meaning": "Authored readback128 is valid USD data but backend warns it is invalid. Queries describe the resulting cooked shapes without proving128 took effect. No asset or trial is changed."
+  },
+  "scope": "Read-only independent source-array bijection, enabled collider, preserved mass properties, frozen envelope math, retained positive/negative native query receipts. No simulation/renderer/model called. Not task or native workflow acceptance.",
+  "limitations": [
+    "Query initialization correctness is supported by nonempty known-overlap and25 floor hits; this review does not independently rerun native backend.",
+    "Clear initial payload/interior says nothing about drawer-body interpenetration, motion, retention or all-seed task success.",
+    "The source/author helper scripts have broader hardening opportunities (source node uniqueness and enabled collider checks); this reviewer directly checked those for this exact08 asset.",
+    "CPU fallback warnings remain in retained log; particle/deformable and GPU collision support are not claimed."
+  ]
+}

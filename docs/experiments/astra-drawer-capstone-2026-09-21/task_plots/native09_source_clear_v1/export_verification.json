@@ -1,0 +1,40 @@
+{
+  "observed_utc": "2026-09-22T03:32:16.928768+00:00",
+  "scope": "Exact trace compression and full-range plot verification; no new simulation",
+  "all_five_fail": true,
+  "plot_visually_inspected": true,
+  "checks": [
+    {
+      "seed": 11,
+      "uncompressed_bytes": 153093591,
+      "compressed_bytes": 28283915,
+      "exact_decompression": true
+    },
+    {
+      "seed": 23,
+      "uncompressed_bytes": 153056843,
+      "compressed_bytes": 28320473,
+      "exact_decompression": true
+    },
+    {
+      "seed": 47,
+      "uncompressed_bytes": 153052083,
+      "compressed_bytes": 28298535,
+      "exact_decompression": true
+    },
+    {
+      "seed": 83,
+      "uncompressed_bytes": 150711396,
+      "compressed_bytes": 28507531,
+      "exact_decompression": true
+    },
+    {
+      "seed": 131,
+      "uncompressed_bytes": 152888738,
+      "compressed_bytes": 28229196,
+      "exact_decompression": true
+    }
+  ],
+  "summary_sha256": "460e57996cb25c797a03b726556c07ce8f8d06a87e324c078ad30aa2c24bde85",
+  "plot_sha256": "5ca410eb8d8623f9fb60fef3b7a5c7af14e9feb1933275a140467ad151e2d546"
+}

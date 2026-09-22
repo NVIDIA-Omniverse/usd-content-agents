@@ -1,0 +1,26 @@
+{
+  "scope": "Actual retained08/09 launcher precheck only; no models/solvers/renderers",
+  "cases": [
+    {
+      "case": "08",
+      "asset_sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "task_report_sha256": "ec5ce75653ddb3e567bea403d3c2394ca037023543472c183e717d6458d8871c",
+      "native_manifest_sha256": "6bf73cefaf7b08fafb5685ecce552381d65ec87c128ae981f7d2a13e1be0c392",
+      "status": "REJECTED",
+      "reason": "Native Physics workflow is not pass; retain failure and obtain fresh honest evidence.",
+      "asset_unchanged": true,
+      "output_created": false
+    },
+    {
+      "case": "09",
+      "asset_sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+      "task_report_sha256": "45149739ee51187e5092f8034ed0ac0f3dcaef4974a5fbddeaad3357cb04feab",
+      "native_manifest_sha256": "d82517649b310412270fa59ed28c17c5f67548b566a0cfb8247de0dcf39025f7",
+      "status": "REJECTED",
+      "reason": "Native Physics workflow is not pass; retain failure and obtain fresh honest evidence.",
+      "asset_unchanged": true,
+      "output_created": false
+    }
+  ],
+  "all_rejected_unchanged": true
+}

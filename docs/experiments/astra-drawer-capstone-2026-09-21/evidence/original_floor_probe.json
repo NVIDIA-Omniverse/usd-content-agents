@@ -1,0 +1,9 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "2dcc12976551306c3d4610c4a6bfac9085e74cb77bf2c101f9bed9ada8e0eb2d"
+  },
+  "scope": "Original visible source triangle intersections only. No collider or runtime conclusion.",
+  "source_bin_sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9"
+}

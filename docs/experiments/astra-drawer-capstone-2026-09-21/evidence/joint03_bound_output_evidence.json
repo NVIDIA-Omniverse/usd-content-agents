@@ -1,0 +1,71 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "7c6e80cb1332978a3b90e777b7251a361c90fa2a3f3a1e25dd6202906ad68d3b"
+  },
+  "backend_alias": "ovrtx",
+  "canonical_visual_contract_sha256": "f9ba40521327b811e451a9e4862e537a0ebaa79932ad54592d295706c796e1c6",
+  "canonical_visual_envelope": {
+    "path": "runs/drawer_joint_03_visual/verified_operation_envelope.json",
+    "sha256": "7c3c25873ba67e04b5ae5b38f42f0485999a7e5b518a60eb5b411804e98164b8",
+    "size_bytes": 7227
+  },
+  "canonical_visual_payload": {
+    "path": "runs/drawer_joint_03_visual/canonical_visual_payload.json",
+    "sha256": "a480b818275145d298a1e745f4e36206ab1936fd42f5c5cd9e5ced457cd7bcf6",
+    "size_bytes": 2839
+  },
+  "canonical_visual_projection": {
+    "path": "runs/drawer_joint_03_visual/verified_operation_projection.json",
+    "sha256": "4c14ec56ee201ef74a244230581bfadfc0fe13f69d512934cd981e3a2d5e6a4e",
+    "size_bytes": 3328
+  },
+  "canonical_visual_request": {
+    "path": "runs/drawer_joint_03_visual/canonical_visual_request.json",
+    "sha256": "73de87bcbf5e77ba9828adeff1cd377541d932c7f58817b1c398d5cda05e139c",
+    "size_bytes": 715
+  },
+  "dependencies": [],
+  "dependency_closure_complete": true,
+  "dependency_closure_sha256": "81059fe6210ccee4e3349c0f34c12d180f995150128a913d63b65b7937c6b152",
+  "images": [
+    {
+      "path": "runs/drawer_joint_03_visual/usd_cli/renders/view-000.png",
+      "sha256": "469b02e0bdde568fb365c80a356cc4b305c14a00e21b601be27f3172bbf34696",
+      "size_bytes": 341017
+    }
+  ],
+  "post_mutation_output": {
+    "path": "runs/drawer_joint_03/joint_rigger/rigged.usdz",
+    "sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+    "size_bytes": 1036981
+  },
+  "render_metadata": {
+    "backend": "ovrtx",
+    "image_height": 1024,
+    "image_width": 1024,
+    "renderer": "ovrtx",
+    "renderer_identities": [
+      null
+    ],
+    "scene_tool": "usd-cli",
+    "scene_tool_source_revision": "c3f7c8cb0fd44bfbc79441a35f2f1acd62a46a06",
+    "views": [
+      "+x+y+z"
+    ],
+    "workflow": "validation-canonical-visual-evidence"
+  },
+  "render_report": {
+    "path": "runs/drawer_joint_03_visual/canonical_visual_render_report.json",
+    "sha256": "2506e6705de0373ae96026fa4a7f9440060182f9e6a1749ea398f2c6de7e485e",
+    "size_bytes": 2100
+  },
+  "schema_version": "content-agent-workflows.embedded-articulation-output-evidence.v1",
+  "semantic_authority": "outer_coordinator",
+  "source": {
+    "path": "runs/drawer_packaging_04/source.usdz",
+    "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+    "size_bytes": 1035177
+  }
+}

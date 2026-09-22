@@ -1,0 +1,54 @@
+{
+  "scope": "Synthetic source-parenting mutation tests, not benchmark author outputs",
+  "pass": true,
+  "tests": [
+    {
+      "test": "static_source_parenting_positive",
+      "pass": true,
+      "errors": []
+    },
+    {
+      "test": "drawer_cabinet_moved_with_target_rejected",
+      "pass": true,
+      "errors": [
+        "non-target source component inherits moving rigid body: drawer_cabinet /World/Slider/Floor ['/World/Slider']",
+        "cabinet source mesh must be under cabinet_body: /World/Slider/Floor"
+      ]
+    },
+    {
+      "test": "drawer_cabinet_drawer_02_moved_with_target_rejected",
+      "pass": true,
+      "errors": [
+        "non-target source component inherits moving rigid body: drawer_cabinet_drawer_02 /World/Slider/Floor ['/World/Slider']"
+      ]
+    },
+    {
+      "test": "drawer_cabinet_drawer_03_moved_with_target_rejected",
+      "pass": true,
+      "errors": [
+        "non-target source component inherits moving rigid body: drawer_cabinet_drawer_03 /World/Slider/Floor ['/World/Slider']"
+      ]
+    },
+    {
+      "test": "drawer_cabinet_drawer_04_moved_with_target_rejected",
+      "pass": true,
+      "errors": [
+        "non-target source component inherits moving rigid body: drawer_cabinet_drawer_04 /World/Slider/Floor ['/World/Slider']"
+      ]
+    },
+    {
+      "test": "cabinet_outside_declared_static_root_rejected",
+      "pass": true,
+      "errors": [
+        "cabinet source mesh must be under cabinet_body: /World/Cabinet/TinyAnchor"
+      ]
+    },
+    {
+      "test": "inherited_dynamic_lower_rejected",
+      "pass": true,
+      "errors": [
+        "non-target source component inherits moving rigid body: drawer_cabinet_drawer_02 /World/Cabinet/MovingContainer/LowerVisual ['/World/Cabinet/MovingContainer']"
+      ]
+    }
+  ]
+}

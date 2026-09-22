@@ -1,0 +1,221 @@
+{
+  "archive": "validation01_terminal_evidence.tgz",
+  "archive_sha256": "ef30f1956101faf396fd05cbdfa8c806ae70f04e346a900a51853d73176af708",
+  "archive_bytes": 273260,
+  "files": [
+    {
+      "path": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+      "sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5",
+      "bytes": 8434
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/assess.execution.json",
+      "sha256": "79f348a210a1e328207e3e042a0e43e5004c6ce946cfe041d606cd784015ed06",
+      "bytes": 448
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/assessment.schema.json",
+      "sha256": "7d990840f87a18c1e9007b9299c7119b478ceea39229f186903bcebb3fd4838c",
+      "bytes": 4976
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/run.execution.json",
+      "sha256": "ef799f32445cf6f52eb178988d071bf6cbc66633da6d645addd2218f14d63a81",
+      "bytes": 445
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/review.execution.json",
+      "sha256": "1e2200433449093707277c3030176b90b94580430ee53d38c481b89a854f9ce3",
+      "bytes": 448
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/preparation_receipt.json",
+      "sha256": "2a99e710addc76464ad195e189594d8ab063048d62568d4931822b54d6579f24",
+      "bytes": 17676
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/outer_assessment.json",
+      "sha256": "b78ea27980686894331429d555febfe13f855d02f363bf5ab28b3c0b0f30f00e",
+      "bytes": 7322
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/review.schema.json",
+      "sha256": "2f094bc814723fe0837796e0e4634bf1db7ead3106c41eb35c861f54c869cf56",
+      "bytes": 1003
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/independent_review.json",
+      "sha256": "bed21b80ae430dcad671a17f28b52d90b239766eb472c6c79037b3ac3c609c8c",
+      "bytes": 4446
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/commands.json",
+      "sha256": "0496f127345d9fb01451ee648c912bb592d95e3e53571ff3526af4e213c32870",
+      "bytes": 3368
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/collect.execution.json",
+      "sha256": "3a0a66439917081433e5ca30d167ab3ffa4d842c7996b05158b68fea847a60ab",
+      "bytes": 449
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_accepted_plan.json",
+      "sha256": "1022b2d062a65f8cb8fc0e203951dba1ec14494c241c02fc4a550994631dcefe",
+      "bytes": 4690
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_terminal_receipt.json",
+      "sha256": "c027c329f87e0eeb3f381e45a6c20ed44189a79d66245ce07c799d740a0457eb",
+      "bytes": 2927
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/standalone_validation_execution.json",
+      "sha256": "b75a284d1ca8f56301d8c5bcc5cceb09ee3746aea61b90e8c525f47f668632f0",
+      "bytes": 1218
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_result.json",
+      "sha256": "fdc979fbb4ce21297591cb80b7149ff821a764b3a8a93f534d78a5f4e64e20e9",
+      "bytes": 42040
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_preparation.json",
+      "sha256": "555e6b0e03c53b07a01b1da621daae8094a0e843bb608b9868e10cc0e79fd860",
+      "bytes": 8495
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_operation_preparation.json",
+      "sha256": "c96bf37253f80c9e71dbad8f32e9fd829d36d73a75171a6af28c981c2c35b4ae",
+      "bytes": 17153
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_request.json",
+      "sha256": "a5c5963eba4d0b991a0b07b691c7b39c20c9d1d037d6e9bebdf1535af598bfac",
+      "bytes": 2667
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_operation_index.json",
+      "sha256": "3766e8b0ee07597e9f2274bc8889c8219d5f6373c9f3aa9192d6dbb7469bf509",
+      "bytes": 1736
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/final_summary.json",
+      "sha256": "e7a9bd4f08f610a93d6e108f688acd093ac8af6250c88317b4786fa230972386",
+      "bytes": 1166
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_plan.json",
+      "sha256": "9b1823126955fc37d043e99e89160610deb42c899fbf88aa6e0eda492041a66b",
+      "bytes": 10299
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/operations/physics_sane/operation_result.json",
+      "sha256": "d1b98225d861d2645c541aef7a4e55a48be2c6e1fd19a2e103c3fb19a20c50cb",
+      "bytes": 5750
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/operations/physics_sane/template_result.json",
+      "sha256": "2b843523ebc65db9ebe4583044fdd8264f640164be70293cf608c1e5376a6b8c",
+      "bytes": 3558
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/operations/render_valid/operation_result.json",
+      "sha256": "2327c42aabec05fd8617bb4165e6bd2b518c89be4c8f0980a2b428e8b8d15034",
+      "bytes": 11171
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png",
+      "sha256": "15282abd7c2138455d4f34799dfcb80eb869a07901b39cbc58829dc7c7e420a2",
+      "bytes": 225919
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/operations/render_valid/template_result.json",
+      "sha256": "97f987ddddd0d6ba80003399649b3d2bc6107105e4ef5691f9ec668656ab067d",
+      "bytes": 8636
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/operations/physical_behavior/operation_result.json",
+      "sha256": "88af000f75005af80455847e14fff8330e14f92450901dde1f3b76c73fdb3ee0",
+      "bytes": 8075
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/operations/physical_behavior/template_result.json",
+      "sha256": "7b16f8708e8d95245eee6a626f89d095ed2fed4d959851eeb37a103c19347e7b",
+      "bytes": 5517
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_execution_receipt.json",
+      "sha256": "c9e99df49c55c560616aa29f3520dcafbd880a0ec86225cb903dff630ae6c845",
+      "bytes": 3780
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_checkpoint.json",
+      "sha256": "6e28f68426688f05282a5bb56eeb13f93f1e4b2b81ed57649a4cf3385dbf91f5",
+      "bytes": 27533
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/standalone_validation_evidence.json",
+      "sha256": "dcd959fee52bb8f2f3c929ff7cda917edd79c8451f5c1884fc5e4a173a86c019",
+      "bytes": 33997
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_evidence.json",
+      "sha256": "11b8ac236364703db5638da8f8a7d3696ffc3997da2154a56547965554ef7721",
+      "bytes": 3559
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/.agents/skills/content-workflow-validation/references/benchmark-report-and-replay.md",
+      "sha256": "518128e33a9a44a73461101d73d0a59ffbb7259a7c5add083e41ae85f7913b32",
+      "bytes": 1689
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/.agents/skills/content-workflow-validation/SKILL.md",
+      "sha256": "54f6fb3180dbcad6bfee7213d3865114d0f72df2aaea9d7602cc717d0f484973",
+      "bytes": 18896
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/.agents/skills/content-workflow-validation/agents/openai.yaml",
+      "sha256": "516ea622afb50a4328fa2caa47a3e6cd97f3a9cc3b5c0fd159492eacb145421e",
+      "bytes": 265
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_plan_patch.json",
+      "sha256": "a8215ea3a60a366c26ccfdef02c8969f533fc0a798ee96d135272a01dea5e114",
+      "bytes": 6085
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/canonical_validation_assessment.json",
+      "sha256": "ce2dac89c4b3c24b8962ce94b453418ac7e0de6b328a858da0d66f79f13589c0",
+      "bytes": 7317
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/.claude/skills/content-workflow-validation/references/benchmark-report-and-replay.md",
+      "sha256": "518128e33a9a44a73461101d73d0a59ffbb7259a7c5add083e41ae85f7913b32",
+      "bytes": 1689
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/.claude/skills/content-workflow-validation/SKILL.md",
+      "sha256": "54f6fb3180dbcad6bfee7213d3865114d0f72df2aaea9d7602cc717d0f484973",
+      "bytes": 18896
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/.claude/skills/content-workflow-validation/agents/openai.yaml",
+      "sha256": "516ea622afb50a4328fa2caa47a3e6cd97f3a9cc3b5c0fd159492eacb145421e",
+      "bytes": 265
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/.claude/.claude-plugin/plugin.json",
+      "sha256": "fb4bc548ec37ca53134569099a194fdb94eb6f0262cba65855f49d4dc9fabadc",
+      "bytes": 122
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/policy.json",
+      "sha256": "cf51c02ad74c0478d9bceaf948fa1032d38c917cce890403ed8ba7ee94940a81",
+      "bytes": 402
+    }
+  ],
+  "all_terminal_bindings_verified": true,
+  "native_terminal_sha256": "c027c329f87e0eeb3f381e45a6c20ed44189a79d66245ce07c799d740a0457eb",
+  "final_conjunction_sha256": "44fc44580c58ca68a489cdf9f818508b5704fe6052223399cdb42b821c92fa0c",
+  "raw_prompts_and_private_logs_excluded": true
+}

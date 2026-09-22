@@ -1,0 +1,219 @@
+{
+  "schema_version": "capstone-independent-task-evidence-audit-qualification.v1",
+  "qualified_utc": "2026-09-22T03:57:20.524975+00:00",
+  "status": "QUALIFIED_READ_ONLY_AUDIT_WITH_EXPLICIT_LIMITS",
+  "script_sha256": "c2d229541e89d454f69287ae2a1f89bc562993a8e7f65d2eb44335e57abce206",
+  "tests": {
+    "passed": 20,
+    "failed": 0,
+    "elapsed_s": 7.64,
+    "runtime": "Existing capstone Python/pytest on remote; no installs or solver/render/model",
+    "covered": [
+      "known stationary opening failure",
+      "closing/settling",
+      "payload retention and contact loss",
+      "global penetration",
+      "off-axis and authored-frame orientation",
+      "seeded force and phase",
+      "missing/duplicate/nonfinite/wrong-time samples",
+      "post-step versus pre-step windows",
+      "raw impulse units",
+      "actual retained scene settings",
+      "copied scene source/payload mass mutation",
+      "reported metric and verdict mutation",
+      "float32 comparison tolerance cannot relax raw force bound"
+    ]
+  },
+  "full_path_negative_task": {
+    "case": "native09_source_clear_v1",
+    "audit_sha256": "1390115ddf1bfbf59ed69ce49c091daa71f50de76a03b04f9ee6e5c9089ea376",
+    "asset_sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+    "reported_task_status": "FAIL",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "samples_per_seed": [
+      2460,
+      2460,
+      2460,
+      2460,
+      2460
+    ],
+    "all_bound_inputs_unchanged": true,
+    "corroborated_failures": [
+      {
+        "seed": 11,
+        "checks": [
+          "opening",
+          "closed_settled",
+          "penetration"
+        ]
+      },
+      {
+        "seed": 23,
+        "checks": [
+          "opening",
+          "closed_settled",
+          "penetration"
+        ]
+      },
+      {
+        "seed": 47,
+        "checks": [
+          "opening",
+          "closed_settled",
+          "penetration"
+        ]
+      },
+      {
+        "seed": 83,
+        "checks": [
+          "opening",
+          "closed_settled",
+          "penetration"
+        ]
+      },
+      {
+        "seed": 131,
+        "checks": [
+          "opening",
+          "closed_settled",
+          "penetration"
+        ]
+      }
+    ],
+    "task_acceptance_promoted": false
+  },
+  "preserved_attempts": [
+    {
+      "output": "native09_attempt1/audit.json",
+      "reason": "Initial auditor expected float64 yaw exactly; USD RotateY stores float32. Corrected expected representation, without changing task input or thresholds."
+    },
+    {
+      "output": "tests.log",
+      "reason": "Main readback Python has no pytest. Used existing capstone test runtime; no package installation."
+    },
+    {
+      "output": "native09_attempt2/audit.json",
+      "reason": "Successful initial full-path reconciliation, retained before duplicate-binding guard."
+    },
+    {
+      "output": "native09/audit.json",
+      "reason": "Successful full-path reconciliation, retained before stricter observed-force bound and opening/closing import-error intervals."
+    }
+  ],
+  "implementation_versions": {
+    "native09_attempt1": "history/audit_initial_float_yaw.py",
+    "native09_attempt2": "history/audit_before_duplicate_binding_guard.py",
+    "native09": "history/audit_before_raw_force_bound.py",
+    "native09_qualified": "audit.py"
+  },
+  "artifact_bindings": [
+    {
+      "path": "audit.py",
+      "sha256": "c2d229541e89d454f69287ae2a1f89bc562993a8e7f65d2eb44335e57abce206",
+      "size_bytes": 33581
+    },
+    {
+      "path": "test_audit.py",
+      "sha256": "82e62fee200847ceef01e568ff63bf5bff247d7f6089e0d84b8190aefb7870ef",
+      "size_bytes": 7420
+    },
+    {
+      "path": "README.md",
+      "sha256": "44a212efd4dd1a0abb75800a73df6a91fa51b42cf42c81638a6f2c07bf1ccfaf",
+      "size_bytes": 3801
+    },
+    {
+      "path": "tests.log",
+      "sha256": "c062b1f82d325944ac74e220ed792339e8708cdd412df46077c2c3135e3e69bf",
+      "size_bytes": 80
+    },
+    {
+      "path": "tests_capstone.log",
+      "sha256": "046929bacaaa906b6df36c6f8063156f0a3de34080c29c70985f397b07b5f736",
+      "size_bytes": 99
+    },
+    {
+      "path": "tests_final.log",
+      "sha256": "4accaf61615fee13f02cf68ea59b665d23b4366c5fb7fabe1cb7b4b73ae214d5",
+      "size_bytes": 99
+    },
+    {
+      "path": "tests_qualified.log",
+      "sha256": "874fcc5aaf85b51a1dc25862a6f2d16708f8e0edf561135c1d380f485634ac17",
+      "size_bytes": 99
+    },
+    {
+      "path": "native09_attempt1/audit.json",
+      "sha256": "75b8a3366aea406270298d25fdd2770d4d1ab76b2ac7cf2e0ed43d05348ef39d",
+      "size_bytes": 6990
+    },
+    {
+      "path": "native09_attempt2/audit.json",
+      "sha256": "d8894c4456346a03ab3484ab732a4a90e060d1a09fd83a00cb0fb8214ecfd7e9",
+      "size_bytes": 49719
+    },
+    {
+      "path": "native09/audit.json",
+      "sha256": "fd5b60d4e332982dc9d4168d2a7f9760c1d1f4e035c4dcb4b9c837f1cd4f764f",
+      "size_bytes": 49719
+    },
+    {
+      "path": "native09_qualified/audit.json",
+      "sha256": "1390115ddf1bfbf59ed69ce49c091daa71f50de76a03b04f9ee6e5c9089ea376",
+      "size_bytes": 51854
+    },
+    {
+      "path": "history/audit_before_duplicate_binding_guard.py",
+      "sha256": "8f2472890ce4199ef5ad60c458a4bf35a4da04e5ffd07d4b898fb12f7d9785f5",
+      "size_bytes": 32209
+    },
+    {
+      "path": "history/audit_before_raw_force_bound.py",
+      "sha256": "91e2f47b52b45cf2cdcdda06adea3d2e7fc99f4a910f80d9fac9dd220f1de0ed",
+      "size_bytes": 32617
+    },
+    {
+      "path": "history/audit_initial_float_yaw.py",
+      "sha256": "f0a7a3b7d1028d261dfc2e48b095e0cfd4ea9c03e7228a58f1c90fc8f41168d3",
+      "size_bytes": 32191
+    }
+  ],
+  "frozen_evaluator_solver_spec": {
+    "drawer_acceptance.json": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd",
+    "drawer_evaluate.py": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+    "drawer_solver.py": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa"
+  },
+  "invocation": [
+    "/opt/astra-content-value-20260921/repo/.venv/bin/python",
+    "/opt/astra-content-value-20260921/capstone/task_evidence_audit_v1/audit.py",
+    "--experiment-root",
+    "/opt/astra-content-value-20260921",
+    "--evaluator",
+    "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1",
+    "--evaluation",
+    "/opt/astra-content-value-20260921/capstone/evaluations/native09_source_clear_v1",
+    "--bindings",
+    "/opt/astra-content-value-20260921/capstone/evidence/native09_task_bindings.json",
+    "--asset",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_09/physics.usda",
+    "--expected-asset-sha256",
+    "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+    "--output",
+    "/opt/astra-content-value-20260921/capstone/task_evidence_audit_v1/native09_qualified"
+  ],
+  "scope_limits": [
+    "Audit consistency is not a new simulation or task/native acceptance. No solver, renderer or model is imported or run.",
+    "The initial native XY/quaternion is missing from frozen traces. Native Z is redundantly inferred, source-frame XY is bounded using the retained translation error, and source-frame quaternion crosschecks cannot independently establish the unrecorded native quaternion.",
+    "The force-named contact field stores raw impulse Ns. Global contact points omit actor IDs, so penetration cannot be attributed independently to cabinet/drawer/payload pairs. Recorded contact binding paths provide only retained producer provenance.",
+    "Interior overlap rows precede first native pose read; this audit does not claim their runtime initialization or recook them. A separately retained initialized positive-controlled preflight is required for clearance claims.",
+    "Prior structural/source results are hash-bound and source-to-scene authored properties are compared, but original-source geometric distance checks and real-world material/actuator fidelity are not independently repeated.",
+    "Current USD dependency closure and before/after hashes establish retained bytes, not a cryptographic proof that a trusted solver generated the trace. Qualified native execution provenance remains separate."
+  ],
+  "no_source_frozen_or_scored_artifact_modified": true
+}

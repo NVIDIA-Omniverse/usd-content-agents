@@ -1,0 +1,88 @@
+{
+  "schema_version": "capstone-final-conjunction.v1",
+  "recorded_utc": "2026-09-22T04:29:57.965938+00:00",
+  "scope": "Root readback of actual existing native terminal and independently audited task evidence. No new simulation or native verdict is manufactured. Separate unscored repaired fixture; frozen pilot unchanged.",
+  "native_validation_terminal_accepted": true,
+  "native_four_required_gates_pass_without_waivers": true,
+  "standalone_native_cross_stage_integrity": "not_evaluated",
+  "geometry_handoff": "conditional",
+  "geometry_formal_simready_status": "not_evaluated",
+  "same_asset_five_seed_task_pass": true,
+  "task_trace_audit_consistent_with_declared_limits": true,
+  "final_bounded_capstone_conjunction": true,
+  "final_asset": {
+    "path": "runs/drawer_physics_10/physics.usda",
+    "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+    "bytes": 2533656
+  },
+  "native_terminal": {
+    "path": "runs/drawer_validation_01_prepared/native_run/validation_terminal_receipt.json",
+    "sha256": "c027c329f87e0eeb3f381e45a6c20ed44189a79d66245ce07c799d740a0457eb",
+    "bytes": 2927
+  },
+  "task_report": {
+    "path": "evaluations/native10_source_clear_v1/report.json",
+    "sha256": "35954e143077af36b7ee34981eb370a897858f07ae2edc6b6864791b3e0f147c",
+    "bytes": 13793
+  },
+  "independent_task_audit": {
+    "path": "task_evidence_audit_v1/native10/audit.json",
+    "sha256": "fe57652db03858ff741effca47cfd4695a8fb93613b807b83ded523b7747fea3",
+    "bytes": 50972
+  },
+  "geometry_evidence": {
+    "path": "runs/drawer_geometry_04/geometry_validation_evidence.json",
+    "sha256": "596bc8078131d3b807187114f233f059783a159656c3b6c440be997ff888575d",
+    "bytes": 36782
+  },
+  "verified_native_terminal_bindings": [
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_accepted_plan.json",
+      "sha256": "1022b2d062a65f8cb8fc0e203951dba1ec14494c241c02fc4a550994631dcefe",
+      "bytes": 4690
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/canonical_validation_assessment.json",
+      "sha256": "ce2dac89c4b3c24b8962ce94b453418ac7e0de6b328a858da0d66f79f13589c0",
+      "bytes": 7317
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_execution_receipt.json",
+      "sha256": "c9e99df49c55c560616aa29f3520dcafbd880a0ec86225cb903dff630ae6c845",
+      "bytes": 3780
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_plan_patch.json",
+      "sha256": "a8215ea3a60a366c26ccfdef02c8969f533fc0a798ee96d135272a01dea5e114",
+      "bytes": 6085
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_preparation.json",
+      "sha256": "555e6b0e03c53b07a01b1da621daae8094a0e843bb608b9868e10cc0e79fd860",
+      "bytes": 8495
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/independent_review.json",
+      "sha256": "bed21b80ae430dcad671a17f28b52d90b239766eb472c6c79037b3ac3c609c8c",
+      "bytes": 4446
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/standalone_validation_evidence.json",
+      "sha256": "dcd959fee52bb8f2f3c929ff7cda917edd79c8451f5c1884fc5e4a173a86c019",
+      "bytes": 33997
+    },
+    {
+      "path": "runs/drawer_validation_01_prepared/native_run/validation_operation_index.json",
+      "sha256": "3766e8b0ee07597e9f2274bc8889c8219d5f6373c9f3aa9192d6dbb7469bf509",
+      "bytes": 1736
+    }
+  ],
+  "limitations": [
+    "Original Geometry source topology warnings remain; no universal SimReady status.",
+    "Ideal prismatic joint with connected-actor collision exclusion; estimated material/mass properties and CPU rigid-body scope.",
+    "Five fixed seeds on predeclared source-clear fixture, no hardware, actuator, rail-friction, GPU/particle/deformable validation.",
+    "Frozen traces omit initial native XY/quaternion and per-contact actor IDs; audit limits remain.",
+    "Extensive code and authoring repairs are outside pilot budgets; no causal value or cost-saving claim.",
+    "Physics03 original root console was overwritten by Physics07 launcher; surviving native receipts retained, missing console not reconstructed."
+  ]
+}

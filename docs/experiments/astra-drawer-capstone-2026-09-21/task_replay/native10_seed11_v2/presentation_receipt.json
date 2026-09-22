@@ -1,0 +1,248 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "4610a338afdf4c5716dc878237ad73e9445c0af9f40a8c0d7b1bb269898fbb28"
+  },
+  "dependency_bytes_unchanged": true,
+  "dependency_manifest_after": {
+    "asset_path": "evaluations/native10_source_clear_v1/seed_11/replay.usda",
+    "files": [
+      {
+        "path": "evaluations/native10_source_clear_v1/seed_11/replay.usda",
+        "role": "root",
+        "sha256": "8764410be057b350732bc95c9c7ee8d635ecae0b8fbdba16e1d59f547a8394a5",
+        "size": 740242
+      },
+      {
+        "path": "evaluations/native10_source_clear_v1/seed_11/scene.usda",
+        "role": "dependency",
+        "sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+        "size": 2535302
+      },
+      {
+        "path": "runs/drawer_physics_10/inputs/source/source.usdz",
+        "role": "dependency",
+        "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+        "size": 1036772
+      }
+    ],
+    "schema": "content-agent-workflows.usd-dependency-manifest.v1",
+    "sha256": "f286cd680f24e9b30b20a8cefd9724bd4d8643d16aeec3854dc945357266cd73"
+  },
+  "dependency_manifest_before": {
+    "asset_path": "evaluations/native10_source_clear_v1/seed_11/replay.usda",
+    "files": [
+      {
+        "path": "evaluations/native10_source_clear_v1/seed_11/replay.usda",
+        "role": "root",
+        "sha256": "8764410be057b350732bc95c9c7ee8d635ecae0b8fbdba16e1d59f547a8394a5",
+        "size": 740242
+      },
+      {
+        "path": "evaluations/native10_source_clear_v1/seed_11/scene.usda",
+        "role": "dependency",
+        "sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+        "size": 2535302
+      },
+      {
+        "path": "runs/drawer_physics_10/inputs/source/source.usdz",
+        "role": "dependency",
+        "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+        "size": 1036772
+      }
+    ],
+    "schema": "content-agent-workflows.usd-dependency-manifest.v1",
+    "sha256": "f286cd680f24e9b30b20a8cefd9724bd4d8643d16aeec3854dc945357266cd73"
+  },
+  "input_bytes_unchanged": true,
+  "inputs_after": {
+    "capstone/evaluations/native10_source_clear_v1/seed_11/replay.usda": "8764410be057b350732bc95c9c7ee8d635ecae0b8fbdba16e1d59f547a8394a5",
+    "capstone/evaluations/native10_source_clear_v1/seed_11/request.json": "92aa51db388d514a3158412f508d21faf4ce418427168337e028363a3ac87a07",
+    "capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+    "capstone/evaluations/native10_source_clear_v1/seed_11/trace.jsonl": "54cb5ee3f009b16bd24a1dee454394940f31ef0ab6b3efc5550ce80877554378",
+    "capstone/evaluations/native10_source_clear_v1/seed_11/trial_report.json": "777488b5ec199e09e88397ae89c05fa6fd1436f351f06f8b3e0a2e7fb0f6404b"
+  },
+  "inputs_before": {
+    "capstone/evaluations/native10_source_clear_v1/seed_11/replay.usda": "8764410be057b350732bc95c9c7ee8d635ecae0b8fbdba16e1d59f547a8394a5",
+    "capstone/evaluations/native10_source_clear_v1/seed_11/request.json": "92aa51db388d514a3158412f508d21faf4ce418427168337e028363a3ac87a07",
+    "capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+    "capstone/evaluations/native10_source_clear_v1/seed_11/trace.jsonl": "54cb5ee3f009b16bd24a1dee454394940f31ef0ab6b3efc5550ce80877554378",
+    "capstone/evaluations/native10_source_clear_v1/seed_11/trial_report.json": "777488b5ec199e09e88397ae89c05fa6fd1436f351f06f8b3e0a2e7fb0f6404b"
+  },
+  "operations": [
+    {
+      "arguments": [
+        "render-probe"
+      ],
+      "end_utc": "2026-09-22T04:14:46.905629+00:00",
+      "name": "probe",
+      "returncode": 0,
+      "start_utc": "2026-09-22T04:14:42.004677+00:00"
+    },
+    {
+      "arguments": [
+        "render-frames",
+        "--scene",
+        "evaluations/native10_source_clear_v1/seed_11/replay.usda",
+        "--frames",
+        "179,1230,2459",
+        "--focus",
+        "/Asset",
+        "--res",
+        "1024x1024",
+        "--mode",
+        "fast",
+        "--no-animate",
+        "--output",
+        "task_replay/native10_seed11_v2/frames"
+      ],
+      "end_utc": "2026-09-22T04:14:49.617424+00:00",
+      "name": "render",
+      "returncode": 0,
+      "start_utc": "2026-09-22T04:14:46.905674+00:00"
+    },
+    {
+      "arguments": [
+        "server",
+        "stop"
+      ],
+      "end_utc": "2026-09-22T04:14:51.631862+00:00",
+      "name": "server_stop",
+      "returncode": 0,
+      "start_utc": "2026-09-22T04:14:49.617448+00:00"
+    }
+  ],
+  "outputs": {
+    "frames/usd_cam__1024x1024__f0179.png": "6b91c240db1aa53ef2f29cba9b89d8ea5cefd4bb7a6321ef8bc262f26657a312",
+    "frames/usd_cam__1024x1024__f1230.png": "1f970387e4e1374482f26b71c988701ab7372918e9c67f7a05586df9c5ab1087",
+    "frames/usd_cam__1024x1024__f2459.png": "60b1dc2d3f2444509704ffe4dede973024e493039e438c91346040f2374315aa",
+    "frames/usd_cam__anim.gif": "ddb751ff6ff73c6138543cb94991a2c13e20f82286930b9ee7a7800e68560c40",
+    "operations.jsonl": "2a3e20b80d9e8f547220c96882bd88abecc777def5beabde43f97644f6903f1a",
+    "probe.json": "adb398d0ce0a1f1fe0dc7e2213e632c4c1a3c92fe07cc444d88ed2105ca36c41",
+    "probe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "render.json": "a3762119fb54c569ea0739f3c70d6ffc778d7576f9710e3ac12f933afeb33185",
+    "render.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server_stop.json": "81f9e71d18150430dceb33aad21ea9dba87a436cc12d90e014ce89c543e08776",
+    "server_stop.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "pose_readback_checks": [
+    {
+      "absolute_quaternion_dot": 1.0,
+      "body": "/Asset/drawer_cabinet_drawer_01_1",
+      "position_error_m": 0.0,
+      "step": 179
+    },
+    {
+      "absolute_quaternion_dot": 0.9999999999962637,
+      "body": "/__EvaluatorPayload",
+      "position_error_m": 0.0,
+      "step": 179
+    },
+    {
+      "absolute_quaternion_dot": 0.9999999999999982,
+      "body": "/Asset/drawer_cabinet_drawer_01_1",
+      "position_error_m": 0.0,
+      "step": 1230
+    },
+    {
+      "absolute_quaternion_dot": 0.9999999999933336,
+      "body": "/__EvaluatorPayload",
+      "position_error_m": 0.0,
+      "step": 1230
+    },
+    {
+      "absolute_quaternion_dot": 1.0,
+      "body": "/Asset/drawer_cabinet_drawer_01_1",
+      "position_error_m": 0.0,
+      "step": 2459
+    },
+    {
+      "absolute_quaternion_dot": 0.999999999988441,
+      "body": "/__EvaluatorPayload",
+      "position_error_m": 0.0,
+      "step": 2459
+    }
+  ],
+  "render_requested": true,
+  "schema_version": 2,
+  "scope": "Presentation of recorded poses; no simulation, asset authoring, or acceptance decision.",
+  "script_sha256": "c83578a218cdcce633e909f83fafd263406ed7fc9b74412db131b4a4ac66298e",
+  "seed": 11,
+  "selected_measured_rows": [
+    {
+      "drawer_pose": [
+        -1.862645149230957e-09,
+        1.1920928955078125e-07,
+        2.069026231765747e-05,
+        1.0686562745831907e-11,
+        7.457856554538012e-11,
+        2.3283064365386963e-09,
+        1.0
+      ],
+      "payload_pose": [
+        -0.037161730229854584,
+        1.0434222221374512,
+        -0.00029400104540400207,
+        -0.005284509621560574,
+        0.01780148595571518,
+        7.837551675038412e-05,
+        0.9998276233673096
+      ],
+      "phase": "settle",
+      "q_m": 2.0712614059448242e-05,
+      "step": 179,
+      "time_s": 0.75
+    },
+    {
+      "drawer_pose": [
+        2.7939677238464355e-08,
+        1.1920928955078125e-07,
+        0.24117127060890198,
+        4.001776687800884e-11,
+        -5.911897460464388e-08,
+        2.546585164964199e-09,
+        1.0
+      ],
+      "payload_pose": [
+        -0.037161193788051605,
+        1.0434218645095825,
+        0.2408570647239685,
+        -0.005276836920529604,
+        0.017801405861973763,
+        7.005278166616336e-05,
+        0.9998276829719543
+      ],
+      "phase": "hold_open",
+      "q_m": 0.24117129296064377,
+      "step": 1230,
+      "time_s": 5.129166666666666
+    },
+    {
+      "drawer_pose": [
+        0.0,
+        1.1920928955078125e-07,
+        0.00015836209058761597,
+        1.0686562745831907e-11,
+        7.457856554538012e-11,
+        2.3283064365386963e-09,
+        1.0
+      ],
+      "payload_pose": [
+        -0.03715956583619118,
+        1.0434218645095825,
+        -0.0001587172446306795,
+        -0.005242290906608105,
+        0.01779617741703987,
+        3.586045204428956e-05,
+        0.9998279809951782
+      ],
+      "phase": "hold_closed",
+      "q_m": 0.00015838444232940674,
+      "step": 2459,
+      "time_s": 10.25
+    }
+  ],
+  "task_status": "PASS",
+  "trace_time_note": "Replay time code equals zero-based step; physical time_s equals (step+1)*dt."
+}

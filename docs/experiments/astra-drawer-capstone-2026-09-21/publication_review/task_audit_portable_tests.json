@@ -1,0 +1,31 @@
+{
+  "scope": "Public source subset relocated into independent directory;20 analytical/copied-scene audit tests. No source/task execution, solver, model or render.",
+  "returncode": 0,
+  "elapsed_s": 5.269311301410198,
+  "public_subset_manifest_sha256": "5f997ea198fd3dc2e50df6f8b5c8d0c7a00d53bda2212cd38dd412f194c99e26",
+  "input_archive_sha256": "3519d458b69628282fda3900c75a333f9a798011bca2511a607853f6bdb593a0",
+  "relocation_receipt_sha256": "3ba5d3f848f9c39f921e3e4d502eee8fafbaac4afe8930099c9d69305dae0e8e",
+  "tests_log_sha256": "f00406b9cd61eb15ef6d890b0746c0fdc1b496d55f1096b6f200416bd31e8b4f",
+  "all_published_originals_unchanged": true,
+  "portable_dependency_closures": [
+    {
+      "path": "runs/drawer_physics_09/physics.usda",
+      "missing": 0,
+      "outside_portable_bundle": 0,
+      "dependencies": 2
+    },
+    {
+      "path": "evaluations/native09_source_clear_v1/seed_11/scene.usda",
+      "missing": 0,
+      "outside_portable_bundle": 0,
+      "dependencies": 2
+    }
+  ],
+  "test_input_hashes": {
+    "task_evidence_audit_v1/audit.py": "c2d229541e89d454f69287ae2a1f89bc562993a8e7f65d2eb44335e57abce206",
+    "task_evidence_audit_v1/test_audit.py": "82e62fee200847ceef01e568ff63bf5bff247d7f6089e0d84b8190aefb7870ef",
+    "evaluator/source_clear_v1/drawer_acceptance.json": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd",
+    "evidence/native09_task_bindings.json": "f75a7d3865ea0bfc0f76fa5b385a568e3db5e5609960ea6791ba4297a719709a",
+    "evaluations/native09_source_clear_v1/seed_11/request.json": "7a222b4601500ee6f264e7287215b3f8c0c047aea0b1ece00a7a935f0524ae82"
+  }
+}

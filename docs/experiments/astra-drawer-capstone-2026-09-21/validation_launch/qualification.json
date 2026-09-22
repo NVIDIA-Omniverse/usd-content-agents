@@ -1,0 +1,176 @@
+{
+  "schema_version": "capstone-validation-launch-qualification.v1",
+  "qualified_utc": "2026-09-22T04:18:59.469492+00:00",
+  "status": "QUALIFIED_NOT_LAUNCHED",
+  "code_commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+  "strict_adapter_commit": "78004ff724605b721100beb1331f48d71cb7984d",
+  "provider_free_tests": {
+    "passed": 22,
+    "failed": 0,
+    "warnings": 5,
+    "elapsed_s": 3.39,
+    "fixture": "Actual native adapter synthetic fixture and installed native CLI parser; no fake approve or mocked acceptance.",
+    "initial_attempt": "3failed8passed because copied synthetic assessment identity was not updated in its synthetic ValidationEvidence; failed logs retained; production checks were not changed.",
+    "execution_context_regression": "Actual run_stage.main subprocess invocation is captured with a synthetic stub and asserts reviewed cwd/PYTHONPATH; no native operation launched.",
+    "review_correction": "Independent review caught an unwired environment helper despite passing helper-only test; actual subprocess wiring corrected and invocation-level test added. Earlier receipt/log retained separately as pre-fix.",
+    "geometry_regression": "Real immutable Geometry04 evidence passes strict typed schema and conditional handoff checks;8 missing/contradictory-field mutations fail without output or receipt edits. Earlier13tests remain."
+  },
+  "actual_retained_precheck": {
+    "scope": "Actual retained08/09 launcher precheck only; no models/solvers/renderers",
+    "cases": [
+      {
+        "case": "08",
+        "asset_sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+        "task_report_sha256": "ec5ce75653ddb3e567bea403d3c2394ca037023543472c183e717d6458d8871c",
+        "native_manifest_sha256": "6bf73cefaf7b08fafb5685ecce552381d65ec87c128ae981f7d2a13e1be0c392",
+        "status": "REJECTED",
+        "reason": "Native Physics workflow is not pass; retain failure and obtain fresh honest evidence.",
+        "asset_unchanged": true,
+        "output_created": false
+      },
+      {
+        "case": "09",
+        "asset_sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+        "task_report_sha256": "45149739ee51187e5092f8034ed0ac0f3dcaef4974a5fbddeaad3357cb04feab",
+        "native_manifest_sha256": "d82517649b310412270fa59ed28c17c5f67548b566a0cfb8247de0dcf39025f7",
+        "status": "REJECTED",
+        "reason": "Native Physics workflow is not pass; retain failure and obtain fresh honest evidence.",
+        "asset_unchanged": true,
+        "output_created": false
+      }
+    ],
+    "all_rejected_unchanged": true
+  },
+  "artifacts": [
+    {
+      "path": "validation_launch/prepare_validation.py",
+      "sha256": "88afdb1bd7404621123293033f503e42a457ebaab2e2cab93ae7e103d6a29c8a",
+      "bytes": 13850
+    },
+    {
+      "path": "validation_launch/run_stage.py",
+      "sha256": "358f2ec7eb8a1188ea08964886b60eeecf5677802c0648282eef206cad4f80b6",
+      "bytes": 4542
+    },
+    {
+      "path": "validation_launch/test_precheck.py",
+      "sha256": "1a9bb57e18d969c29bd1a1013a3288f557965fa6568a99cd9958616d2a6525f1",
+      "bytes": 10773
+    },
+    {
+      "path": "validation_launch/README.md",
+      "sha256": "0a6969d0635528f7d97bbb1687301b422374694d4243a4097606a5fc48fa04f0",
+      "bytes": 7922
+    },
+    {
+      "path": "validation_launch/PUBLICATION_EXTENSION.md",
+      "sha256": "2b271842260876722b4081692e6e6fb1341122d065e66c1d3ab6aad9440e033c",
+      "bytes": 3549
+    },
+    {
+      "path": "validation_launch/tests.log",
+      "sha256": "36e28b3d21b6b04f671e835681a1667574897fe1854ce4dd35efd913fa40eaf9",
+      "bytes": 1367
+    },
+    {
+      "path": "validation_launch/retained_rejections.json",
+      "sha256": "06e3f841733910421fb0644a7793a4b22c796c76db896a5701694833737196ce",
+      "bytes": 1167
+    },
+    {
+      "path": "validation_launch/tests_initial_fixture_failure.log",
+      "sha256": "900ef3a8bdaf98168db73093c436d29c354c06edf72aca38055080558084d8c8",
+      "bytes": 6347
+    },
+    {
+      "path": "validation_launch/history/geometry_handoff_assumption/independent_review.json",
+      "sha256": "75cbd9e07a7c64511703d61f2766f11289fb7cafa50d5e599fdf653a55b26786",
+      "bytes": 5310
+    },
+    {
+      "path": "validation_launch/history/geometry_handoff_assumption/original_assumption_refusal.json",
+      "sha256": "19d243d21b25cab625e5b6fd8716825987a20025ead998a44767135d2a82a999",
+      "bytes": 1984
+    },
+    {
+      "path": "validation_launch/history/geometry_handoff_assumption/original_assumption_refusal.log",
+      "sha256": "6ee706d70db34a028be6424380400e4e7ef9ac428fdb5e3de4b27ce43d42a716",
+      "bytes": 876
+    },
+    {
+      "path": "validation_launch/history/geometry_handoff_assumption/prepare_validation.py",
+      "sha256": "ed9287aa6103d8bddb90853dfa465c3971770c162f8f44a6cc694d815d22de16",
+      "bytes": 12758
+    },
+    {
+      "path": "validation_launch/history/geometry_handoff_assumption/preservation.json",
+      "sha256": "9dc3a61971d67b0ed6f9b30600d93f6a1983f2970d83f56d44fa084f07b2d961",
+      "bytes": 957
+    },
+    {
+      "path": "validation_launch/history/geometry_handoff_assumption/qualification.json",
+      "sha256": "0da8c55d8b57e6eb6a01eecd9350312db9fab8e3b71094da867ce07efb07a151",
+      "bytes": 5333
+    },
+    {
+      "path": "validation_launch/history/geometry_handoff_assumption/test_precheck.py",
+      "sha256": "ce42d6ed0de896024903da84f841532917907c45728c8adc855e06099782fbbb",
+      "bytes": 8047
+    },
+    {
+      "path": "validation_launch/history/geometry_handoff_assumption/tests.log",
+      "sha256": "705ca5a86bbbf0b46f89b028278ba3b80bc554c3dab5d5ab8f384ab6985232cb",
+      "bytes": 1367
+    }
+  ],
+  "upstream_qualified_native_fixture": {
+    "path": "tests/test_native_physics_behavior_validation.py",
+    "sha256": "f3beb9e6c223bb4d6e7374fccfb644239bc9a129f1d8496d5c0ed013ce1ae6ae",
+    "bytes": 12816
+  },
+  "existing_public_repo_checks": {
+    "commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+    "passed": 47,
+    "skipped": 14,
+    "warnings": 3,
+    "elapsed_s": 23.82,
+    "skills_check_exit": 0,
+    "evidence": [
+      {
+        "path": "evidence/public_repo_required_tests_e640.log",
+        "sha256": "5aa0d9c1a7f3df220490846cd653549f40d80270f07678101518cdba3df31095",
+        "bytes": 1333
+      },
+      {
+        "path": "evidence/public_repo_skill_sync_e640.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    ],
+    "receipt": {
+      "path": "evidence/public_repo_required_checks_e640.json",
+      "sha256": "766e760af244657a1bf4b2361bbae418cec90c409a90d2733c27080cf2da225f"
+    }
+  },
+  "scope": "Separate prepare/stage launcher only; actual immutable Geometry04 schema corrected after real refusal. No shared capstone code or Geometry evidence edits, no models/solvers/renderers launched. Actual native Validation assessment and independent review remain separate.",
+  "task_precheck_scope": "Aggregate/per-seed reports, asset/bindings/spec only; not an independent verification of task requests/scenes/traces/evaluator implementation. Native behavior bundle separately verifies measured runtime/render closure.",
+  "qualification_revision": "geometry-handoff-schema-v5",
+  "geometry_schema_correction": {
+    "prior_qualification_sha256": "0da8c55d8b57e6eb6a01eecd9350312db9fab8e3b71094da867ce07efb07a151",
+    "preserved_history": "validation_launch/history/geometry_handoff_assumption",
+    "original_refusal_receipt_sha256": "19d243d21b25cab625e5b6fd8716825987a20025ead998a44767135d2a82a999",
+    "actual_geometry_receipt_sha256": "596bc8078131d3b807187114f233f059783a159656c3b6c440be997ff888575d",
+    "expected": {
+      "schema_version": "content-agent-workflows.validation-evidence.v1",
+      "workflow": "geometry",
+      "sim_ready_status": "not_evaluated",
+      "metadata.schema_version": "content-agent-workflows.geometry.v3",
+      "metadata.handoff_ready": "conditional"
+    },
+    "original_failure_reproduced": true,
+    "geometry_receipt_modified": false,
+    "policy_waived": false,
+    "prepared_output_created": false,
+    "previous_independent_review_scope": "The prior independent_review.json binds prior source bytes; preserved in history and not asserted to review this correction."
+  }
+}

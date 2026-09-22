@@ -1,0 +1,23 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "766e760af244657a1bf4b2361bbae418cec90c409a90d2733c27080cf2da225f"
+  },
+  "code_commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+  "pytest": {
+    "elapsed_s": 23.82,
+    "log": "public_repo_required_tests_e640.log",
+    "passed": 47,
+    "sha256": "5aa0d9c1a7f3df220490846cd653549f40d80270f07678101518cdba3df31095",
+    "skipped": 14,
+    "warnings": 3
+  },
+  "scope": "Required AGENTS.md public repository checks on capstone checkout; separate from actual asset acceptance.",
+  "skill_sync": {
+    "command": "./scripts/sync_agent_skills.sh --check",
+    "log": "public_repo_skill_sync_e640.log",
+    "returncode": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

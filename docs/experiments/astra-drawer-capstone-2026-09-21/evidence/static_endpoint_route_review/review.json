@@ -1,0 +1,103 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "4b46b57a7500722ed62cad6029c2c1d298d669f6738c305da64332e48a7a3eb6"
+  },
+  "all_input_bytes_unchanged": true,
+  "bounded_existing_route_guards_pass": true,
+  "checks": [
+    {
+      "detail": null,
+      "name": "fresh_geometry_has_no_physics_joints",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "five_original_meshes",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "native_endpoint_validator_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "native_endpoint_validator_/Asset/drawer_cabinet_drawer_01_1",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "static_child_and_parent_world_frame_identical",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "static_child_world_identity",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "moving_world_identity",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "memberships_exactly_cover_original_hierarchy",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "static_mesh_is_self_owned_and_fixed",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "cabinet_parent_remains_fixed_under_asset",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "moving_owner_unchanged",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "prior_native_promotion_demonstrates_five_components",
+      "pass": true
+    }
+  ],
+  "code_hashes": {
+    "agentic/packages/content_agent_workflows/content_agent_workflows/articulation/embedded_decision.py": "3e512855220d1aa8946c69e5dd15b837b4cce388062f2fd674c4c575521dce58",
+    "agentic/packages/content_agent_workflows/content_agent_workflows/articulation/preparation.py": "814265b441947099e6acd88ff28bf932682784efbe9b6a10c4ae05052e588e0f",
+    "agentic/packages/content_agent_workflows/content_agent_workflows/physics/scene_ops.py": "e6a0f74ef6ff66120d6f8aed7a9c4df90225d489b54a4ca5e9463116fb2854f3",
+    "agentic/packages/content_agent_workflows/content_agent_workflows/physics/workflow.py": "feca8d322df5cd8827a0db694db3c76384031ae75faa9eb592d7d76c59dfcbe9",
+    "apps/joint_agent/joint_agent/functions/articulation_contract_v2_frames.py": "a1a3e5dd0371f9595f5513cdada835c1443f18d0613fd874f6b89f3df6977f87",
+    "world_understanding/functions/physics/physics_topology.py": "79d96fb9f09b9e81490804e9dddd2dc501a83bdb9829fde8368331677ee60bdf"
+  },
+  "input_hashes": {
+    "runs/drawer_geometry_04/articulation_preparation_readback.json": "0b5f31e579c6871d1eae45f57f4f98530e49ff4b6ceee6d3f7d5f3637eb4c9f4",
+    "runs/drawer_geometry_04/inspector_config.json": "1c06fcf473248e4cbfe6b2b2a00a3c2848248798a45c6b21ac1da3730334d109",
+    "runs/drawer_geometry_04/source_preserved.geometry.usdc": "67d797d9f3be756a8908641c4d172dbc30e5b18eb911a537f9d3e87e004758c6"
+  },
+  "limitations": [
+    "No fresh preparation publication, native Joint authoring, source topology application or Physics execution was performed by this review.",
+    "The declaration must derive from newly retained configuration and exact saved hierarchy/dependency readback; caller owner lists or recycled hashes are not sufficient.",
+    "Current source parent and child world transforms are identical, so unchanged local joint frames preserve anchors. Other transformed/ambiguous sources require separate validation and are outside this route.",
+    "No new Joint or Physics API appears required for this exact asset; success remains subject to fresh native review, readback, physical tests and pair-filter contract."
+  ],
+  "native_joint_physics_model_or_solver_invoked": false,
+  "prior_promotion_receipt_sha256": "143aa93490669d026dd45aecca4e7fa894ef6fb0c4c11359062e64bf1f898773",
+  "proposal_only_no_authority_published": true,
+  "reviewed_utc": "2026-09-22T03:11:55.922786+00:00",
+  "route": [
+    "Fresh source-bound preparation against joint-free original Geometry04/package; new typed inspector configuration/readback makes only cabinet Mesh the fixed authoritative cabinet owner, with its parent fixed under /Asset. No reuse of old preparation hashes.",
+    "Native articulation author/review/apply with Astra Ultra may choose that exact Mesh body0, unchanged upper-drawer Xform body1, prismatic Z, matched origin frames,0..0.30m limits and collisionEnabled=false. Guard result establishes endpoint admissibility, not future model authoring success.",
+    "Apply existing scene_ops.apply_topology_plan on a fresh derivative after native Joint: exact new source digest, ensure_rigid_body_api only on upper drawer, matching body1 owner-promotion allowlist; preserve body0 Mesh and every joint parameter. Do not promote static cabinet mesh.",
+    "Package that prepared source and start fresh Physics inspection/decision from the resulting digest and five-component catalog; do not rebase a supplied one-component pre-promotion patch. Keep original source arrays and all earlier outputs intact."
+  ],
+  "schema_version": 1,
+  "script_sha256": "2b58aa74f445a0e935a4b4a60afa9f5566e76172d16a5a526739cd1fb378623c",
+  "source_or_saved_asset_mutated": false
+}

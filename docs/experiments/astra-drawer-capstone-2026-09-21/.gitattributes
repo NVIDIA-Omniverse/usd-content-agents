@@ -1,0 +1,16 @@
+# Preserve SHA256-bound evidence exactly in every checkout.
+* -text
+*.bin binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.usdc binary
+*.usdz binary
+*.gz binary
+# Original writer line endings and USD export EOF spacing are evidence.
+*.csv whitespace=cr-at-eol
+*.usda whitespace=-blank-at-eof
+# Preserve generated plot whitespace without changing its digest.
+task_plots/native08_source_clear_v1/drawer_task.svg whitespace=-blank-at-eol
+task_plots/native09_source_clear_v1/drawer_task.svg whitespace=-blank-at-eol
+task_plots/native10_source_clear_v1/drawer_task.svg whitespace=-blank-at-eol

@@ -1,0 +1,130 @@
+{
+  "scope": "Read-only portable dependency closure; no simulation",
+  "usd_version": [
+    0,
+    25,
+    5
+  ],
+  "passed": true,
+  "files": [
+    {
+      "path": "runs/drawer_geometry_04/source_prep/source_preserved.usdc",
+      "sha256": "6a084329954c73dd24b7783ec9befdbda73d603f862cd13b5a923a5a9578b730",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_geometry_04/source_preserved.geometry.usdc",
+      "sha256": "bc0504fd1b73cf082eebb0c813b15075dbaf5505941a5f4713c05cba460c1101",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_joint_02/joint_rigger/rigged.usdz",
+      "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_03/inputs/source/source.usdz",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_03/physics.usda",
+      "sha256": "4089edcc6908c3ea22b1f001482dc392af134092ea1063cc11eb028a226fac9e",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda",
+      "sha256": "21ac14241daebb8cbd42ee123c0d0db7879c3f7a4fde03f342770ca12851b033",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda",
+      "sha256": "c03087ffc742d5e8cca59032ea6c3e201a2b6f600c296d8d58475ec8562fe154",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_06/runtime/drop_settle_scene.usda",
+      "sha256": "2dfe08841e8109bb2905c9c5cf51b8c2ecd337924c97e0d387bc77d4c6642302",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_06/runtime/usd_cli_simulation/recording.usda",
+      "sha256": "b9433a2aba655edd4c83677f21fa852940ec97529160e1df6fdf94acc480e4e1",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_07/inputs/source/source.usdz",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_07/physics.usda",
+      "sha256": "6143498ebec2408b4e72760d5da9abe1d31a930c9747f056afea33879a20c01a",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda",
+      "sha256": "69426da4a5e7110842d829a98742ab5cb87ab8bdbbc29bea198cb5a0cea756a4",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda",
+      "sha256": "b08285f1b7c47ce09b8d508470a022526d016feab521e2d9b862b115ff11ab41",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_08/inputs/source/source.usdz",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_08/physics.usda",
+      "sha256": "451d1ad5cba42d260eebe8201bb78fdd057e9091bb54ba708be99115990bcdbc",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_08/runtime/drop_settle_scene.usda",
+      "sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    },
+    {
+      "path": "runs/drawer_physics_08/runtime/usd_cli_simulation/recording.usda",
+      "sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "dependency_count": 4,
+      "unresolved": [],
+      "outside_portable_bundle": []
+    }
+  ]
+}

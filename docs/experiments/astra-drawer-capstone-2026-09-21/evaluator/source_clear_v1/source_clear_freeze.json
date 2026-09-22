@@ -1,0 +1,67 @@
+{
+  "version": "astra-drawer-unscored-source-clear-v1",
+  "frozen_utc": "2026-09-22T02:24:44.505289+00:00",
+  "scope": "Unscored capstone initialization correction. No author artifact read or modified; not a scored-pilot correction or acceptance result.",
+  "original_spec_sha256": "cef4474f7bee05ce3be6c1e7bfa294ebfced78b62e99aace7aebc50cb14bb85d",
+  "original_payload_center_m": [
+    0.0,
+    1.035,
+    0.0
+  ],
+  "new_payload_center_m": [
+    0.0,
+    1.0529997730255127,
+    0.0
+  ],
+  "source_surface_upper_bound_within_swept_payload_xz_m": 1.0129997730255127,
+  "clearance_above_that_bound_m": 0.01,
+  "swept_xz_bounds_m": [
+    [
+      -0.09633823722716554,
+      -0.08133823722716554
+    ],
+    [
+      0.09633823722716554,
+      0.08133823722716554
+    ]
+  ],
+  "method": "Clip every original upper-drawer triangle to a conservative XZ bound covering all declared initial jitter and yaw. Place the lower payload face 10mm above the maximum clipped source height. Clip all five original source meshes against the entire swept initial payload box and require no surface intersection.",
+  "original_source_triangle_intersections_with_new_swept_payload": {
+    "drawer_cabinet": 0,
+    "drawer_cabinet_drawer_01": 0,
+    "drawer_cabinet_drawer_02": 0,
+    "drawer_cabinet_drawer_03": 0,
+    "drawer_cabinet_drawer_04": 0
+  },
+  "changed_spec_fields": [
+    "protocol_id",
+    "payload.initial_center_m[1]"
+  ],
+  "all_other_spec_fields_identical": true,
+  "clipping_qualification": {
+    "flat_plane_height_preserved": true,
+    "sloped_clipped_extremum": true,
+    "separated_plane_rejected": true,
+    "crossing_triangle_detected_without_inside_vertices": true,
+    "empty_input_stays_empty": true
+  },
+  "evaluator_and_solver_bytes_unchanged": true,
+  "native_cooked_geometry_preflight_still_required": true,
+  "five_native_trials_still_required": true,
+  "files_sha256": {
+    "DRAWER_CONTRACT.md": "dbc93fbfae143411048050525c5c80b9dea98bc2d40842aa1c1ea97e544564a9",
+    "DRAWER_EVALUATOR.md": "c84e1b69979842f53662ec5cc292a57b19bfdd3af594ad22eba33a0a28214eca",
+    "drawer_acceptance.json": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd",
+    "drawer_evaluate.py": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+    "drawer_force_units_probe.py": "16251ef980b49430518eea0d1409fedea1e15dd586a16ebf3a69a137649bc565",
+    "drawer_mesh_collision_probe.py": "dafbf7f50b4187ce070f736d4c46b3be1a8ff6e21a7da47b692029904cda1ba5",
+    "drawer_solver.py": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa",
+    "drawer_static_binding_test.py": "f5f95a05a70e3d6fba7ba3e168c60ad22b38bc3c21e55a505a3898d8b0036d8d",
+    "drawer_test_fixtures.py": "db4e8554390ef9273f696ef3f81639203db929fc8891efe18c4fb808fa5c2704",
+    "original_drawer_freeze.json": "5b7b44588abb32148273087d8df8f0300e78a0422ae83bb2c6a3d23e6caf8dd6",
+    "prepare_source_clear_fixture.py": "75cf05edcc9617da55d20bb1da269749b4f8cade77c9510448fb204363636fcf",
+    "reference/drawer_cabinet.bin": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+    "reference/drawer_cabinet_1k.gltf": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+    "source_direction_probe.py": "18adb2648647b6a276e9789c530ed8878da66262ede38356d6f9ab7ac57f141f"
+  }
+}

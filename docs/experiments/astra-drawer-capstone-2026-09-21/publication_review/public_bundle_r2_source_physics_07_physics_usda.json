@@ -1,0 +1,71 @@
+{
+  "scope": "Original visual source arrays only; no physical acceptance inferred.",
+  "source_sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+  "candidate_sha256": "6143498ebec2408b4e72760d5da9abe1d31a930c9747f056afea33879a20c01a",
+  "parts": [
+    {
+      "source_node": "drawer_cabinet",
+      "usd_path": "/Asset/drawer_cabinet_0/Primitive_0",
+      "points": 14130,
+      "triangles": 18198,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    },
+    {
+      "source_node": "drawer_cabinet_drawer_01",
+      "usd_path": "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "points": 1486,
+      "triangles": 2052,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    },
+    {
+      "source_node": "drawer_cabinet_drawer_02",
+      "usd_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "points": 1499,
+      "triangles": 2052,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    },
+    {
+      "source_node": "drawer_cabinet_drawer_03",
+      "usd_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "points": 1463,
+      "triangles": 2052,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    },
+    {
+      "source_node": "drawer_cabinet_drawer_04",
+      "usd_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "points": 1435,
+      "triangles": 2052,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    }
+  ],
+  "unique_source_nodes": 5,
+  "meters_per_unit": 1.0,
+  "up_axis": "Y",
+  "passed": true
+}

@@ -1,0 +1,24 @@
+{
+  "asset_id": "01_drawer",
+  "final_usd": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_09/physics.usda",
+  "drawer_body": "/Asset/drawer_cabinet_drawer_01_1",
+  "cabinet_body": "/Asset/drawer_cabinet_0",
+  "drawer_joint": "/Asset/Joints/candidate_0001_ed11071c24ea",
+  "source_components": {
+    "drawer_cabinet": [
+      "/Asset/drawer_cabinet_0/Primitive_0"
+    ],
+    "drawer_cabinet_drawer_01": [
+      "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+    ],
+    "drawer_cabinet_drawer_02": [
+      "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+    ],
+    "drawer_cabinet_drawer_03": [
+      "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+    ],
+    "drawer_cabinet_drawer_04": [
+      "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+    ]
+  }
+}

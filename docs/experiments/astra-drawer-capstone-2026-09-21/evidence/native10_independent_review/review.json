@@ -1,0 +1,597 @@
+{
+  "schema_version": 1,
+  "reviewed_utc": "2026-09-22T04:10:20.437263+00:00",
+  "review_script_sha256": "ad0e55c4815e0c207ec20a314837d53e1823c6ffcb7ea78f53d923f854b2c0e1",
+  "input_hashes": {
+    "runs/drawer_physics_10/physics.usda": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+    "runs/drawer_physics_03/physics.usda": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+    "evidence/native10_critical_cooking_log_audit.json": "130693a39a05156a4e63df1f0e9baebb72d80d8455f78c81d171d068bb5f3ecb",
+    "evidence/native10_cooking_log_review.json": "ce452a583f29690192376a19a9a6da4f5026ee27052f17ce48f35ef7c9f2a239",
+    "evidence/native10_cooked_clearance_v1.json": "6647b434e0952d0d5fab59f4ba6a354a3e7f4f5f5d893b11c2494180b8b0bb47",
+    "evidence/native10_cooked_clearance_v1.log": "8591c37f1fef583d27e2e4170ebcaafdb3cc42d22afaaa933d7e92a9982aa528",
+    "evidence/authored_contract_drawer_physics_10.json": "c65025e2fceda8d3a3385764991a8fa75bac3a92ad5df3601747ae036ae4f381",
+    "evidence/original_source_drawer_physics_10.json": "05bf4e1bfe92a8993a743230a2cd08ac43a678c25e588b786ef443532d78e7c9",
+    "evaluator/source_clear_v1/drawer_acceptance.json": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd",
+    "review_native09_cooking_log.py": "63ea5a41af9bde57b3a4702f8cfacff58e979004999989eea56d9fe4f3b7b185",
+    "audit_cooking_log.py": "e51ef615857b97bce6f5435a6ff2e94b0fbdbddaf1485796ce8c5ea2280713e1",
+    "runs/drawer_physics_09/physics.usda": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+    "runs/drawer_physics_10/runtime/runtime_validation_report.json": "377637b643bafe0d935153b658e126ba6b6384ec76057f06dc4a3d717d280869",
+    "runs/drawer_physics_09/runtime/runtime_validation_report.json": "6a92db7d2e5d68b74df752674a7bcd74eb2dc6217a6045593016c37b7f7d2295",
+    "runs/drawer_physics_10/runtime/usd_cli_simulation/trajectory.jsonl": "96eaa60ec3f190108b2d62333c59d25c4504ed7976d2bfe59918936c23c0c56d",
+    "runs/drawer_physics_10/workflow_run_manifest.json": "f13f28b94762b0922e18fdf80d2dc08dfb06a585d49951ca2a4f49531d873cc2",
+    "evidence/physics_native_execution_10.json": "5adfd616d42d863fa507b3ba63bcfe43eaec815d8bdbacdfd501a58de31b665f",
+    "evidence/native10_pre_visual_runtime/capture.json": "435933f25a04ce0bea453990b625fa064f296c312db0a77a115958c1ba25cce7",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0000.png": "eb8b2be4c63a925f8d8dfe1cfdcc449df6a57397a030efb233e7426b1f2729e6",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0001.png": "3902b3bbd1b3f3f335f8baf32ef4f198dadb26a5a19f860d6fcfb9ec4620481b",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0002.png": "167297e34c15cf59ded26dd269d7412f6bae4a2452fdd3ed2db9b5ea8090d2dd",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0003.png": "3efea0efb8e593bef17ed5d971bdc61d0537aea508d5aad3d97a15d2a4355e12",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0004.png": "50fcf394eecd49daf506c7263ae6cd6ac9fd9cfd3455f29aebb2d4a0f65ed70f",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0005.png": "8cc90c38869594382a7485a17a649ef6449730b7835091937162ec84bb513613",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0006.png": "ea8fc948f9e7d59747813827796d6c68f1761cfadbc7ee981e65e285858f2e58",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0007.png": "3eaef4be9c771120be8d6a10d3e460148ad9584661a88144100bc3d3a27b71a8"
+  },
+  "installed_runtime_overview_sha256": "64f0c0c360c0a921508c64e8d0af139f25f26c18759366da250e1d8c753f6a0d",
+  "documentation_lines": [
+    137,
+    138
+  ],
+  "checks": [
+    {
+      "name": "exact_native10_asset",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "all_receipts_bind_same_asset",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "strict_false_preserved",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "review_binds_exact_query_and_log",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "installed_documentation_exact_exception",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "narrow_exception_regressions",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "no_remaining_explicit_error_or_invalid_configuration",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "original_warning_inventory_retained",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "original_source_hashes",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "exact_source_arrays_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "identity_source_transform_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "enabled_collider_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "exact_source_arrays_1",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "identity_source_transform_1",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "enabled_collider_1",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "exact_source_arrays_2",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "identity_source_transform_2",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "enabled_collider_2",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "exact_source_arrays_3",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "identity_source_transform_3",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "enabled_collider_3",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "exact_source_arrays_4",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "identity_source_transform_4",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "enabled_collider_4",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "exact_five_source_node_bijection",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "preserved_physics:mass",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "preserved_physics:density",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "preserved_physics:centerOfMass",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "preserved_physics:diagonalInertia",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "preserved_physics:principalAxes",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual_saved_tighter_options",
+      "pass": true,
+      "detail": {
+        "shrinkWrap": true,
+        "errorPercentage": 0.10000000149011612,
+        "hullVertexLimit": 64,
+        "maxConvexHulls": 128,
+        "voxelResolution": 4000000
+      }
+    },
+    {
+      "name": "saved_cooking_api_token",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "authored_numeric_audit_pass",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "query_binds_frozen_spec",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "query_initialized_no_steps",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "known_overlap_positive_control",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "all25_floor_rays_populated",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "exact_payload_yaw_jitter_envelope",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "envelope_clear",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "frozen_six_spheres_clear",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_attributes_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_physical_attributes_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_apis_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_material_values_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_attributes_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_physical_attributes_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_apis_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_material_values_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_attributes_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_physical_attributes_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_apis_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_material_values_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_attributes_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_physical_attributes_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_apis_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_material_values_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_attributes_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_physical_attributes_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_mesh_apis_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_material_values_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "actual09_to10_body_properties",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "one_prismatic_joint",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "joint_physical_attributes_identical09",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "declared_only_endpoint_relationship_change",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "static_mesh_endpoint_identity_world_frame",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "only_upper_rigid_body_and_five_colliders",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "no_hidden_drive_filters_articulation",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "native_acceptance_thresholds_identical09",
+      "pass": true,
+      "detail": {
+        "ballistic_displacement_multiplier": 3.0,
+        "detect_initial_pose_discontinuity": true,
+        "expected_body_count": 1,
+        "initial_pose_tolerance_m": 0.002,
+        "max_ground_penetration_m": 0.02821974766455775,
+        "max_initial_pose_displacement_m": null,
+        "require_gravity_response": false,
+        "require_settle": true
+      }
+    },
+    {
+      "name": "mounted_preserves_authored_origin",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "explicit_gravity_and_exact_support_geometry",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "native91_finite_contiguous_samples",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "native_trajectory_summary_recomputed",
+      "pass": true,
+      "detail": {
+        "maximum_translation_from_authored_origin_m": 2.2371135930464256e-08,
+        "first_recorded_displacement_from_initial_m": 1.862645149230957e-09,
+        "maximum_linear_speed_m_s": 2.7878985000953586e-06,
+        "maximum_angular_speed_rad_s": 1.6216144073046769e-13,
+        "final_speed_m_s": 0.0
+      }
+    },
+    {
+      "name": "native_manifest_all_artifact_bytes_match",
+      "pass": true,
+      "detail": {
+        "artifact_count": 20,
+        "status": "pass"
+      }
+    },
+    {
+      "name": "native_source_package_matches_manifest",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "native_producer_model_code_terminal",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "pre_visual_runtime_bytes_preserved",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "strict_native_producer_closure",
+      "pass": true,
+      "detail": {
+        "status": "passed",
+        "kind": "native_physics_behavior",
+        "bundle_sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5",
+        "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+        "native_assessment_status": "pass",
+        "scope": "single_body_native_runtime_and_rendered_behavior_review"
+      }
+    },
+    {
+      "name": "actual_eight_reviewed_frames_retained",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "complete_asset_dependency_closure_unchanged",
+      "pass": true,
+      "detail": null
+    }
+  ],
+  "bounded_cpu_preflight_supported": true,
+  "blocking_findings": [],
+  "strict_original_verdict": "critical_error_absent=false preserved without modification",
+  "scoped_exact_documented_exception": "[Error] [omni.physx.cooking.plugin] registry is false.",
+  "remaining_warning_disposition": "Missing-plugin descriptor, UJITSO-service and emergency-thread messages remain disclosed and not generically whitelisted as harmless. They did not prevent the observed finite CPU query results with both known-intersection and25 positive floor rays. GPU fallback explicitly disclaims GPU/particle/deformable collision.",
+  "warning_lines": [
+    {
+      "line": 1,
+      "message": "[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin."
+    },
+    {
+      "line": 24,
+      "message": "[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service"
+    },
+    {
+      "line": 25,
+      "message": "[Warning] [omni.physx.plugin] GPU broadphase requires a CUDA context manager; falling back to ePABP."
+    },
+    {
+      "line": 26,
+      "message": "[Warning] [omni.physx.cooking.plugin] PhysX warning: Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!, FILE /builds/omniverse/physics/physx/source/geomutils/src/cooking/GuCookingConvexMesh.cpp, LINE 124"
+    },
+    {
+      "line": 27,
+      "message": "[Warning] [omni.physx.cooking.plugin] ConvexDecompositionTask: failed to cook GPU-compatible mesh, collision detection will fall back to CPU. Collisions with particles and deformables will not work with this mesh. Prim /Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+    },
+    {
+      "line": 28,
+      "message": "[Warning] [omni.physx.cooking.plugin] PhysX warning: Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!, FILE /builds/omniverse/physics/physx/source/geomutils/src/cooking/GuCookingConvexMesh.cpp, LINE 124"
+    },
+    {
+      "line": 29,
+      "message": "[Warning] [omni.physx.cooking.plugin] ConvexDecompositionTask: failed to cook GPU-compatible mesh, collision detection will fall back to CPU. Collisions with particles and deformables will not work with this mesh. Prim /Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+    },
+    {
+      "line": 30,
+      "message": "[Warning] [omni.physx.cooking.plugin] PhysX warning: Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!, FILE /builds/omniverse/physics/physx/source/geomutils/src/cooking/GuCookingConvexMesh.cpp, LINE 124"
+    },
+    {
+      "line": 31,
+      "message": "[Warning] [omni.physx.cooking.plugin] ConvexDecompositionTask: failed to cook GPU-compatible mesh, collision detection will fall back to CPU. Collisions with particles and deformables will not work with this mesh. Prim /Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+    }
+  ],
+  "saved_options": {
+    "shrinkWrap": true,
+    "errorPercentage": 0.10000000149011612,
+    "hullVertexLimit": 64,
+    "maxConvexHulls": 128,
+    "voxelResolution": 4000000
+  },
+  "measured_floor_y_range_m": [
+    1.0129997730255127,
+    1.0151139497756958
+  ],
+  "all_bound_inputs_unchanged": true,
+  "scope": "Read-only independent review of retained startup log and actual USD/source/numeric readback. No solver, renderer, model, asset edit, verdict override or final-retention terminal attestation.",
+  "limits": [
+    "This is independent read-only producer/source/preflight review, not the actual native Validation review or a physical-task verdict.",
+    "The exact documented initialization error exemption does not extend to any other error string or invalid-configuration warning.",
+    "Positive controls establish populated initial cooked query geometry, not independent proof that each cooking parameter was honored or that drawer/body clearance is globally valid.",
+    "This permits interpreting the measured CPU preflight; it does not establish task success, successful native visual review or workflow acceptance.",
+    "Fresh task trials and any later native work remain separate; no terminal assertion is made."
+  ],
+  "native_producer_closure_verified": true,
+  "native_bundle_sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5",
+  "native_validator_code_sha256": "bb897c9260b64513bfc63d0c7cc28d4814dadc4e03a96bf547361821faaecf3c",
+  "asset_dependency_manifest": {
+    "schema": "content-agent-workflows.usd-dependency-manifest.v1",
+    "asset_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+    "files": [
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+        "role": "dependency",
+        "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+        "size": 1036772
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+        "role": "root",
+        "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+        "size": 2533656
+      }
+    ],
+    "sha256": "0c1d29994c9d8b3b785f35bc08e6e152291c5f3c228ca6db955bd78b93e8744c"
+  },
+  "native_trajectory_recomputed": {
+    "maximum_translation_from_authored_origin_m": 2.2371135930464256e-08,
+    "first_recorded_displacement_from_initial_m": 1.862645149230957e-09,
+    "maximum_linear_speed_m_s": 2.7878985000953586e-06,
+    "maximum_angular_speed_rad_s": 1.6216144073046769e-13,
+    "final_speed_m_s": 0.0
+  },
+  "visual_frames": [
+    {
+      "path": "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0000.png",
+      "sha256": "eb8b2be4c63a925f8d8dfe1cfdcc449df6a57397a030efb233e7426b1f2729e6"
+    },
+    {
+      "path": "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0001.png",
+      "sha256": "3902b3bbd1b3f3f335f8baf32ef4f198dadb26a5a19f860d6fcfb9ec4620481b"
+    },
+    {
+      "path": "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0002.png",
+      "sha256": "167297e34c15cf59ded26dd269d7412f6bae4a2452fdd3ed2db9b5ea8090d2dd"
+    },
+    {
+      "path": "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0003.png",
+      "sha256": "3efea0efb8e593bef17ed5d971bdc61d0537aea508d5aad3d97a15d2a4355e12"
+    },
+    {
+      "path": "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0004.png",
+      "sha256": "50fcf394eecd49daf506c7263ae6cd6ac9fd9cfd3455f29aebb2d4a0f65ed70f"
+    },
+    {
+      "path": "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0005.png",
+      "sha256": "8cc90c38869594382a7485a17a649ef6449730b7835091937162ec84bb513613"
+    },
+    {
+      "path": "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0006.png",
+      "sha256": "ea8fc948f9e7d59747813827796d6c68f1761cfadbc7ee981e65e285858f2e58"
+    },
+    {
+      "path": "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0007.png",
+      "sha256": "3eaef4be9c771120be8d6a10d3e460148ad9584661a88144100bc3d3a27b71a8"
+    }
+  ],
+  "independent_visual_observation": "All eight actual retained PNGs were directly viewed by this independent reviewer. Nonblank textured cabinet and closed upper drawer remain visibly aligned without visible sag, rotation or separation. The oblique crop omits the base, rear and interior; it establishes no opening, payload or cavity behavior.",
+  "physical_change_boundary": "Fresh joint path and static body0 relationship changes from cabinet Xform to its original Mesh. Exact original five position/index arrays and identity world frames retained; all nonphysics authored Mesh attributes match09, as do body/collider values and resolved physics materials. This comparison does not independently establish original GLTF texture/material fidelity.",
+  "task_status": "Separate five-seed task evidence is not read or accepted by this receipt.",
+  "review_scope_status": "SUPPORTED_WITH_DISCLOSED_LIMITS",
+  "blocker_check_names": []
+}

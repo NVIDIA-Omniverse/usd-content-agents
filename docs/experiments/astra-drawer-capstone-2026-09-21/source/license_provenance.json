@@ -1,0 +1,13 @@
+{
+  "_publication": {
+    "mode": "field_projection",
+    "original_retained_sha256": "1191370a9b2f936c940f72763cde70fae1aac8e225f82d2165f9666c956c65b9"
+  },
+  "asset_page": "https://polyhaven.com/a/drawer_cabinet",
+  "asset_page_author": "Ulan Cabanilla",
+  "asset_page_license": "CC0 License",
+  "checked_at_utc": "2026-09-21T21:22:52.848925+00:00",
+  "legal_instrument": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "license_summary": "All Poly Haven assets are CC0; redistribution is permitted; attribution is appreciated but not required. Website example renders are distinct from CC0 asset files.",
+  "publisher_license_page": "https://polyhaven.com/license"
+}

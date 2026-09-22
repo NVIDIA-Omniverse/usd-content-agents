@@ -15,7 +15,8 @@ are contained and hashed, and a source receipt records each mesh's arrays.
 available only with that intake, `--optimization-policy skip`, no render repair,
 and no stage-metric rewrite. It compares the complete prepared source mesh
 inventory, vertices, face arrays, default world transforms, units and axes with
-the saved handoff. Nonfinite/malformed meshes, changed source geometry, any
+the saved handoff. Time-sampled geometry or transforms are rejected at this static
+boundary. Nonfinite/malformed meshes, changed source geometry, any
 rigid body or any collider fail that visual-only boundary. The full original
 strict topology report is retained. This policy does not establish collision
 cooking, contact, articulation, load holding or physical task acceptance.
@@ -71,7 +72,9 @@ must reauthor or transform those values as well. The defaults remain scalar-only
 `tests/test_drawer_capstone_physics.py` checks target resolution through native
 saved MassAPI readback, static preservation, invalid vectors and unchanged
 scalar defaults. These synthetic checks do not establish drawer contact or
-payload acceptance. The original frozen independent evaluator remains required.
+payload acceptance. Independent task execution remains required. The completed
+capstone uses the separately versioned, unscored `source_clear_v1` fixture
+described below, with the original controller and acceptance thresholds.
 
 For a model-authored Physics decision, provide the intended moving/static roles,
 mass assumptions, body-local frame and required collision openings as explicit
@@ -165,7 +168,10 @@ component decision may choose a representation appropriate to its geometry and
 mobility: for example, actual triangle surfaces (`none`) for a static cabinet
 and convex decomposition for its moving concave drawer. Later refinement pins
 the actual per-component choices; coarsening a collider or changing filtering
-to evade a contact failure is not permitted.
+to evade a contact failure is not permitted. A later, separately declared Joint
+repair changes which actual static actor the endpoint resolves to; its effective
+connected-actor exclusion and ideal-rail scope are disclosed below. It is a fresh
+native attempt, not a silent amendment to an earlier failed asset.
 
 For a mesh decision using `convexDecomposition`, the optional record below
 exposes bounded native cooking controls. It is a configuration example, not
@@ -204,3 +210,92 @@ still be exercised by the solver: inspect cooked floor height, cavity clearance,
 initial contacts, constraint behavior and the actual free-payload task. A
 synthetic cooking witness or successful schema readback is insufficient to
 accept the original drawer.
+
+## Completed outcome and limits
+
+The separate unscored capstone completed native Geometry, Joint, Physics and
+Validation, together with five independent loaded-drawer trials. Geometry04
+retains a **conditional** source-preserving handoff because original topology
+and UV warnings remain. Native Joint03 is accepted; Physics10 passes its actual
+mounted runtime and eight-frame Astra Ultra OVRTX review. Native Validation01
+ends `completed / accept / pass`: its four required gates pass (static,
+runtime, visual quality and package integrity). Its standalone
+`cross_stage_integrity` check remains `not_evaluated`; no broader integrity
+claim is inferred from that result.
+
+The native Physics, Validation and independent task evidence bind the same
+original authored USD SHA256:
+
+```text
+0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156
+```
+
+The measured implementation is commit
+`e640b8d6aa667745830db5e9bf87fd1b4cd763cb`, based on public commit
+`a96faf9cb2f5c1f655fe0d60c0ccf57e3477b1aa`. Its integrated regression run passed
+311 tests, with 15 skipped and 7 warnings. Later documentation edits do not
+change which implementation produced the evidence. See the
+[capstone evidence and reproduction guide](../../docs/experiments/astra-drawer-capstone-2026-09-21/README.md)
+for source provenance, exact receipts, prior failures, task traces and declared
+reproduction limits.
+
+Independent readback preserves the original five glTF meshes, all 26,406
+triangles, world transforms, meter units and Y-up. The moving upper drawer keeps
+the original native estimate of approximately 6.16 kg and its explicit COM and
+inertia; these are thin-panel estimates, not measured material properties. All
+physics materials use friction 0.6 and restitution 0. The evaluated dynamic cooking
+settings are shrink wrapping, 0.1% error, 64 vertices per hull, 128 hulls and
+4,000,000 voxels. The earlier JSON example is not the measured configuration.
+Actual initialized CPU queries, source comparisons and native logs supplement
+schema readback. Only the exact registry-startup message documented as nonfatal
+by installed OvPhysX 0.4.13 is scoped as nonfatal; all other startup, service,
+thread and CPU-fallback warnings remain retained.
+
+Joint03 starts afresh from the joint-free source-preserving Geometry output. It
+changes the fixed endpoint from `/Asset/drawer_cabinet_0`, a parent Xform without
+a native actor, to `/Asset/drawer_cabinet_0/Primitive_0`, the actual static cabinet
+Mesh. The existing `collisionEnabled=false` value, identity joint frames, Z axis
+and 0–0.30 m limits remain. Resolving the actual connected actor makes that
+existing exclusion effective. No additional collision group, filtered pair or
+disabled collider is introduced. This deliberately models an **ideal rail**;
+it does not validate realistic cabinet-to-drawer clearance or rail friction.
+The earlier Xform-endpoint assets and failed trials remain unchanged.
+
+The original task payload spawn intersected the visible source floor by about
+8 mm. Before the final asset trials, the separately frozen `source_clear_v1`
+fixture moved the payload center to Y=1.0529997730255127 m, providing 10 mm of
+source-floor clearance. Only that initial Y and the protocol ID differ from the
+original specification. Controller, forces, seeds, contact, penetration,
+retention and settling limits are unchanged; the original invalid spawn is
+retained. Source-clearance checks and 16 positive/negative qualification tests
+passed before the five trials.
+
+All five seeds (11, 23, 47, 83, 131) pass on CPU PhysX with a free 0.5 kg payload
+and a 40 N force cap. The drawer opens approximately 24.3 cm and returns closed;
+worst closed-hold error is 0.1584 mm, worst closed-hold speed is 0.000934 m/s,
+and maximum reported penetration is 0.01860 mm. Each payload remains retained
+with 2,280 contact samples. An independent audit checks all 12,300 finite,
+contiguous recorded samples, seeded inputs, controller forces, reports and
+unchanged source/fixture hashes. These are five bounded simulation trials, not
+a real-world reliability estimate or a test of every joint limit and load.
+
+Native Validation's physical-behavior check consumes the genuine mounted-rest
+runtime and visual-review evidence. The five loaded-drawer trials are a separate
+required acceptance condition on the same asset hash; their success is not
+inferred from a schema check or from adding arbitrary task JSON to Validation.
+A later portable USDZ convenience derivative would have a new identity and
+would not automatically inherit this acceptance.
+
+This outcome required substantial isolated development: source-preserving
+Geometry and vertex-mapping fixes, authoritative static roles and typed mass
+properties, mounted validation, packaged-dependency identity, typed cooking
+controls and corrected backend bounds, a strict native Physics evidence
+consumer for Validation, and the fresh static-Mesh endpoint route. Failed
+setup, authoring, runtime, visual-review and task attempts are retained. None of
+these changes amend the frozen paired pilot or demonstrate that its pinned
+baseline completed this task. Physics03's original root console log was
+overwritten by the Physics07 launcher; the original per-run asset, decisions,
+runtime, typed review and failure receipts survive, but that console is not
+reconstructed. Conditional Geometry warnings, estimated physical properties,
+ideal-joint semantics and the stated CPU/five-seed scope remain part of the
+result; this is not a universal SimReady claim.

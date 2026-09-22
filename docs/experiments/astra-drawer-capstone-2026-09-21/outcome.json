@@ -1,0 +1,132 @@
+{
+  "code_commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+  "evidence_semantics": "Native JSONs are exact or explicitly labeled field projections per manifest; measured trajectory/source/evaluator bytes are exact where marked. Original referenced hashes are not silently replaced with hashes of projected receipts.",
+  "final_conjunction_receipt": {
+    "path": "evidence/final_capstone_conjunction.json",
+    "sha256": "44fc44580c58ca68a489cdf9f818508b5704fe6052223399cdb42b821c92fa0c"
+  },
+  "final_scope_limits": [
+    "Original Geometry source topology warnings remain; no universal SimReady status.",
+    "Ideal prismatic joint with connected-actor collision exclusion; estimated material/mass properties and CPU rigid-body scope.",
+    "Five fixed seeds on predeclared source-clear fixture, no hardware, actuator, rail-friction, GPU/particle/deformable validation.",
+    "Frozen traces omit initial native XY/quaternion and per-contact actor IDs; audit limits remain.",
+    "Extensive code and authoring repairs are outside pilot budgets; no causal value or cost-saving claim.",
+    "Physics03 original root console was overwritten by Physics07 launcher; surviving native receipts retained, missing console not reconstructed."
+  ],
+  "final_task_success": true,
+  "required_final_conjunction": "native Validation AND five-seed source-clear task acceptance on exactly the same authored USD SHA",
+  "scope": "Unscored native Content Agents capstone; frozen pilot unchanged.",
+  "source_clear_fixture": {
+    "asset_acceptance": false,
+    "freeze_sha256": "f346acd1fd0b6e2d2bf5c5e79b4e19cd14ee94486856d9dc4943b696ea07c5f3",
+    "qualification_sha256": "570182d5deb30d08a4d9f57336a6267a17f17277189b37ffd8bb73a81e5bc463"
+  },
+  "stages": {
+    "geometry04": {
+      "physical_acceptance": false,
+      "success": true,
+      "validation_status": "conditional"
+    },
+    "independent_five_seed_tasks": {
+      "08": {
+        "asset_sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+        "pass": false,
+        "report_sha256": "ec5ce75653ddb3e567bea403d3c2394ca037023543472c183e717d6458d8871c",
+        "status": "FAIL",
+        "trials_passed": 0,
+        "trials_total": 5
+      },
+      "09": {
+        "asset_sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+        "pass": false,
+        "report_sha256": "45149739ee51187e5092f8034ed0ac0f3dcaef4974a5fbddeaad3357cb04feab",
+        "status": "FAIL",
+        "trials_passed": 0,
+        "trials_total": 5
+      },
+      "10": {
+        "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+        "pass": true,
+        "report_sha256": "35954e143077af36b7ee34981eb370a897858f07ae2edc6b6864791b3e0f147c",
+        "status": "PASS",
+        "trials_passed": 5,
+        "trials_total": 5
+      }
+    },
+    "independent_native10_task": {
+      "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+      "audit_consistent": true,
+      "audit_sha256": "fe57652db03858ff741effca47cfd4695a8fb93613b807b83ded523b7747fea3",
+      "native_validation_requirement_satisfied_separately": true,
+      "status": "PASS",
+      "trials_passed": 5,
+      "trials_total": 5
+    },
+    "joint02": {
+      "physical_acceptance": false,
+      "terminal_disposition": "accept"
+    },
+    "joint03": {
+      "asset_sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+      "physical_acceptance": false,
+      "source_mutated": false,
+      "terminal_disposition": "accept",
+      "terminal_receipt_sha256": "e2bad7172efdd48dc5bcabf62f073176813af03177c85351e8795cec6af7a23e"
+    },
+    "native_validation": {
+      "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+      "gate_dispositions": {
+        "cross_stage_integrity": "not_evaluated",
+        "package_integrity": "pass",
+        "runtime_validation": "pass",
+        "static_validation": "pass",
+        "visual_quality": "pass"
+      },
+      "source_mutated": false,
+      "status": "PASS",
+      "terminal": {
+        "bytes": 2927,
+        "path": "runs/drawer_validation_01_prepared/native_run/validation_terminal_receipt.json",
+        "sha256": "c027c329f87e0eeb3f381e45a6c20ed44189a79d66245ce07c799d740a0457eb"
+      },
+      "terminal_acceptance": true
+    },
+    "native_validation_launcher_qualification": {
+      "qualification_itself_executes_native_workflow": false,
+      "qualification_sha256": "7f3d95d50b26f3ae7c993d8f00b7a114feef08662f15a565fa188811beced5a2",
+      "qualified": true
+    },
+    "physics03": {
+      "native_status": "fail"
+    },
+    "physics06": {
+      "native_status": "fail"
+    },
+    "physics07": {
+      "native_status": "fail"
+    },
+    "physics08": {
+      "asset_sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "behavior_assessment_status": "unresolved_issues",
+      "cooking_option_limit": "Authored hullVertexLimit128 was warned invalid by the native plugin (supported8..64); authored readback does not prove effective use.",
+      "physical_acceptance": false,
+      "validation_status": "conditional",
+      "workflow_status": "fail"
+    },
+    "physics09": {
+      "asset_sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+      "behavior_assessment_status": "unresolved_issues",
+      "physical_acceptance": false,
+      "validation_status": "conditional",
+      "workflow_status": "fail"
+    },
+    "physics10": {
+      "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+      "behavior_assessment_status": "pass",
+      "physical_acceptance": false,
+      "scope": "Three-second mounted-rest native behavior; independent five-seed task and completed native Validation pass separately on the same asset.",
+      "validation_status": "pass",
+      "workflow_status": "pass"
+    }
+  }
+}

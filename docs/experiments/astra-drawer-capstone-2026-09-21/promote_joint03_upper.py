@@ -1,0 +1,12 @@
+import datetime,hashlib,json
+from pathlib import Path
+from pxr import Usd,UsdPhysics
+from content_agent_workflows.physics.scene_ops import inspect_topology,inspect_components,apply_topology_plan
+cap=Path('/opt/astra-content-value-20260921/capstone');joint=cap/'runs/drawer_joint_03';summary=json.loads((joint/'final_summary.json').read_text());assert summary['success'];source=Path(summary['output_asset_path']);out=cap/'runs/drawer_topology_03';out.mkdir(exist_ok=False);sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+stage=Usd.Stage.Open(str(source));joints=[p for p in stage.Traverse() if p.IsA(UsdPhysics.Joint)];assert len(joints)==1;prim=joints[0];j=UsdPhysics.PrismaticJoint(prim);body='/Asset/drawer_cabinet_drawer_01_1';cabinet='/Asset/drawer_cabinet_0/Primitive_0';assert [str(x) for x in j.GetBody0Rel().GetTargets()]==[cabinet];assert [str(x) for x in j.GetBody1Rel().GetTargets()]==[body]
+before=inspect_topology(source);assert before['enabled_collider_count']==0 and before['enabled_rigid_body_count']==0
+plan={'schema_version':'content-workflows.physics-topology-plan.v1','expected_source_digest':before['source_digest'],'mobility_intent':'movable','operations':[{'op':'ensure_rigid_body_api','prim_path':body}],'invariants':{'enabled_collider_count':0,'reject_articulation_changes':True},'joint_endpoint_owner_promotions':[{'joint_prim_path':str(prim.GetPath()),'relationship':'body1','relationship_target_path':body,'requested_rigid_body_ancestor_path':body}]}
+(out/'physics_topology_plan.json').write_text(json.dumps(plan,indent=2)+'\n');(out/'source_topology.json').write_text(json.dumps(before,indent=2)+'\n');start=datetime.datetime.now(datetime.timezone.utc).isoformat()
+report=apply_topology_plan(input_usd_path=source,output_usd_path=out/'prepared.usda',**{k:v for k,v in plan.items() if k!='schema_version'})
+assert report['after']['rigid_body_paths']==[body];assert report['after_components']['component_count']==5
+(out/'applied_topology.json').write_text(json.dumps(report,indent=2)+'\n');(out/'execution.json').write_text(json.dumps({'started_utc':start,'completed_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'source_sha256':sha(source),'operation':'public Physics scene_ops.apply_topology_plan upper-only derivative; no mass/collider decisions authored','output':report['output_usd_path']},indent=2)+'\n');print(json.dumps({'output':report['output_usd_path'],'component_count':5,'joint':str(prim.GetPath())}))

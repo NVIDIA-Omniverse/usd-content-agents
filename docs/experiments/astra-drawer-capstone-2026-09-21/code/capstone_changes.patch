@@ -1,0 +1,4016 @@
+diff --git a/agentic/docs/drawer_geometry_capstone.md b/agentic/docs/drawer_geometry_capstone.md
+new file mode 100644
+index 0000000..4170e0c
+--- /dev/null
++++ b/agentic/docs/drawer_geometry_capstone.md
+@@ -0,0 +1,206 @@
++# Unscored source-preserving drawer workflow
++
++This isolated branch is a follow-up to the frozen pilot, not a change to its
++scored code or results. It does not contain the direct Astra baseline solution.
++
++The new explicit `lossless_gltf` source-authoring mode admits static glTF2
++triangle meshes by copying their source vertex and index arrays into USD at
++meter scale. Original zero-area faces remain in the render representation.
++Unsupported animation, skinning, compressed/morphed geometry, required
++extensions or unsupported attributes fail explicitly. Materials are translated
++to USDPreviewSurface; exact shader equivalence is not claimed. Dependencies
++are contained and hashed, and a source receipt records each mesh's arrays.
++
++`--render-topology-policy preserve_source` is an explicit visual handoff policy
++available only with that intake, `--optimization-policy skip`, no render repair,
++and no stage-metric rewrite. It compares the complete prepared source mesh
++inventory, vertices, face arrays, default world transforms, units and axes with
++the saved handoff. Nonfinite/malformed meshes, changed source geometry, any
++rigid body or any collider fail that visual-only boundary. The full original
++strict topology report is retained. This policy does not establish collision
++cooking, contact, articulation, load holding or physical task acceptance.
++
++The default topology policy remains strict. Downstream Joint, Physics and
++Validation must still execute and honor their own failed/conditional gates.
++Warnings from shared USD validation remain warnings; this change does not
++silence them or relabel a conditional overall handoff as a completed one.
++
++Example Geometry call after the normal repository setup:
++
++```sh
++content-workflow-cli geometry run /path/to/original/drawer.gltf \
++  --output-dir runs/drawer-geometry-fresh \
++  --source-authoring-mode lossless_gltf \
++  --render-topology-policy preserve_source \
++  --optimization-policy skip
++```
++
++OVRTX evidence remains enabled by default. A CPU-only preflight may explicitly
++use `--no-render-evidence`; it does not count as final visual evidence.
++
++The protected-feature detector separately uses explicit analysis-to-source
++vertex IDs. Its previous exact-position lookup could raise a KeyError after
++floating-point averaging during seam welding. Neither mapping operation edits
++the source mesh. The focused regression file is
++`tests/test_drawer_capstone_geometry.py`; it contains source-fidelity positives,
++negative mutations/physics misuse, strict-default behavior and the nonidentical
++average witness. Synthetic tests are not the physical drawer demonstration.
++
++## Subsequent unscored Physics extension
++
++The native topology-only Joint handoff can require a guarded Physics endpoint
++promotion before its component inventory separates moving and static parts.
++If a one-shot decision cannot be rebased after that split, retain the failed
++attempt and use its exact prepared derivative in a fresh native Physics run.
++Do not relabel the failed attempt as accepted.
++
++The resolved Physics decision now carries the authoritative inspected component
++role. `unowned_static` components keep their collision/material operations and
++receive no new rigid-body operation. Zero mass on an actual body retains the
++existing USD automatic-mass behavior; zero alone does not mean static.
++
++An optional `mass_properties` decision record accepts body-local center of mass,
++positive principal moments of inertia, and a normalized `(w,x,y,z)` principal-axis
++quaternion. Values use USD stage units and describe estimates supplied by the
++reasoner, not measured ground truth. Invalid records fail before batch mutation.
++An explicit inertia record cannot be carried across merged bodies or a changed
++body-root path. This guard relies on the existing topology-plan operations,
++which do not edit transforms; any future operation that changes a body frame
++must reauthor or transform those values as well. The defaults remain scalar-only.
++
++`tests/test_drawer_capstone_physics.py` checks target resolution through native
++saved MassAPI readback, static preservation, invalid vectors and unchanged
++scalar defaults. These synthetic checks do not establish drawer contact or
++payload acceptance. The original frozen independent evaluator remains required.
++
++For a model-authored Physics decision, provide the intended moving/static roles,
++mass assumptions, body-local frame and required collision openings as explicit
++guidance. For example, on an already prepared Joint output with a valid component
++inventory:
++
++```sh
++content-workflow-cli physics apply \
++  --usd /path/to/native-prepared-source.usdz \
++  --output-dir runs/drawer-physics-fresh \
++  --runner codex --model gpt-6-astra --model-reasoning-effort ultra \
++  --no-optimize --collision-approximation convexDecomposition \
++  --simulation-engine ovphysx --duration-s 3 --dt 0.004166666666666667 \
++  --runtime-placement-mode mounted --drop-height-m 0 \
++  --additional-instructions-file physics-guidance.md
++```
++
++The optional record belongs alongside `physical_properties` in a native V2
++component target decision, rather than inside its scalar dictionary. This is a
++synthetic example for a body with metre/kilogram units, not drawer ground truth:
++
++```json
++{
++  "physical_properties": {
++    "estimated_mass_kg": 2.0,
++    "density": 500.0,
++    "static_friction": 0.6,
++    "dynamic_friction": 0.6,
++    "restitution": 0.0
++  },
++  "mass_properties": {
++    "center_of_mass": [0.02, 0.03, 0.04],
++    "diagonal_inertia": [0.1, 0.2, 0.25],
++    "principal_axes": [1.0, 0.0, 0.0, 0.0]
++  }
++}
++```
++
++Use the actual inspected component/target IDs, source digest and body frame in
++the surrounding decision. Do not assign these synthetic numbers to arbitrary
++assets. The component role is derived from inspection and cannot be changed by
++the decision. Explicit vectors for a static component are rejected.
++
++When a native adapter rejects external texture locators, the supported
++`usd-cli open` followed by `usd-cli save /path/to/source.usdz --flatten` can
++produce a self-contained input. Verify source arrays, transforms and existing
++joint/body opinions after packaging, publish fresh preparation evidence, and
++retain the failed attempt. Packaging does not add physical validity. A successful
++three-second mounted smoke test likewise does not demonstrate opening, closing
++or free-payload retention; those require independent task execution.
++
++## Mounted validation and packaged identities
++
++Use `--runtime-placement-mode mounted` for an existing mounted mechanism. The
++default `drop` behavior is unchanged. A zero drop height alone still requests
++ground placement in drop mode; it does not preserve a constrained body's pose.
++Mounted mode keeps all authored transforms and joint frames, including empty
++world-anchor targets. It requires `metersPerUnit=1` and an omitted or zero drop
++gap, and fails explicitly for unsupported units rather than partially scaling
++a mechanism. Gravity remains 9.81 m/s² and initial velocities are reset as in
++the existing smoke policy. Settling, finite/bounded motion, pose continuity and
++the existing synthetic ground/penetration checks remain active. Mounted joints
++can resist gravity, so free-fall displacement is not required.
++
++After a harness defect is fixed, the supported deterministic executor can replay
++an unchanged native V2 decision patch with `physics apply --direct-executor
++--decision-patch /path/to/original-patch.json`, the same inspected source and the
++explicit mounted mode. Retain the original failed run and verify the patch and
++source hashes. Reapplying a decision does not substitute for actual solver or
++visual validation.
++
++A flattened USDA may retain a texture locator into a local USDZ. Dependency
++identity now binds that locator through the complete archive bytes. Archive
++changes invalidate the identity. Missing or unresolved members, remote locators,
++path traversal, malformed syntax, non-USDZ containers and nested package
++locators fail closed. This change does not alter the asset or extract textures.
++
++An unchanged-patch replay also requires the exact inspected source identity.
++The native source digest includes resolved layer identifiers; moving identical
++bytes to a new path can therefore require a fresh inspection and decision.
++If the purpose is only to revalidate the exact previously authored asset after
++a harness correction, use the exported `validate_physics_runtime` API with that
++asset and its bounded, original dependency root. Retain its actual native
++`ValidationEvidence` and runtime report. This does not manufacture a successful
++top-level authoring workflow or a model behavior assessment.
++
++## Explicit collision cooking controls
++
++The configured collision approximation is the initial fallback. An explicit
++component decision may choose a representation appropriate to its geometry and
++mobility: for example, actual triangle surfaces (`none`) for a static cabinet
++and convex decomposition for its moving concave drawer. Later refinement pins
++the actual per-component choices; coarsening a collider or changing filtering
++to evade a contact failure is not permitted.
++
++For a mesh decision using `convexDecomposition`, the optional record below
++exposes bounded native cooking controls. It is a configuration example, not
++evidence that this setting succeeds for an arbitrary asset:
++
++```json
++{
++  "collision_approximation": "convexDecomposition",
++  "convex_decomposition": {
++    "shrink_wrap": true,
++    "error_percentage": 1.0,
++    "hull_vertex_limit": 64,
++    "max_convex_hulls": 64,
++    "voxel_resolution": 1000000
++  }
++}
++```
++
++The record is allowed alongside the scalar physical properties and optional
++mass-property vectors in the native target-ID decision. Omitting it leaves
++existing cooking attributes unchanged. Providing it authors all five values,
++using native 0.4.13 defaults for omitted fields. Workflow resource bounds are
++error 0–100%, hulls 1–256 and voxels 10,000–4,000,000. Hull vertices are restricted
++to 8–64 because the OvPhysX 0.4.13 decomposition backend rejects 128 even though
++the USD schema accepts an integer property. The earlier 4–255 authoring bound
++was too broad; schema readback did not establish backend support. Existing
++failed assets and their receipts remain unchanged. Other resource bounds are
++not claims about every backend setting being independently qualified.
++Invalid types, unknown fields,
++incompatible approximations, non-mesh targets and conflicting existing attribute
++types fail before batch mutation. Rebased decisions with different cooking
++options cannot silently merge.
++
++The source render mesh stays unchanged. The saved PhysX API and values must
++still be exercised by the solver: inspect cooked floor height, cavity clearance,
++initial contacts, constraint behavior and the actual free-payload task. A
++synthetic cooking witness or successful schema readback is insufficient to
++accept the original drawer.
+diff --git a/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/lossless_gltf.py b/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/lossless_gltf.py
+new file mode 100644
+index 0000000..e683295
+--- /dev/null
++++ b/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/lossless_gltf.py
+@@ -0,0 +1,457 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# SPDX-License-Identifier: Apache-2.0
++"""Explicit static glTF triangle intake preserving source vertices and faces.
++
++This bounded route rejects unsupported geometry features. It never welds,
++deduplicates, repairs or optimizes render geometry, including zero-area faces.
++Material translation is USDPreviewSurface, not an exact glTF shader claim.
++"""
++
++from __future__ import annotations
++
++import base64
++import hashlib
++import json
++import struct
++from pathlib import Path
++from urllib.parse import unquote, urlsplit
++
++import numpy as np
++
++
++def _digest(data: bytes) -> str:
++    return hashlib.sha256(data).hexdigest()
++
++
++def import_static_gltf(source: Path, output: Path) -> dict:
++    from pxr import Gf, Sdf, Tf, Usd, UsdGeom, UsdShade, Vt
++
++    source = source.resolve()
++    raw = source.read_bytes()
++    binary = None
++    if source.suffix.lower() == ".glb":
++        if len(raw) < 20 or struct.unpack_from("<III", raw) != (
++            0x46546C67,
++            2,
++            len(raw),
++        ):
++            raise ValueError("Invalid glTF2 binary header")
++        chunks = {}
++        offset = 12
++        while offset < len(raw):
++            size, kind = struct.unpack_from("<II", raw, offset)
++            if offset + 8 + size > len(raw) or kind in chunks:
++                raise ValueError("Invalid or repeated GLB chunk")
++            chunks[kind] = raw[offset + 8 : offset + 8 + size]
++            offset += 8 + size
++        doc = json.loads(chunks[0x4E4F534A])
++        binary = chunks.get(0x004E4942)
++    else:
++        doc = json.loads(raw)
++    if doc.get("asset", {}).get("version") != "2.0":
++        raise ValueError("Only glTF2 is supported")
++    if doc.get("extensionsRequired") or doc.get("animations") or doc.get("skins"):
++        raise ValueError(
++            "Required extensions, animation and skinning require another explicit route"
++        )
++    dependencies = {source.name: _digest(raw)}
++
++    def uri_bytes(uri):
++        if uri.startswith("data:"):
++            header, data = uri.split(",", 1)
++            if not header.endswith(";base64"):
++                raise ValueError("Only base64 embedded URIs are supported")
++            return base64.b64decode(data, validate=True)
++        parsed = urlsplit(uri)
++        if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment:
++            raise ValueError("Only contained local glTF dependencies are supported")
++        p = (source.parent / unquote(parsed.path)).resolve()
++        if not p.is_relative_to(source.parent) or not p.is_file():
++            raise ValueError("Missing or escaping glTF dependency")
++        data = p.read_bytes()
++        dependencies[str(p.relative_to(source.parent))] = _digest(data)
++        return data
++
++    buffers = []
++    for index, item in enumerate(doc.get("buffers", [])):
++        data = (
++            uri_bytes(item["uri"]) if "uri" in item else binary if index == 0 else None
++        )
++        if data is None or len(data) < item["byteLength"]:
++            raise ValueError("Missing or truncated glTF buffer")
++        buffers.append(data[: item["byteLength"]])
++
++    def view_data(index):
++        view = doc["bufferViews"][index]
++        data = buffers[view["buffer"]]
++        offset = view.get("byteOffset", 0)
++        end = offset + view["byteLength"]
++        if offset < 0 or end > len(data):
++            raise ValueError("Buffer view is outside its buffer")
++        return data[offset:end], view
++
++    def accessor(index):
++        a = doc["accessors"][index]
++        if "sparse" in a or a["type"] not in ("SCALAR", "VEC2", "VEC3", "VEC4"):
++            raise ValueError("Sparse or matrix accessors are unsupported")
++        dtype = np.dtype(
++            {
++                5120: "i1",
++                5121: "u1",
++                5122: "<i2",
++                5123: "<u2",
++                5125: "<u4",
++                5126: "<f4",
++            }[a["componentType"]]
++        )
++        width = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}[a["type"]]
++        data, view = view_data(a["bufferView"])
++        offset = a.get("byteOffset", 0)
++        stride = view.get("byteStride", dtype.itemsize * width)
++        count = a["count"]
++        if (
++            count < 1
++            or stride < dtype.itemsize * width
++            or offset < 0
++            or offset + (count - 1) * stride + dtype.itemsize * width > len(data)
++        ):
++            raise ValueError("Invalid accessor extent or stride")
++        values = np.ndarray(
++            (count, width),
++            dtype,
++            buffer=data,
++            offset=offset,
++            strides=(stride, dtype.itemsize),
++        ).copy()
++        if a.get("normalized"):
++            values = np.maximum(values.astype(float) / np.iinfo(dtype).max, -1)
++        if not np.isfinite(values).all():
++            raise ValueError("Nonfinite source accessor")
++        return values
++
++    output.parent.mkdir(parents=True, exist_ok=True)
++    stage = Usd.Stage.CreateNew(str(output))
++    root = UsdGeom.Xform.Define(stage, "/Asset")
++    stage.SetDefaultPrim(root.GetPrim())
++    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
++    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
++    images = []
++    for index, item in enumerate(doc.get("images", [])):
++        data = (
++            uri_bytes(item["uri"])
++            if "uri" in item
++            else view_data(item["bufferView"])[0]
++        )
++        suffix = (
++            ".png"
++            if data.startswith(b"\x89PNG")
++            else ".jpg"
++            if data.startswith(b"\xff\xd8")
++            else None
++        )
++        if suffix is None:
++            raise ValueError("Only PNG and JPEG textures are supported")
++        rel = Path("textures") / f"image_{index:04d}{suffix}"
++        (output.parent / rel).parent.mkdir(exist_ok=True)
++        (output.parent / rel).write_bytes(data)
++        images.append(rel.as_posix())
++    materials = []
++    if doc.get("materials"):
++        UsdGeom.Scope.Define(stage, "/Asset/Looks")
++    for index, item in enumerate(doc.get("materials", [])):
++        path = f"/Asset/Looks/Material_{index:04d}"
++        material = UsdShade.Material.Define(stage, path)
++        shader = UsdShade.Shader.Define(stage, path + "/Surface")
++        shader.CreateIdAttr("UsdPreviewSurface")
++        material.CreateSurfaceOutput().ConnectToSource(
++            shader.ConnectableAPI(), "surface"
++        )
++        uv = UsdShade.Shader.Define(stage, path + "/UV")
++        uv.CreateIdAttr("UsdPrimvarReader_float2")
++        uv.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
++        pbr = item.get("pbrMetallicRoughness", {})
++        color = pbr.get("baseColorFactor", [1, 1, 1, 1])
++        shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(
++            Gf.Vec3f(*color[:3])
++        )
++        shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(
++            pbr.get("roughnessFactor", 1)
++        )
++        shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(
++            pbr.get("metallicFactor", 1)
++        )
++        shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(color[3])
++
++        def texture(info, name, space, scale):
++            if info.get("texCoord", 0) != 0 or info.get("extensions"):
++                raise ValueError(
++                    "Alternate UV sets or texture transforms are unsupported"
++                )
++            tex = doc["textures"][info["index"]]
++            sampler = (
++                doc.get("samplers", [{}])[tex.get("sampler", 0)]
++                if doc.get("samplers")
++                else {}
++            )
++            t = UsdShade.Shader.Define(stage, path + "/" + name)
++            t.CreateIdAttr("UsdUVTexture")
++            t.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
++                Sdf.AssetPath(images[tex["source"]])
++            )
++            t.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set(space)
++            t.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
++                uv.ConnectableAPI(), "result"
++            )
++            t.CreateInput("scale", Sdf.ValueTypeNames.Float4).Set(Gf.Vec4f(*scale))
++            for axis in ("S", "T"):
++                t.CreateInput("wrap" + axis, Sdf.ValueTypeNames.Token).Set(
++                    {10497: "repeat", 33071: "clamp", 33648: "mirror"}[
++                        sampler.get("wrap" + axis, 10497)
++                    ]
++                )
++            return t
++
++        if "baseColorTexture" in pbr:
++            t = texture(pbr["baseColorTexture"], "Color", "sRGB", color)
++            shader.GetInput("diffuseColor").ConnectToSource(t.ConnectableAPI(), "rgb")
++        if "metallicRoughnessTexture" in pbr:
++            t = texture(
++                pbr["metallicRoughnessTexture"],
++                "MetalRough",
++                "raw",
++                [1, pbr.get("roughnessFactor", 1), pbr.get("metallicFactor", 1), 1],
++            )
++            shader.GetInput("roughness").ConnectToSource(t.ConnectableAPI(), "g")
++            shader.GetInput("metallic").ConnectToSource(t.ConnectableAPI(), "b")
++        if "normalTexture" in item:
++            t = texture(item["normalTexture"], "Normal", "raw", [2, 2, 2, 1])
++            t.CreateInput("bias", Sdf.ValueTypeNames.Float4).Set(
++                Gf.Vec4f(-1, -1, -1, 0)
++            )
++            shader.CreateInput("normal", Sdf.ValueTypeNames.Normal3f).ConnectToSource(
++                t.ConnectableAPI(), "rgb"
++            )
++        materials.append(material)
++    parts = []
++    visited = set()
++
++    def visit(index, parent):
++        if index in visited:
++            raise ValueError("Repeated/cyclic node attachment is unsupported")
++        visited.add(index)
++        node = doc["nodes"][index]
++        if node.get("skin") is not None or node.get("weights"):
++            raise ValueError("Deformed meshes are unsupported")
++        path = (
++            parent
++            + "/"
++            + Tf.MakeValidIdentifier(node.get("name", "Node"))
++            + f"_{index}"
++        )
++        xform = UsdGeom.Xform.Define(stage, path)
++        if "matrix" in node:
++            matrix = np.asarray(node["matrix"], float).reshape((4, 4), order="F")
++        else:
++            x, y, z, w = node.get("rotation", [0, 0, 0, 1])
++            q = np.array([x, y, z, w], float)
++            if not np.isclose(np.linalg.norm(q), 1, atol=1e-5):
++                raise ValueError("Nonunit node quaternion")
++            matrix = np.eye(4)
++            matrix[:3, :3] = np.array(
++                [
++                    [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
++                    [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
++                    [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
++                ]
++            ) @ np.diag(node.get("scale", [1, 1, 1]))
++            matrix[:3, 3] = node.get("translation", [0, 0, 0])
++        if not np.isfinite(matrix).all() or not np.allclose(matrix[3], [0, 0, 0, 1]):
++            raise ValueError("Invalid affine node transform")
++        xform.AddTransformOp().Set(Gf.Matrix4d(matrix.T.tolist()))
++        if "mesh" in node:
++            for pindex, primitive in enumerate(
++                doc["meshes"][node["mesh"]]["primitives"]
++            ):
++                if (
++                    primitive.get("mode", 4) != 4
++                    or primitive.get("targets")
++                    or primitive.get("extensions")
++                ):
++                    raise ValueError(
++                        "Only undeformed, uncompressed triangles are supported"
++                    )
++                attributes = primitive["attributes"]
++                positions = accessor(attributes["POSITION"])
++                if (
++                    positions.shape[1] != 3
++                    or doc["accessors"][attributes["POSITION"]]["componentType"] != 5126
++                ):
++                    raise ValueError("Position must be FLOAT VEC3")
++                faces = (
++                    accessor(primitive["indices"]).reshape(-1)
++                    if "indices" in primitive
++                    else np.arange(len(positions))
++                )
++                if (
++                    not np.issubdtype(faces.dtype, np.integer)
++                    or len(faces) % 3
++                    or np.any(faces < 0)
++                    or np.any(faces >= len(positions))
++                ):
++                    raise ValueError("Invalid triangle indices")
++                mesh = UsdGeom.Mesh.Define(stage, path + f"/Primitive_{pindex}")
++                mesh.CreateSubdivisionSchemeAttr("none")
++                mesh.CreatePointsAttr(
++                    Vt.Vec3fArray.FromNumpy(positions.astype(np.float32))
++                )
++                mesh.CreateExtentAttr(
++                    Vt.Vec3fArray.FromNumpy(
++                        np.array([positions.min(0), positions.max(0)], dtype=np.float32)
++                    )
++                )
++                mesh.CreateFaceVertexCountsAttr([3] * (len(faces) // 3))
++                mesh.CreateFaceVertexIndicesAttr(faces.astype(int).tolist())
++                for key in attributes:
++                    if key not in ("POSITION", "NORMAL", "TEXCOORD_0"):
++                        raise ValueError("Unsupported source vertex attribute " + key)
++                if "NORMAL" in attributes:
++                    normals = accessor(attributes["NORMAL"])
++                    if normals.shape != positions.shape:
++                        raise ValueError("Invalid source normal count")
++                    mesh.CreateNormalsAttr(
++                        Vt.Vec3fArray.FromNumpy(normals.astype(np.float32))
++                    )
++                    mesh.SetNormalsInterpolation("vertex")
++                if "TEXCOORD_0" in attributes:
++                    uv_values = accessor(attributes["TEXCOORD_0"])
++                    if uv_values.shape != (len(positions), 2):
++                        raise ValueError("Invalid source UV count")
++                    # USD texture coordinates use the opposite vertical image convention.
++                    uv_values[:, 1] = 1 - uv_values[:, 1]
++                    UsdGeom.PrimvarsAPI(mesh).CreatePrimvar(
++                        "st", Sdf.ValueTypeNames.TexCoord2fArray, "vertex"
++                    ).Set(Vt.Vec2fArray.FromNumpy(uv_values.astype(np.float32)))
++                if "material" in primitive:
++                    UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(
++                        materials[primitive["material"]]
++                    )
++                    mesh.CreateDoubleSidedAttr(
++                        doc["materials"][primitive["material"]].get(
++                            "doubleSided", False
++                        )
++                    )
++                mesh.GetPrim().SetCustomDataByKey("sourceGltfNode", index)
++                parts.append(
++                    {
++                        "node": index,
++                        "primitive": pindex,
++                        "path": str(mesh.GetPath()),
++                        "vertices": len(positions),
++                        "triangles": len(faces) // 3,
++                        "source_positions_sha256": _digest(
++                            positions.astype("<f4").tobytes()
++                        ),
++                        "source_indices_sha256": _digest(faces.astype("<u4").tobytes()),
++                    }
++                )
++        for child in node.get("children", []):
++            visit(child, path)
++
++    for index in doc["scenes"][doc.get("scene", 0)]["nodes"]:
++        visit(index, "/Asset")
++    if not parts:
++        raise ValueError("Source scene has no triangle geometry")
++    stage.GetRootLayer().Save()
++    record = {
++        "schema_version": 1,
++        "source": str(source),
++        "source_sha256": _digest(raw),
++        "source_dependencies": dependencies,
++        "meters_per_unit": 1,
++        "up_axis": "Y",
++        "source_faces_preserved": True,
++        "parts": parts,
++        "limitations": [
++            "Static triangle geometry only; unsupported geometry fails explicitly.",
++            "Materials use USDPreviewSurface translation; shader equivalence is not certified.",
++        ],
++    }
++    record_path = output.parent / "lossless_gltf_receipt.json"
++    record_path.write_text(json.dumps(record, indent=2) + "\n")
++    return {
++        "receipt": str(record_path),
++        "source_sha256": record["source_sha256"],
++        "parts": parts,
++    }
++
++
++def verify_preserved_render(reference: Path, candidate: Path) -> dict:
++    """Verify source-derived prepared geometry survives handoff, before deferring topology."""
++    from pxr import Usd, UsdGeom, UsdPhysics
++
++    def read(path):
++        stage = Usd.Stage.Open(str(path))
++        cache = UsdGeom.XformCache()
++        meshes = {}
++        if stage is None:
++            raise ValueError("Unreadable preserved render stage")
++        for p in stage.Traverse():
++            if any(attribute.GetNumTimeSamples() for attribute in p.GetAttributes()):
++                raise ValueError("Static source-preserving handoff cannot admit time samples")
++            if p.HasAPI(UsdPhysics.CollisionAPI) or p.HasAPI(UsdPhysics.RigidBodyAPI):
++                raise ValueError(
++                    "Render-only handoff cannot admit collision or rigid-body authoring"
++                )
++            if not p.IsA(UsdGeom.Mesh):
++                if p.IsA(UsdGeom.Gprim):
++                    raise ValueError("Additional non-source visual geometry")
++                continue
++            m = UsdGeom.Mesh(p)
++            v = np.asarray(m.GetPointsAttr().Get(), float)
++            f = np.asarray(m.GetFaceVertexIndicesAttr().Get(), int)
++            counts = np.asarray(m.GetFaceVertexCountsAttr().Get(), int)
++            if (
++                not len(v)
++                or not len(f)
++                or not np.isfinite(v).all()
++                or (counts < 3).any()
++                or counts.sum() != len(f)
++                or (f < 0).any()
++                or (f >= len(v)).any()
++            ):
++                raise ValueError("Malformed render mesh")
++            meshes[str(p.GetPath())] = (
++                v,
++                f,
++                counts,
++                np.asarray(cache.GetLocalToWorldTransform(p), float),
++                np.array(
++                    [
++                        str(UsdGeom.Imageable(p).ComputeVisibility()),
++                        str(UsdGeom.Imageable(p).ComputePurpose()),
++                        str(m.GetSubdivisionSchemeAttr().Get()),
++                        str(m.GetOrientationAttr().Get()),
++                        str(m.GetDoubleSidedAttr().Get()),
++                    ]
++                ),
++            )
++        return (
++            float(UsdGeom.GetStageMetersPerUnit(stage)),
++            str(UsdGeom.GetStageUpAxis(stage)),
++            meshes,
++        )
++
++    a = read(reference)
++    b = read(candidate)
++    if a[:2] != b[:2] or a[2].keys() != b[2].keys():
++        raise ValueError("Source units, axes or part identity changed")
++    for key, arrays in a[2].items():
++        if any(
++            not np.array_equal(x, y) for x, y in zip(arrays, b[2][key], strict=True)
++        ):
++            raise ValueError("Source geometry or placement changed: " + key)
++    return {
++        "passed": True,
++        "source_mesh_count": len(a[2]),
++        "claim_scope": "Exact prepared/source-derived render points, face arrays, part paths, visibility, purpose, surface orientation, units and default transforms only; collision and runtime validation remain required downstream.",
++    }
+diff --git a/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/source_prep.py b/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/source_prep.py
+index ad9a257..cd08989 100644
+--- a/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/source_prep.py
++++ b/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/source_prep.py
+@@ -51,6 +51,7 @@ SourceAuthoringMode = Literal[
+     "parametric_recovery",
+     "direct_preserve",
+     "shared_conversion",
++    "lossless_gltf",
+ ]
+ SourceFidelityTier = Literal[
+     "opaque_cad_import",
+@@ -58,6 +59,7 @@ SourceFidelityTier = Literal[
+     "direct_usd_preserved",
+     "mesh_3mf_import",
+     "shared_conversion_noneditable",
++    "source_gltf_preserved",
+     "unsupported_requires_converter",
+ ]
+ 
+@@ -676,6 +678,19 @@ def prepare_geometry_source(
+ 
+     if existing_usd:
+         return _prepare_direct_usd(source)
++    if source_authoring_mode == "lossless_gltf":
++        from .lossless_gltf import import_static_gltf
++
++        destination = prep_dir / "source_preserved.usdc"
++        receipt = import_static_gltf(source, destination)
++        return PreparedGeometrySource(
++            fidelity_tier="source_gltf_preserved",
++            source_authoring_mode="lossless_gltf",
++            source_path=str(source),
++            original_input_path=str(source),
++            prepared_usd_path=str(destination),
++            metadata={"source_format": source.suffix.lower().lstrip("."), "lossless_gltf": receipt},
++        )
+     if suffix in THREEMF_SUFFIXES and source_authoring_mode in {
+         "auto",
+         "opaque_import",
+@@ -930,6 +945,7 @@ def _source_authoring_mode_error(
+         return None
+     suffix = source.suffix.lower()
+     compatible = {
++        "lossless_gltf": suffix in {".gltf", ".glb"},
+         "direct_preserve": existing_usd,
+         "parametric_recovery": suffix in RECOVERABLE_MESH_SUFFIXES,
+         "opaque_import": suffix in OPAQUE_IMPORT_SUFFIXES | THREEMF_SUFFIXES,
+diff --git a/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/workflow.py b/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/workflow.py
+index 9701cea..62a1fe5 100644
+--- a/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/workflow.py
++++ b/agentic/packages/content_agent_workflows/content_agent_workflows/geometry/workflow.py
+@@ -6,6 +6,7 @@
+ from __future__ import annotations
+ 
+ import json
++import traceback
+ from pathlib import Path
+ from typing import Any, Literal, cast
+ 
+@@ -134,6 +135,7 @@ class GeometryWorkflowInput(BaseModel):
+     output_dir: Path
+     output_usd_path: Path | None = None
+     source_authoring_mode: SourceAuthoringMode = "auto"
++    render_topology_policy: Literal["strict", "preserve_source"] = "strict"
+     allow_lossy_recovery: bool = False
+     target_profile: str = STATIC_VISUAL_PROFILE_ID
+     target_runtime: str = "isaac-lab"
+@@ -201,6 +203,18 @@ class GeometryWorkflowInput(BaseModel):
+         allow_inf_nan=False,
+     )
+ 
++    @model_validator(mode="after")
++    def validate_preserved_render_policy(self):
++        if self.render_topology_policy == "preserve_source" and (
++            self.source_authoring_mode != "lossless_gltf"
++            or self.optimization_policy != "skip"
++            or self.repair_mode != "off"
++            or self.canonicalize_stage_metrics
++            or self.run_legacy_cad_physics_preflight
++        ):
++            raise ValueError("preserve_source render topology requires explicit lossless_gltf intake, skipped optimization, no render repair/metric rewrite, and delegated downstream physics")
++        return self
++
+     @field_validator("repair_enabled_workers", mode="after")
+     @classmethod
+     def _canonicalize_repair_workers(cls, value: list[str] | None) -> list[str] | None:
+@@ -323,6 +337,8 @@ class GeometryWorkflowResult(BaseModel):
+     validation_status: str = "not_evaluated"
+     handoff_ready: GeometryHandoffReady = "no"
+     error: str | None = None
++    error_type: str | None = None
++    error_traceback_path: str | None = None
+ 
+ 
+ def _write_json(path: Path, payload: dict[str, Any]) -> Path:
+@@ -503,6 +519,7 @@ def _cad_preflight_checks(
+     profile_id: str,
+     *,
+     include_legacy_physics: bool = False,
++    preserved_render_reference: Path | None = None,
+ ) -> tuple[
+     list[ValidationCheck],
+     list[str],
+@@ -571,6 +588,25 @@ def _cad_preflight_checks(
+                 "issues": [f"CAD verifier {level} preflight unavailable: {exc}"],
+             }
+ 
++    if preserved_render_reference is not None:
++        from .lossless_gltf import verify_preserved_render
++
++        fidelity = verify_preserved_render(preserved_render_reference, usd_path)
++        raw_report = reports["mesh_topology"]
++        # This is an explicitly scoped render handoff. Preserve the complete
++        # strict report; it remains unsuitable evidence for collision cooking.
++        if raw_report.get("status") in {"pass", "fail"}:
++            reports["mesh_topology"] = {
++                "status": "pass",
++                "message": "Source render geometry is preserved, finite and well indexed; original visual topology is retained as diagnostics. Collision cooking/contact/runtime validation remains delegated and required before physical acceptance.",
++                "issues": [],
++                "metrics": raw_report.get("metrics", {}),
++                "strict_topology_report": raw_report,
++                "source_fidelity": fidelity,
++                "claim_scope": "source_preserving_render_only",
++                "physical_acceptance": False,
++            }
++
+     delegated_levels = physics_levels if not include_legacy_physics else []
+     report_statuses = {
+         str(report.get("status") or "not_evaluated") for report in reports.values()
+@@ -670,8 +706,10 @@ def _cad_preflight_checks(
+                 evidence_artifacts=artifacts,
+                 metadata={
+                     "profile_intent": profile_id,
+-                    "raw_status": status_value,
+-                    "claim_scope": "legacy_cad_preflight_only"
++                    "raw_status": report.get("strict_topology_report", {}).get("status", status_value),
++                    "claim_scope": "source_preserving_render_only"
++                    if preserved_render_reference is not None and level == "mesh_topology"
++                    else "legacy_cad_preflight_only"
+                     if level != "mesh_topology"
+                     else "cad_preflight_only",
+                     "required_by_profile": level in required_levels,
+@@ -1726,6 +1764,14 @@ def _source_prep_artifacts(
+     prepared: PreparedGeometrySource,
+ ) -> list[EvidenceArtifact]:
+     artifacts: list[EvidenceArtifact] = []
++    preserved = prepared.metadata.get("lossless_gltf")
++    if isinstance(preserved, dict) and Path(str(preserved.get("receipt", ""))).is_file():
++        artifacts.append(EvidenceArtifact(
++            kind="source_fidelity_report",
++            path=str(preserved["receipt"]),
++            description="Static glTF source vertex/index identity and dependency receipts.",
++            metadata={"producer": "content_agent_workflows.geometry.lossless_gltf", "claim_scope": "source_render_geometry", "status": "pass"},
++        ))
+     conversion = prepared.metadata.get("conversion")
+     if not isinstance(conversion, dict):
+         return artifacts
+@@ -2415,6 +2461,13 @@ def run_geometry_workflow(params: GeometryWorkflowInput) -> GeometryWorkflowResu
+             prompt=params.prompt,
+             image_path=params.image_path,
+         )
++        if params.source_authoring_mode == "lossless_gltf":
++            route = route.model_copy(update={
++                "route": "provided_mesh_repair",
++                "input_modality": "provided_mesh",
++                "requires_scene_optimization": False,
++                "rationale": "Explicit static glTF source-array preservation; no shared CAD conversion or render topology repair.",
++            })
+         output_dir.mkdir(parents=True, exist_ok=True)
+         source_path_for_preparation = params.source_path
+         source_sha256_for_preparation = params.expected_source_sha256
+@@ -2724,6 +2777,12 @@ def run_geometry_workflow(params: GeometryWorkflowInput) -> GeometryWorkflowResu
+                 output_dir,
+                 params.target_profile,
+                 include_legacy_physics=params.run_legacy_cad_physics_preflight,
++                preserved_render_reference=(
++                    Path(prepared.prepared_usd_path)
++                    if params.render_topology_policy == "preserve_source"
++                    and prepared.fidelity_tier == "source_gltf_preserved"
++                    else None
++                ),
+             )
+         )
+         source_prep_artifacts = _source_prep_artifacts(prepared)
+@@ -3232,6 +3291,15 @@ def run_geometry_workflow(params: GeometryWorkflowInput) -> GeometryWorkflowResu
+     except Exception as exc:
+         if params.fail_on_validation_error:
+             raise
++        traceback_path = None
++        try:
++            output_dir.mkdir(parents=True, exist_ok=True)
++            traceback_path = _write_json(output_dir / "geometry_failure.json", {
++                "error_type": type(exc).__name__, "error": str(exc),
++                "traceback": traceback.format_exc(), "claim_scope": "workflow_failure_diagnostic",
++            })
++        except OSError:
++            pass
+         if route is None:
+             route = GeometryRouteDecision(
+                 route="text_to_cad_generate",
+@@ -3268,4 +3336,6 @@ def run_geometry_workflow(params: GeometryWorkflowInput) -> GeometryWorkflowResu
+             validation_status="fail",
+             handoff_ready="no",
+             error=str(exc),
++            error_type=type(exc).__name__,
++            error_traceback_path=str(traceback_path) if traceback_path else None,
+         )
+diff --git a/agentic/packages/content_agent_workflows/content_agent_workflows/physics/__init__.py b/agentic/packages/content_agent_workflows/content_agent_workflows/physics/__init__.py
+index 61c3533..b404bcb 100644
+--- a/agentic/packages/content_agent_workflows/content_agent_workflows/physics/__init__.py
++++ b/agentic/packages/content_agent_workflows/content_agent_workflows/physics/__init__.py
+@@ -54,6 +54,7 @@ from .workflow import (
+     PhysicsComponent,
+     PhysicsComponentDecision,
+     PhysicsComponentTargetDecision,
++    PhysicsConvexDecompositionOptions,
+     PhysicsDecision,
+     add_physics_component_target_catalog,
+     default_physics_behavior_assessment,
+@@ -91,6 +92,7 @@ __all__ = [
+     "PhysicsComponent",
+     "PhysicsComponentDecision",
+     "PhysicsComponentTargetDecision",
++    "PhysicsConvexDecompositionOptions",
+     "PhysicsDecision",
+     "PhysicsMaterialProfile",
+     "PhysicsRuntimePreflightReport",
+diff --git a/agentic/packages/content_agent_workflows/content_agent_workflows/physics/scene_ops.py b/agentic/packages/content_agent_workflows/content_agent_workflows/physics/scene_ops.py
+index 2ede4a1..50541a4 100644
+--- a/agentic/packages/content_agent_workflows/content_agent_workflows/physics/scene_ops.py
++++ b/agentic/packages/content_agent_workflows/content_agent_workflows/physics/scene_ops.py
+@@ -1302,6 +1302,7 @@ def validate_runtime(
+     dt: float = 1.0 / 240.0,
+     sample_fps: int = 30,
+     drop_height_m: float | None = None,
++    placement_mode: str = "drop",
+     acceptance: dict[str, Any] | None = None,
+     body_prim_path_hint: str | None = None,
+     body_pattern_hint: str | None = None,
+@@ -1327,6 +1328,13 @@ def validate_runtime(
+             f"engine must be one of {sorted(VALID_SIMULATION_ENGINES)}, got {engine!r}"
+         )
+ 
++    if placement_mode not in {"drop", "mounted"}:
++        raise ValueError("placement_mode must be drop or mounted")
++    if placement_mode == "mounted":
++        acceptance = dict(acceptance or {})
++        # Gravity remains authored and active. A mounted joint may correctly
++        # resist it without producing the free-fall motion required of a drop.
++        acceptance.setdefault("require_gravity_response", False)
+     acceptance_config = None
+     normalized_acceptance: dict[str, Any] = {}
+     if acceptance is not None:
+@@ -1412,6 +1420,7 @@ def validate_runtime(
+         physics_usd_path,
+         scene_path,
+         drop_height_m=drop_height_m,
++        placement_mode=placement_mode,
+         gravity=-9.81,
+         ground_friction=0.6,
+         cameras=["+x+y+z"],
+diff --git a/agentic/packages/content_agent_workflows/content_agent_workflows/physics/usd_cli_ops.py b/agentic/packages/content_agent_workflows/content_agent_workflows/physics/usd_cli_ops.py
+index 95597dd..f789fcf 100644
+--- a/agentic/packages/content_agent_workflows/content_agent_workflows/physics/usd_cli_ops.py
++++ b/agentic/packages/content_agent_workflows/content_agent_workflows/physics/usd_cli_ops.py
+@@ -441,18 +441,22 @@ def physics_patch_from_workflow_decisions(
+             raise UsdCliPhysicsError(
+                 f"Physics decision {index} has no physical_properties."
+             )
+-        if author_rigid_body:
++        if author_rigid_body and decision.get("component_role", "body") != "unowned_static":
+             operations["rigid_bodies"].append(
+                 {
+                     "path": body_root,
+                     "density": properties.get("density"),
+                     "mass": properties.get("estimated_mass_kg"),
++                    **({"mass_properties": decision["mass_properties"]}
++                       if decision.get("mass_properties") is not None else {}),
+                 }
+             )
+         operations["colliders"].extend(
+             {
+                 "path": path,
+                 "approximation": decision.get("collision_approximation"),
++                **({"convex_decomposition": decision["convex_decomposition"]}
++                   if decision.get("convex_decomposition") is not None else {}),
+             }
+             for path in collider_paths
+         )
+diff --git a/agentic/packages/content_agent_workflows/content_agent_workflows/physics/workflow.py b/agentic/packages/content_agent_workflows/content_agent_workflows/physics/workflow.py
+index 3d88902..2bdf021 100644
+--- a/agentic/packages/content_agent_workflows/content_agent_workflows/physics/workflow.py
++++ b/agentic/packages/content_agent_workflows/content_agent_workflows/physics/workflow.py
+@@ -200,6 +200,68 @@ def _validated_physical_properties(
+     return properties
+ 
+ 
++class PhysicsMassProperties(BaseModel):
++    """Explicit body-local MassAPI values in stage distance/mass units.
++
++    Inertia is about the center of mass; principal_axes is (w, x, y, z).
++    These are caller-authored estimates, not inferred or measured properties.
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    center_of_mass: tuple[float, float, float]
++    diagonal_inertia: tuple[float, float, float]
++    principal_axes: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)
++
++    @field_validator("center_of_mass", "diagonal_inertia", "principal_axes", mode="before")
++    @classmethod
++    def _plain_numeric_vectors(cls, value: Any) -> Any:
++        if not isinstance(value, (list, tuple)) or any(
++            isinstance(item, bool) or not isinstance(item, (int, float)) for item in value
++        ):
++            raise ValueError("mass-property vectors must contain plain numbers")
++        return value
++
++    @model_validator(mode="after")
++    def _physical_values(self) -> "PhysicsMassProperties":
++        import struct
++
++        values = (*self.center_of_mass, *self.diagonal_inertia, *self.principal_axes)
++        try:
++            stored = [struct.unpack("f", struct.pack("f", value))[0] for value in values]
++        except (OverflowError, struct.error) as exc:
++            raise ValueError("mass properties must be representable as finite USD floats") from exc
++        if not all(math.isfinite(value) for value in stored):
++            raise ValueError("mass properties must be finite")
++        inertia = stored[3:6]
++        if min(inertia) <= 0.0:
++            raise ValueError("diagonal inertia must be positive")
++        if 2 * max(inertia) > sum(inertia) + 1e-6 * max(inertia):
++            raise ValueError("diagonal inertia violates the principal-moment triangle inequality")
++        if abs(sum(value * value for value in stored[6:]) - 1.0) > 1e-5:
++            raise ValueError("principal_axes must be a normalized (w,x,y,z) quaternion")
++        return self
++
++
++class PhysicsConvexDecompositionOptions(BaseModel):
++    """Explicit PhysX cooking options; bounds limit workflow cooking resources.
++
++    Defaults match the OvPhysX 0.4.13 USD schema. Omitting the entire record
++    preserves existing authoring behavior; providing it authors all five values.
++    The decomposition backend accepts 8–64 hull vertices, narrower than the
++    USD integer type. Other bounds limit resources. These controls do not
++    guarantee geometry fidelity.
++    """
++
++    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
++
++    shrink_wrap: bool = False
++    error_percentage: float = Field(default=10.0, ge=0.0, le=100.0, allow_inf_nan=False)
++    hull_vertex_limit: int = Field(default=64, ge=8, le=64)
++    max_convex_hulls: int = Field(default=32, ge=1, le=256)
++    voxel_resolution: int = Field(default=500_000, ge=10_000, le=4_000_000)
++
++
+ class PhysicsComponentDecision(BaseModel):
+     """One accepted V2 component-level physics authoring decision."""
+ 
+@@ -207,6 +269,7 @@ class PhysicsComponentDecision(BaseModel):
+ 
+     decision_id: str = Field(min_length=1)
+     component_id: str = Field(min_length=1)
++    component_role: Literal["body", "unowned_static"] = "body"
+     body_root_path: str = Field(min_length=1)
+     visual_evidence_paths: list[str] = Field(default_factory=list)
+     collider_paths: list[str] = Field(min_length=1)
+@@ -216,11 +279,19 @@ class PhysicsComponentDecision(BaseModel):
+     inferred_material_name: str | None = None
+     collision_approximation: str = Field(min_length=1)
+     physical_properties: dict[str, float]
++    mass_properties: PhysicsMassProperties | None = None
++    convex_decomposition: PhysicsConvexDecompositionOptions | None = None
+     confidence: float = Field(ge=0.0, le=1.0)
+     rationale: str = Field(min_length=1)
+     rigid_body_grouping: str | None = None
+     quality_warnings: list[dict[str, Any]] = Field(default_factory=list)
+ 
++    @model_validator(mode="after")
++    def _cooking_approximation(self) -> "PhysicsComponentDecision":
++        if self.convex_decomposition is not None and self.collision_approximation != "convexDecomposition":
++            raise ValueError("convex_decomposition requires convexDecomposition approximation")
++        return self
++
+     @field_validator("quality_warnings")
+     @classmethod
+     def _quality_warning_records(
+@@ -266,11 +337,19 @@ class PhysicsComponentTargetDecision(BaseModel):
+     inferred_material_name: str | None = None
+     collision_approximation: str = Field(min_length=1)
+     physical_properties: dict[str, float]
++    mass_properties: PhysicsMassProperties | None = None
++    convex_decomposition: PhysicsConvexDecompositionOptions | None = None
+     confidence: float = Field(ge=0.0, le=1.0)
+     rationale: str = Field(min_length=1)
+     rigid_body_grouping: str | None = None
+     quality_warnings: list[dict[str, Any]] = Field(default_factory=list)
+ 
++    @model_validator(mode="after")
++    def _cooking_approximation(self) -> "PhysicsComponentTargetDecision":
++        if self.convex_decomposition is not None and self.collision_approximation != "convexDecomposition":
++            raise ValueError("convex_decomposition requires convexDecomposition approximation")
++        return self
++
+     @field_validator("quality_warnings")
+     @classmethod
+     def _quality_warning_records(
+@@ -308,6 +387,7 @@ class PhysicsApplyWorkflowInput(BaseModel):
+     simulation_dt: float = 1.0 / 240.0
+     simulation_sample_fps: int = 30
+     drop_height_m: float | None = None
++    runtime_placement_mode: Literal["drop", "mounted"] = "drop"
+     vomp_mass: PhysicsVompMassConfig | None = None
+     vomp_artifact_namespace: str | None = Field(
+         default=None,
+@@ -1046,6 +1126,7 @@ def infer_component_decisions(
+             PhysicsComponentDecision(
+                 decision_id=component.component_id,
+                 component_id=component.component_id,
++                component_role=component.component_role,
+                 body_root_path=component.body_root_path,
+                 visual_evidence_paths=component.visual_evidence_paths,
+                 collider_paths=authoring_paths,
+@@ -1118,6 +1199,8 @@ def _write_predictions_jsonl(
+                 )
+                 if decision.rigid_body_grouping:
+                     classification["rigid_body_grouping"] = decision.rigid_body_grouping
++                if decision.convex_decomposition is not None:
++                    classification["convex_decomposition"] = decision.convex_decomposition.model_dump(mode="json")
+                 if decision.quality_warnings:
+                     classification["quality_warnings"] = deepcopy(
+                         decision.quality_warnings
+@@ -1437,6 +1520,11 @@ def _bind_patch_targets_in_place(
+             )
+             raw_decision["body_root_path"] = component.body_root_path
+             raw_decision["mass_authoring_path"] = component.body_root_path
++        # Mobility comes from the authoritative inspection, never a child hint.
++        supplied_role = raw_decision.get("component_role")
++        if supplied_role is not None and supplied_role != component.component_role:
++            raise RuntimeError(f"Physics decision for {component_id} changes component_role.")
++        raw_decision["component_role"] = component.component_role
+ 
+ 
+ def _validate_component_decisions(
+@@ -1471,6 +1559,10 @@ def _validate_component_decisions(
+         )
+     for decision in decisions:
+         component = components_by_id[decision.component_id]
++        if decision.component_role != component.component_role:
++            raise RuntimeError(f"Physics decision {decision.decision_id} changes component_role.")
++        if component.component_role == "unowned_static" and decision.mass_properties is not None:
++            raise RuntimeError("Static components cannot request rigid-body mass properties.")
+         targets = set(decision.collider_paths)
+         helpers = set(component.helper_paths)
+         if targets & helpers:
+@@ -1704,6 +1796,13 @@ def _merge_rebased_component_decisions(
+         )
+     ordered = sorted(decisions, key=lambda decision: decision.decision_id)
+     base = ordered[0]
++    if any(decision.mass_properties is not None for decision in ordered) and (
++        len(ordered) != 1 or base.body_root_path != component.body_root_path
++    ):
++        raise RuntimeError(
++            "Topology repair changes the body frame or mass grouping for explicit "
++            "mass_properties. Re-author them against the prepared derivative."
++        )
+     collider_paths = sorted(
+         {path for decision in ordered for path in decision.collider_paths}
+     )
+@@ -1718,6 +1817,7 @@ def _merge_rebased_component_decisions(
+         update={
+             "decision_id": component.component_id,
+             "component_id": component.component_id,
++            "component_role": component.component_role,
+             "body_root_path": component.body_root_path,
+             "visual_evidence_paths": component.visual_evidence_paths,
+             "collider_paths": collider_paths,
+@@ -1732,6 +1832,9 @@ def _merge_rebased_component_decisions(
+             "collision_approximation": _single_decision_value(
+                 ordered, "collision_approximation"
+             ),
++            "convex_decomposition": _single_decision_value(
++                ordered, "convex_decomposition"
++            ),
+             "physical_properties": _merge_physical_properties(ordered),
+             "rigid_body_grouping": _merge_rigid_body_grouping(ordered),
+             "quality_warnings": _merge_quality_warnings(ordered),
+@@ -2240,6 +2343,7 @@ def validate_physics_runtime(
+     dt: float = 1.0 / 240.0,
+     sample_fps: int = 30,
+     drop_height_m: float | None = None,
++    placement_mode: Literal["drop", "mounted"] = "drop",
+     acceptance: dict[str, Any] | None = None,
+     physics_properties_status: Literal["pass", "fail"] = "pass",
+     usd_cli_session: WorkflowUsdCliSession | None = None,
+@@ -2284,6 +2388,7 @@ def validate_physics_runtime(
+             dt=dt,
+             sample_fps=sample_fps,
+             drop_height_m=drop_height_m,
++            placement_mode=placement_mode,
+             acceptance=acceptance,
+             usd_cli_session=usd_cli_session,
+             scene_tool_timeout_seconds=scene_tool_timeout_seconds,
+@@ -2593,6 +2698,7 @@ def validate_physics_runtime_multi_body(
+     dt: float = 1.0 / 240.0,
+     sample_fps: int = 30,
+     drop_height_m: float | None = None,
++    placement_mode: Literal["drop", "mounted"] = "drop",
+     acceptance: dict[str, Any] | None = None,
+     physics_properties_status: Literal["pass", "fail"] = "pass",
+     usd_cli_session: WorkflowUsdCliSession | None = None,
+@@ -2600,7 +2706,7 @@ def validate_physics_runtime_multi_body(
+     ground_clearance_support_cache: dict[str, dict[str, Any]] | None = None,
+     ground_clearance_support_cache_key: str | None = None,
+ ) -> tuple[ValidationEvidence, Path | None]:
+-    """Validate each enabled rigid body with one whole-scene drop simulation.
++    """Validate each enabled rigid body with one whole-scene simulation.
+ 
+     The available engines record one tracked trajectory per simulation (the
+     ovphysx daemon and the version-checked remote executor both emit a
+@@ -2612,6 +2718,9 @@ def validate_physics_runtime_multi_body(
+     The per-body acceptance checks reuse the single-body gates; the asset
+     passes only when every body passes, and per-body failures are listed in
+     the aggregate runtime report.
++
++    Explicit mounted placement leaves every authored transform and anchor
++    unchanged, so disconnected roots do not require a common placement root.
+     """
+ 
+     if not body_prim_paths:
+@@ -2648,7 +2757,7 @@ def validate_physics_runtime_multi_body(
+         return evidence, report_path
+ 
+     placement_prim_path = _xformable_placement_root(physics_usd_path, body_prim_paths)
+-    if placement_prim_path is None:
++    if placement_prim_path is None and placement_mode == "drop":
+         # No shared Xformable placement root: translating each tracked body
+         # alone would break the relative poses and joint frames this
+         # validation promises to preserve, and USD silently ignores xform
+@@ -2715,6 +2824,7 @@ def validate_physics_runtime_multi_body(
+                 dt=dt,
+                 sample_fps=sample_fps,
+                 drop_height_m=drop_height_m,
++                placement_mode=placement_mode,
+                 acceptance=per_body_acceptance,
+                 body_prim_path_hint=body_prim_path,
+                 placement_prim_path_hint=placement_prim_path,
+@@ -2848,6 +2958,7 @@ def validate_physics_runtime_multi_body(
+         "recording_usda": aggregate_recording,
+         "mode": "multi_body",
+         "enabled_rigid_body_count": len(body_prim_paths),
++        "placement_mode": placement_mode,
+         "body_prim_paths": list(body_prim_paths),
+         "placement_prim_path": placement_prim_path,
+         "trajectory_jsonl": str(aggregate_trajectory_path),
+@@ -3716,6 +3827,7 @@ def run_physics_apply_workflow(
+                         dt=params.simulation_dt,
+                         sample_fps=params.simulation_sample_fps,
+                         drop_height_m=params.drop_height_m,
++                        placement_mode=params.runtime_placement_mode,
+                         acceptance=multi_body_acceptance,
+                         physics_properties_status=cast(Any, physics_status),
+                         usd_cli_session=params.usd_cli_session,
+@@ -3750,6 +3862,7 @@ def run_physics_apply_workflow(
+                 dt=params.simulation_dt,
+                 sample_fps=params.simulation_sample_fps,
+                 drop_height_m=params.drop_height_m,
++                placement_mode=params.runtime_placement_mode,
+                 acceptance=acceptance,
+                 physics_properties_status=cast(Any, physics_status),
+                 usd_cli_session=params.usd_cli_session,
+diff --git a/agentic/packages/content_agent_workflows/content_agent_workflows/simready/asset_identity.py b/agentic/packages/content_agent_workflows/content_agent_workflows/simready/asset_identity.py
+index cf8fffd..82cf0ea 100644
+--- a/agentic/packages/content_agent_workflows/content_agent_workflows/simready/asset_identity.py
++++ b/agentic/packages/content_agent_workflows/content_agent_workflows/simready/asset_identity.py
+@@ -10,7 +10,7 @@ import json
+ import os
+ import stat
+ from collections.abc import Callable, Iterable
+-from pathlib import Path
++from pathlib import Path, PurePosixPath
+ from typing import Any
+ 
+ ASSET_DEPENDENCY_MANIFEST_SCHEMA = "content-agent-workflows.usd-dependency-manifest.v1"
+@@ -258,9 +258,33 @@ def _dependency_path(value: Any, default_root: Path) -> Path | None:
+             f"Remote USD dependency cannot be content-bound locally: {text}"
+         )
+     if "[" in text or "]" in text:
+-        raise AssetDependencyIdentityError(
+-            f"Packaged dependency must be bound through the root USDZ archive: {text}"
+-        )
++        # A flattened derivative can retain resolved texture/layer paths into its
++        # source USDZ. Bind the complete archive bytes, not an unhashable member
++        # locator. Unsupported or unresolved package references still fail closed.
++        from pxr import Ar
++
++        if not Ar.IsPackageRelativePath(text):
++            raise AssetDependencyIdentityError(f"Malformed packaged dependency: {text}")
++        archive, member = Ar.SplitPackageRelativePathOuter(text)
++        _reject_nonlocal_identifier(archive)
++        member_path = PurePosixPath(member)
++        if (
++            not archive.lower().endswith(".usdz")
++            or not member
++            or member_path.is_absolute()
++            or ".." in member_path.parts
++            or any(c in archive + member for c in "[]\\")
++            or ":" in member
++        ):
++            raise AssetDependencyIdentityError(f"Unsupported packaged dependency: {text}")
++        archive_path = Path(archive).expanduser()
++        if not archive_path.is_absolute():
++            archive_path = default_root / archive_path
++        archive_path = archive_path.resolve()
++        locator = f"{archive_path}[{member}]"
++        if not Ar.GetResolver().Resolve(locator):
++            raise AssetDependencyIdentityError(f"Unresolved packaged dependency: {text}")
++        return archive_path
+     path = Path(text).expanduser()
+     if not path.is_absolute():
+         path = default_root / path
+diff --git a/agentic/packages/content_workflow_cli/content_workflow_cli/cli.py b/agentic/packages/content_workflow_cli/content_workflow_cli/cli.py
+index 1741e54..ad1f4e4 100644
+--- a/agentic/packages/content_workflow_cli/content_workflow_cli/cli.py
++++ b/agentic/packages/content_workflow_cli/content_workflow_cli/cli.py
+@@ -2901,6 +2901,15 @@ def _add_physics_apply_args(parser: argparse.ArgumentParser) -> None:
+         default=30,
+         help="Validation trajectory sample rate.",
+     )
++    parser.add_argument(
++        "--runtime-placement-mode",
++        choices=("drop", "mounted"),
++        default="drop",
++        help=(
++            "Mounted validation preserves authored metric poses and joint "
++            "anchors; drop places the asset on the ground."
++        ),
++    )
+     parser.add_argument(
+         "--drop-height-m",
+         type=float,
+@@ -4936,6 +4945,7 @@ def _handle_physics_apply(args: argparse.Namespace) -> int:
+                 simulation_dt=args.dt,
+                 simulation_sample_fps=args.sample_fps,
+                 drop_height_m=args.drop_height_m,
++                runtime_placement_mode=args.runtime_placement_mode,
+                 vomp_mass=vomp_mass,
+                 fail_on_validation_error=args.fail_on_validation_error,
+                 runner=args.runner,
+@@ -5096,6 +5106,7 @@ def _handle_physics_apply(args: argparse.Namespace) -> int:
+         simulation_dt=args.dt,
+         simulation_sample_fps=args.sample_fps,
+         drop_height_m=args.drop_height_m,
++        runtime_placement_mode=args.runtime_placement_mode,
+         vomp_mass=vomp_mass,
+         # The agentic path honours this override at the apply-phase
+         # runtime gate; silently dropping it here would leave the
+diff --git a/agentic/packages/content_workflow_cli/content_workflow_cli/geometry_runner.py b/agentic/packages/content_workflow_cli/content_workflow_cli/geometry_runner.py
+index 179ad81..06a5556 100644
+--- a/agentic/packages/content_workflow_cli/content_workflow_cli/geometry_runner.py
++++ b/agentic/packages/content_workflow_cli/content_workflow_cli/geometry_runner.py
+@@ -32,6 +32,7 @@ SourceAuthoringMode = Literal[
+     "opaque_import",
+     "parametric_recovery",
+     "direct_preserve",
++    "lossless_gltf",
+ ]
+ OptimizationPolicy = Literal["skip", "preserve_correspondence", "runtime_efficiency"]
+ RepairMode = Literal["off", "diagnose", "auto"]
+@@ -65,6 +66,7 @@ class GeometryRunConfig:
+     reference_image: Path | None = None
+     output_usd: Path | None = None
+     source_authoring_mode: SourceAuthoringMode = "auto"
++    render_topology_policy: Literal["strict", "preserve_source"] = "strict"
+     allow_lossy_recovery: bool = False
+     target_profile: str = "geometry-agent.static-visual-asset.v1"
+     target_runtime: str = "isaac-lab"
+@@ -165,9 +167,14 @@ def _add_geometry_run_args(parser: argparse.ArgumentParser) -> None:
+             "opaque_import",
+             "parametric_recovery",
+             "direct_preserve",
++            "lossless_gltf",
+         ],
+         default="auto",
+     )
++    parser.add_argument(
++        "--render-topology-policy", choices=["strict", "preserve_source"], default="strict",
++        help="Explicit source-preserving visual handoff only; requires lossless_gltf and skipped optimization. Does not accept collision or runtime behavior.",
++    )
+     parser.add_argument(
+         "--allow-lossy-recovery",
+         action="store_true",
+@@ -304,6 +311,7 @@ def _handle_geometry_run(args: argparse.Namespace) -> int:
+         output_dir=args.output_dir,
+         output_usd=args.output_usd,
+         source_authoring_mode=cast(SourceAuthoringMode, args.source_authoring_mode),
++        render_topology_policy=args.render_topology_policy,
+         allow_lossy_recovery=args.allow_lossy_recovery,
+         target_profile=args.target_profile,
+         target_runtime=args.target_runtime,
+@@ -437,6 +445,7 @@ def _resolve_run(config: GeometryRunConfig) -> ResolvedGeometryRun:
+         output_dir=output_dir,
+         output_usd_path=output_usd,
+         source_authoring_mode=config.source_authoring_mode,
++        render_topology_policy=config.render_topology_policy,
+         allow_lossy_recovery=config.allow_lossy_recovery,
+         target_profile=config.target_profile.strip(),
+         target_runtime=config.target_runtime.strip(),
+diff --git a/agentic/packages/content_workflow_cli/content_workflow_cli/prompts.py b/agentic/packages/content_workflow_cli/content_workflow_cli/prompts.py
+index 2f0bcce..a1a89fd 100644
+--- a/agentic/packages/content_workflow_cli/content_workflow_cli/prompts.py
++++ b/agentic/packages/content_workflow_cli/content_workflow_cli/prompts.py
+@@ -297,13 +297,20 @@ prim or material name, trust the image and say so in the rationale.
+ 
+     constraints: dict[str, Any] = {
+         "source_usd_edits_allowed": False,
+-        # Named `..._default` historically, but visual-validation refinement
+-        # treated that as licence to coarsen the collider (convexHull ->
+-        # convexDecomposition -> boundingSphere on a RoboCasa apple) to make
+-        # the penetration check pass. Keep the old key for compatibility and
+-        # state the requirement explicitly below.
++        # The workflow resolves each component's explicit approximation before
++        # this fallback. Refinement separately pins the actually authored
++        # approximations; an initial mixed static/dynamic decision is legal.
+         "collision_approximation_default": collision_approximation,
+-        "collision_approximation_required": collision_approximation,
++        "collision_approximation_policy": (
++            "At initial authoring, use the configured default unless a component's "
++            "geometry and mobility justify an explicit per-component approximation. "
++            "Record that choice and its evidence in the native decision. For example, "
++            "a static concave triangle mesh may use none while a dynamic concave "
++            "mesh requires a supported dynamic representation. Later refinement "
++            "must preserve each component's actually authored approximation; never "
++            "coarsen colliders or change collision filtering to evade a failed "
++            "penetration, clearance, containment or behavior check."
++        ),
+         "visual_validation_max_iterations": visual_validation_max_iterations,
+     }
+     # Emit the penetration limit only when the run overrides it. A literal
+@@ -466,6 +473,7 @@ Patch schema:
+         "dynamic_friction": 0.0,
+         "restitution": 0.0
+       }},
++      "mass_properties": null,
+       "rigid_body_grouping": "optional grouping description or null",
+       "quality_warnings": [],
+       "confidence": 0.7,
+@@ -486,6 +494,30 @@ own inferred material family -- density in kg/m^3 from that family, estimated
+ mass as density x bounding volume x fill fraction (see the Decision task),
+ friction and restitution from the reference band above.
+ 
++For a task requiring explicit inertia, an inspected body component may include
++`mass_properties` with `center_of_mass` (three body-local stage-distance values),
++`diagonal_inertia` (three positive principal moments about that center, in stage
++mass times squared stage distance), and `principal_axes` (normalized w,x,y,z
++quaternion, identity if omitted). Ground these estimates in the actual local
++geometry and selected mass, and state the approximation in the rationale;
++they are authored estimates, not measured values. Do not put vectors into the
++scalar `physical_properties` map. Omit `mass_properties` for `unowned_static`
++components. Their authoritative inspected role preserves static status while
++still allowing their collision and material operations; do not author or change
++`component_role` in the target-ID patch.
++
++For mesh targets using `convexDecomposition`, an optional `convex_decomposition`
++record exposes native cooking controls: `shrink_wrap` (boolean, default false),
++`error_percentage` (number 0–100, default 10), `hull_vertex_limit` (integer 8–64,
++default 64), `max_convex_hulls` (integer 1–256, default 32), and
++`voxel_resolution` (integer 10000–4000000, default 500000). These are bounded
++workflow controls, not a guarantee of hollow-shape preservation. The defaults
++match the OvPhysX 0.4.13 USD schema. Omitting the record leaves existing cooking
++attributes unchanged; providing it authors all five values, filling omitted
++fields with those defaults. Unknown fields, coerced types and incompatible
++approximations are rejected. Ground changes in cooking/contact evidence and
++keep the source mesh unchanged.
++
+ Do not write `physics_assignments.json`, `validation_evidence.json`,
+ `physics_behavior_assessment.json`, final summaries, or runtime validation
+ artifacts in this turn. The wrapper will apply the patch, run ovphysx, render
+@@ -1532,6 +1564,7 @@ def build_physics_tuning_session_prompt(
+     revalidation_dt: float | None = None,
+     revalidation_sample_fps: float | None = None,
+     revalidation_drop_height_m: float | None = None,
++    revalidation_placement_mode: str = "drop",
+     collision_approximation: str | None = None,
+     protected_parameters: list[str] | None = None,
+     allow_revise_patch: bool = True,
+@@ -1554,6 +1587,7 @@ def build_physics_tuning_session_prompt(
+         "dt": revalidation_dt,
+         "sample_fps": revalidation_sample_fps,
+         "drop_height_m": revalidation_drop_height_m,
++        "placement_mode": revalidation_placement_mode,
+     }
+     # Emit the penetration limit only when the run overrides it. The prompt
+     # says to mirror the promotion_gate block exactly, and an explicit
+@@ -1667,6 +1701,8 @@ def build_physics_tuning_session_prompt(
+         f"`dt={revalidation_dt}`" if revalidation_dt is not None else "",
+     ]
+     gate_terms = [term for term in gate_terms if term]
++    if gate_terms or revalidation_placement_mode != "drop":
++        gate_terms.insert(0, f"`placement_mode={revalidation_placement_mode}`")
+     # `duration_s`/`sample_fps`/`dt` always carry a runner default, so gate_terms
+     # is never empty on a real run. The "not the default" claims below are only
+     # true when the run actually overrides them, so state each one conditionally:
+diff --git a/agentic/packages/content_workflow_cli/content_workflow_cli/runner.py b/agentic/packages/content_workflow_cli/content_workflow_cli/runner.py
+index 4dbdea6..af20171 100644
+--- a/agentic/packages/content_workflow_cli/content_workflow_cli/runner.py
++++ b/agentic/packages/content_workflow_cli/content_workflow_cli/runner.py
+@@ -1395,6 +1395,7 @@ class PhysicsApplyConfig:
+     simulation_dt: float = 1.0 / 240.0
+     simulation_sample_fps: int = 30
+     drop_height_m: float | None = None
++    runtime_placement_mode: str = "drop"
+     vomp_mass: PhysicsVompMassConfig | None = None
+     fail_on_validation_error: bool = False
+     runner: str = RUNNER_CODEX
+@@ -17657,6 +17658,7 @@ def _physics_run_manifest_policy(config: PhysicsApplyConfig) -> dict[str, Any]:
+         "simulation_dt": config.simulation_dt,
+         "simulation_sample_fps": config.simulation_sample_fps,
+         "drop_height_m": config.drop_height_m,
++        "runtime_placement_mode": config.runtime_placement_mode,
+         "fail_on_validation_error": config.fail_on_validation_error,
+         "visual_validation_max_iterations": config.vqa_refinement_max_iterations,
+         "input_sha256": input_hashes,
+@@ -18090,6 +18092,7 @@ def _build_physics_request(
+             "dt": config.simulation_dt,
+             "sample_fps": config.simulation_sample_fps,
+             "drop_height_m": config.drop_height_m,
++            "runtime_placement_mode": config.runtime_placement_mode,
+             # None means the runtime validator's default (scale-relative on
+             # exact collider geometry, 0.005 m on the conservative bbox
+             # fallback). Recorded so request.json can reconstruct the
+@@ -20017,6 +20020,7 @@ def _run_physics_agentic_tuning_phase(
+             revalidation_dt=config.simulation_dt,
+             revalidation_sample_fps=config.simulation_sample_fps,
+             revalidation_drop_height_m=config.drop_height_m,
++            revalidation_placement_mode=config.runtime_placement_mode,
+             # Same value the apply phase authored with, so `revise_patch` cannot
+             # silently degrade the collision shape to pass the settle metrics.
+             # Read from the decision patch: per-decision shapes win over the
+@@ -21899,6 +21903,7 @@ def _revalidate_tuned_physics_usd(
+             dt=config.simulation_dt,
+             sample_fps=config.simulation_sample_fps,
+             drop_height_m=config.drop_height_m,
++            placement_mode=config.runtime_placement_mode,
+             acceptance=(
+                 {"max_ground_penetration_m": config.revalidation_max_penetration_m}
+                 if config.revalidation_max_penetration_m is not None
+@@ -23881,6 +23886,7 @@ def _finalize_physics_once(
+             simulation_dt=config.simulation_dt,
+             simulation_sample_fps=config.simulation_sample_fps,
+             drop_height_m=config.drop_height_m,
++            runtime_placement_mode=config.runtime_placement_mode,
+             vomp_mass=config.vomp_mass,
+             vomp_artifact_namespace=f"finalize-{iteration:04d}",
+             # The refinement child is told this limit applies; the apply-phase
+@@ -25939,6 +25945,13 @@ def _validate_physics_config(config: PhysicsApplyConfig) -> None:
+                 )
+     if config.simulation_engine not in {"ovphysx", "fake", "none"}:
+         raise ValueError("--simulation-engine must be one of: ovphysx, fake, none.")
++    if config.runtime_placement_mode not in {"drop", "mounted"}:
++        raise ValueError("--runtime-placement-mode must be drop or mounted.")
++    if config.runtime_placement_mode == "mounted" and config.drop_height_m not in (
++        None,
++        0.0,
++    ):
++        raise ValueError("mounted placement requires --drop-height-m zero or omitted.")
+     if config.simulation_duration_s <= 0:
+         raise ValueError("--duration-s must be greater than 0.")
+     if config.simulation_dt <= 0:
+diff --git a/agentic/packages/content_workflow_cli/tests/test_physics_apply_prompt_constraints.py b/agentic/packages/content_workflow_cli/tests/test_physics_apply_prompt_constraints.py
+index 3a66625..73cab79 100644
+--- a/agentic/packages/content_workflow_cli/tests/test_physics_apply_prompt_constraints.py
++++ b/agentic/packages/content_workflow_cli/tests/test_physics_apply_prompt_constraints.py
+@@ -61,14 +61,19 @@ def test_apply_prompt_states_the_configured_penetration_limit(tmp_path: Path) ->
+     assert "0.05" in prompt
+ 
+ 
+-def test_apply_prompt_marks_the_collision_approximation_required(
++def test_apply_prompt_allows_evidenced_initial_component_choices_without_coarsening(
+     tmp_path: Path,
+ ) -> None:
+-    """`collision_approximation_default` read as licence to coarsen the collider."""
++    """Initial mixed mobility is supported; refinement cannot evade contact gates."""
+ 
+     prompt = _apply_prompt(tmp_path, collision_approximation="convexHull")
+ 
+-    assert "collision_approximation_required" in prompt
++    assert '"collision_approximation_default": "convexHull"' in prompt
++    assert "collision_approximation_required" not in prompt
++    assert "explicit per-component approximation" in prompt
++    assert "static concave triangle mesh may use none" in prompt
++    assert "preserve each component's actually authored approximation" in prompt
++    assert "never coarsen colliders" in prompt
+ 
+ 
+ def test_apply_prompt_selects_stable_target_ids_instead_of_paths(
+diff --git a/agentic/packages/geometry_repair/geometry_repair/mesh_io.py b/agentic/packages/geometry_repair/geometry_repair/mesh_io.py
+index 5361edb..7809e17 100644
+--- a/agentic/packages/geometry_repair/geometry_repair/mesh_io.py
++++ b/agentic/packages/geometry_repair/geometry_repair/mesh_io.py
+@@ -1102,27 +1102,41 @@ def positional_topology_mesh(
+     vertices: np.ndarray,
+     triangles: np.ndarray,
+ ) -> tuple[np.ndarray, np.ndarray]:
++    welded_vertices, welded_triangles, _source_indices = positional_topology_mesh_with_source_indices(
++        vertices, triangles
++    )
++    return welded_vertices, welded_triangles
++
++
++def positional_topology_mesh_with_source_indices(
++    vertices: np.ndarray,
++    triangles: np.ndarray,
++) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+     """Return a seam-welded derived mesh for analysis or collision generation.
+ 
+     This never mutates source or render geometry. It only joins vertices that are
+     coincident within the same scale-relative tolerance used by diagnosis, then
+-    removes collapsed and exact duplicate triangles.
++    removes collapsed and exact duplicate triangles. The third array maps each
++    analysis vertex to its first contributing source vertex, without recovering
++    identity from averaged floating-point coordinates.
+     """
+ 
+     source_vertices = np.asarray(vertices, dtype=np.float64).reshape((-1, 3))
+     source_triangles = np.asarray(triangles, dtype=np.int64).reshape((-1, 3))
+     if not len(source_vertices) or not len(source_triangles):
+-        return source_vertices.copy(), source_triangles.copy()
++        return source_vertices.copy(), source_triangles.copy(), np.arange(len(source_vertices))
+     if not np.isfinite(source_vertices).all():
+         raise ValueError("positional topology input contains non-finite vertices")
+     valid = np.all((source_triangles >= 0) & (source_triangles < len(source_vertices)), axis=1)
+     source_triangles = source_triangles[valid]
+     if not len(source_triangles):
+-        return source_vertices.copy(), source_triangles
++        return source_vertices.copy(), source_triangles, np.arange(len(source_vertices))
+ 
+     diagonal = float(np.linalg.norm(source_vertices.max(axis=0) - source_vertices.min(axis=0)))
+     topology_ids = _topology_vertex_ids(source_vertices, diagonal)
+     vertex_count = int(topology_ids.max()) + 1
++    source_indices = np.full(vertex_count, len(source_vertices), dtype=np.int64)
++    np.minimum.at(source_indices, topology_ids, np.arange(len(source_vertices)))
+     welded_vertices = np.zeros((vertex_count, 3), dtype=np.float64)
+     np.add.at(welded_vertices, topology_ids, source_vertices)
+     counts = np.bincount(topology_ids, minlength=vertex_count)
+@@ -1136,10 +1150,10 @@ def positional_topology_mesh(
+     )
+     welded_triangles = welded_triangles[nondegenerate]
+     if not len(welded_triangles):
+-        return welded_vertices, welded_triangles
++        return welded_vertices, welded_triangles, source_indices
+     face_keys = np.sort(welded_triangles, axis=1)
+     _, first_indices = np.unique(face_keys, axis=0, return_index=True)
+-    return welded_vertices, welded_triangles[np.sort(first_indices)]
++    return welded_vertices, welded_triangles[np.sort(first_indices)], source_indices
+ 
+ 
+ def _triangles_intersect(left: np.ndarray, right: np.ndarray, tolerance: float) -> bool:
+diff --git a/agentic/packages/geometry_repair/geometry_repair/protected_features.py b/agentic/packages/geometry_repair/geometry_repair/protected_features.py
+index 4ed8508..34a0bbb 100644
+--- a/agentic/packages/geometry_repair/geometry_repair/protected_features.py
++++ b/agentic/packages/geometry_repair/geometry_repair/protected_features.py
+@@ -11,7 +11,7 @@ import numpy as np
+ from pydantic import BaseModel, ConfigDict, Field
+ 
+ from .artifacts import file_sha256
+-from .mesh_io import load_meshes, positional_topology_mesh
++from .mesh_io import load_meshes, positional_topology_mesh_with_source_indices
+ from .models import ProtectedFeature, ProtectedFeatureProbe, ProtectedFeatureProbeResult
+ from .surface import closest_surface, points_inside_union
+ 
+@@ -435,7 +435,7 @@ def detect_protected_feature_candidates(
+         key=lambda item: item.path,
+     ):
+         try:
+-            vertices, triangles = positional_topology_mesh(
++            vertices, triangles, source_vertex_ids = positional_topology_mesh_with_source_indices(
+                 mesh.world_vertices_m,
+                 mesh.triangles,
+             )
+@@ -447,14 +447,6 @@ def detect_protected_feature_candidates(
+         diagonal = float(np.linalg.norm(np.ptp(vertices, axis=0)))
+         tolerance = max(diagonal * 1e-5, 1e-7)
+         object_center = vertices.mean(axis=0)
+-        source_vertex_by_position: dict[tuple[float, float, float], int] = {}
+-        for source_vertex_id, point in enumerate(
+-            np.asarray(mesh.world_vertices_m, dtype=np.float64)
+-        ):
+-            source_vertex_by_position.setdefault(
+-                tuple(float(value) for value in point),
+-                source_vertex_id,
+-            )
+         loops = _ordered_boundary_loops(triangles)
+         for loop_index, loop in enumerate(loops):
+             geometry = _loop_geometry(vertices, loop)
+@@ -472,9 +464,7 @@ def detect_protected_feature_candidates(
+             loop_evidence = {
+                 "measurement": "position_welded_boundary_loop",
+                 "loop_vertex_ids": [
+-                    source_vertex_by_position[
+-                        tuple(float(value) for value in vertices[int(vertex_id)])
+-                    ]
++                    int(source_vertex_ids[int(vertex_id)])
+                     for vertex_id in loop
+                 ],
+                 "loop_vertex_count": len(loop),
+diff --git a/apps/physics_agent/physics_agent/tuning/scenarios/_scene_builder.py b/apps/physics_agent/physics_agent/tuning/scenarios/_scene_builder.py
+index 6a7569e..91e9fae 100644
+--- a/apps/physics_agent/physics_agent/tuning/scenarios/_scene_builder.py
++++ b/apps/physics_agent/physics_agent/tuning/scenarios/_scene_builder.py
+@@ -1390,6 +1390,7 @@ def build_drop_settle_scene(
+     output_scene_usd: Path,
+     *,
+     drop_height_m: float | None = None,
++    placement_mode: str = "drop",
+     gravity: float = -9.81,
+     ground_friction: float = 0.5,
+     cameras: list[str] | None = None,
+@@ -1401,7 +1402,7 @@ def build_drop_settle_scene(
+     ground_clearance_support_cache: dict[str, dict[str, Any]] | None = None,
+     ground_clearance_support_cache_key: str | None = None,
+ ) -> dict[str, Any]:
+-    """Build the drop_settle simulation scene.
++    """Build a drop-settle or explicitly mounted simulation scene.
+ 
+     The body's bbox-min on the **stage's up-axis** (Y or Z, read from
+     ``UsdGeom.GetStageUpAxis``) is translated to ``drop_height_m``.
+@@ -1422,6 +1423,10 @@ def build_drop_settle_scene(
+         drop_height_m: Gap (in meters) between body bottom and ground.
+             Defaults to the body's bbox_height (so the body sits one
+             own-height above the ground).
++        placement_mode: ``drop`` preserves the existing ground-placement
++            behavior. ``mounted`` preserves authored metric transforms and
++            joint frames, including world anchors. It accepts no drop gap
++            other than zero and checks settling around the initial body pose.
+         gravity: Signed gravity in m/s² (negative = downward).
+         ground_friction: Static + dynamic friction on the ground plane
+             (0..2 typical). 0.5 is a reasonable concrete-like default.
+@@ -1465,6 +1470,11 @@ def build_drop_settle_scene(
+     )
+     from world_understanding.utils.usd.scene import add_ground_plane
+ 
++    if placement_mode not in {"drop", "mounted"}:
++        raise ValueError("placement_mode must be drop or mounted")
++    if placement_mode == "mounted" and drop_height_m not in (None, 0.0):
++        raise ValueError("mounted placement requires drop_height_m to be zero or omitted")
++
+     dependency_roots = _normalize_dependency_roots(
+         tuple(approved_dependency_roots)
+         if approved_dependency_roots is not None
+@@ -1482,7 +1492,19 @@ def build_drop_settle_scene(
+     # Rewrite the in-memory stage to metric so PhysX's stage-unit gravity
+     # equals real Earth m/s². Without this a centimeter-scale source
+     # USD ends up with effective gravity 100× too slow.
+-    _bake_metric_units(scene_stage)
++    if placement_mode == "mounted":
++        # The legacy metric baker changes geometry/xforms but does not rebase
++        # all dimensional joint/mass properties. Never move world anchors or
++        # silently change a mounted mechanism's coordinate system.
++        if not math.isclose(
++            float(UsdGeom.GetStageMetersPerUnit(scene_stage)),
++            1.0,
++            rel_tol=0,
++            abs_tol=1e-9,
++        ):
++            raise ValueError("mounted placement requires metersPerUnit=1")
++    else:
++        _bake_metric_units(scene_stage)
+ 
+     if body_prim_path_hint:
+         body_prim = scene_stage.GetPrimAtPath(body_prim_path_hint)
+@@ -1552,7 +1574,10 @@ def build_drop_settle_scene(
+     # Default drop_height_m == bbox_height. Caller passes meters; we
+     # operate in stage units inside the sim. Post metric-bake the two
+     # are equivalent.
+-    drop_h_m = float(drop_height_m) if drop_height_m is not None else bbox_height_m
++    if placement_mode == "mounted":
++        drop_h_m = 0.0
++    else:
++        drop_h_m = float(drop_height_m) if drop_height_m is not None else bbox_height_m
+     if drop_h_m < 0:
+         raise ValueError(f"drop_height_m must be >= 0, got {drop_h_m}")
+     drop_h_stage = drop_h_m * units_per_meter
+@@ -1569,14 +1594,15 @@ def build_drop_settle_scene(
+     delta_axis_stage = drop_h_stage - bbox_min_stage[up_idx]
+     new_translation_stage = list(current_translation_stage)
+     new_translation_stage[up_idx] = current_translation_stage[up_idx] + delta_axis_stage
+-    _set_body_translation(
+-        placement_prim,
+-        (
+-            new_translation_stage[0],
+-            new_translation_stage[1],
+-            new_translation_stage[2],
+-        ),
+-    )
++    if placement_mode == "drop":
++        _set_body_translation(
++            placement_prim,
++            (
++                new_translation_stage[0],
++                new_translation_stage[1],
++                new_translation_stage[2],
++            ),
++        )
+ 
+     # The metric-baked stage receives gravity in meters/s^2.
+     _author_physics_scene(scene_stage, gravity_m_per_s2=gravity)
+@@ -1632,7 +1658,15 @@ def build_drop_settle_scene(
+     # SimReady's ladder bbox_min_pre = 0 → rest_translate = 0; for a
+     # centered single-mesh asset like a lightbulb bbox_min_pre = -h/2
+     # → rest_translate = h/2.
+-    if placement_prim == body_prim:
++    if placement_mode == "mounted":
++        # A mounted body need not rest on the synthetic ground. Its complete
++        # authored frame remains the reference, including nonzero X/Y/Z and
++        # transformed parents. No joint relationship or local frame is edited.
++        body_world_transform = UsdGeom.Xformable(
++            body_prim
++        ).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
++        rest_position_stage = list(body_world_transform.ExtractTranslation())
++    elif placement_prim == body_prim:
+         rest_position_stage = [0.0, 0.0, 0.0]
+         rest_position_stage[up_idx] = -bbox_min_stage[up_idx]
+     else:
+@@ -1658,6 +1692,7 @@ def build_drop_settle_scene(
+ 
+     body_path_str = str(body_prim.GetPath())
+     result = {
++        "placement_mode": placement_mode,
+         "body_prim_path": body_path_str,
+         "body_pattern": str(body_pattern_hint or body_path_str),
+         "placement_prim_path": str(placement_prim.GetPath()),
+diff --git a/apps/usd_cli/src/usd_core/physics.py b/apps/usd_cli/src/usd_core/physics.py
+index 90ce706..8736bf5 100644
+--- a/apps/usd_cli/src/usd_core/physics.py
++++ b/apps/usd_cli/src/usd_core/physics.py
+@@ -24,30 +24,118 @@ def define_physics_scene(stage, path: str) -> str:
+     return UsdPhysics.Scene.Define(stage, path).GetPath().pathString
+ 
+ 
+-def apply_rigid_body(stage, path: str, *, density=None, mass=None) -> list[str]:
++def _validate_mass_properties(value):
++    """Validate explicit MassAPI vectors before any stage mutation."""
++    import math
++    import struct
++
++    if value is None:
++        return None
++    if not isinstance(value, dict) or set(value) - {
++        "center_of_mass", "diagonal_inertia", "principal_axes"
++    }:
++        raise ValueError("mass_properties must contain only explicit MassAPI vectors")
++    result = {}
++    for name, count in (("center_of_mass", 3), ("diagonal_inertia", 3), ("principal_axes", 4)):
++        vector = value.get(name, (1.0, 0.0, 0.0, 0.0) if name == "principal_axes" else None)
++        if not isinstance(vector, (list, tuple)) or len(vector) != count:
++            raise ValueError(f"mass_properties.{name} must have {count} values")
++        if any(isinstance(item, bool) or not isinstance(item, (int, float)) for item in vector):
++            raise ValueError(f"mass_properties.{name} must contain numbers")
++        try:
++            stored = [struct.unpack("f", struct.pack("f", item))[0] for item in vector]
++        except (OverflowError, struct.error) as exc:
++            raise ValueError("mass properties must be representable as finite USD floats") from exc
++        if not all(math.isfinite(item) for item in stored):
++            raise ValueError("mass properties must be finite")
++        result[name] = stored
++    inertia = result["diagonal_inertia"]
++    if min(inertia) <= 0:
++        raise ValueError("diagonal inertia must be positive")
++    if 2 * max(inertia) > sum(inertia) + 1e-6 * max(inertia):
++        raise ValueError("diagonal inertia violates the principal-moment triangle inequality")
++    if abs(sum(item * item for item in result["principal_axes"]) - 1.0) > 1e-5:
++        raise ValueError("principal_axes must be a normalized (w,x,y,z) quaternion")
++    return result
++
++
++def apply_rigid_body(stage, path: str, *, density=None, mass=None, mass_properties=None) -> list[str]:
+     """Apply RigidBodyAPI (+ MassAPI when mass/density given); returns the API names
+     authored so callers can report them instead of applying schema silently."""
+-    from pxr import UsdPhysics
++    from pxr import Gf, UsdPhysics
+ 
++    vectors = _validate_mass_properties(mass_properties)
+     prim = stage.GetPrimAtPath(path)
+     if not prim.IsValid():
+         raise ValueError(f"cannot apply rigid body: no prim at {path}")
+     UsdPhysics.RigidBodyAPI.Apply(prim)
+     authored = ["PhysicsRigidBodyAPI"]
+-    if density is not None or mass is not None:
++    if density is not None or mass is not None or vectors is not None:
+         mass_api = UsdPhysics.MassAPI.Apply(prim)
+         authored.append("PhysicsMassAPI")
+         if mass is not None:
+             mass_api.CreateMassAttr().Set(float(mass))
+         if density is not None:
+             mass_api.CreateDensityAttr().Set(float(density))
++        if vectors is not None:
++            mass_api.CreateCenterOfMassAttr().Set(Gf.Vec3f(*vectors["center_of_mass"]))
++            mass_api.CreateDiagonalInertiaAttr().Set(Gf.Vec3f(*vectors["diagonal_inertia"]))
++            q = vectors["principal_axes"]
++            mass_api.CreatePrincipalAxesAttr().Set(Gf.Quatf(q[0], Gf.Vec3f(*q[1:])))
+     return authored
+ 
+ 
+-def apply_collision(stage, path: str, *, approximation: str | None = None) -> list[str]:
++_CONVEX_DECOMPOSITION_FIELDS = {
++    "shrink_wrap": ("shrinkWrap", "Bool", False, None, None),
++    "error_percentage": ("errorPercentage", "Float", 10.0, 0.0, 100.0),
++    "hull_vertex_limit": ("hullVertexLimit", "Int", 64, 8, 64),
++    "max_convex_hulls": ("maxConvexHulls", "Int", 32, 1, 256),
++    "voxel_resolution": ("voxelResolution", "Int", 500_000, 10_000, 4_000_000),
++}
++_CONVEX_DECOMPOSITION_PREFIX = "physxConvexDecompositionCollision:"
++
++
++def _validate_convex_decomposition(prim, approximation, value):
++    """Validate bounded cooking controls and applicability before any mutation.
++
++    Names/types/defaults match the OvPhysX 0.4.13 USD schema. Its decomposition
++    backend accepts 8–64 hull vertices; the other ranges bound resource use.
++    A valid USD property type alone does not prove a backend accepts its value.
++    """
++    import math
++    from pxr import Sdf, UsdGeom
++
++    if value is None:
++        return None
++    if not isinstance(value, dict) or set(value) - set(_CONVEX_DECOMPOSITION_FIELDS):
++        raise ValueError("convex_decomposition contains unknown fields or is not an object")
++    if approximation != "convexDecomposition" or not prim.IsA(UsdGeom.Mesh):
++        raise ValueError("convex_decomposition requires a Mesh with convexDecomposition approximation")
++    result = {}
++    for key, (suffix, kind, default, lower, upper) in _CONVEX_DECOMPOSITION_FIELDS.items():
++        item = value.get(key, default)
++        if kind == "Bool":
++            valid = type(item) is bool
++        elif kind == "Int":
++            valid = type(item) is int and lower <= item <= upper
++        else:
++            valid = (type(item) in (int, float) and math.isfinite(item)
++                     and lower <= item <= upper)
++        if not valid:
++            raise ValueError(f"invalid convex_decomposition.{key}: expected {kind}"
++                             + (f" in [{lower}, {upper}]" if lower is not None else ""))
++        attr = prim.GetAttribute(_CONVEX_DECOMPOSITION_PREFIX + suffix)
++        if attr and attr.GetTypeName() != getattr(Sdf.ValueTypeNames, kind):
++            raise ValueError(f"incompatible existing convex decomposition attribute type: {attr.GetPath()}")
++        result[key] = float(item) if kind == "Float" else item
++    return result
++
++
++def apply_collision(stage, path: str, *, approximation: str | None = None,
++                    convex_decomposition=None) -> list[str]:
+     """Apply CollisionAPI (+ MeshCollisionAPI approximation on meshes); returns the API
+     names authored so callers can report them instead of applying schema silently."""
+-    from pxr import UsdGeom, UsdPhysics
++    from pxr import Sdf, UsdGeom, UsdPhysics
+ 
+     prim = stage.GetPrimAtPath(path)
+     if not prim.IsValid():
+@@ -57,12 +145,22 @@ def apply_collision(stage, path: str, *, approximation: str | None = None) -> li
+     if approximation is not None and approximation not in _COLLISION_APPROX:
+         raise ValueError(f"unknown collision approximation '{approximation}' "
+                          f"(expected one of {sorted(_COLLISION_APPROX)})")
++    cooking = _validate_convex_decomposition(prim, approximation, convex_decomposition)
+     UsdPhysics.CollisionAPI.Apply(prim)
+     authored = ["PhysicsCollisionAPI"]
+     if approximation and prim.IsA(UsdGeom.Mesh):
+         mesh_api = UsdPhysics.MeshCollisionAPI.Apply(prim)
+         mesh_api.CreateApproximationAttr().Set(approximation)
+         authored.append("PhysicsMeshCollisionAPI")
++    if cooking is not None:
++        # Author the registered schema token and typed native properties without
++        # requiring PhysxSchema Python bindings in the portable authoring runtime.
++        prim.AddAppliedSchema("PhysxConvexDecompositionCollisionAPI")
++        for key, item in cooking.items():
++            suffix, kind, *_ = _CONVEX_DECOMPOSITION_FIELDS[key]
++            prim.CreateAttribute(_CONVEX_DECOMPOSITION_PREFIX + suffix,
++                                 getattr(Sdf.ValueTypeNames, kind), custom=False).Set(item)
++        authored.append("PhysxConvexDecompositionCollisionAPI")
+     return authored
+ 
+ 
+@@ -124,6 +222,9 @@ def apply_operations(stage, operations: dict) -> dict:
+     rigid_bodies, colliders, materials, bindings = (
+         rows("rigid_bodies"), rows("colliders"), rows("materials"), rows("bindings")
+     )
++    # Validate every vector record before earlier rows or scenes can mutate.
++    for row in rigid_bodies:
++        _validate_mass_properties(row.get("mass_properties"))
+     target_paths = [
+         str(row.get("path") or "") for row in [*rigid_bodies, *colliders]
+     ] + [str(row.get("target_path") or "") for row in bindings]
+@@ -143,6 +244,8 @@ def apply_operations(stage, operations: dict) -> dict:
+                 f"unknown collision approximation '{approximation}' "
+                 f"(expected one of {sorted(_COLLISION_APPROX)})"
+             )
++        _validate_convex_decomposition(stage.GetPrimAtPath(row["path"]), approximation,
++                                      row.get("convex_decomposition"))
+     for path in material_paths:
+         if not path.startswith("/") or path == "/":
+             raise ValueError("physics material path must be an absolute prim path")
+@@ -172,11 +275,13 @@ def apply_operations(stage, operations: dict) -> dict:
+         authored["scene"].append(define_physics_scene(stage, path))
+     for row in rigid_bodies:
+         path = str(row["path"])
+-        note(path, apply_rigid_body(stage, path, density=row.get("density"), mass=row.get("mass")))
++        note(path, apply_rigid_body(stage, path, density=row.get("density"), mass=row.get("mass"),
++                                    mass_properties=row.get("mass_properties")))
+         authored["rigid_body"].append(path)
+     for row in colliders:
+         path = str(row["path"])
+-        note(path, apply_collision(stage, path, approximation=row.get("approximation")))
++        note(path, apply_collision(stage, path, approximation=row.get("approximation"),
++                                   convex_decomposition=row.get("convex_decomposition")))
+         authored["collision"].append(path)
+     for row in materials:
+         path = apply_physics_material(
+diff --git a/docs/validation/native-physics-behavior.md b/docs/validation/native-physics-behavior.md
+new file mode 100644
+index 0000000..7f68662
+--- /dev/null
++++ b/docs/validation/native-physics-behavior.md
+@@ -0,0 +1,83 @@
++# Native Physics evidence in Validation
++
++`physical_behavior` can consume a native `PhysicsBehaviorAssessment` without
++converting it into a legacy judge `decision: approve`. The native route is an
++explicit, provider-free, read-only consumer; it does not run Physics, render,
++call a model, repair files, or weaken a required check. The scaffold template
++version is v2 so old prepared/check caches do not silently reuse new semantics.
++
++The initial supported scope is **one asset, one measured rigid body, native
++runtime stability and an agent review of recorded OVRTX frames**. It does not
++establish arbitrary task success, articulated-joint behavior, source fidelity,
++or calibrated actuator/load realism. Those claims require separate measured
++checks. A passing synthetic contract fixture is not physical-task evidence.
++
++Prepare a digest closure only after the native Physics run is terminal:
++
++```python
++import json
++from pathlib import Path
++from world_understanding.functions.physics.native_behavior_validation import (
++    prepare_native_physics_bundle,
++)
++
++run = Path('/absolute/native/physics_run')
++bundle = prepare_native_physics_bundle(
++    asset=run / 'physics.usda',
++    assessment=run / 'physics_behavior_assessment.json',
++    validation_evidence=run / 'validation_evidence.json',
++    run_dir=run,
++)
++(run / 'validation_behavior_bundle.json').write_text(json.dumps(bundle, indent=2))
++```
++
++Preparation fails for incomplete or unsuccessful native evidence. It freezes
++existing bytes and never creates a success/approval record. Retain the bundle
++before beginning Validation. Supply it through the existing policy interface:
++
++```json
++{
++  "behavior_evidence_required": true,
++  "physical_behavior_evidence": [{
++    "path": "/absolute/native/physics_run/validation_behavior_bundle.json",
++    "kind": "simulation_json",
++    "role": "native_physics_bundle",
++    "required": true
++  }]
++}
++```
++
++A normal agentic `content-workflow-cli validate run` may use this policy with
++`--runner codex --model gpt-6-astra --model-reasoning-effort ultra` and explicit
++`--required-capability validation.physical_behavior` plus the required geometry/
++physics/render capabilities appropriate to the task. The adapter does not select
++or waive checks. The existing coordinator still validates the child's plan and
++runs exact checks; `look_right` still requires its explicit provider if selected.
++A deterministic scaffold invocation is sufficient for a compatibility regression,
++but is not a substitute for an end-to-end agentic Validation run.
++
++The consumer requires the exact native schema; pass/fixed visual status with no
++unresolved issues; native `sim_ready_status: pass`; no warnings or failures; clean
++physics-properties/loadability/no-explosions/visual-review checks; the same asset
++path and native asset SHA; matching runtime and render inputs; finite, complete
++trajectory coverage; coherent raw solver facts; and the existing native OVRTX
++frame/response/dependency attestation checks. The closure binds all consumed
++files. Missing, stale, mismatched, unsupported, or incomplete evidence fails the
++required check. The native producer remains the authority for its declared
++runtime acceptance thresholds; this consumer does not invent new task metrics.
++The closure protects retained bytes after preparation, not against a malicious
++producer fabricating an entire internally consistent evidence set.
++
++Raw native assessments without a complete bundle are rejected. An unrelated
++legacy approval cannot override native rejection, and a native pass cannot hide
++an explicitly supplied legacy failure. Existing approved-refine behavior remains
++available when no native evidence is supplied. No `approve` field is synthesized.
++
++The implementation reuses read-only producer attestation helpers in
++`content_workflow_cli.runner`; that package and `content_agent_workflows` must be
++installed. Missing dependencies fail closed. Tests use synthetic files with the
++real native verifier and launch no providers, renderer, or simulator:
++
++```sh
++python -m pytest -o addopts= tests/test_native_physics_behavior_validation.py tests/test_agentic_validation_scaffold.py -q
++```
+diff --git a/tests/test_drawer_capstone_convex_decomposition.py b/tests/test_drawer_capstone_convex_decomposition.py
+new file mode 100644
+index 0000000..99ee9ed
+--- /dev/null
++++ b/tests/test_drawer_capstone_convex_decomposition.py
+@@ -0,0 +1,194 @@
++"""Synthetic authoring/regression tests; no scored source or solver runs."""
++import os
++from pathlib import Path
++
++import pytest
++from pxr import Sdf, Usd, UsdGeom, UsdPhysics
++from content_agent_workflows.physics.workflow import (
++    PhysicsComponent, PhysicsComponentDecision, PhysicsComponentTargetDecision,
++    PhysicsConvexDecompositionOptions, _merge_rebased_component_decisions,
++    add_physics_component_target_catalog, resolve_physics_v2_patch_targets,
++)
++from content_agent_workflows.physics.usd_cli_ops import physics_patch_from_workflow_decisions
++from usd_core.physics import apply_collision, apply_operations
++
++OPTIONS = dict(shrink_wrap=True, error_percentage=0.5, hull_vertex_limit=64,
++               max_convex_hulls=64, voxel_resolution=1_000_000)
++NATIVE = dict(shrink_wrap=('shrinkWrap', Sdf.ValueTypeNames.Bool, False),
++              error_percentage=('errorPercentage', Sdf.ValueTypeNames.Float, 10.0),
++              hull_vertex_limit=('hullVertexLimit', Sdf.ValueTypeNames.Int, 64),
++              max_convex_hulls=('maxConvexHulls', Sdf.ValueTypeNames.Int, 32),
++              voxel_resolution=('voxelResolution', Sdf.ValueTypeNames.Int, 500000))
++PREFIX = 'physxConvexDecompositionCollision:'
++
++
++def decision_patch(options=OPTIONS):
++    component = PhysicsComponent(component_id='body', body_root_path='/World/Body',
++                                 visual_evidence_paths=['/World/Body/Mesh'])
++    catalog = add_physics_component_target_catalog({'components': [component.model_dump()]})
++    decision = dict(decision_id='body', component_id='body',
++                    collider_target_ids=[catalog['components'][0]['authoring_targets'][0]['target_id']],
++                    collision_mode='author_on_targets', inferred_material_family='wood',
++                    collision_approximation='convexDecomposition',
++                    physical_properties={'estimated_mass_kg':1.0,'density':500.0},
++                    confidence=1.0, rationale='Synthetic concave cooking fixture.')
++    if options is not None:
++        decision['convex_decomposition'] = options
++    PhysicsComponentTargetDecision.model_validate(decision)
++    payload = dict(schema_version='content-agent-workflows.physics-decision-patch.v2',
++                   source_digest='sha256:fixture', decisions=[decision], unresolved_components=[])
++    resolved = resolve_physics_v2_patch_targets(payload, components=[component], source_digest='sha256:fixture')[1]
++    return component, resolved
++
++
++def stage_with_mesh():
++    stage = Usd.Stage.CreateInMemory()
++    UsdGeom.Xform.Define(stage, '/World/Body')
++    UsdGeom.Mesh.Define(stage, '/World/Body/Mesh')
++    return stage
++
++
++def test_target_resolution_native_authoring_and_saved_readback(tmp_path):
++    _, decisions = decision_patch()
++    assert decisions[0].convex_decomposition.model_dump() == OPTIONS
++    operations = physics_patch_from_workflow_decisions(
++        [d.model_dump(mode='json') for d in decisions], author_rigid_body=True,
++        physics_scene_path='/World/PhysicsScene')
++    assert operations['colliders'][0]['convex_decomposition'] == OPTIONS
++    stage = stage_with_mesh()
++    authored = apply_operations(stage, operations)
++    assert 'PhysxConvexDecompositionCollisionAPI' in authored['authored_apis']['/World/Body/Mesh']
++    path = tmp_path/'fixture.usda';stage.GetRootLayer().Export(str(path))
++    saved = Usd.Stage.Open(str(path));prim=saved.GetPrimAtPath('/World/Body/Mesh')
++    assert 'PhysxConvexDecompositionCollisionAPI' in prim.GetMetadata('apiSchemas').GetAppliedItems()
++    for key,(suffix,kind,_) in NATIVE.items():
++        attr=prim.GetAttribute(PREFIX+suffix)
++        assert attr.GetTypeName()==kind and attr.Get()==OPTIONS[key] and not attr.IsCustom()
++
++
++@pytest.mark.parametrize('vertices', [8, 64])
++def test_backend_hull_vertex_boundaries_survive_target_resolution_and_authoring(vertices):
++    _, decisions = decision_patch({**OPTIONS, 'hull_vertex_limit': vertices})
++    assert decisions[0].convex_decomposition.hull_vertex_limit == vertices
++    operations = physics_patch_from_workflow_decisions(
++        [d.model_dump(mode='json') for d in decisions], author_rigid_body=True,
++        physics_scene_path='/World/PhysicsScene')
++    stage = stage_with_mesh()
++    apply_operations(stage, operations)
++    prim = stage.GetPrimAtPath('/World/Body/Mesh')
++    assert prim.GetAttribute(PREFIX + 'hullVertexLimit').Get() == vertices
++
++
++def test_omitted_options_do_not_rewrite_legacy_unsupported_authored_value():
++    stage = stage_with_mesh()
++    apply_collision(stage, '/World/Body/Mesh', approximation='convexDecomposition')
++    prim = stage.GetPrimAtPath('/World/Body/Mesh')
++    prim.CreateAttribute(PREFIX + 'hullVertexLimit', Sdf.ValueTypeNames.Int, custom=False).Set(128)
++    before = stage.GetRootLayer().ExportToString()
++    apply_collision(stage, '/World/Body/Mesh', approximation='convexDecomposition')
++    assert stage.GetRootLayer().ExportToString() == before
++
++
++def test_omitted_record_preserves_legacy_usd_and_operations():
++    _, decisions = decision_patch(None)
++    operations = physics_patch_from_workflow_decisions(
++        [d.model_dump(mode='json') for d in decisions], author_rigid_body=True,
++        physics_scene_path='/World/PhysicsScene')
++    assert operations['colliders']==[{'path':'/World/Body/Mesh','approximation':'convexDecomposition'}]
++    stage=stage_with_mesh();apply_collision(stage,'/World/Body/Mesh',approximation='convexDecomposition')
++    expected=stage.GetRootLayer().ExportToString()
++    apply_collision(stage,'/World/Body/Mesh',approximation='convexDecomposition',convex_decomposition=None)
++    assert stage.GetRootLayer().ExportToString()==expected
++    assert not any(a.GetName().startswith(PREFIX) for a in stage.GetPrimAtPath('/World/Body/Mesh').GetAuthoredAttributes())
++
++
++def test_partial_record_authors_documented_defaults_without_changing_other_cooking_fields():
++    stage=stage_with_mesh();prim=stage.GetPrimAtPath('/World/Body/Mesh')
++    prim.CreateAttribute(PREFIX+'minThickness',Sdf.ValueTypeNames.Float,custom=False).Set(.004)
++    expected=PhysicsConvexDecompositionOptions(shrink_wrap=True).model_dump()
++    apply_collision(stage,'/World/Body/Mesh',approximation='convexDecomposition',
++                    convex_decomposition={'shrink_wrap':True})
++    for key,(suffix,_,_) in NATIVE.items():
++        assert prim.GetAttribute(PREFIX+suffix).Get()==expected[key]
++    assert prim.GetAttribute(PREFIX+'minThickness').Get()==pytest.approx(.004)
++
++
++def test_omitted_record_preserves_existing_custom_cooking_values_byte_for_byte():
++    stage=stage_with_mesh()
++    apply_collision(stage,'/World/Body/Mesh',approximation='convexDecomposition',
++                    convex_decomposition=OPTIONS)
++    before=stage.GetRootLayer().ExportToString()
++    apply_collision(stage,'/World/Body/Mesh',approximation='convexDecomposition')
++    assert stage.GetRootLayer().ExportToString()==before
++
++
++@pytest.mark.parametrize('key,value', [
++    ('shrink_wrap',1),('shrink_wrap','true'),('shrink_wrap',None),
++    ('error_percentage',True),('error_percentage','1'),('error_percentage',float('nan')),
++    ('error_percentage',float('inf')),('error_percentage',-0.1),('error_percentage',100.1),
++    ('hull_vertex_limit',3),('hull_vertex_limit',4),('hull_vertex_limit',7),
++    ('hull_vertex_limit',65),('hull_vertex_limit',128),('hull_vertex_limit',255),
++    ('hull_vertex_limit',256),('hull_vertex_limit',64.0),
++    ('max_convex_hulls',0),('max_convex_hulls',257),('max_convex_hulls',True),
++    ('voxel_resolution',9999),('voxel_resolution',4000001),('voxel_resolution','500000'),
++    ('unexpected',1),
++])
++def test_invalid_record_rejected_before_all_batch_mutations(key,value):
++    bad={**OPTIONS,key:value}
++    with pytest.raises(ValueError):PhysicsConvexDecompositionOptions.model_validate(bad)
++    stage=stage_with_mesh();before=stage.GetRootLayer().ExportToString()
++    with pytest.raises(ValueError):
++        apply_operations(stage,{'scene_paths':['/World/PhysicsScene'],
++            'rigid_bodies':[{'path':'/World/Body','mass':1}],
++            'colliders':[{'path':'/World/Body/Mesh','approximation':'convexHull'},
++                         {'path':'/World/Body/Mesh','approximation':'convexDecomposition','convex_decomposition':bad}]})
++    assert stage.GetRootLayer().ExportToString()==before
++
++
++@pytest.mark.parametrize('kind,approximation',[('Mesh','convexHull'),('Cube','convexDecomposition')])
++def test_incompatible_target_rejected_without_mutation(kind,approximation):
++    stage=stage_with_mesh()
++    if kind=='Cube':stage.GetPrimAtPath('/World/Body/Mesh').SetTypeName('Cube')
++    before=stage.GetRootLayer().ExportToString()
++    with pytest.raises(ValueError,match='requires a Mesh'):
++        apply_operations(stage,{'scene_paths':['/World/PhysicsScene'],
++            'colliders':[{'path':'/World/Body/Mesh','approximation':approximation,'convex_decomposition':OPTIONS}]})
++    assert stage.GetRootLayer().ExportToString()==before
++
++
++def test_typed_decision_rejects_wrong_approximation():
++    _,decisions=decision_patch()
++    with pytest.raises(ValueError,match='requires convexDecomposition'):
++        PhysicsComponentDecision.model_validate({**decisions[0].model_dump(), 'collision_approximation':'none'})
++
++
++def test_existing_wrong_attribute_type_rejected_before_any_mutation():
++    stage=stage_with_mesh();prim=stage.GetPrimAtPath('/World/Body/Mesh')
++    prim.CreateAttribute(PREFIX+'hullVertexLimit',Sdf.ValueTypeNames.String).Set('64')
++    before=stage.GetRootLayer().ExportToString()
++    with pytest.raises(ValueError,match='incompatible existing'):
++        apply_operations(stage,{'scene_paths':['/World/PhysicsScene'],
++            'colliders':[{'path':'/World/Body/Mesh','approximation':'convexDecomposition','convex_decomposition':OPTIONS}]})
++    assert stage.GetRootLayer().ExportToString()==before
++
++
++def test_rebase_rejects_conflicting_options_and_preserves_equal_options():
++    component,decisions=decision_patch();first=decisions[0]
++    second=first.model_copy(update={'decision_id':'second'})
++    assert _merge_rebased_component_decisions(component,[first,second]).convex_decomposition==first.convex_decomposition
++    conflict=second.model_copy(update={'convex_decomposition':PhysicsConvexDecompositionOptions()})
++    with pytest.raises(RuntimeError,match='incompatible convex_decomposition'):
++        _merge_rebased_component_decisions(component,[first,conflict])
++    omitted=second.model_copy(update={'convex_decomposition':None})
++    with pytest.raises(RuntimeError,match='incompatible convex_decomposition'):
++        _merge_rebased_component_decisions(component,[first,omitted])
++
++
++def test_installed_native_schema_names_types_defaults():
++    path=os.environ.get('OVPHYSX_GENERATED_SCHEMA')
++    if not path:pytest.skip('Set actual isolated native schema path for runtime qualification')
++    layer=Sdf.Layer.FindOrOpen(str(Path(path)))
++    defaults=PhysicsConvexDecompositionOptions().model_dump()
++    for key,(suffix,kind,default) in NATIVE.items():
++        spec=layer.GetAttributeAtPath('/PhysxConvexDecompositionCollisionAPI.'+PREFIX+suffix)
++        assert spec and spec.typeName==kind and spec.default==default==defaults[key]
+diff --git a/tests/test_drawer_capstone_dependency_identity.py b/tests/test_drawer_capstone_dependency_identity.py
+new file mode 100644
+index 0000000..def3bd3
+--- /dev/null
++++ b/tests/test_drawer_capstone_dependency_identity.py
+@@ -0,0 +1,72 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# SPDX-License-Identifier: Apache-2.0
++"""Content binding for generated USD that retains textures inside source USDZ."""
++from pathlib import Path
++import zipfile
++
++import pytest
++from pxr import UsdUtils
++
++from content_agent_workflows.simready.asset_identity import (
++    AssetDependencyIdentityError,
++    _dependency_path,
++    asset_dependency_identity_errors,
++    build_asset_dependency_manifest,
++)
++
++
++def packaged_texture(tmp_path):
++    texture = tmp_path/'texture.bin'
++    texture.write_bytes(b'original local texture bytes')
++    source = tmp_path/'source.usda'
++    source.write_text('#usda 1.0\ndef Xform "Asset" {\n'
++                      'custom asset texture = @texture.bin@\n}\n')
++    package = tmp_path/'source.usdz'
++    assert UsdUtils.CreateNewUsdzPackage(str(source), str(package))
++    with zipfile.ZipFile(package) as archive:
++        member = next(n for n in archive.namelist() if n.endswith('texture.bin'))
++    return package, member
++
++
++def test_flattened_derivative_binds_packaged_texture_through_archive(tmp_path):
++    package, member = packaged_texture(tmp_path)
++    derivative = tmp_path/'physics.usda'
++    derivative.write_text('#usda 1.0\ndef Xform "Asset" {\n'
++                          f'custom asset texture = @{package}[{member}]@\n}}\n')
++    manifest = build_asset_dependency_manifest(derivative)
++    assert {Path(f['path']) for f in manifest['files']} == {derivative, package}
++    assert asset_dependency_identity_errors(derivative, manifest) == []
++    # Changing archive bytes must invalidate the previously frozen identity even
++    # when the root USDA and its authored member locator are unchanged.
++    package.write_bytes(package.read_bytes()+b'archive changed')
++    assert asset_dependency_identity_errors(derivative, manifest)
++
++
++def test_relative_packaged_texture_binds_same_local_archive(tmp_path):
++    package, member = packaged_texture(tmp_path)
++    assert _dependency_path(f'{package.name}[{member}]', tmp_path) == package
++
++
++def test_missing_member_is_not_certified_by_existing_archive(tmp_path):
++    package, _ = packaged_texture(tmp_path)
++    derivative = tmp_path/'missing.usda'
++    derivative.write_text('#usda 1.0\ndef Xform "Asset" {\n'
++                          f'custom asset texture = @{package}[missing.bin]@\n}}\n')
++    with pytest.raises(AssetDependencyIdentityError):
++        build_asset_dependency_manifest(derivative)
++
++
++@pytest.mark.parametrize('locator', [
++    'https://example.invalid/source.usdz[texture.bin]',
++    'omniverse://example.invalid/source.usdz[texture.bin]',
++    'source.usdz[../texture.bin]',
++    'source.usdz[/texture.bin]',
++    'source.usdz[folder\\texture.bin]',
++    'source.usdz[inner.usdz[texture.bin]]',
++    'source.zip[texture.bin]',
++    'source.usdz[texture.bin',
++    'source.usdz[]',
++])
++def test_unsupported_packaged_locator_fails_closed(tmp_path, locator):
++    with pytest.raises(AssetDependencyIdentityError):
++        _dependency_path(locator, tmp_path)
+diff --git a/tests/test_drawer_capstone_geometry.py b/tests/test_drawer_capstone_geometry.py
+new file mode 100644
+index 0000000..b388f9f
+--- /dev/null
++++ b/tests/test_drawer_capstone_geometry.py
+@@ -0,0 +1,287 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# SPDX-License-Identifier: Apache-2.0
++"""Regression witnesses for source-preserving visual intake, not task acceptance."""
++
++import base64
++import json
++from types import SimpleNamespace
++
++import numpy as np
++import pytest
++from content_agent_workflows.geometry.lossless_gltf import (
++    import_static_gltf,
++    verify_preserved_render,
++)
++from content_agent_workflows.geometry.workflow import (
++    GeometryWorkflowInput,
++    _cad_preflight_checks,
++)
++from geometry_repair.mesh_io import (
++    positional_topology_mesh,
++    positional_topology_mesh_with_source_indices,
++)
++from geometry_repair.protected_features import detect_protected_feature_candidates
++
++
++def source_fixture(tmp_path, *, invalid_index=False):
++    positions = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 0]], dtype="<f4")
++    # The second triangle is intentionally source-degenerate and must survive.
++    indices = np.array([0, 1, 2, 0, 3, 1], dtype="<u2")
++    if invalid_index:
++        indices[-1] = 99
++    binary = positions.tobytes() + indices.tobytes()
++    doc = {
++        "asset": {"version": "2.0"},
++        "scene": 0,
++        "scenes": [{"nodes": [0]}],
++        "nodes": [{"name": "SourcePanel", "mesh": 0, "translation": [2, 3, 4]}],
++        "materials": [{"name": "SourceMaterial"}],
++        "meshes": [
++            {
++                "primitives": [
++                    {"attributes": {"POSITION": 0}, "indices": 1, "material": 0}
++                ]
++            }
++        ],
++        "buffers": [
++            {
++                "byteLength": len(binary),
++                "uri": "data:application/octet-stream;base64,"
++                + base64.b64encode(binary).decode(),
++            }
++        ],
++        "bufferViews": [
++            {"buffer": 0, "byteOffset": 0, "byteLength": positions.nbytes},
++            {"buffer": 0, "byteOffset": positions.nbytes, "byteLength": indices.nbytes},
++        ],
++        "accessors": [
++            {
++                "bufferView": 0,
++                "componentType": 5126,
++                "count": len(positions),
++                "type": "VEC3",
++            },
++            {
++                "bufferView": 1,
++                "componentType": 5123,
++                "count": len(indices),
++                "type": "SCALAR",
++            },
++        ],
++    }
++    path = tmp_path / "source.gltf"
++    path.write_text(json.dumps(doc))
++    return path, positions, indices
++
++
++def test_static_import_keeps_exact_source_faces_and_meter_placement(tmp_path):
++    from pxr import Usd, UsdGeom
++
++    source, positions, indices = source_fixture(tmp_path)
++    original = source.read_bytes()
++    out = tmp_path / "source.usdc"
++    receipt = import_static_gltf(source, out)
++    stage = Usd.Stage.Open(str(out))
++    mesh = UsdGeom.Mesh(stage.GetPrimAtPath(receipt["parts"][0]["path"]))
++    np.testing.assert_array_equal(mesh.GetPointsAttr().Get(), positions)
++    np.testing.assert_array_equal(mesh.GetFaceVertexIndicesAttr().Get(), indices)
++    assert list(mesh.GetFaceVertexCountsAttr().Get()) == [3, 3]
++    assert UsdGeom.GetStageMetersPerUnit(stage) == 1
++    assert stage.GetPrimAtPath("/Asset/Looks").GetTypeName() == "Scope"
++    np.testing.assert_array_equal(mesh.GetExtentAttr().Get(), [[0, 0, 0], [1, 1, 0]])
++    matrix = np.asarray(UsdGeom.XformCache().GetLocalToWorldTransform(mesh.GetPrim()))
++    np.testing.assert_array_equal(matrix[3, :3], [2, 3, 4])
++    assert source.read_bytes() == original
++    assert verify_preserved_render(out, out)["passed"]
++
++
++def test_strict_default_still_blocks_open_and_degenerate_render(tmp_path):
++    source, *_ = source_fixture(tmp_path)
++    out = tmp_path / "source.usdc"
++    import_static_gltf(source, out)
++    strict = _cad_preflight_checks(
++        out, tmp_path, "geometry-agent.static-visual-asset.v1"
++    )
++    assert strict[1] and any(c.status == "fail" for c in strict[0])
++    scoped = _cad_preflight_checks(
++        out,
++        tmp_path,
++        "geometry-agent.static-visual-asset.v1",
++        preserved_render_reference=out,
++    )
++    assert not scoped[1]
++    report = json.loads(scoped[-1].read_text())["reports"]["mesh_topology"]
++    assert report["strict_topology_report"]["status"] == "fail"
++    assert report["physical_acceptance"] is False
++
++
++@pytest.mark.parametrize(
++    "mutation",
++    [
++        "faces",
++        "units",
++        "collision",
++        "rigid_body",
++        "nan",
++        "invalid_index",
++        "transform",
++        "hidden",
++        "purpose",
++        "primitive",
++        "subdivision",
++        "animated_points",
++        "animated_transform",
++        "animated_visibility",
++    ],
++)
++def test_visual_handoff_cannot_hide_source_changes_or_physics(tmp_path, mutation):
++    from pxr import Gf, Usd, UsdGeom, UsdPhysics
++
++    source, *_ = source_fixture(tmp_path)
++    ref = tmp_path / "source.usdc"
++    receipt = import_static_gltf(source, ref)
++    stage = Usd.Stage.Open(str(ref))
++    candidate = tmp_path / "changed.usdc"
++    stage.GetRootLayer().Export(str(candidate))
++    stage = Usd.Stage.Open(str(candidate))
++    p = stage.GetPrimAtPath(receipt["parts"][0]["path"])
++    mesh = UsdGeom.Mesh(p)
++    if mutation == "faces":
++        mesh.GetFaceVertexIndicesAttr().Set([0, 2, 1, 0, 3, 1])
++    if mutation == "units":
++        UsdGeom.SetStageMetersPerUnit(stage, 0.001)
++    if mutation == "collision":
++        UsdPhysics.CollisionAPI.Apply(p)
++    if mutation == "rigid_body":
++        UsdPhysics.RigidBodyAPI.Apply(p.GetParent())
++    if mutation == "nan":
++        mesh.GetPointsAttr().Set([Gf.Vec3f(float("nan"), 0, 0)] * 4)
++    if mutation == "invalid_index":
++        mesh.GetFaceVertexIndicesAttr().Set([0, 1, 99, 0, 3, 1])
++    if mutation == "transform":
++        p.GetParent().GetAttribute("xformOp:transform").Set(Gf.Matrix4d(1))
++    if mutation == "hidden":
++        mesh.GetVisibilityAttr().Set("invisible")
++    if mutation == "purpose":
++        mesh.GetPurposeAttr().Set("guide")
++    if mutation == "primitive":
++        UsdGeom.Cube.Define(stage, "/Asset/Substitute")
++    if mutation == "subdivision":
++        mesh.GetSubdivisionSchemeAttr().Set("catmullClark")
++    if mutation == "animated_points":
++        mesh.GetPointsAttr().Set([Gf.Vec3f(2, 3, 4)] * 4, Usd.TimeCode(1))
++    if mutation == "animated_transform":
++        p.GetParent().GetAttribute("xformOp:transform").Set(Gf.Matrix4d(1), Usd.TimeCode(1))
++    if mutation == "animated_visibility":
++        mesh.GetVisibilityAttr().Set("invisible", Usd.TimeCode(1))
++    stage.GetRootLayer().Save()
++    with pytest.raises(ValueError):
++        verify_preserved_render(ref, candidate)
++
++
++def test_invalid_gltf_indices_fail_before_handoff(tmp_path):
++    source, *_ = source_fixture(tmp_path, invalid_index=True)
++    with pytest.raises(ValueError, match="triangle indices"):
++        import_static_gltf(source, tmp_path / "bad.usdc")
++
++
++def test_native_failure_retains_exception_type_and_traceback(tmp_path):
++    from content_agent_workflows.geometry.workflow import run_geometry_workflow
++
++    source, *_ = source_fixture(tmp_path, invalid_index=True)
++    result = run_geometry_workflow(
++        GeometryWorkflowInput(
++            source_path=source,
++            output_dir=tmp_path / "run",
++            source_authoring_mode="lossless_gltf",
++            optimization_policy="skip",
++        )
++    )
++    assert not result.success and result.error_type == "ValueError"
++    assert "Invalid triangle indices" in result.error
++    diagnostic = json.loads(
++        __import__("pathlib").Path(result.error_traceback_path).read_text()
++    )
++    assert (
++        diagnostic["error_type"] == "ValueError"
++        and "import_static_gltf" in diagnostic["traceback"]
++    )
++
++
++def test_visual_policy_is_explicit_and_cannot_skip_intake_or_mutate(tmp_path):
++    assert GeometryWorkflowInput(output_dir=tmp_path).render_topology_policy == "strict"
++    for change in [
++        {},
++        {"source_authoring_mode": "lossless_gltf"},
++        {
++            "source_authoring_mode": "lossless_gltf",
++            "optimization_policy": "skip",
++            "repair_mode": "auto",
++        },
++    ]:
++        with pytest.raises(ValueError):
++            GeometryWorkflowInput(
++                output_dir=tmp_path, render_topology_policy="preserve_source", **change
++            )
++    request = GeometryWorkflowInput(
++        output_dir=tmp_path,
++        render_topology_policy="preserve_source",
++        source_authoring_mode="lossless_gltf",
++        optimization_policy="skip",
++    )
++    assert request.runtime_validation_mode == "skip"
++
++
++def test_welded_boundary_uses_source_ids_after_nonidentical_average(
++    tmp_path, monkeypatch
++):
++    import geometry_repair.protected_features as features
++
++    corners = (
++        np.array([[0.123, 0, 0], [1.123, 0, 0], [1.123, 1, 0], [0.123, 1, 0]], float)
++        * 0.001
++    )
++    vertices = np.vstack([corners, corners + np.array([1e-13, 0, 0])])
++    faces = np.array([[0, 1, 2], [4, 6, 7]], int)
++    original = vertices.copy()
++    original_faces = faces.copy()
++    welded, triangles, source_ids = positional_topology_mesh_with_source_indices(
++        vertices, faces
++    )
++    assert any(
++        not np.array_equal(v, vertices[i])
++        for v, i in zip(welded, source_ids, strict=True)
++    )
++    assert set(source_ids) == set(range(4))
++    a, b = positional_topology_mesh(vertices, faces)
++    np.testing.assert_array_equal(a, welded)
++    np.testing.assert_array_equal(b, triangles)
++    path = tmp_path / "source.fixture"
++    path.write_text("source")
++    monkeypatch.setattr(
++        features,
++        "load_meshes",
++        lambda _: (
++            [
++                SimpleNamespace(
++                    role="render",
++                    path="/Panel",
++                    world_vertices_m=vertices,
++                    triangles=faces,
++                )
++            ],
++            {},
++        ),
++    )
++    monkeypatch.setattr(features, "_accessible_void_rays", lambda *_, **__: ([], None))
++    report = detect_protected_feature_candidates(path)
++    loops = [
++        c
++        for c in report.candidates
++        if c.evidence.get("measurement") == "position_welded_boundary_loop"
++    ]
++    assert loops and all(
++        set(c.evidence["loop_vertex_ids"]) == set(range(4)) for c in loops
++    )
++    np.testing.assert_array_equal(vertices, original)
++    np.testing.assert_array_equal(faces, original_faces)
+diff --git a/tests/test_drawer_capstone_mounted_runtime.py b/tests/test_drawer_capstone_mounted_runtime.py
+new file mode 100644
+index 0000000..131e6eb
+--- /dev/null
++++ b/tests/test_drawer_capstone_mounted_runtime.py
+@@ -0,0 +1,197 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# SPDX-License-Identifier: Apache-2.0
++"""Synthetic placement and acceptance witnesses; no native solver is launched."""
++import json
++from pathlib import Path
++
++import numpy as np
++import pytest
++from pxr import Gf, Usd, UsdGeom, UsdPhysics
++
++from physics_agent.tuning.scenarios._scene_builder import build_drop_settle_scene
++from content_agent_workflows.physics import scene_ops, usd_cli_ops, workflow
++from content_workflow_cli import cli, runner
++
++
++def fixture(path, *, world_anchor=False, meter_scale=1.0, separate_roots=False):
++    stage=Usd.Stage.CreateNew(str(path))
++    UsdGeom.SetStageMetersPerUnit(stage,meter_scale)
++    UsdGeom.SetStageUpAxis(stage,UsdGeom.Tokens.y)
++    root=UsdGeom.Xform.Define(stage,'/Asset');stage.SetDefaultPrim(root.GetPrim())
++    root.AddTranslateOp().Set(Gf.Vec3d(0.2,0.4,0.6))
++    static=UsdGeom.Xform.Define(stage,'/Asset/Static')
++    static.AddTranslateOp().Set(Gf.Vec3d(0.3,0.8,0.1))
++    paths=['/Asset/Drawer']
++    if separate_roots:
++        UsdGeom.Xform.Define(stage,'/Other');paths.append('/Other/Drawer')
++    for i,path_name in enumerate(paths):
++        body=UsdGeom.Xform.Define(stage,path_name)
++        body.AddTranslateOp().Set(Gf.Vec3d(0.3,0.8,0.1))
++        rb=UsdPhysics.RigidBodyAPI.Apply(body.GetPrim());rb.CreateKinematicEnabledAttr(False)
++        mass=UsdPhysics.MassAPI.Apply(body.GetPrim());mass.CreateMassAttr(2.0)
++        mass.CreateDiagonalInertiaAttr(Gf.Vec3f(.1,.1,.1))
++        cube=UsdGeom.Cube.Define(stage,path_name+'/Collider');cube.CreateSizeAttr(.2)
++        UsdPhysics.CollisionAPI.Apply(cube.GetPrim())
++        joint=UsdPhysics.PrismaticJoint.Define(stage,f'/Asset/Joints/J{i}')
++        joint.CreateAxisAttr('Z');joint.CreateLowerLimitAttr(0);joint.CreateUpperLimitAttr(.3)
++        joint.CreateBody1Rel().SetTargets([body.GetPath()])
++        if not world_anchor and not separate_roots:
++            joint.CreateBody0Rel().SetTargets([static.GetPath()])
++            joint.CreateLocalPos0Attr(Gf.Vec3f(0));joint.CreateLocalPos1Attr(Gf.Vec3f(0))
++        else:
++            p=body.ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
++            joint.CreateLocalPos0Attr(Gf.Vec3f(p));joint.CreateLocalPos1Attr(Gf.Vec3f(0))
++        joint.CreateLocalRot0Attr(Gf.Quatf(1));joint.CreateLocalRot1Attr(Gf.Quatf(1))
++    stage.GetRootLayer().Save()
++    return paths
++
++
++def pose(stage,path):
++    return np.array(UsdGeom.Xformable(stage.GetPrimAtPath(path)).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
++
++
++def joint_frames(stage):
++    rows=[]
++    for prim in stage.Traverse():
++        if not prim.IsA(UsdPhysics.Joint):continue
++        joint=UsdPhysics.Joint(prim);row=[]
++        for i in (0,1):
++            targets=getattr(joint,f'GetBody{i}Rel')().GetTargets()
++            M=UsdGeom.Xformable(stage.GetPrimAtPath(targets[0])).ComputeLocalToWorldTransform(Usd.TimeCode.Default()) if targets else Gf.Matrix4d(1)
++            row.append(list(M.Transform(Gf.Vec3d(getattr(joint,f'GetLocalPos{i}Attr')().Get()))))
++        rows.append(row)
++    return np.array(rows)
++
++
++@pytest.mark.parametrize('world_anchor',[False,True])
++@pytest.mark.parametrize('drop_height',[None,0.0])
++def test_mounted_preserves_static_and_world_joint_frames(tmp_path,world_anchor,drop_height):
++    source=tmp_path/'mounted.usda';paths=fixture(source,world_anchor=world_anchor)
++    before=source.read_bytes();original=Usd.Stage.Open(str(source))
++    output=tmp_path/'scene.usda'
++    info=build_drop_settle_scene(source,output,placement_mode='mounted',drop_height_m=drop_height)
++    saved=Usd.Stage.Open(str(output))
++    for path in ['/Asset','/Asset/Static',*paths]:
++        np.testing.assert_array_equal(pose(original,path),pose(saved,path))
++    np.testing.assert_array_equal(joint_frames(original),joint_frames(saved))
++    np.testing.assert_allclose(joint_frames(saved)[:,0],joint_frames(saved)[:,1],atol=1e-7)
++    assert info['rest_position']==pytest.approx(pose(original,paths[0])[3,:3])
++    assert info['placement_mode']=='mounted' and info['drop_height_m_resolved']==0
++    assert source.read_bytes()==before
++    scenes=[UsdPhysics.Scene(p) for p in saved.Traverse() if p.IsA(UsdPhysics.Scene)]
++    assert scenes and float(scenes[0].GetGravityMagnitudeAttr().Get())==pytest.approx(9.81)
++    assert tuple(scenes[0].GetGravityDirectionAttr().Get())==(0,-1,0)
++    assert saved.GetPrimAtPath('/Asset/Joints/J0').GetAttribute('physics:upperLimit').Get()==pytest.approx(.3)
++
++
++def test_default_drop_still_places_body_at_ground(tmp_path):
++    source=tmp_path/'drop.usda';paths=fixture(source)
++    output=tmp_path/'scene.usda';info=build_drop_settle_scene(source,output,drop_height_m=0)
++    stage=Usd.Stage.Open(str(output))
++    bound=UsdGeom.BBoxCache(Usd.TimeCode.Default(),[UsdGeom.Tokens.default_]).ComputeWorldBound(stage.GetPrimAtPath(paths[0])).ComputeAlignedRange()
++    assert bound.GetMin()[1]==pytest.approx(0,abs=1e-7)
++    assert info['placement_mode']=='drop'
++    assert np.linalg.norm(joint_frames(stage)[0,0]-joint_frames(stage)[0,1])>.5
++
++
++@pytest.mark.parametrize('kwargs,match',[
++    ({'placement_mode':'unknown'},'placement_mode'),
++    ({'placement_mode':'mounted','drop_height_m':.1},'drop_height'),
++    ({'placement_mode':'mounted','drop_height_m':-1},'drop_height'),
++])
++def test_invalid_mounted_request_is_rejected_before_export(tmp_path,kwargs,match):
++    source=tmp_path/'input.usda';fixture(source);before=source.read_bytes();output=tmp_path/'scene.usda'
++    with pytest.raises(ValueError,match=match):build_drop_settle_scene(source,output,**kwargs)
++    assert not output.exists() and source.read_bytes()==before
++
++
++def test_mounted_nonmetric_fails_without_rebasing_joint_or_geometry(tmp_path):
++    source=tmp_path/'centimeter.usda';fixture(source,meter_scale=.01);before=source.read_bytes()
++    with pytest.raises(ValueError,match='metersPerUnit=1'):
++        build_drop_settle_scene(source,tmp_path/'scene.usda',placement_mode='mounted')
++    assert source.read_bytes()==before
++
++
++@pytest.mark.parametrize('fault',[None,'jump','nonfinite','unsettled'])
++def test_mounted_runtime_keeps_continuity_finite_and_settling_gates(tmp_path,monkeypatch,fault):
++    source=tmp_path/'input.usda';paths=fixture(source,world_anchor=True)
++    def recorded_solver(**kwargs):
++        assert kwargs['body_path']==paths[0]
++        stage=Usd.Stage.Open(str(kwargs['scene_usd']))
++        np.testing.assert_allclose(joint_frames(stage)[:,0],joint_frames(stage)[:,1],atol=1e-7)
++        initial=list(kwargs['rest_position']);out=Path(kwargs['output_dir']);out.mkdir(parents=True)
++        rows=[]
++        for i in range(91):
++            p=initial.copy();v=[0.0]*6
++            if fault=='jump' and i>0:p[0]+=3.0
++            if fault=='nonfinite' and i==1:p[0]=float('nan')
++            if fault=='unsettled':p[2]+=.01*i;v[2]=.3
++            rows.append({'t':i/30,'pose':p+[0,0,0,1],'vel':v})
++        trajectory=out/'trajectory.jsonl';trajectory.write_text(''.join(json.dumps(r)+'\n' for r in rows))
++        recording=out/'recording.usda';recording.write_text('#usda 1.0\n')
++        return {'n_bodies':1,'trajectory_jsonl':str(trajectory),'recording_usda':str(recording),'simulation_facts':{'reported_step_count':720}}
++    monkeypatch.setattr(usd_cli_ops,'simulate_physics_scene',recorded_solver)
++    result=scene_ops.validate_runtime(physics_usd=source,output_dir=tmp_path/'runtime',placement_mode='mounted')
++    assert result['acceptance']['require_settle'] is True
++    assert result['acceptance']['detect_initial_pose_discontinuity'] is True
++    assert result['acceptance']['require_gravity_response'] is False
++    if fault=='jump':assert any('discontinuous' in x for x in result['failures'])
++    elif fault=='nonfinite':assert any('non-finite' in x for x in result['failures'])
++    elif fault=='unsettled':assert any('settle threshold' in x for x in result['warnings'])
++    else:assert result['failures']==[] and result['summary']['settle_time_s'] is not None
++
++
++def test_mounted_cannot_disable_settling(tmp_path):
++    with pytest.raises(ValueError,match='require_settle'):
++        scene_ops.validate_runtime(physics_usd=tmp_path/'unused.usda',output_dir=tmp_path/'runtime',placement_mode='mounted',acceptance={'require_settle':False})
++
++
++def test_cli_and_recorded_request_preserve_explicit_mode(tmp_path):
++    source=tmp_path/'input.usda';fixture(source)
++    args=cli.build_parser().parse_args(['physics','apply','--usd',str(source),'--output-dir',str(tmp_path/'run'),'--runtime-placement-mode','mounted'])
++    assert args.runtime_placement_mode=='mounted'
++    config=runner.PhysicsApplyConfig(repo_root=Path(__file__).resolve().parents[1],usd_path=source,runtime_placement_mode='mounted')
++    assert runner._build_physics_request(config,tmp_path/'run')['runtime_validation']['runtime_placement_mode']=='mounted'
++    assert runner._physics_run_manifest_policy(config)['runtime_placement_mode']=='mounted'
++    params=workflow.PhysicsApplyWorkflowInput(usd_path=source,output_dir=tmp_path/'run',runtime_placement_mode='mounted')
++    assert params.model_dump()['runtime_placement_mode']=='mounted'
++    assert runner.PhysicsApplyConfig(repo_root=tmp_path,usd_path=source).runtime_placement_mode=='drop'
++
++
++def test_single_body_workflow_forwards_mounted_mode(tmp_path,monkeypatch):
++    captured={}
++    def validate(**kwargs):
++        captured.update(kwargs)
++        return {'engine':'none','not_evaluated':True,'failures':[],'warnings':[]}
++    monkeypatch.setattr(scene_ops,'validate_runtime',validate)
++    workflow.validate_physics_runtime(physics_usd=tmp_path/'unused.usda',output_dir=tmp_path/'runtime',placement_mode='mounted')
++    assert captured['placement_mode']=='mounted'
++
++
++def test_multibody_mounted_preserves_world_anchors_without_common_root(tmp_path):
++    source=tmp_path/'separate.usda';paths=fixture(source,world_anchor=True,separate_roots=True)
++    original=Usd.Stage.Open(str(source));frames=joint_frames(original)
++    _evidence,report_path=workflow.validate_physics_runtime_multi_body(
++        physics_usd=source,output_dir=tmp_path/'runtime',body_prim_paths=paths,
++        engine='fake',placement_mode='mounted',duration_s=.1)
++    report=json.loads(report_path.read_text())
++    assert report['placement_prim_path'] is None and report['placement_mode']=='mounted'
++    assert len(report['per_body_results'])==2
++    for result in report['per_body_results']:
++        stage=Usd.Stage.Open(result['scene_usd'])
++        np.testing.assert_array_equal(frames,joint_frames(stage))
++        for path in paths:np.testing.assert_array_equal(pose(original,path),pose(stage,path))
++
++
++def test_tuned_candidate_revalidation_forwards_mounted_mode(tmp_path,monkeypatch):
++    from content_agent_workflows import physics
++    captured={}
++    def validate(**kwargs):
++        captured.update(kwargs)
++        raise RuntimeError('Synthetic stop before any solver')
++    monkeypatch.setattr(physics,'validate_physics_runtime',validate)
++    class Trace:
++        def write(self,*args,**kwargs):pass
++    config=runner.PhysicsApplyConfig(repo_root=tmp_path,usd_path=tmp_path/'source.usda',runtime_placement_mode='mounted')
++    runner._revalidate_tuned_physics_usd(config=config,run_dir=tmp_path,tuned_usd=tmp_path/'candidate.usda',trace_writer=Trace())
++    assert captured['placement_mode']=='mounted'
+diff --git a/tests/test_drawer_capstone_physics.py b/tests/test_drawer_capstone_physics.py
+new file mode 100644
+index 0000000..3348dc7
+--- /dev/null
++++ b/tests/test_drawer_capstone_physics.py
+@@ -0,0 +1,144 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# SPDX-License-Identifier: Apache-2.0
++"""Synthetic native authoring witnesses; these do not qualify benchmark assets."""
++import copy
++import math
++
++import pytest
++from pxr import Usd, UsdGeom, UsdPhysics
++from content_agent_workflows.physics.workflow import (
++    PhysicsComponent, PhysicsComponentTargetDecision, PhysicsMassProperties,
++    _merge_rebased_component_decisions, add_physics_component_target_catalog,
++    resolve_physics_v2_patch_targets,
++)
++from content_agent_workflows.physics.usd_cli_ops import physics_patch_from_workflow_decisions
++from usd_core.physics import apply_operations, apply_rigid_body
++
++
++MASS_PROPERTIES = {
++    "center_of_mass": [0.02, 0.03, 0.04],
++    "diagonal_inertia": [0.1, 0.2, 0.25],
++    "principal_axes": [math.sqrt(0.5), 0, 0, math.sqrt(0.5)],
++}
++
++
++def target_patch():
++    components = [
++        PhysicsComponent(component_id="moving", body_root_path="/World/Moving",
++                         visual_evidence_paths=["/World/Moving/Mesh"]),
++        PhysicsComponent(component_id="static", component_role="unowned_static",
++                         body_root_path="/World/Static", visual_evidence_paths=["/World/Static/Mesh"]),
++    ]
++    catalog = add_physics_component_target_catalog({"components": [c.model_dump() for c in components]})
++    decisions = []
++    for c in catalog["components"]:
++        dynamic = c["component_role"] == "body"
++        d = dict(decision_id=c["component_id"], component_id=c["component_id"],
++                 collider_target_ids=[c["authoring_targets"][0]["target_id"]],
++                 collision_mode="author_on_targets", inferred_material_family="wood",
++                 collision_approximation="convexHull", physical_properties={
++                     "estimated_mass_kg": 2.0 if dynamic else 0.0,
++                     "density": 500.0 if dynamic else 0.0,
++                     "static_friction": 0.6, "dynamic_friction": 0.6, "restitution": 0.0},
++                 confidence=1.0, rationale="Synthetic material and mobility fixture.")
++        if dynamic:
++            d["mass_properties"] = copy.deepcopy(MASS_PROPERTIES)
++        PhysicsComponentTargetDecision.model_validate(d)
++        decisions.append(d)
++    return components, {"schema_version": "content-agent-workflows.physics-decision-patch.v2",
++                        "asset": "fixture.usda", "source_digest": "sha256:fixture",
++                        "decisions": decisions, "unresolved_components": []}
++
++
++def resolve(components, patch):
++    return resolve_physics_v2_patch_targets(patch, components=components, source_digest="sha256:fixture")[1]
++
++
++def test_native_target_resolution_and_saved_massapi_preserve_static_fixture(tmp_path):
++    components, patch = target_patch()
++    decisions = resolve(components, patch)
++    assert [d.component_role for d in decisions] == ["body", "unowned_static"]
++    operations = physics_patch_from_workflow_decisions(
++        [d.model_dump(mode="json") for d in decisions], author_rigid_body=True,
++        physics_scene_path="/World/PhysicsScene", physics_material_scope_path="/World/Looks")
++    assert [d["path"] for d in operations["rigid_bodies"]] == ["/World/Moving"]
++    stage = Usd.Stage.CreateNew(str(tmp_path / "native.usda"))
++    UsdGeom.Xform.Define(stage, "/World")
++    for name in ("Moving", "Static"):
++        UsdGeom.Xform.Define(stage, "/World/" + name)
++        UsdGeom.Cube.Define(stage, "/World/" + name + "/Mesh")
++    apply_operations(stage, operations)
++    stage.GetRootLayer().Save()
++    saved = Usd.Stage.Open(str(tmp_path / "native.usda"))
++    moving = saved.GetPrimAtPath("/World/Moving")
++    assert moving.HasAPI(UsdPhysics.RigidBodyAPI)
++    assert not saved.GetPrimAtPath("/World/Static").HasAPI(UsdPhysics.RigidBodyAPI)
++    assert all(saved.GetPrimAtPath("/World/" + name + "/Mesh").HasAPI(UsdPhysics.CollisionAPI)
++               for name in ("Moving", "Static"))
++    props = UsdPhysics.MassAPI(moving)
++    assert props.GetMassAttr().Get() == 2
++    assert list(props.GetCenterOfMassAttr().Get()) == pytest.approx(MASS_PROPERTIES["center_of_mass"])
++    assert list(props.GetDiagonalInertiaAttr().Get()) == pytest.approx(MASS_PROPERTIES["diagonal_inertia"])
++    q = props.GetPrincipalAxesAttr().Get()
++    assert [q.GetReal(), *q.GetImaginary()] == pytest.approx(MASS_PROPERTIES["principal_axes"])
++
++
++@pytest.mark.parametrize("key,value", [
++    ("center_of_mass", [0, 0]), ("center_of_mass", [False, 0, 0]),
++    ("center_of_mass", [float("nan"), 0, 0]), ("center_of_mass", [1e100, 0, 0]),
++    ("diagonal_inertia", [0, 1, 1]), ("diagonal_inertia", [-1, 1, 1]),
++    ("diagonal_inertia", [1e-100, 1e-100, 1e-100]),
++    ("diagonal_inertia", [1, 1, 3]), ("diagonal_inertia", [1, float("inf"), 1]),
++    ("principal_axes", [0, 0, 0, 0]), ("principal_axes", [2, 0, 0, 0]),
++    ("principal_axes", [1, 0, 0]),
++])
++def test_invalid_vectors_rejected_before_any_native_stage_mutation(key, value):
++    bad = {**MASS_PROPERTIES, key: value}
++    with pytest.raises(ValueError):
++        PhysicsMassProperties.model_validate(bad)
++    stage = Usd.Stage.CreateInMemory()
++    UsdGeom.Xform.Define(stage, "/World/First")
++    UsdGeom.Xform.Define(stage, "/World/Invalid")
++    before = stage.GetRootLayer().ExportToString()
++    with pytest.raises(ValueError):
++        apply_operations(stage, {"scene_paths": ["/World/PhysicsScene"], "rigid_bodies": [
++            {"path": "/World/First", "mass": 1},
++            {"path": "/World/Invalid", "mass": 1, "mass_properties": bad}]})
++    assert stage.GetRootLayer().ExportToString() == before
++
++
++def test_dynamic_zero_mass_keeps_default_behavior_without_explicit_vectors():
++    operations = physics_patch_from_workflow_decisions([{
++        "mass_authoring_path": "/World/Dynamic", "collider_paths": ["/World/Dynamic/Mesh"],
++        "physical_properties": {"estimated_mass_kg": 0, "density": 0},
++        "collision_approximation": "convexHull"}], author_rigid_body=True,
++        physics_scene_path="/World/PhysicsScene")
++    assert operations["rigid_bodies"] == [{"path": "/World/Dynamic", "density": 0, "mass": 0}]
++    stage = Usd.Stage.CreateInMemory()
++    UsdGeom.Xform.Define(stage, "/World/Dynamic")
++    apply_rigid_body(stage, "/World/Dynamic", mass=0, density=0)
++    prim = stage.GetPrimAtPath("/World/Dynamic")
++    assert prim.HasAPI(UsdPhysics.RigidBodyAPI)
++    assert not UsdPhysics.MassAPI(prim).GetDiagonalInertiaAttr().HasAuthoredValueOpinion()
++
++
++def test_child_cannot_change_inspected_component_mobility():
++    components, patch = target_patch()
++    patch["decisions"][1]["component_role"] = "body"
++    with pytest.raises(RuntimeError, match="component_role"):
++        resolve(components, patch)
++
++
++def test_static_component_cannot_request_rigid_mass_vectors():
++    components, patch = target_patch()
++    patch["decisions"][1]["mass_properties"] = MASS_PROPERTIES
++    with pytest.raises(RuntimeError, match="Static components"):
++        resolve(components, patch)
++
++
++def test_mass_vectors_require_reauthoring_when_body_frame_changes():
++    components, patch = target_patch()
++    decision = resolve(components, patch)[0]
++    changed = components[0].model_copy(update={"body_root_path": "/World/NewFrame"})
++    with pytest.raises(RuntimeError, match="body frame"):
++        _merge_rebased_component_decisions(changed, [decision])
+diff --git a/tests/test_native_physics_behavior_validation.py b/tests/test_native_physics_behavior_validation.py
+new file mode 100644
+index 0000000..1cab10e
+--- /dev/null
++++ b/tests/test_native_physics_behavior_validation.py
+@@ -0,0 +1,414 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# SPDX-License-Identifier: Apache-2.0
++"""Synthetic contract tests: no solver, renderer, model, or provider is invoked."""
++import hashlib
++import json
++from pathlib import Path
++
++import pytest
++from PIL import Image
++
++from world_understanding.agentic.validation_scaffold import (
++    create_draft_validation_request,
++    run_validation_scaffold,
++)
++from world_understanding.functions.physics import native_behavior_validation as adapter
++
++
++def write(path, value):
++    path.parent.mkdir(parents=True, exist_ok=True)
++    path.write_text(json.dumps(value))
++    return path
++
++
++@pytest.fixture
++def native(tmp_path):
++    asset = tmp_path / "physics.usda"
++    asset.write_text('#usda 1.0\ndef Xform "Asset" {}\n')
++    scene = tmp_path / "scene.usda"
++    scene.write_bytes(asset.read_bytes())
++    recording = tmp_path / "recording.usda"
++    recording.write_bytes(asset.read_bytes())
++    trajectory = tmp_path / "trajectory.jsonl"
++    trajectory.write_text(
++        "\n".join(
++            json.dumps(
++                {
++                    "frame": i,
++                    "t": float(i),
++                    "pose": [0, 0, 0, 0, 0, 0, 1],
++                    "vel": [0] * 6,
++                }
++            )
++            for i in range(3)
++        )
++    )
++    raw_sim = write(
++        tmp_path / "raw_runtime.json",
++        {
++            "engine": "ovphysx",
++            "scene_usd": str(scene),
++            "recording_usda": str(recording),
++            "trajectory_jsonl": str(trajectory),
++            "simulation_facts": {
++                "trajectory_sample_count": 3,
++                "trajectory_finite": True,
++                "reported_step_count": 480,
++                "reported_body_count": 1,
++            },
++        },
++    )
++    response = write(
++        tmp_path / "response.json",
++        {
++            "engine": "ovphysx",
++            "status": "ok",
++            "n_steps": 480,
++            "n_bodies": 1,
++            "trajectory_sample_count": 3,
++            "usd_cli_report_path": str(raw_sim),
++        },
++    )
++    report = write(
++        tmp_path / "runtime.json",
++        {
++            "engine": "ovphysx",
++            "failures": [],
++            "warnings": [],
++            "physics_usd": str(asset),
++            "scene_usd": str(scene),
++            "recording_usda": str(recording),
++            "trajectory_jsonl": str(trajectory),
++            "response_path": str(response),
++            "acceptance": {"expected_body_count": 1},
++            "summary": {
++                "n_samples": 3,
++                "loaded_body_count": 1,
++                "initial_pose_discontinuity": False,
++                "duration_s": 2.0,
++            },
++        },
++    )
++    frame = tmp_path / "frame.png"
++    Image.new("RGB", (32, 32), "red").save(frame)
++    camera = write(tmp_path / "frame.camera.json", {"camera_path": "/Camera"})
++    render_response = write(
++        tmp_path / "raw/physics_render_frames_1.json",
++        {"renderer": "ovrtx", "status": "completed"},
++    )
++    render_inputs = {
++        k: adapter._binding(p)
++        for k, p in {
++            "physics_usd": asset,
++            "scene_usd": scene,
++            "recording_usda": recording,
++        }.items()
++    }
++    bundle_files = list(render_inputs.values())
++    receipt = write(
++        tmp_path / "frame_receipt.json",
++        {
++            "schema_version": "content-workflow-cli.physics-render-frame-receipt.v1",
++            "iteration": 1,
++            "simulation_report": adapter._binding(report),
++            "render_inputs": render_inputs,
++            "render_input_bundle": {
++                "files": bundle_files,
++                "sha256": hashlib.sha256(
++                    json.dumps(
++                        bundle_files,
++                        allow_nan=False,
++                        separators=(",", ":"),
++                        sort_keys=True,
++                    ).encode()
++                ).hexdigest(),
++            },
++            "render_response": {"renderer": "ovrtx"},
++            "response_artifact": adapter._binding(render_response),
++            "frames": [
++                {
++                    "local_frame_path": str(frame),
++                    "frame_sha256": adapter._binding(frame)["sha256"],
++                    "frame_size_bytes": frame.stat().st_size,
++                    "local_camera_path": str(camera),
++                    "camera_sha256": adapter._binding(camera)["sha256"],
++                    "camera_size_bytes": camera.stat().st_size,
++                }
++            ],
++        },
++    )
++    assessment = write(
++        tmp_path / "assessment.json",
++        {
++            "schema_version": adapter.ASSESSMENT_SCHEMA,
++            "status": "pass",
++            "checked_views": [str(frame)],
++            "runtime_report": str(report),
++            "rendered_frames": [str(frame)],
++            "issues_found": [],
++            "issues_fixed": [],
++            "unresolved_issues": [],
++            "assessment_notes": "Synthetic contract fixture, not physical evidence.",
++        },
++    )
++    validation = write(
++        tmp_path / "validation.json",
++        {
++            "schema_version": adapter.EVIDENCE_SCHEMA,
++            "workflow": "physics_authoring",
++            "asset": str(asset),
++            "target_runtime": "ovphysx",
++            "validation_tier": "T2_simulation_match",
++            "sim_ready_status": "pass",
++            "checks": [
++                {"name": name, "status": "pass", "summary": "Synthetic fixture"}
++                for name in (
++                    "physics_properties",
++                    "runtime_loadability",
++                    "no_explosions",
++                    "simulation_visual_review",
++                )
++            ],
++            "evidence_artifacts": [
++                {
++                    "kind": "simulation_frame_receipt",
++                    "path": str(receipt),
++                    "metadata": {"sha256": adapter._binding(receipt)["sha256"]},
++                }
++            ],
++            "failures": [],
++            "warnings": [],
++            "unresolved_issues": [],
++            "metadata": {
++                "asset_sha256": adapter._binding(asset)["sha256"],
++                "duration_s": 2.0,
++            },
++        },
++    )
++    evidence = json.loads(validation.read_text())
++    evidence["checks"][-1]["metadata"] = {"assessment_status": "pass"}
++    evidence["evidence_artifacts"] += [
++        {"kind": "physics_behavior_assessment", "path": str(assessment)},
++        {"kind": "runtime_report", "path": str(report)},
++    ]
++    write(validation, evidence)
++    data = {
++        "asset": asset,
++        "assessment": assessment,
++        "validation_evidence": validation,
++        "run_dir": tmp_path,
++    }
++    bundle = write(
++        tmp_path / "bundle.json", adapter.prepare_native_physics_bundle(**data)
++    )
++    return {
++        **data,
++        "bundle": bundle,
++        "report": report,
++        "receipt": receipt,
++        "frame": frame,
++        "trajectory": trajectory,
++        "response": response,
++    }
++
++
++def validate(native):
++    return adapter.validate_native_physics_bundle(
++        native["bundle"], usd_paths=[native["asset"]]
++    )
++
++
++def refresh_outer_bundle(native):
++    """Rebind mutated bytes to exercise semantic checks beyond stale-hash checks."""
++    bundle = json.loads(native["bundle"].read_text())
++    bundle["artifacts"] = [
++        adapter._binding(Path(a["path"])) for a in bundle["artifacts"]
++    ]
++    write(native["bundle"], bundle)
++
++
++def test_actual_native_verifier_clean_contract(native):
++    result = validate(native)
++    assert result["status"] == "passed"
++    assert result["native_assessment_status"] == "pass"
++    assert "decision" not in result
++
++
++@pytest.mark.parametrize(
++    "target",
++    [
++        "asset",
++        "assessment",
++        "validation_evidence",
++        "report",
++        "receipt",
++        "frame",
++        "trajectory",
++        "response",
++    ],
++)
++def test_stale_evidence_never_passes(native, target):
++    with native[target].open("ab") as stream:
++        stream.write(b" ")
++    assert validate(native)["status"] == "failed"
++
++
++@pytest.mark.parametrize(
++    "field,value",
++    [
++        ("status", "unresolved_issues"),
++        ("status", "warn"),
++        ("unresolved_issues", ["unresolved"]),
++        ("checked_views", []),
++        ("rendered_frames", []),
++        ("schema_version", "unknown"),
++    ],
++)
++def test_rebound_bad_assessment_rejected(native, field, value):
++    raw = json.loads(native["assessment"].read_text())
++    raw[field] = value
++    write(native["assessment"], raw)
++    refresh_outer_bundle(native)
++    assert validate(native)["status"] == "failed"
++
++
++@pytest.mark.parametrize(
++    "field,value",
++    [
++        ("sim_ready_status", "fail"),
++        ("sim_ready_status", "conditional"),
++        ("warnings", ["warning"]),
++        ("failures", ["failure"]),
++        ("checks", []),
++        ("metadata", {"duration_s": 2.0}),
++    ],
++)
++def test_rebound_native_failure_rejected(native, field, value):
++    raw = json.loads(native["validation_evidence"].read_text())
++    raw[field] = value
++    write(native["validation_evidence"], raw)
++    refresh_outer_bundle(native)
++    assert validate(native)["status"] == "failed"
++
++
++def test_trajectory_incomplete_even_with_fresh_manifest(native):
++    native["trajectory"].write_text(native["trajectory"].read_text().splitlines()[0])
++    refresh_outer_bundle(native)
++    assert validate(native)["status"] == "failed"
++
++
++def test_source_mismatch_and_omitted_dependency(native):
++    other = native["run_dir"] / "other.usda"
++    other.write_bytes(native["asset"].read_bytes())
++    assert (
++        adapter.validate_native_physics_bundle(native["bundle"], usd_paths=[other])[
++            "status"
++        ]
++        == "failed"
++    )
++    raw = json.loads(native["bundle"].read_text())
++    raw["artifacts"] = [
++        a for a in raw["artifacts"] if a["path"] != str(native["trajectory"])
++    ]
++    write(native["bundle"], raw)
++    assert validate(native)["status"] == "failed"
++
++
++def scaffold(native, evidence):
++    request = create_draft_validation_request(
++        task_description="Check recorded single-body runtime stability and visual review.",
++        inputs=(native["asset"],),
++        working_dir=native["run_dir"] / "validation_run",
++        requested_templates=("physical_behavior",),
++        policy={
++            "behavior_evidence_required": True,
++            "physical_behavior_evidence": evidence,
++        },
++    )
++    return run_validation_scaffold(request)
++
++
++def spec(path, role):
++    return {
++        "path": str(path),
++        "kind": "simulation_json",
++        "role": role,
++        "required": True,
++    }
++
++
++def test_native_scaffold_and_legacy_approval_are_distinct(native):
++    result = scaffold(native, [spec(native["bundle"], "native_physics_bundle")])
++    assert result.verdict == "pass"
++    assert (
++        result.template_results[0].evidence["behavior_summary"]["kind"]
++        == "native_physics_behavior"
++    )
++    legacy = write(
++        native["run_dir"] / "legacy.json",
++        {"status": "completed", "decision": "approve"},
++    )
++    assert scaffold(native, [spec(legacy, "judge_result")]).verdict == "pass"
++    assert (
++        scaffold(
++            native,
++            [
++                spec(legacy, "judge_result"),
++                spec(native["assessment"], "physics_behavior_assessment"),
++            ],
++        ).verdict
++        == "fail"
++    )
++
++
++def test_legacy_approve_cannot_hide_failed_native_bundle(native):
++    legacy = write(
++        native["run_dir"] / "legacy.json",
++        {"status": "completed", "decision": "approve"},
++    )
++    native["trajectory"].write_text("")
++    assert (
++        scaffold(
++            native,
++            [
++                spec(legacy, "judge_result"),
++                spec(native["bundle"], "native_physics_bundle"),
++            ],
++        ).verdict
++        == "fail"
++    )
++
++
++def test_native_pass_cannot_hide_legacy_failure_or_missing_required(native):
++    legacy = write(
++        native["run_dir"] / "legacy.json", {"status": "failed", "decision": "approve"}
++    )
++    assert (
++        scaffold(
++            native,
++            [
++                spec(legacy, "judge_result"),
++                spec(native["bundle"], "native_physics_bundle"),
++            ],
++        ).verdict
++        == "fail"
++    )
++    assert (
++        scaffold(
++            native,
++            [
++                spec(native["run_dir"] / "missing.json", "simulation_json"),
++                spec(native["bundle"], "native_physics_bundle"),
++            ],
++        ).verdict
++        == "fail"
++    )
++
++
++def test_missing_native_bundle_fails_without_legacy_fallback(native):
++    assert (
++        scaffold(
++            native, [spec(native["run_dir"] / "missing.json", "native_physics_bundle")]
++        ).verdict
++        == "fail"
++    )
+diff --git a/world_understanding/agentic/validation_scaffold.py b/world_understanding/agentic/validation_scaffold.py
+index e92f111..ce14800 100644
+--- a/world_understanding/agentic/validation_scaffold.py
++++ b/world_understanding/agentic/validation_scaffold.py
+@@ -39,6 +39,13 @@ from world_understanding.functions.graphics.render_valid_adapter import (
+ )
+ from world_understanding.functions.models.chat_models import create_chat_model
+ from world_understanding.functions.models.vision_language_models import create_vlm
++from world_understanding.functions.physics.native_behavior_validation import (
++    ASSESSMENT_SCHEMA,
++    BUNDLE_SCHEMA,
++    EVIDENCE_SCHEMA,
++    NATIVE_ROLES,
++    native_behavior_result,
++)
+ from world_understanding.functions.physics.physical_behavior_evidence import (
+     BEHAVIOR_EVIDENCE_MISSING,
+     BEHAVIOR_JUDGE_UNAVAILABLE,
+@@ -508,6 +515,31 @@ class _PhysicalBehaviorTemplate:
+                 behavior_evidence_required=behavior_evidence_required,
+             )
+         )
++        native_result = native_behavior_result(
++            resolution.evidence,
++            usd_paths=context.input_inventory.usd_paths,
++        )
++        if native_result is not None:
++            # Native evidence is never translated into a legacy approve result.
++            # It also cannot be hidden by an approved legacy refine summary.
++            if native_result["status"] != "passed":
++                behavior_status = "failed"
++                behavior_issues = (
++                    DraftValidationIssue(
++                        code="physics.native_behavior_evidence_rejected",
++                        severity="fail",
++                        message=str(
++                            native_result.get(
++                                "reason", "Native physics evidence failed."
++                            )
++                        ),
++                        details=native_result,
++                    ),
++                )
++                behavior_summary = native_result
++            elif not refine_summary_results:
++                behavior_status, behavior_issues = "passed", ()
++                behavior_summary = native_result
+         issues = resolution_issues + behavior_issues
+         status = _physical_behavior_status(behavior_status, issues)
+         metrics = _physical_behavior_metrics(
+@@ -528,6 +560,8 @@ class _PhysicalBehaviorTemplate:
+             ],
+             "behavior_summary": behavior_summary,
+         }
++        if native_result is not None:
++            evidence["native_physics_behavior"] = native_result
+         return DraftTemplateResult(
+             template_name=self.name,
+             status=status,
+@@ -537,7 +571,11 @@ class _PhysicalBehaviorTemplate:
+             metadata={
+                 "template_kind": "evidence_contract",
+                 "helper": "resolve_physical_behavior_evidence",
+-                "status_semantics": "pr10_physical_behavior",
++                "status_semantics": (
++                    "native_physics_behavior_v1"
++                    if native_result is not None
++                    else "pr10_physical_behavior"
++                ),
+             },
+         )
+ 
+@@ -1813,6 +1851,12 @@ def _physical_behavior_refine_summary_results(
+         payload = _load_json_mapping(path)
+         if payload is None:
+             continue
++        if item.role in NATIVE_ROLES or payload.get("schema_version") in {
++            ASSESSMENT_SCHEMA,
++            BUNDLE_SCHEMA,
++            EVIDENCE_SCHEMA,
++        }:
++            continue
+         if _is_refine_summary(payload):
+             summaries.append(
+                 {
+diff --git a/world_understanding/functions/physics/native_behavior_validation.py b/world_understanding/functions/physics/native_behavior_validation.py
+new file mode 100644
+index 0000000..d0aa32d
+--- /dev/null
++++ b/world_understanding/functions/physics/native_behavior_validation.py
+@@ -0,0 +1,482 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# SPDX-License-Identifier: Apache-2.0
++"""Read-only bridge from native Physics evidence to Validation.
++
++The bundle freezes evidence bytes, not a verdict. Acceptance still requires the
++native typed assessment, clean measured runtime checks and the existing native
++OVRTX attestation verifier. No approve/refine result is manufactured here.
++This is a bounded single-asset runtime/visual-review contract, not a certificate
++of arbitrary user-task behavior, geometry fidelity or physical realism.
++"""
++
++from __future__ import annotations
++
++import hashlib
++import json
++import math
++from collections.abc import Iterable
++from pathlib import Path
++from typing import Any
++
++BUNDLE_SCHEMA = "validation.native-physics-behavior-bundle.v1"
++ASSESSMENT_SCHEMA = "content-agent-workflows.physics-behavior-assessment.v1"
++EVIDENCE_SCHEMA = "content-agent-workflows.validation-evidence.v1"
++NATIVE_ROLES = frozenset(
++    {
++        "native_physics_bundle",
++        "physics_behavior_assessment",
++        "physics_validation_evidence",
++    }
++)
++
++
++def _json(path: Path) -> dict[str, Any]:
++    if path.stat().st_size > 16 * 1024 * 1024:
++        raise ValueError("Native evidence JSON exceeds 16 MiB.")
++
++    def reject_constant(value: str) -> None:
++        raise ValueError(f"Non-finite JSON constant: {value}")
++
++    value = json.loads(path.read_text(), parse_constant=reject_constant)
++    if not isinstance(value, dict):
++        raise ValueError("Native evidence must be a JSON object.")
++    return value
++
++
++def _path(value: Any, parent: Path) -> Path:
++    if not isinstance(value, str) or not value.strip():
++        raise ValueError("Native evidence path is missing.")
++    path = Path(value)
++    return (path if path.is_absolute() else parent / path).resolve(strict=True)
++
++
++def _binding(path: Path) -> dict[str, Any]:
++    path = path.resolve(strict=True)
++    digest = hashlib.sha256()
++    with path.open("rb") as stream:
++        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
++            digest.update(chunk)
++    return {
++        "path": str(path),
++        "sha256": digest.hexdigest(),
++        "size_bytes": path.stat().st_size,
++    }
++
++
++def _check(condition: bool, message: str) -> None:
++    if not condition:
++        raise ValueError(message)
++
++
++def _native_closure(
++    assessment_path: Path, validation_path: Path, run_dir: Path
++) -> tuple[Any, dict[str, Any], dict[str, Any], set[Path]]:
++    # Import only on this explicitly selected native route. These producer-owned
++    # helpers perform reads/attestation only; they launch no model or simulator.
++    from content_agent_workflows.common.validation_evidence import ValidationEvidence
++    from content_agent_workflows.physics.workflow import PhysicsBehaviorAssessment
++    from content_workflow_cli.runner import (
++        _capture_physics_visual_evidence_attestation,
++        _physics_ovrtx_review_evidence_errors,
++        _verify_physics_assessment_evidence_paths,
++    )
++
++    raw = _json(assessment_path)
++    _check(
++        raw.get("schema_version") == ASSESSMENT_SCHEMA,
++        "Unsupported native assessment schema.",
++    )
++    # Require the serialized typed shape, before the producer's permissive LLM
++    # normalization/defaults can erase missing or unknown fields.
++    expected = {
++        "schema_version",
++        "status",
++        "checked_views",
++        "runtime_report",
++        "rendered_frames",
++        "issues_found",
++        "issues_fixed",
++        "unresolved_issues",
++        "assessment_notes",
++    }
++    _check(
++        set(raw) == expected, "Native assessment is incomplete or has unknown fields."
++    )
++    for key in (
++        "checked_views",
++        "rendered_frames",
++        "issues_found",
++        "issues_fixed",
++        "unresolved_issues",
++    ):
++        _check(
++            isinstance(raw[key], list), "Native assessment has a non-list field: " + key
++        )
++    assessment = PhysicsBehaviorAssessment.model_validate(raw)
++    validation = _json(validation_path)
++    _check(
++        validation.get("schema_version") == EVIDENCE_SCHEMA,
++        "Unsupported native ValidationEvidence schema.",
++    )
++    ValidationEvidence.model_validate(validation)
++    _check(
++        assessment.status in {"pass", "fixed"} and not assessment.unresolved_issues,
++        "Native visual assessment is unresolved or failed.",
++    )
++    _check(
++        bool(assessment.checked_views) and bool(assessment.rendered_frames),
++        "Native visual review has no reviewed views/frames.",
++    )
++    _check(
++        validation.get("workflow") == "physics_authoring"
++        and validation.get("target_runtime") == "ovphysx",
++        "Unsupported native workflow/runtime.",
++    )
++    _check(validation.get("sim_ready_status") == "pass", "Native runtime is not pass.")
++    for key in ("failures", "warnings", "unresolved_issues"):
++        _check(validation.get(key) == [], f"Native {key} are missing or nonempty.")
++    checks = validation.get("checks", [])
++    _check(isinstance(checks, list) and bool(checks), "Missing native checks.")
++    _check(
++        {
++            "physics_properties",
++            "runtime_loadability",
++            "no_explosions",
++            "simulation_visual_review",
++        }
++        <= {c.get("name") for c in checks},
++        "Required native checks are missing.",
++    )
++    for check in checks:
++        _check(
++            check.get("status") == "pass"
++            and not check.get("failures")
++            and not check.get("warnings"),
++            "Native check is not a clean pass.",
++        )
++    report_path = _path(assessment.runtime_report, assessment_path.parent)
++    report = _json(report_path)
++    _check(
++        report.get("engine") == "ovphysx"
++        and report.get("failures") == []
++        and report.get("warnings") == [],
++        "Measured runtime report is not clean.",
++    )
++    artifacts = list(validation.get("evidence_artifacts", []))
++    for check in checks:
++        artifacts += check.get("evidence_artifacts", [])
++    for kind, path in (
++        ("physics_behavior_assessment", assessment_path),
++        ("runtime_report", report_path),
++    ):
++        _check(
++            any(
++                a.get("kind") == kind
++                and _path(a.get("path"), validation_path.parent) == path
++                for a in artifacts
++            ),
++            "Native validation does not reference " + kind,
++        )
++    visual = [c for c in checks if c["name"] == "simulation_visual_review"]
++    _check(
++        len(visual) == 1
++        and visual[0].get("metadata", {}).get("assessment_status") == assessment.status,
++        "Native visual check contradicts its assessment.",
++    )
++    receipts = {
++        _path(a["path"], validation_path.parent)
++        for a in artifacts
++        if a.get("kind") == "simulation_frame_receipt"
++    }
++    _check(len(receipts) == 1, "Expected one native frame receipt.")
++    receipt_path = next(iter(receipts))
++    for artifact in artifacts:
++        if artifact.get("kind") == "simulation_frame_receipt":
++            _check(
++                artifact.get("metadata", {}).get("sha256")
++                == _binding(receipt_path)["sha256"],
++                "Stale native frame receipt.",
++            )
++    receipt = _json(receipt_path)
++    raw_render_path = (
++        run_dir / "raw" / f"physics_render_frames_{receipt['iteration']}.json"
++    )
++    _check(
++        _path(receipt.get("response_artifact", {}).get("path"), receipt_path.parent)
++        == raw_render_path.resolve(strict=True),
++        "Native review render provenance is outside the bound response.",
++    )
++    attestation = _capture_physics_visual_evidence_attestation(
++        run_dir=run_dir,
++        validation_path=validation_path,
++        runtime_report_path=report_path,
++        rendered_frames=list(assessment.rendered_frames),
++        render_receipt_path=receipt_path,
++    )
++    _verify_physics_assessment_evidence_paths(assessment, attestation)
++    errors = _physics_ovrtx_review_evidence_errors(
++        run_dir=run_dir,
++        iteration=receipt["iteration"],
++        runtime_report_path=report_path,
++        rendered_frames=list(assessment.rendered_frames),
++        assessment=assessment,
++    )
++    _check(not errors, "Native OVRTX evidence invalid: " + "; ".join(errors))
++    closure = {
++        assessment_path,
++        validation_path,
++        report_path,
++        *(item[0] for item in attestation.artifacts),
++    }
++    for key in (
++        "physics_usd",
++        "scene_usd",
++        "recording_usda",
++        "trajectory_jsonl",
++        "response_path",
++    ):
++        closure.add(_path(report.get(key), report_path.parent))
++    response_path = _path(report["response_path"], report_path.parent)
++    response = _json(response_path)
++    raw_report_path = _path(response.get("usd_cli_report_path"), response_path.parent)
++    closure.add(raw_report_path)
++    raw_report = _json(raw_report_path)
++    _check(
++        raw_report.get("engine") == "ovphysx",
++        "Native solver report has the wrong engine.",
++    )
++    for key in ("scene_usd", "recording_usda", "trajectory_jsonl"):
++        _check(
++            _path(raw_report.get(key), raw_report_path.parent)
++            == _path(report[key], report_path.parent),
++            "Native solver report input mismatch: " + key,
++        )
++    facts = raw_report.get("simulation_facts", {})
++    _check(
++        facts.get("trajectory_finite") is True
++        and facts.get("trajectory_sample_count")
++        == response.get("trajectory_sample_count")
++        and facts.get("reported_step_count") == response.get("n_steps")
++        and facts.get("reported_body_count") == response.get("n_bodies"),
++        "Native solver facts are incomplete or contradictory.",
++    )
++    for key in ("physics_usd", "scene_usd", "recording_usda"):
++        _check(
++            _path(
++                receipt.get("render_inputs", {}).get(key, {}).get("path"),
++                receipt_path.parent,
++            )
++            == _path(report[key], report_path.parent),
++            "Render/runtime input mismatch: " + key,
++        )
++    _check(
++        response.get("engine") == "ovphysx" and response.get("status") == "ok",
++        "Runtime execution did not succeed.",
++    )
++    _check(
++        type(response.get("n_steps")) is int and response["n_steps"] > 0,
++        "Runtime has no executed steps.",
++    )
++    summary = report.get("summary", {})
++    _check(
++        summary.get("initial_pose_discontinuity") is False,
++        "Runtime initial pose is unresolved.",
++    )
++    _check(
++        response.get("n_bodies")
++        == summary.get("loaded_body_count")
++        == report.get("acceptance", {}).get("expected_body_count")
++        == 1,
++        "Native single-body runtime coverage is incomplete.",
++    )
++    trajectory = _path(report["trajectory_jsonl"], report_path.parent)
++    _check(
++        trajectory.stat().st_size <= 128 * 1024 * 1024,
++        "Native trajectory exceeds the bounded reader limit.",
++    )
++    rows = [
++        json.loads(line) for line in trajectory.read_text().splitlines() if line.strip()
++    ]
++    _check(
++        len(rows) >= 2
++        and len(rows)
++        == summary.get("n_samples")
++        == response.get("trajectory_sample_count"),
++        "Incomplete runtime trajectory.",
++    )
++    times = []
++    for index, row in enumerate(rows):
++        _check(row.get("frame") == index, "Trajectory frames are incomplete.")
++        _check(
++            len(row.get("pose", [])) == 7 and len(row.get("vel", [])) == 6,
++            "Trajectory state is incomplete.",
++        )
++        numbers = [row.get("t"), *row["pose"], *row["vel"]]
++        _check(
++            all(type(n) in (int, float) and math.isfinite(n) for n in numbers),
++            "Non-finite trajectory state.",
++        )
++        times.append(row["t"])
++    _check(
++        times[0] == 0 and all(b > a for a, b in zip(times, times[1:], strict=False)),
++        "Trajectory time coverage is invalid.",
++    )
++    duration = validation.get("metadata", {}).get("duration_s")
++    _check(
++        type(duration) in (int, float)
++        and duration > 0
++        and math.isclose(times[-1], duration, abs_tol=1e-8)
++        and math.isclose(summary.get("duration_s", -1), duration, abs_tol=1e-8),
++        "Trajectory does not cover the requested runtime duration.",
++    )
++    return assessment, validation, report, closure
++
++
++def prepare_native_physics_bundle(
++    *, asset: Path, assessment: Path, validation_evidence: Path, run_dir: Path
++) -> dict[str, Any]:
++    """Freeze verified native input bytes; callers retain this before Validation.
++
++    No provider calls, simulations, success records or source mutations occur.
++    Incomplete/failed producer evidence cannot produce a usable bundle.
++    """
++    assessment, validation_evidence, run_dir, asset = (
++        p.resolve(strict=True)
++        for p in (assessment, validation_evidence, run_dir, asset)
++    )
++    review, validation, report, closure = _native_closure(
++        assessment, validation_evidence, run_dir
++    )
++    report_parent = _path(review.runtime_report, assessment.parent).parent
++    _check(
++        _path(validation.get("asset"), validation_evidence.parent) == asset
++        and _path(report.get("physics_usd"), report_parent) == asset,
++        "Native asset identity mismatch.",
++    )
++    _check(
++        validation.get("metadata", {}).get("asset_sha256") == _binding(asset)["sha256"],
++        "Native asset digest is missing or stale.",
++    )
++    closure.add(asset)
++    return {
++        "schema_version": BUNDLE_SCHEMA,
++        "run_dir": str(run_dir),
++        "asset": str(asset),
++        "assessment": str(assessment),
++        "validation_evidence": str(validation_evidence),
++        "artifacts": [_binding(p) for p in sorted(closure)],
++    }
++
++
++def validate_native_physics_bundle(
++    bundle_path: Path, *, usd_paths: Iterable[Path | str]
++) -> dict[str, Any]:
++    """Return passed/failed directly, never a legacy judge decision."""
++    try:
++        original_bundle = _binding(bundle_path)
++        bundle = _json(bundle_path)
++        _check(
++            bundle.get("schema_version") == BUNDLE_SCHEMA,
++            "Unsupported native bundle schema.",
++        )
++        paths = {_path(str(p), Path.cwd()) for p in usd_paths}
++        asset = _path(bundle.get("asset"), bundle_path.parent)
++        _check(
++            paths == {asset},
++            "Native bundle must cover exactly the requested USD asset.",
++        )
++        expected = bundle.get("artifacts")
++        _check(
++            isinstance(expected, list) and bool(expected),
++            "Native evidence digest closure is missing.",
++        )
++        seen = set()
++        for item in expected:
++            path = _path(item.get("path"), bundle_path.parent)
++            _check(path not in seen, "Duplicate native evidence binding.")
++            seen.add(path)
++            _check(_binding(path) == item, "Native evidence is stale: " + str(path))
++        rebuilt = prepare_native_physics_bundle(
++            asset=asset,
++            assessment=_path(bundle.get("assessment"), bundle_path.parent),
++            validation_evidence=_path(
++                bundle.get("validation_evidence"), bundle_path.parent
++            ),
++            run_dir=_path(bundle.get("run_dir"), bundle_path.parent),
++        )
++        _check(rebuilt == bundle, "Native evidence closure is incomplete or changed.")
++        _check(
++            _binding(bundle_path) == original_bundle,
++            "Native bundle changed during verification.",
++        )
++        return {
++            "status": "passed",
++            "kind": "native_physics_behavior",
++            "bundle_sha256": _binding(bundle_path)["sha256"],
++            "asset_sha256": _binding(asset)["sha256"],
++            "native_assessment_status": _json(Path(bundle["assessment"]))["status"],
++            "scope": "single_body_native_runtime_and_rendered_behavior_review",
++        }
++    except (
++        OSError,
++        ValueError,
++        TypeError,
++        KeyError,
++        AttributeError,
++        RuntimeError,
++        ImportError,
++    ) as exc:
++        return {
++            "status": "failed",
++            "kind": "native_physics_behavior",
++            "reason": str(exc),
++            "error_type": type(exc).__name__,
++        }
++
++
++def native_behavior_result(
++    evidence: Iterable[Any], *, usd_paths: Iterable[Path | str]
++) -> dict[str, Any] | None:
++    """Detect native evidence before legacy status/decision heuristics."""
++    native = []
++    bundles = []
++    for item in evidence:
++        payload = {}
++        if item.kind == "simulation_json" and item.exists:
++            try:
++                payload = _json(Path(item.path))
++            except (OSError, ValueError):
++                pass
++        if item.role in NATIVE_ROLES or payload.get("schema_version") in {
++            BUNDLE_SCHEMA,
++            ASSESSMENT_SCHEMA,
++            EVIDENCE_SCHEMA,
++        }:
++            native.append(item)
++            if payload.get("schema_version") == BUNDLE_SCHEMA:
++                bundles.append(item)
++    if not native:
++        return None
++    if len(bundles) != 1:
++        return {
++            "status": "failed",
++            "kind": "native_physics_behavior",
++            "reason": "Native evidence requires exactly one digest-bound native_physics_bundle; raw assessment status is insufficient.",
++        }
++    result = validate_native_physics_bundle(Path(bundles[0].path), usd_paths=usd_paths)
++    if result["status"] == "passed":
++        bound = {
++            _path(a["path"], Path(bundles[0].path).parent)
++            for a in _json(Path(bundles[0].path))["artifacts"]
++        }
++        if any(
++            Path(item.path).resolve() not in bound
++            for item in native
++            if item is not bundles[0]
++        ):
++            return {
++                "status": "failed",
++                "kind": "native_physics_behavior",
++                "reason": "Additional native evidence is outside the validated closure.",
++            }
++    return result
+diff --git a/world_understanding/validation/scaffold_runner.py b/world_understanding/validation/scaffold_runner.py
+index 66a11e1..85d6be8 100644
+--- a/world_understanding/validation/scaffold_runner.py
++++ b/world_understanding/validation/scaffold_runner.py
+@@ -43,7 +43,7 @@ SCAFFOLD_VALIDATION_TEMPLATE_VERSIONS: Final[Mapping[str, str]] = MappingProxyTy
+         "render_valid": "validation-scaffold.render-valid.v1",
+         "look_right": "validation-scaffold.look-right.v1",
+         "physics_sane": "validation-scaffold.physics-sane.v1",
+-        "physical_behavior": "validation-scaffold.physical-behavior.v1",
++        "physical_behavior": "validation-scaffold.physical-behavior.v2",
+     }
+ )
+ 

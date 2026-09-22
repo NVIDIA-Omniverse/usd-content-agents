@@ -1,0 +1,76 @@
+{
+  "asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+  "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+  "logs": [
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evidence/native10_cooked_clearance_v1.log",
+      "sha256": "8591c37f1fef583d27e2e4170ebcaafdb3cc42d22afaaa933d7e92a9982aa528",
+      "messages": [
+        {
+          "line": 1,
+          "classification": "warning_requires_scoped_review",
+          "verbatim": "[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin."
+        },
+        {
+          "line": 2,
+          "classification": "critical_configuration_or_runtime_error",
+          "verbatim": "[Error] [omni.physx.cooking.plugin] registry is false."
+        },
+        {
+          "line": 24,
+          "classification": "warning_requires_scoped_review",
+          "verbatim": "[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service"
+        },
+        {
+          "line": 25,
+          "classification": "cpu_broadphase_fallback",
+          "verbatim": "[Warning] [omni.physx.plugin] GPU broadphase requires a CUDA context manager; falling back to ePABP."
+        },
+        {
+          "line": 26,
+          "classification": "cpu_fallback_gpu_collision_unqualified",
+          "verbatim": "[Warning] [omni.physx.cooking.plugin] PhysX warning: Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!, FILE /builds/omniverse/physics/physx/source/geomutils/src/cooking/GuCookingConvexMesh.cpp, LINE 124"
+        },
+        {
+          "line": 27,
+          "classification": "cpu_fallback_gpu_collision_unqualified",
+          "verbatim": "[Warning] [omni.physx.cooking.plugin] ConvexDecompositionTask: failed to cook GPU-compatible mesh, collision detection will fall back to CPU. Collisions with particles and deformables will not work with this mesh. Prim /Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+        },
+        {
+          "line": 28,
+          "classification": "cpu_fallback_gpu_collision_unqualified",
+          "verbatim": "[Warning] [omni.physx.cooking.plugin] PhysX warning: Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!, FILE /builds/omniverse/physics/physx/source/geomutils/src/cooking/GuCookingConvexMesh.cpp, LINE 124"
+        },
+        {
+          "line": 29,
+          "classification": "cpu_fallback_gpu_collision_unqualified",
+          "verbatim": "[Warning] [omni.physx.cooking.plugin] ConvexDecompositionTask: failed to cook GPU-compatible mesh, collision detection will fall back to CPU. Collisions with particles and deformables will not work with this mesh. Prim /Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+        },
+        {
+          "line": 30,
+          "classification": "cpu_fallback_gpu_collision_unqualified",
+          "verbatim": "[Warning] [omni.physx.cooking.plugin] PhysX warning: Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!, FILE /builds/omniverse/physics/physx/source/geomutils/src/cooking/GuCookingConvexMesh.cpp, LINE 124"
+        },
+        {
+          "line": 31,
+          "classification": "cpu_fallback_gpu_collision_unqualified",
+          "verbatim": "[Warning] [omni.physx.cooking.plugin] ConvexDecompositionTask: failed to cook GPU-compatible mesh, collision detection will fall back to CPU. Collisions with particles and deformables will not work with this mesh. Prim /Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+        }
+      ]
+    }
+  ],
+  "critical_error_absent": false,
+  "unclassified_warnings": [
+    {
+      "line": 1,
+      "classification": "warning_requires_scoped_review",
+      "verbatim": "[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin."
+    },
+    {
+      "line": 24,
+      "classification": "warning_requires_scoped_review",
+      "verbatim": "[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service"
+    }
+  ],
+  "scope": "Read-only log gate. A clean configuration log does not establish cooking fidelity, task acceptance, GPU collision, particles or deformables."
+}

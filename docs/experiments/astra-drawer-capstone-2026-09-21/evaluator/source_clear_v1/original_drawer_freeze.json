@@ -1,0 +1,43 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "5b7b44588abb32148273087d8df8f0300e78a0422ae83bb2c6a3d23e6caf8dd6"
+  },
+  "additional_source_parenting_tests": 7,
+  "claim_limit": "Tests validate the evaluator, not either benchmark arm or a source-cabinet solution.",
+  "evidence": {
+    "force_units_evidence.json": "fd9d569e01519d5df2cf39e0a48bcc4b21232629e8cb6fdd5e00df043cc7ae7c",
+    "mesh_collision_evidence.json": "a7c4d10870875476d2250720206e0841d2a07837a2c40c0abe2b38e641f7a5d3",
+    "selftest/test_report.json": "1c913ca6381e8c3c9e175ac12d674aa65dd1ef9796478c8fb5d27300597ae5b2",
+    "source_direction_evidence.json": "5523e128e49a597f84a510ceca4ade2de9e2b5551f5334f200a00ede933ce40e",
+    "source_geometry_reference.json": "5aa97f9003a102a3f00da49691b3682414ce6499764c8dd28a18ea8c21a4c880",
+    "static_binding_test_evidence.json": "eec261117b64cc33fca38beec54f45c89d4911f28912902e221ba00a01989b81"
+  },
+  "files": {
+    "DRAWER_CONTRACT.md": "dbc93fbfae143411048050525c5c80b9dea98bc2d40842aa1c1ea97e544564a9",
+    "DRAWER_EVALUATOR.md": "c84e1b69979842f53662ec5cc292a57b19bfdd3af594ad22eba33a0a28214eca",
+    "drawer_acceptance.json": "cef4474f7bee05ce3be6c1e7bfa294ebfced78b62e99aace7aebc50cb14bb85d",
+    "drawer_evaluate.py": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+    "drawer_force_units_probe.py": "16251ef980b49430518eea0d1409fedea1e15dd586a16ebf3a69a137649bc565",
+    "drawer_mesh_collision_probe.py": "dafbf7f50b4187ce070f736d4c46b3be1a8ff6e21a7da47b692029904cda1ba5",
+    "drawer_solver.py": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa",
+    "drawer_static_binding_test.py": "f5f95a05a70e3d6fba7ba3e168c60ad22b38bc3c21e55a505a3898d8b0036d8d",
+    "drawer_test_fixtures.py": "db4e8554390ef9273f696ef3f81639203db929fc8891efe18c4fb808fa5c2704",
+    "reference/drawer_cabinet.bin": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+    "reference/drawer_cabinet_1k.gltf": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+    "source_direction_probe.py": "18adb2648647b6a276e9789c530ed8878da66262ede38356d6f9ab7ac57f141f"
+  },
+  "force_units_and_gravity_witness_pass": true,
+  "frozen_utc": "2026-09-21T22:06:47.027330+00:00",
+  "native_convex_mesh_contact_witness_pass": true,
+  "pre_score_hardening": "Reject dynamic ancestry for cabinet/lower source components; cabinet source must belong to static cabinet root; no threshold changes.",
+  "protocol_id": "astra-drawer-independent-v1",
+  "scored_source_cabinet_runs": 0,
+  "solver": "ovphysx0.4.13 native USD import, CPU PhysX on [private identifier removed]",
+  "source_outward_direction_verified": true,
+  "source_parenting_tests_pass": true,
+  "status": "FROZEN_BEFORE_ANY_SCORED_ARM_RUN",
+  "synthetic_test_count": 9,
+  "synthetic_tests_pass": true
+}

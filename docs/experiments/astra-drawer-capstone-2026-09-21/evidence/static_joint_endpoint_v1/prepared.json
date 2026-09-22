@@ -1,0 +1,105 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "a41ab9e51c7a57ff2924c4070fd7da88536089c4257e2ec8997aad2a57d9a161"
+  },
+  "cases": [
+    {
+      "asset": "static_xform_disabled.usda",
+      "body0_target": "/World/Static",
+      "initial_body_translation": [
+        0,
+        0,
+        0.15
+      ],
+      "joint_collision_enabled": false,
+      "joint_world_frame0": [
+        0,
+        0,
+        0.15
+      ],
+      "joint_world_frame1": [
+        0,
+        0,
+        0.15
+      ],
+      "label": "static_xform_disabled",
+      "sha256": "468e9b83882b0fbc794a8cab2aacd5b55fdff7481b8605288bc7ab37f092aecd",
+      "source_geometry_sha256": "76cc40bd3edff4b3b3b2cb2c86aacb6dafea55f12b3b7a16b804f3a38a87f5e8"
+    },
+    {
+      "asset": "static_xform_collide.usda",
+      "body0_target": "/World/Static",
+      "initial_body_translation": [
+        0,
+        0,
+        0.15
+      ],
+      "joint_collision_enabled": true,
+      "joint_world_frame0": [
+        0,
+        0,
+        0.15
+      ],
+      "joint_world_frame1": [
+        0,
+        0,
+        0.15
+      ],
+      "label": "static_xform_collide",
+      "sha256": "1638e3b65f86d866b218e5f34039262566219c45575fbd8c0cd0593eae7118c1",
+      "source_geometry_sha256": "76cc40bd3edff4b3b3b2cb2c86aacb6dafea55f12b3b7a16b804f3a38a87f5e8"
+    },
+    {
+      "asset": "static_mesh_disabled.usda",
+      "body0_target": "/World/Static/Mesh",
+      "initial_body_translation": [
+        0,
+        0,
+        0.15
+      ],
+      "joint_collision_enabled": false,
+      "joint_world_frame0": [
+        0,
+        0,
+        0.15
+      ],
+      "joint_world_frame1": [
+        0,
+        0,
+        0.15
+      ],
+      "label": "static_mesh_disabled",
+      "sha256": "9819620aca2e44e2a9a2b79b33092385e326530b1babd387e5b184ffacb72112",
+      "source_geometry_sha256": "76cc40bd3edff4b3b3b2cb2c86aacb6dafea55f12b3b7a16b804f3a38a87f5e8"
+    },
+    {
+      "asset": "static_mesh_collide.usda",
+      "body0_target": "/World/Static/Mesh",
+      "initial_body_translation": [
+        0,
+        0,
+        0.15
+      ],
+      "joint_collision_enabled": true,
+      "joint_world_frame0": [
+        0,
+        0,
+        0.15
+      ],
+      "joint_world_frame1": [
+        0,
+        0,
+        0.15
+      ],
+      "label": "static_mesh_collide",
+      "sha256": "afd78ec2fdd51f92bf74e3f6f75c309470f9006a98265fbd54d7927e661dd8a2",
+      "source_geometry_sha256": "76cc40bd3edff4b3b3b2cb2c86aacb6dafea55f12b3b7a16b804f3a38a87f5e8"
+    }
+  ],
+  "created_utc": "2026-09-22T03:04:07.754561+00:00",
+  "schema_version": 1,
+  "scope": "Four synthetic cubes only; all shapes/poses/mass/joint frames identical except explicit body0 target and joint collisionEnabled boolean.",
+  "script_sha256": "5012cc1e47fd235993c7b6325ba293d288e69fdcabdc2087665e658698a00d8f"
+}

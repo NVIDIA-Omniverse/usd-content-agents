@@ -1,0 +1,23 @@
+{
+  "protocol_id": "unscored-native-static-endpoint-repair-v1",
+  "declared_utc": "2026-09-22T03:24:25.167396+00:00",
+  "prior_run": "drawer_physics_09",
+  "prior_asset_sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+  "trigger": "Completed independent seed11 fails opening, penetration and final settling; remaining seeds continue unchanged.",
+  "source": "Original joint-free native Geometry04; fresh native USDZ packaging and preparation",
+  "old_static_endpoint": "/Asset/drawer_cabinet_0",
+  "new_static_endpoint": "/Asset/drawer_cabinet_0/Primitive_0",
+  "moving_endpoint": "/Asset/drawer_cabinet_drawer_01_1",
+  "allowed_change": "Fresh native Joint resolves the static collision Mesh as body0. Original collisionEnabled=false now refers to actual connected actors. No additional pair filtering is authorized.",
+  "retained_contract": [
+    "exact original visual mesh arrays/indices/world transforms/units/textures",
+    "one Z prismatic joint, local frames identity, limits0..0.30m, joint enabled, collisionEnabled=false",
+    "cabinet and lower3 drawers static, upper only dynamic/nonkinematic",
+    "original Physics03 mass/density/COM/inertia/principal axes",
+    "all friction0.6/restitution0",
+    "native09 supported decomposition64vertices/128hulls/0.1percent/4Mvoxels/shrinkwrap",
+    "unchanged source_clear_v1 five seeds/controller/contact/penetration/holding gates"
+  ],
+  "limits": "Explicit ideal-joint collision exclusion is a new unscored articulation repair, not an unchanged09 result or a general proof of source mating clearance. Native author/review and exact-source audits remain required.",
+  "synthetic_semantics_receipt_sha256": "b11da657be3f9c393eba397a88da400a48d0a05b1a1901f5a55b0d4a8f21f598"
+}

@@ -1,0 +1,213 @@
+{
+  "asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+  "checks": [
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Drop-settle validation scene.",
+          "kind": "simulation_scene",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/drop_settle_scene.usda"
+        },
+        {
+          "description": "Per-frame simulated pose and velocity.",
+          "kind": "trajectory_jsonl",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/trajectory.jsonl"
+        },
+        {
+          "description": "Time-sampled USD recording of the validation run.",
+          "kind": "recording_usda",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/recording.usda"
+        },
+        {
+          "description": "Runtime validation metrics and artifact index.",
+          "kind": "runtime_report",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "physics_properties",
+      "repair_hints": [],
+      "status": "pass",
+      "summary": "Physics schemas and authored physical properties are present.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Drop-settle validation scene.",
+          "kind": "simulation_scene",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/drop_settle_scene.usda"
+        },
+        {
+          "description": "Per-frame simulated pose and velocity.",
+          "kind": "trajectory_jsonl",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/trajectory.jsonl"
+        },
+        {
+          "description": "Time-sampled USD recording of the validation run.",
+          "kind": "recording_usda",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/recording.usda"
+        },
+        {
+          "description": "Runtime validation metrics and artifact index.",
+          "kind": "runtime_report",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "runtime_loadability",
+      "repair_hints": [],
+      "status": "pass",
+      "summary": "Authored asset loads in the requested physics runtime.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Drop-settle validation scene.",
+          "kind": "simulation_scene",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/drop_settle_scene.usda"
+        },
+        {
+          "description": "Per-frame simulated pose and velocity.",
+          "kind": "trajectory_jsonl",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/trajectory.jsonl"
+        },
+        {
+          "description": "Time-sampled USD recording of the validation run.",
+          "kind": "recording_usda",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/recording.usda"
+        },
+        {
+          "description": "Runtime validation metrics and artifact index.",
+          "kind": "runtime_report",
+          "metadata": {},
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "no_explosions",
+      "repair_hints": [],
+      "status": "pass",
+      "summary": "Runtime trajectory remains finite and bounded.",
+      "warnings": []
+    }
+  ],
+  "evidence_artifacts": [
+    {
+      "description": "Drop-settle validation scene.",
+      "kind": "simulation_scene",
+      "metadata": {},
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/drop_settle_scene.usda"
+    },
+    {
+      "description": "Per-frame simulated pose and velocity.",
+      "kind": "trajectory_jsonl",
+      "metadata": {},
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/trajectory.jsonl"
+    },
+    {
+      "description": "Time-sampled USD recording of the validation run.",
+      "kind": "recording_usda",
+      "metadata": {},
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "description": "Runtime validation metrics and artifact index.",
+      "kind": "runtime_report",
+      "metadata": {},
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/runtime_validation_report.json"
+    }
+  ],
+  "failures": [],
+  "metadata": {
+    "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+    "duration_s": 3.0,
+    "engine": "ovphysx",
+    "ground_clearance_support_decision": {
+      "authored_collision_approximations": [
+        "convexDecomposition"
+      ],
+      "body_prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "cache_key": "4f34e5eabf43c06d91987bac0309428c013dbf4b10c26ea333cd2b11cc0acfc3",
+      "cache_status": "primary",
+      "decision_id": "765872d916759e37d48117267d36d4da3efae5a925e18f5c2219f1744e80a64e",
+      "exact": true,
+      "fallback_accepted": false,
+      "hull_input_point_count_estimate": 1486,
+      "measurement_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "observed_unique_point_count": 1028,
+      "point_count_estimate_complete": true,
+      "policy_version": "raw-hull-input-bound.v1",
+      "primary_selection_duration_seconds": 0.010574571788311005,
+      "processing_bound": 400000,
+      "raw_point_count_estimate": 1486,
+      "reason": "Selected 1028 exact collider support points.",
+      "reason_code": "exact_support_points",
+      "reuse_count": 0,
+      "schema_version": "physics-agent.ground-clearance-support-decision.v1",
+      "selected_point_count": 1028,
+      "selected_support_type": "mesh_vertices",
+      "selection_duration_seconds": 0.010827794671058655,
+      "serialization_cap": 50000,
+      "validation_outcome": "pass"
+    },
+    "phase_timings_seconds": {
+      "acceptance": 0.18656304851174355,
+      "scene_build": 0.1555771492421627,
+      "simulation": 23.50661363080144,
+      "support_selection": 0.010827794671058655
+    },
+    "runtime_execution_backend": "workflow-helper",
+    "sample_fps": 30,
+    "scene_backend": "usd-cli",
+    "scene_operation_backend": "usd-cli",
+    "settle_distance": 2.2371135930464256e-08,
+    "trajectory_summary": {
+      "duration_s": 3.0,
+      "expected_ballistic_displacement_m": 0.00545,
+      "fell_over": false,
+      "final_position": [
+        9.313225746154785e-10,
+        0.0,
+        -2.2351741790771484e-08
+      ],
+      "first_step_displacement_m": 1.862645149230957e-09,
+      "gravity_magnitude_m_per_s2": 9.81,
+      "gravity_response_observed": false,
+      "ground_clearance_geometry": "collider_mesh_vertices",
+      "initial_pose_discontinuity": false,
+      "loaded_body_count": 1,
+      "max_angular_speed": 1.6216144073046769e-13,
+      "max_linear_speed": 2.7878985000953586e-06,
+      "maximum_ground_penetration_m": 0.0,
+      "n_samples": 91,
+      "resting_ground_penetration_m": 0.0,
+      "settle_time_s": 0.0
+    }
+  },
+  "repair_hints": [],
+  "schema_version": "content-agent-workflows.validation-evidence.v1",
+  "sim_ready_status": "pass",
+  "target_runtime": "ovphysx",
+  "unresolved_issues": [],
+  "validation_tier": "T2_simulation_match",
+  "warnings": [],
+  "workflow": "physics_authoring"
+}

@@ -1,0 +1,68 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "c5c74278138f9aed05980f466ec144a735a49b74b39cf3483f9b4ccdd8946669"
+  },
+  "asset_sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+  "cooking_scope": "Supported64 hull vertex limit; exact documented nonfatal registry startup message separately reviewed; allwarnings preserved; populated CPU clearance queries do not imply GPU collision or task acceptance",
+  "failed_checks_by_seed": {
+    "11": [
+      "opening",
+      "closed_settled",
+      "penetration"
+    ],
+    "131": [
+      "opening",
+      "closed_settled",
+      "penetration"
+    ],
+    "23": [
+      "opening",
+      "closed_settled",
+      "penetration"
+    ],
+    "47": [
+      "opening",
+      "closed_settled",
+      "penetration"
+    ],
+    "83": [
+      "opening",
+      "closed_settled",
+      "penetration"
+    ]
+  },
+  "future_repair": "Separately declared fresh native static-Mesh joint endpoint; no09 mutation",
+  "independent_task": "FAIL",
+  "native_validation_launched": false,
+  "native_workflow": "FAIL: genuine OVRTX behavior assessment unresolved despite numeric mounted smoke PASS",
+  "original_source_fidelity": "exact5meshes26406triangles, world poses/units unchanged",
+  "physical_numeric_contract": "original mass/COM/inertia/joint/friction0.6/restitution0 unchanged",
+  "report_sha256": "45149739ee51187e5092f8034ed0ac0f3dcaef4974a5fbddeaad3357cb04feab",
+  "task_timing": {
+    "asset_sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+    "asset_unchanged": true,
+    "command": [
+      "repo/.venv/bin/python",
+      "evaluator/source_clear_v1/drawer_evaluate.py",
+      "--bindings",
+      "evidence/native09_task_bindings.json",
+      "--output",
+      "evaluations/native09_source_clear_v1",
+      "--solver",
+      "/opt/astra-content-value-20260921/ovphysx-venv/bin/python"
+    ],
+    "completed_utc": "2026-09-22T03:28:18.075161+00:00",
+    "returncode": 1,
+    "scope": "Five sequential independent unscored task trials; native visual assessment remains independently unresolved.",
+    "started_utc": "2026-09-22T03:20:45.628885+00:00"
+  },
+  "trial_seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ]
+}

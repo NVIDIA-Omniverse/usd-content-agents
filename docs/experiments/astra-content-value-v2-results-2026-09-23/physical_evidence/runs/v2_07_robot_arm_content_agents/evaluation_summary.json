@@ -1,0 +1,11 @@
+{
+  "case_id": "07_robot_arm",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 17.1963118519634,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "703d60c7ed5c23081f90fc9d6079d65622a411b8347d0406fbde430de22e30bf",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_07_robot_arm_content_agents",
+  "status": "FAIL",
+  "timed_out": false
+}

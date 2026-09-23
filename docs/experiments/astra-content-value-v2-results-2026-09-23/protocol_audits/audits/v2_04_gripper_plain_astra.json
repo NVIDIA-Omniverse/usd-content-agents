@@ -1,0 +1,251 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "plain_astra",
+  "case_id": "04_gripper",
+  "citations": [
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "fec9246434656930ae73d0dab36bcd9bbb045ce0e3e42c79413532c5c6f7dbb7",
+      "kind": "original_tool_call",
+      "line": 128,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "7318e310ce2a5fa5fee11f001810405027aa0ea820c86d7f5c7ca735afaadddd",
+      "navigation_line": 128,
+      "observation": "Direct OpenUSD scene construction from OCP source geometry."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000001_000.jsonl",
+      "archive_sha256": "fec9246434656930ae73d0dab36bcd9bbb045ce0e3e42c79413532c5c6f7dbb7",
+      "kind": "original_tool_call",
+      "line": 165,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "470026eb6abeb5a053bdb57fc8c50c7f2c2ee8a6452027276ebf9a0dab1aa348",
+      "navigation_line": 165,
+      "observation": "Direct OvPhysX trial via retained run_trial.py."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000002_000.jsonl",
+      "archive_sha256": "fec9246434656930ae73d0dab36bcd9bbb045ce0e3e42c79413532c5c6f7dbb7",
+      "kind": "original_tool_call",
+      "line": 44,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "452b4a424fda7014a3ba483848d22b56e496772a6312a39d401638e89b4fa3a7",
+      "navigation_line": 44,
+      "observation": "Read-only converter and geometry_repair source inspection; inspected module is not imported or called."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000002_000.jsonl",
+      "archive_sha256": "fec9246434656930ae73d0dab36bcd9bbb045ce0e3e42c79413532c5c6f7dbb7",
+      "kind": "original_tool_call",
+      "line": 181,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "452b4a424fda7014a3ba483848d22b56e496772a6312a39d401638e89b4fa3a7",
+      "navigation_line": 181,
+      "observation": "Direct OCP source tessellation."
+    },
+    {
+      "archive_member": "workspace/submission.json",
+      "archive_sha256": "fec9246434656930ae73d0dab36bcd9bbb045ce0e3e42c79413532c5c6f7dbb7",
+      "kind": "retained_author_artifact",
+      "member_sha256": "dd488e7a5c04714facc016e05122bbd7b8014e374ba7f8a1c95e9ce6d83f966c",
+      "observed_fields": {
+        "claimed_accepted": true
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    }
+  ],
+  "completed_utc": "2026-09-23T04:41:17.582413+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "8fbb61957c344c20a547d5570ec1f36b5b7c4c6aadfcbe92476d2f827abd383a",
+    "author_retention": "008a0cc5464528d5a6180961bddc11a2cbb2af8294925dfd070838beab787e16",
+    "declaration": "d71c04adb6d52a710deced436b97627746131996e6559dfe5616cb9a004f75ff",
+    "launch": "99f86dcd07e40c7caf5782eb0bda946f98b26797f90003afc14d4593c2266954",
+    "reap": "6f05ad4b0d770a71eb775de99d57797ed65f14701f487f8c77c1c934afbb34b0",
+    "timing": "2dfbea5e0c055a9f4338bc8aa75068d2a5e4e29de2800bb463d7aa3a4b8da5be",
+    "ui_association": "e1638577b712d652ea614cc29195a3e09724e4a54d451524a0fd4d8825b2c55f",
+    "ui_metadata": "004c2019514a6e40de1d90e2a1752e741df6361303ebec74af227c1f4b32c368",
+    "usage": "33d8ef4059e19e7314b420cecfddd93c4b841a17aaeb5f1575df462d36c2b633"
+  },
+  "input_sha256": "5c088d37d6558722a41f16078342ae10ad41293d9edf31b42b62eb7836360031",
+  "lane_id": "lane3",
+  "limitations": [
+    "Outcome-blinded protocol review only. No independent evaluator request, log, report, verdict or comparison was read; no authored script was executed.",
+    "Observed native receipts and author diagnostic claims do not establish independent task acceptance or numerical correctness.",
+    "This is automated reviewer work, not observed human review effort. Human review minutes remain unmeasured."
+  ],
+  "mechanical_findings": {
+    "admitted_requests": 243,
+    "all_observed_ui_matches": true,
+    "allocation_released": true,
+    "billing_complete": true,
+    "budget_s": 2400,
+    "cgroup_empty": true,
+    "cpu_quota_millicores": 4000,
+    "exact_identity_prompt_and_lease_verified": true,
+    "fresh_context_verified": true,
+    "frozen_usage_within_deadline": true,
+    "late_admitted_requests": 0,
+    "memory_bytes": 34359738368,
+    "namespace_reaped": true,
+    "pids_max": 1024,
+    "recorded_late_finishes": 0,
+    "source_unchanged": true,
+    "swap_bytes": 0,
+    "terminal_billing_records": 243,
+    "ui_association_complete": true
+  },
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "05f27da570e9c26bbfdcdf1458a0fd850b86216ada9bc735086f12e4272a2838",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "Observed direct OCP extraction, OpenUSD construction/repairs and direct OvPhysX contact/torque trials. The external subprocesses in run_trial.py call the author's preparation script or re-execute that same direct solver. Reading geometry_repair implementation and shared native documentation did not invoke them. No prohibited workflow/decision-helper/skill call was observed; the common mechanical gates are satisfied. Repairs beyond two are not a violation: v2 has no repair-count cap.",
+  "review_coverage": {
+    "all_original_archive_bytes_rehashed": true,
+    "all_original_capture_and_navigation_hashes_verified": true,
+    "capture_count": 4,
+    "copied_ancestor_context_not_counted_as_new_invocation": true,
+    "navigation_not_used_as_verdict": true,
+    "review_navigation_sha256": "cbacc90f45ebff7a2cd27ed5a2907ba27c2416b69f1a79c2143d8d35657fba84",
+    "script_inventory_count": 18,
+    "script_inventory_sha256": "ef298d1376fa21a9b08ec7f24567f788e7e9098902e61edd4333aa50f7051231",
+    "unique_navigation_tool_calls": 216
+  },
+  "run_id": "v2_04_gripper_plain_astra",
+  "schema_version": "outcome-blinded-protocol-adjudication.agent06.v1",
+  "script_review_inventory": [
+    {
+      "archive_member": "workspace/build_scene.py",
+      "line_count": 126,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "48570445aa94db89cfd0fba7a90ba4fd839817c589fabe61b4eb1ebe2f32c970"
+    },
+    {
+      "archive_member": "workspace/check_submission.py",
+      "line_count": 34,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "a662e560ea1fed700d4db1d29cd56b62ca880062148341d69a866bb1e0151f7e"
+    },
+    {
+      "archive_member": "workspace/finalize_submission.py",
+      "line_count": 54,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "2341c43ccf6c67dea992e8096494a0988d56dcea585d11760b887d58b067c08d"
+    },
+    {
+      "archive_member": "workspace/geometry/calibrate_tess.py",
+      "line_count": 18,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6662a5f3b412effaacd65cc4aca85387c309608ad5e5bc6e9fbe86bc77382c29"
+    },
+    {
+      "archive_member": "workspace/geometry/calibrate_tess_relative.py",
+      "line_count": 18,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6ff5a1e3b07e661bc1bb5e2772036fea5adea4201a13fcfd37d5023ab3532be1"
+    },
+    {
+      "archive_member": "workspace/geometry/extract_step.py",
+      "line_count": 61,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "b54a5f0ba6dc866f06b4c53b92910ea7c4c8601fffee218a3457001d6fe283bb"
+    },
+    {
+      "archive_member": "workspace/geometry/probe_ocp.py",
+      "line_count": 39,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "79835e2aba366ce75137bb6404d3dff34cfc8f2895977dc960b34ca852ff714b"
+    },
+    {
+      "archive_member": "workspace/native_probe.py",
+      "line_count": 159,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "df18f25e30133544c159aff4ddaa7074c20bf3ba7c1ee47ed9a9a5d8dff39931"
+    },
+    {
+      "archive_member": "workspace/plot_trials.py",
+      "line_count": 21,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "c9ca8564cb08d43231de3ff1d5be2fac842dcda2bcdfdf10357947676f732373"
+    },
+    {
+      "archive_member": "workspace/postprocess_trial.py",
+      "line_count": 190,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "fd4226c4a751ac48bb9864d1779479f44df821adab777a66b4e6f97f37965b2c"
+    },
+    {
+      "archive_member": "workspace/prepare_trial.py",
+      "line_count": 118,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "e62b7be7d4d97c2f977d480a2830f22384df56829cca00f5522f8a59f89b039c"
+    },
+    {
+      "archive_member": "workspace/prepare_unloaded.py",
+      "line_count": 8,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "783b38b41909026961bf633bb9ad18937eb4f400124149f295aa5fcc40dd4403"
+    },
+    {
+      "archive_member": "workspace/review/aggregate_native_reviews.py",
+      "line_count": 6,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "edfedc78bab3ff4dde6b36145857e6dca36c7dfe8408f08b9ff7825dc9c9a9f3"
+    },
+    {
+      "archive_member": "workspace/review/review_native_trial.py",
+      "line_count": 78,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "54ff6fafcbfc2ac115300d1193d1613d6316c08538083cb1d24a4bdf688ef750"
+    },
+    {
+      "archive_member": "workspace/review/static_review.py",
+      "line_count": 82,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "bdf5ea21979ac83e189f2583f1f634079aba9caa2bdcbb706c13ba0de8a5977e"
+    },
+    {
+      "archive_member": "workspace/run_trial.py",
+      "line_count": 308,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "be682f6be907aae13b733334c816e84d5dc3b34a40f17165b81eb64faddcab73"
+    },
+    {
+      "archive_member": "workspace/run_unloaded.py",
+      "line_count": 23,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "89a771dc389fe1a99e234dbecdcdf7e5250c1cca85b2f3a2a40c86a1748e60a7"
+    },
+    {
+      "archive_member": "workspace/trials/unloaded_repair_002/attempt_000/run_unloaded.py",
+      "line_count": 23,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "f88b60643bcf47266574e100fd7afe0b9fce0b45b49f17911cfcb48eca022a48"
+    }
+  ],
+  "source_sha256": "4958fd3337b99596c0d78aa76edae59145192563abe2854cf42c7cc4b5a94aba",
+  "started_utc": "2026-09-23T04:27:44.084905+00:00",
+  "task_sha256": "8535c0d01c74372a537af4ff3d32fa0f8b127892662421501a2ddeba6a48b2dc",
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": {
+    "author_claimed_accepted": true,
+    "independent_physical_acceptance": "not_accessed",
+    "scope": "Reviewed execution operations, static script imports/calls and native contracts for phases reached. Failure/conditional receipts and missing later task success are not treatment violations.",
+    "status": "observed_compliance"
+  }
+}

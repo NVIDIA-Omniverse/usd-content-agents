@@ -1,0 +1,301 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "content_agents",
+  "author_budget_observation": {
+    "cgroup_populated": 0,
+    "elapsed_seconds": 2395.870525965467,
+    "namespace_init_exited": true,
+    "timed_out": true
+  },
+  "author_claim_only": {
+    "claimed_accepted": false,
+    "declared_repairs_used": 6,
+    "physical_acceptance": "NOT_ASSESSED",
+    "task_outcome": "submitted"
+  },
+  "case_id": "10_complex",
+  "citations": {
+    "author_archive": {
+      "bytes": 638799751,
+      "sha256": "487432f37a2ab0af8c1bcd53da88134721d30ff848acf8cfa40e32924c67a15b"
+    },
+    "mechanical_review": {
+      "sha256": "d8ec25ba1bd32d061d221f06a2d9e34a6da394451f2855284ddc7015f3d22def"
+    },
+    "native_or_author_record_members": [
+      {
+        "archive_member": "workspace/submission.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "51b32fd42df9df30924ac0559966176a7ea856db9947e9b07f75883ecdc5312d"
+      },
+      {
+        "archive_member": "workspace/records/articulation_outcome.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "10b42e389dee7f383c423bc6c438e38bb2da1443c2fb69c225f0f373cf16dce5"
+      },
+      {
+        "archive_member": "workspace/repairs/native_frame_repair_001/repair_result.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "bed4b7642d74971e572492a5e8aac10d8b2917a200bdd2796b95c1181652e782"
+      },
+      {
+        "archive_member": "workspace/runs/articulation_001/final_summary.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "1331dd9a378509c3f23fb87cc7a54b649a782925dd36b66c8dbc20f1e064ce4c"
+      },
+      {
+        "archive_member": "workspace/runs/articulation_002/final_summary.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "a232c676c40dcbff47c6ea0c2882e048c298b139fbdb88e669ff0f1a3887df55"
+      },
+      {
+        "archive_member": "workspace/validation_support/validation_final_002_outcome.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "177fd97d63bc8c6dd023f1086cb459ee205e806a44684b0081ea6ab265e4a448"
+      }
+    ],
+    "original_capture_calls": [
+      {
+        "call_input_sha256": "dcc4368c13a817d6ba20b4ea55f6c4d5ed14e5a525330fda5b09371ad2ed0251",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 335,
+        "capture_sha256": "013c7dd6acede8672253ac38e3a64ed6c6e779b8e36e7e36c3422709bbb2607c",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 38
+      },
+      {
+        "call_input_sha256": "c726e04df5cf9941ef0b67ae6ccaf83615cadd5c3f12952bcb21ec6e70dc7f7f",
+        "capture_archive_member": "private/session_captures/capture_000002_000.jsonl",
+        "capture_line": 411,
+        "capture_sha256": "3b87f18a2c9cbb8b07eb5739f3763cd6009b0e73e79422dc22d84575c37236a0",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 217
+      },
+      {
+        "call_input_sha256": "87d6debaa0f6307a54175d9ffeab150d9cb05832aa85f8bffff2e99953250eeb",
+        "capture_archive_member": "private/session_captures/capture_000002_000.jsonl",
+        "capture_line": 503,
+        "capture_sha256": "3b87f18a2c9cbb8b07eb5739f3763cd6009b0e73e79422dc22d84575c37236a0",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 231
+      },
+      {
+        "call_input_sha256": "511d122cd0f10faff7cd7b86804f153a19d88a554345db037fac126049920b64",
+        "capture_archive_member": "private/session_captures/capture_000004_000.jsonl",
+        "capture_line": 154,
+        "capture_sha256": "e25ce3c49e1bb48bcf34df12bcb0a3c1881a5437398b848dd74a49137779b8a3",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 347
+      },
+      {
+        "call_input_sha256": "5344091cadf8def7b246f6d5bb7b815438955af6ab286d28b0ba022679b047ca",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 915,
+        "capture_sha256": "013c7dd6acede8672253ac38e3a64ed6c6e779b8e36e7e36c3422709bbb2607c",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 106
+      },
+      {
+        "call_input_sha256": "7043ec298e3481d9b38cc41e923c6eb1b7feb01b2e531548e314df4372d28c18",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 944,
+        "capture_sha256": "013c7dd6acede8672253ac38e3a64ed6c6e779b8e36e7e36c3422709bbb2607c",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 110
+      },
+      {
+        "call_input_sha256": "8e346a3b20f790ad0d86b9d87f96aa214b5b14240383d94e1c92f9e62ad5e421",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 958,
+        "capture_sha256": "013c7dd6acede8672253ac38e3a64ed6c6e779b8e36e7e36c3422709bbb2607c",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 112
+      },
+      {
+        "call_input_sha256": "ab2885283e15e1d44c1c7265d165e1647b8167b539b040aef3b41f1b360a0663",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 986,
+        "capture_sha256": "013c7dd6acede8672253ac38e3a64ed6c6e779b8e36e7e36c3422709bbb2607c",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 115
+      },
+      {
+        "call_input_sha256": "63f89bcd980e31953641182ce9d9157b995aebdd5f64925a2071468f827e3d59",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 1012,
+        "capture_sha256": "013c7dd6acede8672253ac38e3a64ed6c6e779b8e36e7e36c3422709bbb2607c",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 118
+      },
+      {
+        "call_input_sha256": "0c3ce355934b8be5f7b37b6ce1de49249a45e81918a43ca7efefec523a4c595c",
+        "capture_archive_member": "private/session_captures/capture_000003_000.jsonl",
+        "capture_line": 400,
+        "capture_sha256": "50ea5ce63986fff96bed5527f72e68eb7f8fedb11dba2d8d1780bb6e7708e8ac",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 321
+      },
+      {
+        "call_input_sha256": "770526ba3c8e4dbc37d0c9df342b402f597c7c1eb6c64698f4b80309b6fe6121",
+        "capture_archive_member": "private/session_captures/capture_000003_000.jsonl",
+        "capture_line": 463,
+        "capture_sha256": "50ea5ce63986fff96bed5527f72e68eb7f8fedb11dba2d8d1780bb6e7708e8ac",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 330
+      },
+      {
+        "call_input_sha256": "7b95a324e8cbef10a0fe3797bc05cf3f1d6f7a89cc3cd456fd4f5b5e5363f26f",
+        "capture_archive_member": "private/session_captures/capture_000002_000.jsonl",
+        "capture_line": 771,
+        "capture_sha256": "3b87f18a2c9cbb8b07eb5739f3763cd6009b0e73e79422dc22d84575c37236a0",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 268
+      }
+    ],
+    "retained_script_members": [
+      {
+        "archive_member": "workspace/articulation_support/prepare_readback.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          146
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "8b2b4cd7c3639c46f3d94f872ad791d43d88f3656f7a846ad2a11df2a8b5eb08"
+      },
+      {
+        "archive_member": "workspace/scripts/native_frame_repair.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          36
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "9e63fba1ae28e0f5b22570e845e758a32f269f8b12f3d18d350377ffe1d9390b"
+      },
+      {
+        "archive_member": "workspace/scripts/prepare_physics_decisions.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          12
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "aa751f4738ac1bbb4f131d7b673a4da9b95cf17e80e8a744d2538ead65b6508b"
+      },
+      {
+        "archive_member": "workspace/validation_support/run_final_validation.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          70
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "3ea05c6c79ada3f7c733070da944881f41c96bbc20b1bb2340c6493a8d5484b3"
+      },
+      {
+        "archive_member": "workspace/validation_support/assessment_helper.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          233
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "f639d7be7d196e49e3588a9ec4d40406b2b1d29c1f07217338c913d469eb2725"
+      }
+    ],
+    "review_package": {
+      "sha256": "1d2fbe46840ec63a0733eb1445c48d048c6d74cd83b7341d604923037dfa52c3"
+    },
+    "static_route_review": {
+      "sha256": "43cb6d47269f59c426fefc1f4e31fcd5d71b3f995b5bfd1751ae993cfcd823b0"
+    }
+  },
+  "completed_utc": "2026-09-23T04:43:27.270699+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "95d33abf45a6f350ed7cfdf38ae37caec24733da5896f7bde91e3e4990cbbffe",
+    "author_retention": "a503e2449fa9d852b5802cbb0c352c2eca4b8caa290607be2f3ed00e04af115e",
+    "declaration": "ada81580acc6f35fbe5e82b98df44c40830d5c4c588156245608a802b5252745",
+    "launch": "18430e462c4cac05313d580be55476a7a7d913d4f4be6bacf8f63ce1f6633480",
+    "reap": "6b0c2a67e736e22db9ad947a7c81a21b681cec54c106cf1be4cf005f268eb042",
+    "timing": "f740da73e9e5a09e228a8b99df7dbc46e2463160b7013c41409b7e2c21ee6cff",
+    "ui_association": "db339a35db608552810e7b7bdc25ef3cf2d8838822e3cc08d20959b5f6202347",
+    "ui_metadata": "f6a5c03357bd4126672a93f4cac8ec8d70194be04ae5535211fc09ac471ab6e8",
+    "usage": "057707aa9a61167728e9dad32f6717241a1bc270259026633aa325c9837802f9"
+  },
+  "explicit_unresolved_eligibility_questions": [],
+  "frozen_files_modified": false,
+  "independent_physical_evaluation": "UNOPENED",
+  "input_sha256": "75adfd61b7025c6867b4897fd17add806ae1002df8474d140430929fbb05532b",
+  "lane_id": "lane1",
+  "limitations": [
+    "This is an outcome-blinded protocol/treatment adjudication, not source-surface fidelity, physical task acceptance, hardware realism or universal simulation readiness.",
+    "The complete archive was verified by the trusted retention proof. This review rechecks referenced metadata/capture/script bytes; it does not rerun authors or independently execute every retained script.",
+    "Repair chronology is supported only by cited actual calls and retained artifacts. No repair count cap is introduced; reconstructed historical helpers and author-declared counts are not independent contemporaneous observations.",
+    "Native/author acceptance statements are kept separate from the unopened independent physical evaluations.",
+    "Automated review time is not measured human review effort. Raw captures, session identifiers and process-list outputs remain private.",
+    "Final numerical terminal billing is incomplete; exact admitted-request own-thread Astra Ultra UI association is complete. Missing billing is retained as unknown accounting, not an exclusion.",
+    "Only phases actually reached are adjudicated. A completed topology/static substage, a low-level repair, or a prepared command template is not a completed physical pipeline; blocked phases/missing later receipts remain task limitations."
+  ],
+  "mechanical_checks": {
+    "all9_reference_bytes": true,
+    "association_reproduced": true,
+    "captured_bytes": true,
+    "drained_usage": true,
+    "fresh_model": true,
+    "job_identity": true,
+    "limits": true,
+    "metadata_reproduced": true,
+    "prompt_exact": true,
+    "protocol_exact": true,
+    "reaped": true,
+    "retained": true,
+    "snapshot_complete": true,
+    "source_inventory_binding": true,
+    "source_unchanged": true,
+    "task_exact": true,
+    "time": true,
+    "ui_complete": true
+  },
+  "model_request_count": 409,
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "4f22beacd3cca020e936f0e523c8558ea97216df1005720a4890818603b3c059",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "All frozen mechanical/model/source gates pass. Actual native workflow contracts are observed for the reached phases; failures, conditional results and incomplete handoffs are preserved without relabeling an ad hoc substitute as native success. A typed Physics decision patch is prepared through installed native inspection/parser and applied via actual Physics direct-executor calls, including retained failed output-path attempt and retry. Final native Validation is invoked by a deadline-bounded launcher; its retained outcome is timeout exit 124. Submission preserves Articulation timeout, conditional/runtime-cap limitation, and claimed_accepted=false. No complete native pipeline or independent task acceptance is inferred.",
+  "run_id": "v2_10_complex_content_agents",
+  "schema_version": "outcome-blinded-protocol-adjudication.v1",
+  "scored_result_data_modified": false,
+  "source_sha256": "fc80e688adc2f445eadb652a4c1799ebce0d50e279aae6bb8ef184855871381d",
+  "task_sha256": "c8a93332e7f10e2930e1b733008fd9221ef267310a7c829a6a9ecbb21fa27eb7",
+  "terminal_billing_complete": false,
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": [
+    "Authorized source cached-shape extraction is followed by actual native Geometry, preparation publication/validation, and Articulation run/retry. The native child applies a reviewed 14-joint graph through _agent-apply, but native publication does not complete before its deadline.",
+    "The retained articulation_outcome explicitly states native_completed=false and identifies the copied native staged partial. The separate native_frame_repair script performs recorded usd-cli property edits on a derivative, with no claim that repaired bytes have an Articulation completion receipt.",
+    "A typed Physics decision patch is prepared through installed native inspection/parser and applied via actual Physics direct-executor calls, including retained failed output-path attempt and retry. Final native Validation is invoked by a deadline-bounded launcher; its retained outcome is timeout exit 124. Submission preserves Articulation timeout, conditional/runtime-cap limitation, and claimed_accepted=false. No complete native pipeline or independent task acceptance is inferred."
+  ],
+  "ui_association_complete": true
+}

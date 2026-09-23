@@ -1,0 +1,235 @@
+{
+  "pass": true,
+  "errors": [],
+  "physics": {
+    "joint_world_axis": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "limits_m": [
+      0.0,
+      0.30000001192092896
+    ],
+    "drawer_colliders": [
+      "/World/Drawer/Colliders/floor",
+      "/World/Drawer/Colliders/left_wall",
+      "/World/Drawer/Colliders/right_wall",
+      "/World/Drawer/Colliders/rear_wall",
+      "/World/Drawer/Colliders/front_panel"
+    ],
+    "cabinet_colliders": [
+      "/World/Cabinet/drawer_cabinet",
+      "/World/Cabinet/drawer_cabinet_drawer_02",
+      "/World/Cabinet/drawer_cabinet_drawer_03",
+      "/World/Cabinet/drawer_cabinet_drawer_04"
+    ]
+  },
+  "components": {
+    "drawer_cabinet": {
+      "pass": true,
+      "source": {
+        "triangle_count": 18198,
+        "bounds_min_m": [
+          -0.5705390572547913,
+          0.0,
+          -0.24765323102474213
+        ],
+        "bounds_max_m": [
+          0.5705388188362122,
+          1.881253957748413,
+          0.238848015666008
+        ],
+        "area_m2": 8.338460036115624,
+        "welded_boundary_edges": 644,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": false
+      },
+      "submitted": {
+        "triangle_count": 18198,
+        "bounds_min_m": [
+          -0.5705390572547913,
+          0.0,
+          -0.24765323102474213
+        ],
+        "bounds_max_m": [
+          0.5705388188362122,
+          1.881253957748413,
+          0.238848015666008
+        ],
+        "area_m2": 8.338460036115624,
+        "welded_boundary_edges": 644,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": false
+      },
+      "vertex_hausdorff_m": 0.0,
+      "centroid_hausdorff_m": 0.0,
+      "bounds_error_m": 0.0,
+      "relative_area_error": 0.0
+    },
+    "drawer_cabinet_drawer_01": {
+      "pass": true,
+      "source": {
+        "triangle_count": 2052,
+        "bounds_min_m": [
+          -0.5193020105361938,
+          0.954371452331543,
+          -0.18753623962402344
+        ],
+        "bounds_max_m": [
+          0.5145469903945923,
+          1.1032557487487793,
+          0.24043147265911102
+        ],
+        "area_m2": 1.5046582380266906,
+        "welded_boundary_edges": 0,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": true
+      },
+      "submitted": {
+        "triangle_count": 2052,
+        "bounds_min_m": [
+          -0.5193020105361938,
+          0.9543714490532875,
+          -0.18753623962402344
+        ],
+        "bounds_max_m": [
+          0.5145469903945923,
+          1.1032557454705239,
+          0.24043147265911102
+        ],
+        "area_m2": 1.5046582289529133,
+        "welded_boundary_edges": 0,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": true
+      },
+      "vertex_hausdorff_m": 3.278255444882916e-09,
+      "centroid_hausdorff_m": 3.278255444882916e-09,
+      "bounds_error_m": 3.278255444882916e-09,
+      "relative_area_error": 6.030457319660634e-09
+    },
+    "drawer_cabinet_drawer_02": {
+      "pass": true,
+      "source": {
+        "triangle_count": 2052,
+        "bounds_min_m": [
+          -0.5193020105361938,
+          0.7794284820556641,
+          -0.18753623962402344
+        ],
+        "bounds_max_m": [
+          0.5145469903945923,
+          0.9283127188682556,
+          0.24043147265911102
+        ],
+        "area_m2": 1.5046581949557742,
+        "welded_boundary_edges": 0,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": true
+      },
+      "submitted": {
+        "triangle_count": 2052,
+        "bounds_min_m": [
+          -0.5193020105361938,
+          0.7794284820556641,
+          -0.18753623962402344
+        ],
+        "bounds_max_m": [
+          0.5145469903945923,
+          0.9283127188682556,
+          0.24043147265911102
+        ],
+        "area_m2": 1.5046581949557742,
+        "welded_boundary_edges": 0,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": true
+      },
+      "vertex_hausdorff_m": 0.0,
+      "centroid_hausdorff_m": 0.0,
+      "bounds_error_m": 0.0,
+      "relative_area_error": 0.0
+    },
+    "drawer_cabinet_drawer_03": {
+      "pass": true,
+      "source": {
+        "triangle_count": 2052,
+        "bounds_min_m": [
+          -0.5193020105361938,
+          0.6044896841049194,
+          -0.18753623962402344
+        ],
+        "bounds_max_m": [
+          0.5145469903945923,
+          0.7533739805221558,
+          0.24043147265911102
+        ],
+        "area_m2": 1.5046583013054977,
+        "welded_boundary_edges": 0,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": true
+      },
+      "submitted": {
+        "triangle_count": 2052,
+        "bounds_min_m": [
+          -0.5193020105361938,
+          0.6044896841049194,
+          -0.18753623962402344
+        ],
+        "bounds_max_m": [
+          0.5145469903945923,
+          0.7533739805221558,
+          0.24043147265911102
+        ],
+        "area_m2": 1.5046583013054977,
+        "welded_boundary_edges": 0,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": true
+      },
+      "vertex_hausdorff_m": 0.0,
+      "centroid_hausdorff_m": 0.0,
+      "bounds_error_m": 0.0,
+      "relative_area_error": 0.0
+    },
+    "drawer_cabinet_drawer_04": {
+      "pass": true,
+      "source": {
+        "triangle_count": 2052,
+        "bounds_min_m": [
+          -0.5193020105361938,
+          0.42955005168914795,
+          -0.18753623962402344
+        ],
+        "bounds_max_m": [
+          0.5145469903945923,
+          0.5784343481063843,
+          0.24043147265911102
+        ],
+        "area_m2": 1.5046582608437213,
+        "welded_boundary_edges": 0,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": true
+      },
+      "submitted": {
+        "triangle_count": 2052,
+        "bounds_min_m": [
+          -0.5193020105361938,
+          0.42955005168914795,
+          -0.18753623962402344
+        ],
+        "bounds_max_m": [
+          0.5145469903945923,
+          0.5784343481063843,
+          0.24043147265911102
+        ],
+        "area_m2": 1.5046582608437213,
+        "welded_boundary_edges": 0,
+        "welded_nonmanifold_edges": 0,
+        "welded_closed": true
+      },
+      "vertex_hausdorff_m": 0.0,
+      "centroid_hausdorff_m": 0.0,
+      "bounds_error_m": 0.0,
+      "relative_area_error": 0.0
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "case_id": "07_robot_arm",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 126.84040839038789,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "189bba5bae281f8173549fd2a4b4c0fdcc63d7c92c27803962b5be5eda8e3d76",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_07_robot_arm_plain_astra",
+  "status": "FAIL",
+  "timed_out": false
+}

@@ -1,0 +1,28 @@
+{
+  "cgroup_populated_after": 0,
+  "configuration_sha256": "c9140e12a292b315236eafba64dc1ae077a566153e43604cbe657c963b50b555",
+  "elapsed_seconds": 4.9,
+  "errors": 0,
+  "failures": 0,
+  "fresh_disconnected_network": true,
+  "frozen_tools_modified": false,
+  "model_calls": 0,
+  "publication_head": "219df18cd5232e4468b8f18eeb4fef3530c26e53",
+  "pytest_version": "9.1.1",
+  "renderer_calls": 0,
+  "schema_version": "linux-regression-proof-projection.v1",
+  "scope": "One configuration-load regression. No asset task acceptance or simulation behavior is tested.",
+  "skipped": 0,
+  "solver_calls": 0,
+  "source_files_verified_against_git_commit": 228,
+  "status": "PASS",
+  "test": "tests/test_public_quickstart_regression.py::test_joint_byoa_template_loads_after_input_and_authoring_opt_in",
+  "test_sha256": "9bbe7ef09ad8ae0582e9b091752308a2f8e784b3a9c31df8399012228c4c3f4b",
+  "tests": 1,
+  "tools_readonly": true,
+  "usd_version": [
+    0,
+    25,
+    5
+  ]
+}

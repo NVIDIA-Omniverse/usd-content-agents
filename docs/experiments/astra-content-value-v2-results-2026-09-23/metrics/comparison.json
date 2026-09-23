@@ -1,0 +1,280 @@
+{
+  "acceptance_difference_content_minus_plain": -0.5555555555555556,
+  "all_attempts_by_arm": {
+    "content_agents": {
+      "acceptance_fraction": 0.2,
+      "accepted": 2,
+      "allocated_gpu_lane_hours": 6.639649317905,
+      "api_equivalent_usd_per_accepted_lower": 788.7662899999999,
+      "api_equivalent_usd_per_accepted_upper": null,
+      "attempts": 10,
+      "author_elapsed_seconds": 22068.794761102647,
+      "author_seconds_per_accepted": 11034.397380551323,
+      "cost_complete_runs": 3,
+      "cost_scope": "All attempts in this reported subset, including rejected and inconclusive assets. Public API reference only; incomplete terminal usage has unknown upper cost.",
+      "false_pass_fraction_of_resolved_author_positives": 0.0,
+      "false_passes": 0,
+      "gpu_lane_hours_per_accepted": 3.3198246589525,
+      "horde_usd": null,
+      "human_interventions": 0,
+      "human_review_minutes": null,
+      "human_review_minutes_per_accepted": null,
+      "human_usd": null,
+      "invoice_usd": null,
+      "missing_author_claims": 0,
+      "resolved_author_positive_count": 1,
+      "standard_api_equivalent_usd_lower": 1577.5325799999998,
+      "standard_api_equivalent_usd_upper": null,
+      "unresolved_author_positives": 0,
+      "verdict_counts": {
+        "FAIL": 8,
+        "INCONCLUSIVE": 0,
+        "PASS": 2
+      }
+    },
+    "plain_astra": {
+      "acceptance_fraction": 0.8,
+      "accepted": 8,
+      "allocated_gpu_lane_hours": 3.815193967951666,
+      "api_equivalent_usd_per_accepted_lower": 84.63174650000002,
+      "api_equivalent_usd_per_accepted_upper": null,
+      "attempts": 10,
+      "author_elapsed_seconds": 13244.67760596238,
+      "author_seconds_per_accepted": 1655.5847007452976,
+      "cost_complete_runs": 9,
+      "cost_scope": "All attempts in this reported subset, including rejected and inconclusive assets. Public API reference only; incomplete terminal usage has unknown upper cost.",
+      "false_pass_fraction_of_resolved_author_positives": 0.1111111111111111,
+      "false_passes": 1,
+      "gpu_lane_hours_per_accepted": 0.4768992459939583,
+      "horde_usd": null,
+      "human_interventions": 0,
+      "human_review_minutes": null,
+      "human_review_minutes_per_accepted": null,
+      "human_usd": null,
+      "invoice_usd": null,
+      "missing_author_claims": 0,
+      "resolved_author_positive_count": 9,
+      "standard_api_equivalent_usd_lower": 677.0539720000002,
+      "standard_api_equivalent_usd_upper": null,
+      "unresolved_author_positives": 0,
+      "verdict_counts": {
+        "FAIL": 2,
+        "INCONCLUSIVE": 0,
+        "PASS": 8
+      }
+    }
+  },
+  "content_only_pass": 0,
+  "eligible_pair_arms": {
+    "content_agents": {
+      "acceptance_fraction": 0.2222222222222222,
+      "accepted": 2,
+      "allocated_gpu_lane_hours": 5.9007939727775,
+      "api_equivalent_usd_per_accepted_lower": 727.6774659999999,
+      "api_equivalent_usd_per_accepted_upper": null,
+      "attempts": 9,
+      "author_elapsed_seconds": 19672.743271643296,
+      "author_seconds_per_accepted": 9836.371635821648,
+      "cost_complete_runs": 3,
+      "cost_scope": "All attempts in this reported subset, including rejected and inconclusive assets. Public API reference only; incomplete terminal usage has unknown upper cost.",
+      "false_pass_fraction_of_resolved_author_positives": 0.0,
+      "false_passes": 0,
+      "gpu_lane_hours_per_accepted": 2.95039698638875,
+      "horde_usd": null,
+      "human_interventions": 0,
+      "human_review_minutes": null,
+      "human_review_minutes_per_accepted": null,
+      "human_usd": null,
+      "invoice_usd": null,
+      "missing_author_claims": 0,
+      "resolved_author_positive_count": 1,
+      "standard_api_equivalent_usd_lower": 1455.3549319999997,
+      "standard_api_equivalent_usd_upper": null,
+      "unresolved_author_positives": 0,
+      "verdict_counts": {
+        "FAIL": 7,
+        "INCONCLUSIVE": 0,
+        "PASS": 2
+      }
+    },
+    "plain_astra": {
+      "acceptance_fraction": 0.7777777777777778,
+      "accepted": 7,
+      "allocated_gpu_lane_hours": 3.187439192025555,
+      "api_equivalent_usd_per_accepted_lower": 80.87444800000002,
+      "api_equivalent_usd_per_accepted_upper": null,
+      "attempts": 9,
+      "author_elapsed_seconds": 11093.573909396306,
+      "author_seconds_per_accepted": 1584.7962727709007,
+      "cost_complete_runs": 8,
+      "cost_scope": "All attempts in this reported subset, including rejected and inconclusive assets. Public API reference only; incomplete terminal usage has unknown upper cost.",
+      "false_pass_fraction_of_resolved_author_positives": 0.125,
+      "false_passes": 1,
+      "gpu_lane_hours_per_accepted": 0.4553484560036507,
+      "horde_usd": null,
+      "human_interventions": 0,
+      "human_review_minutes": null,
+      "human_review_minutes_per_accepted": null,
+      "human_usd": null,
+      "invoice_usd": null,
+      "missing_author_claims": 0,
+      "resolved_author_positive_count": 8,
+      "standard_api_equivalent_usd_lower": 566.1211360000001,
+      "standard_api_equivalent_usd_upper": null,
+      "unresolved_author_positives": 0,
+      "verdict_counts": {
+        "FAIL": 2,
+        "INCONCLUSIVE": 0,
+        "PASS": 7
+      }
+    }
+  },
+  "eligible_pairs": 9,
+  "exploratory_exact_sign_p_two_sided": 0.0625,
+  "inference_limit": "Ten previously used public development assets, one authored output per arm. Five physical seeds are not independent author replicates. No claim of population benefit or human labor savings.",
+  "pairs": [
+    {
+      "case_id": "01_drawer",
+      "content_agents": {
+        "claimed_accepted": true,
+        "run_id": "v2_01_drawer_content_agents",
+        "status": "PASS"
+      },
+      "eligible": true,
+      "plain_astra": {
+        "claimed_accepted": true,
+        "run_id": "v2_01_drawer_plain_astra",
+        "status": "PASS"
+      }
+    },
+    {
+      "case_id": "02_conveyor",
+      "content_agents": {
+        "claimed_accepted": false,
+        "run_id": "v2_02_conveyor_content_agents",
+        "status": "PASS"
+      },
+      "eligible": true,
+      "plain_astra": {
+        "claimed_accepted": true,
+        "run_id": "v2_02_conveyor_plain_astra",
+        "status": "PASS"
+      }
+    },
+    {
+      "case_id": "03_hinge",
+      "content_agents": {
+        "claimed_accepted": false,
+        "run_id": "v2_03_hinge_content_agents",
+        "status": "FAIL"
+      },
+      "eligible": true,
+      "plain_astra": {
+        "claimed_accepted": true,
+        "run_id": "v2_03_hinge_plain_astra",
+        "status": "PASS"
+      }
+    },
+    {
+      "case_id": "04_gripper",
+      "content_agents": {
+        "claimed_accepted": false,
+        "run_id": "v2_04_gripper_content_agents",
+        "status": "FAIL"
+      },
+      "eligible": true,
+      "plain_astra": {
+        "claimed_accepted": true,
+        "run_id": "v2_04_gripper_plain_astra",
+        "status": "PASS"
+      }
+    },
+    {
+      "case_id": "05_vise",
+      "content_agents": {
+        "claimed_accepted": false,
+        "run_id": "v2_05_vise_content_agents",
+        "status": "FAIL"
+      },
+      "eligible": true,
+      "plain_astra": {
+        "claimed_accepted": true,
+        "run_id": "v2_05_vise_plain_astra",
+        "status": "PASS"
+      }
+    },
+    {
+      "case_id": "06_engine",
+      "content_agents": {
+        "claimed_accepted": false,
+        "run_id": "v2_06_engine_content_agents",
+        "status": "FAIL"
+      },
+      "eligible": true,
+      "plain_astra": {
+        "claimed_accepted": false,
+        "run_id": "v2_06_engine_plain_astra",
+        "status": "FAIL"
+      }
+    },
+    {
+      "case_id": "07_robot_arm",
+      "content_agents": {
+        "claimed_accepted": false,
+        "run_id": "v2_07_robot_arm_content_agents",
+        "status": "FAIL"
+      },
+      "eligible": true,
+      "plain_astra": {
+        "claimed_accepted": true,
+        "run_id": "v2_07_robot_arm_plain_astra",
+        "status": "FAIL"
+      }
+    },
+    {
+      "case_id": "08_excavator",
+      "content_agents": {
+        "claimed_accepted": false,
+        "run_id": "v2_08_excavator_content_agents",
+        "status": "FAIL"
+      },
+      "eligible": true,
+      "plain_astra": {
+        "claimed_accepted": true,
+        "run_id": "v2_08_excavator_plain_astra",
+        "status": "PASS"
+      }
+    },
+    {
+      "case_id": "09_printer",
+      "content_agents": {
+        "claimed_accepted": false,
+        "run_id": "v2_09_printer_content_agents",
+        "status": "FAIL"
+      },
+      "eligible": false,
+      "plain_astra": {
+        "claimed_accepted": true,
+        "run_id": "v2_09_printer_plain_astra",
+        "status": "PASS"
+      }
+    },
+    {
+      "case_id": "10_complex",
+      "content_agents": {
+        "claimed_accepted": false,
+        "run_id": "v2_10_complex_content_agents",
+        "status": "FAIL"
+      },
+      "eligible": true,
+      "plain_astra": {
+        "claimed_accepted": true,
+        "run_id": "v2_10_complex_plain_astra",
+        "status": "PASS"
+      }
+    }
+  ],
+  "plain_only_pass": 5,
+  "resolved_pairs": 9,
+  "schema_version": "paired-comparison.v2"
+}

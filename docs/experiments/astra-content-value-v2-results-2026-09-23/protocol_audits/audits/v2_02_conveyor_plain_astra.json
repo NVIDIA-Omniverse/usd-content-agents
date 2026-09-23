@@ -1,0 +1,199 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "plain_astra",
+  "author_budget_observation": {
+    "cgroup_populated": 0,
+    "elapsed_seconds": 919.4494848400354,
+    "namespace_init_exited": true,
+    "timed_out": false
+  },
+  "author_claim_only": {
+    "claimed_accepted": true,
+    "declared_repairs_used": 0,
+    "physical_acceptance": "NOT_ASSESSED",
+    "task_outcome": "submitted"
+  },
+  "case_id": "02_conveyor",
+  "citations": {
+    "author_archive": {
+      "bytes": 27480727,
+      "sha256": "6c85cf166b3218b45cf6f743b8c9dc3e7c679575fd81e7a321231c111f8f1ddc"
+    },
+    "mechanical_review": {
+      "sha256": "5bfba2863d2273bef055e04345631b3fffd414f5989738711acb38b17dab046d"
+    },
+    "native_or_author_record_members": [
+      {
+        "archive_member": "workspace/submission.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "0855ab83f89f5c840457cd4d0696e5500653df12014b768538dd286abdcabe07"
+      }
+    ],
+    "original_capture_calls": [
+      {
+        "call_input_sha256": "cda9ed08c0fa22e8d42f619978e79176f4f09206d172753ac194ce4e959f1780",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 31,
+        "capture_sha256": "7110ecd80705b60b654452aeab65ddc23052002aee3bf3525ed56a98e01e31ee",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 3
+      },
+      {
+        "call_input_sha256": "34b07a1c067e58fa481c58b2e57debf908878a2bdd09c43ffecbd4cfb4eccec4",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 129,
+        "capture_sha256": "7110ecd80705b60b654452aeab65ddc23052002aee3bf3525ed56a98e01e31ee",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 15
+      },
+      {
+        "call_input_sha256": "9728ca5af0b38a724ac69b79a2f5afb35f5507373b8dd6177dd0462f0813e448",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 154,
+        "capture_sha256": "7110ecd80705b60b654452aeab65ddc23052002aee3bf3525ed56a98e01e31ee",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 17
+      },
+      {
+        "call_input_sha256": "ac024fa8d19ea65a2410860a362664c2e329caf26006eac2653bcf8d0a491238",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 355,
+        "capture_sha256": "7110ecd80705b60b654452aeab65ddc23052002aee3bf3525ed56a98e01e31ee",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 39
+      },
+      {
+        "call_input_sha256": "a5ee0c22bd293e2dc3d9da88d3fab7a7a57b9a5c1e8afda2fc873799da44d745",
+        "capture_archive_member": "private/session_captures/capture_000001_000.jsonl",
+        "capture_line": 99,
+        "capture_sha256": "77fc17d6c7bcf8c9fd6bd34b95c81ffdfa90aa78e7050b1cd742379cb9eb18ab",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 59
+      },
+      {
+        "call_input_sha256": "77b916857f2745663dd816c8698cef44d4114f267ce02a23e697ecd6c9d3e942",
+        "capture_archive_member": "private/session_captures/capture_000001_000.jsonl",
+        "capture_line": 114,
+        "capture_sha256": "77fc17d6c7bcf8c9fd6bd34b95c81ffdfa90aa78e7050b1cd742379cb9eb18ab",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 61
+      }
+    ],
+    "retained_script_members": [
+      {
+        "archive_member": "workspace/author_scene.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          110
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "d1d8c55faacda2b664ab68c649b97274e5a1be6170a694a8428eaa8ac2045a93"
+      },
+      {
+        "archive_member": "workspace/native_trial.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          392
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "5cb10f42c4eda6039f66313f37538172ca7e1b4aecf40a7426f00cf16856f218"
+      },
+      {
+        "archive_member": "workspace/source_mesh/extract.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          172
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "1b5282acfa90dd2ff57358a7a48f3d801efe66e7b5239ac2d745bd13a8a8724a"
+      }
+    ],
+    "review_package": {
+      "sha256": "a66cb4ee27bdcb619ecf2622d8e220cfab68eb741c15768094a8b30fa8e7a250"
+    },
+    "static_route_review": {
+      "sha256": "465237253a9db0ad26b5a5ec28e631e79a74717754856a2f1ec541201f588557"
+    }
+  },
+  "completed_utc": "2026-09-23T04:43:21.375882+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "c2b58aea5b72f98b37740c3e32857ecb926dff396606dc253d8e6395a56ae616",
+    "author_retention": "fc185fecf4e01c589f130da49a60252ef15e09555b7b191e906adc2fed725821",
+    "declaration": "37023c3cb33a0c59c05c45d71197a5010c73ff5b80efcd5ae4d4aa853ae81bf6",
+    "launch": "e10c80fe60389bc82e44c5e690c47ae5c970fac5d6845112a5a58f835ba99c4b",
+    "reap": "17a97916172b4499ece8e173de130c0387a346b6a5e0e37daed924529b076265",
+    "timing": "73793481fe74ae58f8d4adcb8b0137ef0c65093ce0737dad8df33cc504fc3934",
+    "ui_association": "1fd468b630e41d1d2dd7b489b388d2402dd916ad01a9e602a2617f5a593c395f",
+    "ui_metadata": "fa946cbcaf9e7cf4867c8ccc3cf61e50365eee47b4f04d1b97adc08daf6adb19",
+    "usage": "02ef44a1d62ccd76f3c819163b707f506b8e4c01229388d9cdda0e9fc3373c9e"
+  },
+  "explicit_unresolved_eligibility_questions": [],
+  "frozen_files_modified": false,
+  "independent_physical_evaluation": "UNOPENED",
+  "input_sha256": "212e665b4eeca07b1e28200be09654849e052148da046e364a68559b48e0069d",
+  "lane_id": "lane1",
+  "limitations": [
+    "This is an outcome-blinded protocol/treatment adjudication, not source-surface fidelity, physical task acceptance, hardware realism or universal simulation readiness.",
+    "The complete archive was verified by the trusted retention proof. This review rechecks referenced metadata/capture/script bytes; it does not rerun authors or independently execute every retained script.",
+    "Repair chronology is supported only by cited actual calls and retained artifacts. No repair count cap is introduced; reconstructed historical helpers and author-declared counts are not independent contemporaneous observations.",
+    "Native/author acceptance statements are kept separate from the unopened independent physical evaluations.",
+    "Automated review time is not measured human review effort. Raw captures, session identifiers and process-list outputs remain private."
+  ],
+  "mechanical_checks": {
+    "all9_reference_bytes": true,
+    "association_reproduced": true,
+    "captured_bytes": true,
+    "drained_usage": true,
+    "fresh_model": true,
+    "job_identity": true,
+    "limits": true,
+    "metadata_reproduced": true,
+    "prompt_exact": true,
+    "protocol_exact": true,
+    "reaped": true,
+    "retained": true,
+    "snapshot_complete": true,
+    "source_inventory_binding": true,
+    "source_unchanged": true,
+    "task_exact": true,
+    "time": true,
+    "ui_complete": true
+  },
+  "model_request_count": 158,
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "f92230edab00b758421c97d9b47c199391e87bf99e9bc62327f566cb9e6dea45",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "All frozen mechanical/model/source gates pass. Source extraction and scene authoring use direct OCP/OpenUSD, and author trials use the low-level OvPhysX package. The source-code search explicitly excluding workflows/skills is inspection rather than invocation. Reviewed scripts contain no Content Agents workflow/decision helper import-and-call route.",
+  "run_id": "v2_02_conveyor_plain_astra",
+  "schema_version": "outcome-blinded-protocol-adjudication.v1",
+  "scored_result_data_modified": false,
+  "source_sha256": "9fac044d41cbdaf94a1183496ce6503b2a70c687c98e2a08751afeb473fd0dd1",
+  "task_sha256": "7811c716b454d1ffeb5d354b08cbdc405b14d9a4c99990c20fdc9a902b8bfceb",
+  "terminal_billing_complete": true,
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": [
+    "Source extraction and scene authoring use direct OCP/OpenUSD, and author trials use the low-level OvPhysX package. The source-code search explicitly excluding workflows/skills is inspection rather than invocation. Reviewed scripts contain no Content Agents workflow/decision helper import-and-call route."
+  ],
+  "ui_association_complete": true
+}

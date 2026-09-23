@@ -1,0 +1,313 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "content_agents",
+  "author_budget_observation": {
+    "cgroup_populated": 0,
+    "elapsed_seconds": 2396.112878350541,
+    "namespace_init_exited": true,
+    "timed_out": true
+  },
+  "author_claim_only": {
+    "claimed_accepted": false,
+    "declared_repairs_used": 0,
+    "physical_acceptance": "NOT_ASSESSED",
+    "task_outcome": "not_submitted"
+  },
+  "case_id": "05_vise",
+  "citations": {
+    "author_archive": {
+      "bytes": 333576722,
+      "sha256": "0127d278a0942e7f212b2f55794ae8a40ee7cb9f1ac546057c5880464df2bb32"
+    },
+    "mechanical_review": {
+      "sha256": "c86439b82d5c75518f75438a86192e59d5246962e98fa3dbc3b0b5854daed79d"
+    },
+    "native_or_author_record_members": [
+      {
+        "archive_member": "workspace/runs/articulation_repair_001/standalone_articulation_terminal_receipt.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "3552bc783613b43214e377915db6061891e70b49190227fcae4695673c1683c5"
+      },
+      {
+        "archive_member": "workspace/runs/articulation_repair_003/standalone_articulation_post_review.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "f935ef93eb1f250e2fb7b2b20e663f0ed27a3e7a20db31d36388a13d0b704f28"
+      },
+      {
+        "archive_member": "workspace/runs/articulation_repair_003/standalone_articulation_terminal_receipt.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "88a84bda2e903b0433f48ccc686623247668d449a6998140e993a4b47b804b72"
+      },
+      {
+        "archive_member": "workspace/submission.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "610a030411f1fc532c78691ddedd413fc7ea5c8aae2108c8490844652e86bea3"
+      },
+      {
+        "archive_member": "workspace/runs/articulation_initial/final_summary.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "cd14efccaf440d764c7fc8ad2d8e2b32211fdfc74db205c656c729047bb27c96"
+      },
+      {
+        "archive_member": "workspace/runs/articulation_repair_001/final_summary.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "fafe0748d6cc144c936ea9bca8937beedee814d3d8f6465f7372c8651ba4f71b"
+      },
+      {
+        "archive_member": "workspace/runs/articulation_repair_003/final_summary.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "c7441e3d55afd15019f2794a7d1725cb264330dab1ee0f71b8612b3ad7bbb88a"
+      },
+      {
+        "archive_member": "workspace/runs/validation_static/final_summary.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "317b3684cc2c9759f3e559506e61ff2db0b7f0fd481f82518a564b2faf68dfe2"
+      }
+    ],
+    "original_capture_calls": [
+      {
+        "call_input_sha256": "c76bafbd630a8232893fe80748c126a9db98ee5e1adf7cb5c16aaea54e11cd68",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 48,
+        "capture_sha256": "60a8d2549da2e0f007a271f7a0ea92c17894cad9100b9ad79fe9ab8d4b0b168f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 5
+      },
+      {
+        "call_input_sha256": "a89cffec8d35442e789998246d4addae7aebff4ebcddd2c7087781c0a303afe4",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 417,
+        "capture_sha256": "60a8d2549da2e0f007a271f7a0ea92c17894cad9100b9ad79fe9ab8d4b0b168f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 50
+      },
+      {
+        "call_input_sha256": "200a1096f3a4bdac5b750b002269d4890da82901a58c4ca12cf970f466016af5",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 618,
+        "capture_sha256": "60a8d2549da2e0f007a271f7a0ea92c17894cad9100b9ad79fe9ab8d4b0b168f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 77
+      },
+      {
+        "call_input_sha256": "05c94e1fa65325fb359eabd2bd400fad07847948349f9726f6c37a86a3af83b6",
+        "capture_archive_member": "private/session_captures/capture_000003_000.jsonl",
+        "capture_line": 118,
+        "capture_sha256": "b97fd049221c3eb6cff2a82526ac1ac8f03b7e8d45700bf79aa26d2202196ae3",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 237
+      },
+      {
+        "call_input_sha256": "42b184abec53bca5940c92cc340631ac9803bc80789d706ae04719a9d87279c2",
+        "capture_archive_member": "private/session_captures/capture_000003_000.jsonl",
+        "capture_line": 149,
+        "capture_sha256": "b97fd049221c3eb6cff2a82526ac1ac8f03b7e8d45700bf79aa26d2202196ae3",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 241
+      },
+      {
+        "call_input_sha256": "cc8fd3fdf1f81ddaafa5fec33f5dc32afb757c3d64809b4c09f51dbdabf59a38",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 737,
+        "capture_sha256": "60a8d2549da2e0f007a271f7a0ea92c17894cad9100b9ad79fe9ab8d4b0b168f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 93
+      },
+      {
+        "call_input_sha256": "be63e078a10f14723b5dd0fadb6449339813268b8aa19dfba21b28f04741c99d",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 764,
+        "capture_sha256": "60a8d2549da2e0f007a271f7a0ea92c17894cad9100b9ad79fe9ab8d4b0b168f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 96
+      },
+      {
+        "call_input_sha256": "b39776a4e4d5a66de41418a4e17a525439f4e70ba661476861e3fb55bd8fdd1f",
+        "capture_archive_member": "private/session_captures/capture_000004_000.jsonl",
+        "capture_line": 112,
+        "capture_sha256": "82322b122bffa2072958489cd9240ee743d17bf0f181f567d984a1594baad48f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 254
+      },
+      {
+        "call_input_sha256": "0279a5be31bc59ac7cc1ed05ee074c742ebb8618ff294155e874fe3434752d46",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 909,
+        "capture_sha256": "60a8d2549da2e0f007a271f7a0ea92c17894cad9100b9ad79fe9ab8d4b0b168f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 114
+      },
+      {
+        "call_input_sha256": "cea62cffec6bb9e34d787bf39b928c53ebbd1a1cc7484a9c041de62bb6134dae",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 948,
+        "capture_sha256": "60a8d2549da2e0f007a271f7a0ea92c17894cad9100b9ad79fe9ab8d4b0b168f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 119
+      },
+      {
+        "call_input_sha256": "236217e8393587313c2312e229c82b0787e4a35e761c263b002a3a8f51716dff",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 985,
+        "capture_sha256": "60a8d2549da2e0f007a271f7a0ea92c17894cad9100b9ad79fe9ab8d4b0b168f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 124
+      },
+      {
+        "call_input_sha256": "0d3e4f5e0495f2918696a24678222d158109c47a596c8848e405709de9af3ed6",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 1010,
+        "capture_sha256": "60a8d2549da2e0f007a271f7a0ea92c17894cad9100b9ad79fe9ab8d4b0b168f",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 127
+      }
+    ],
+    "retained_script_members": [
+      {
+        "archive_member": "workspace/prepare_articulation_readback.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          153
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "bec7840168e7e08586beb9ab8474b42a2ea6aaca426ad20af8bd436c49717a14"
+      },
+      {
+        "archive_member": "workspace/finalize_post_review.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          9
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "433ca8e2f6bb2610a1cc4b75a00bad3e8fb14a002f436c2dec6a124515a54a76"
+      },
+      {
+        "archive_member": "workspace/prepare_physics_patch.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          146
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "a34543c5155d00c4607d583cecb650d0d714f58307ed80348d25b3fb3b849d5c"
+      },
+      {
+        "archive_member": "workspace/run_physics_native.sh",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          18
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "72ec5067296e017ad3c56a2d1031108f34ebb41de7917e8fe2a63182e5fc353d"
+      },
+      {
+        "archive_member": "workspace/prepare_validation_assessment.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          95
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "da9623ae58c99c6865a6d4ce405647b7f4c77728b91f2e20760caa1b5c92578b"
+      }
+    ],
+    "review_package": {
+      "sha256": "703d3214c82ad3c3e6ae94690de4bcf35c9108f9b758eaa282e0cb5a5a5573ea"
+    },
+    "static_route_review": {
+      "sha256": "4ee3c7ba22ca4da1c17480d6f28736347eb758c2eb8b9a36b8968693086cb0c6"
+    }
+  },
+  "completed_utc": "2026-09-23T04:43:23.232590+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "941cdfb77ae655a93bc9c2efe11bba6696805597cf22d1005d7b631988a599a6",
+    "author_retention": "3b44ab42c57d0a9e42c6d8dd790e201b060a823a40b41531dda01fa60875fca2",
+    "declaration": "9eaa20158234a9f3904414cdaa42e259e561c237c9ba1b5b585d9113fb115f59",
+    "launch": "23e514421311b642c9620f9b9923139ba36ec19f70599cdcbf8bc6ea1004e752",
+    "reap": "9bb96c499ddedb2d537b9277b3fa39977ec76d4bf1909f677b0012404309c249",
+    "timing": "fd1f7525668f4310da95e6a1785d9f4a848c22c646e9c654850210f735427fa0",
+    "ui_association": "3f907a8e9b46f566010d4b52033668397c8ffd1d1501d58d7e556d5c2d8d12ce",
+    "ui_metadata": "465fbbde0fa73ae5005daaab823719240a9312c61fd22eea556e4a8c8b0a8a9b",
+    "usage": "7e300c8804a6f45fad1d42fdd3d2d9e31c2d7dc2f2e5534c5dc866aff2bd10ea"
+  },
+  "explicit_unresolved_eligibility_questions": [],
+  "frozen_files_modified": false,
+  "independent_physical_evaluation": "UNOPENED",
+  "input_sha256": "5b19f187b95b2b6aaad77ae3fb9a2e6746802a382b3f2b8e726880bb11a91a29",
+  "lane_id": "lane0",
+  "limitations": [
+    "This is an outcome-blinded protocol/treatment adjudication, not source-surface fidelity, physical task acceptance, hardware realism or universal simulation readiness.",
+    "The complete archive was verified by the trusted retention proof. This review rechecks referenced metadata/capture/script bytes; it does not rerun authors or independently execute every retained script.",
+    "Repair chronology is supported only by cited actual calls and retained artifacts. No repair count cap is introduced; reconstructed historical helpers and author-declared counts are not independent contemporaneous observations.",
+    "Native/author acceptance statements are kept separate from the unopened independent physical evaluations.",
+    "Automated review time is not measured human review effort. Raw captures, session identifiers and process-list outputs remain private.",
+    "Final numerical terminal billing is incomplete; exact admitted-request own-thread Astra Ultra UI association is complete. Missing billing is retained as unknown accounting, not an exclusion.",
+    "Only phases actually reached are adjudicated. A completed topology/static substage, a low-level repair, or a prepared command template is not a completed physical pipeline; blocked phases/missing later receipts remain task limitations."
+  ],
+  "mechanical_checks": {
+    "all9_reference_bytes": true,
+    "association_reproduced": true,
+    "captured_bytes": true,
+    "drained_usage": true,
+    "fresh_model": true,
+    "job_identity": true,
+    "limits": true,
+    "metadata_reproduced": true,
+    "prompt_exact": true,
+    "protocol_exact": true,
+    "reaped": true,
+    "retained": true,
+    "snapshot_complete": true,
+    "source_inventory_binding": true,
+    "source_unchanged": true,
+    "task_exact": true,
+    "time": true,
+    "ui_complete": true
+  },
+  "model_request_count": 288,
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "ff7abcbb471d697b75f02d2f1ffc0851bff8468f0e1df6e43653bcbcb3590c55",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "All frozen mechanical/model/source gates pass. Actual native workflow contracts are observed for the reached phases; failures, conditional results and incomplete handoffs are preserved without relabeling an ad hoc substitute as native success. prepare_physics_patch uses installed native inspection, typed patch parsing and target resolution. run_physics_native.sh performs explicit low-level owner preparation and then actual native Physics direct-executor calls. A subsequent native Physics retry and focused static Validation commands are observed. Supplemental force trials are distinct from native completion. The retained submission remains claimed_accepted=false with null final_scene; no later acceptance is invented.",
+  "run_id": "v2_05_vise_content_agents",
+  "schema_version": "outcome-blinded-protocol-adjudication.v1",
+  "scored_result_data_modified": false,
+  "source_sha256": "e3781ed3b72522a2e3de503e261936c69e033494693381ac397954acea3b8c84",
+  "task_sha256": "7e35a775a0ce5d03a3495eac42657bc9590c066594be0186072f77b0212b8187",
+  "terminal_billing_complete": false,
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": [
+    "Observed native STEP conversion and low-level source-preserving preparation feed native publish-preparation/validate-preparation and Articulation run. No separate completed Geometry workflow is inferred.",
+    "The first repaired Articulation attempt retains a non_success/conditional receipt. A fresh preparation explicitly distinguishes authored simulation stop limits from measured CAD hardware facts. A fresh native Articulation attempt completes through focused application, canonical output evidence, outer typed review and _agent-finalize; the exact image-view call precedes review.",
+    "prepare_physics_patch uses installed native inspection, typed patch parsing and target resolution. run_physics_native.sh performs explicit low-level owner preparation and then actual native Physics direct-executor calls. A subsequent native Physics retry and focused static Validation commands are observed. Supplemental force trials are distinct from native completion. The retained submission remains claimed_accepted=false with null final_scene; no later acceptance is invented."
+  ],
+  "ui_association_complete": true
+}

@@ -1,0 +1,11 @@
+{
+  "case_id": "02_conveyor",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 105.94871732592583,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "cb84f5f88033537f0adec9b60661c4d9ec567792f7840b5fc44bedaf958a9fdd",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_02_conveyor_content_agents",
+  "status": "PASS",
+  "timed_out": false
+}

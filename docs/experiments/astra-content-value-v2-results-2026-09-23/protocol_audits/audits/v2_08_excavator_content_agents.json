@@ -1,0 +1,332 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "content_agents",
+  "case_id": "08_excavator",
+  "citations": [
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "original_tool_call",
+      "line": 460,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "66395821dc9537c2aedaeeed6ba82ec6674cdd736ec1224605a7527481f3e39a",
+      "navigation_line": 460,
+      "observation": "Source-bound native preparation validation and Articulation run."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000004_000.jsonl",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "original_tool_call",
+      "line": 126,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "91315a2be0dab2a3b8f3bef4e5966826c7d43a1f29fecf99374e32c9ff286047",
+      "navigation_line": 126,
+      "observation": "Native typed articulation decision application."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "original_tool_call",
+      "line": 775,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "66395821dc9537c2aedaeeed6ba82ec6674cdd736ec1224605a7527481f3e39a",
+      "navigation_line": 775,
+      "observation": "Native Physics direct executor with target-ID patch."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "original_tool_call",
+      "line": 841,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "66395821dc9537c2aedaeeed6ba82ec6674cdd736ec1224605a7527481f3e39a",
+      "navigation_line": 841,
+      "observation": "Native exact Articulation finalization."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "original_tool_call",
+      "line": 859,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "66395821dc9537c2aedaeeed6ba82ec6674cdd736ec1224605a7527481f3e39a",
+      "navigation_line": 859,
+      "observation": "Native Astra Ultra Validation coordinator with explicit static/render-only scope."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000002_000.jsonl",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "original_tool_call",
+      "line": 483,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "bc570f97c4dd20c2c706447031cffed250ea7e364a3438096b146f724dca3e44",
+      "navigation_line": 483,
+      "observation": "Native outer Validation assessment review."
+    },
+    {
+      "archive_member": "workspace/conversion/workflow_run_manifest.json",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "retained_author_artifact",
+      "member_sha256": "683f01e085fc56e812d2331cb5da2950f0c948a37b340b48725a2ccc21494a15",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "pass",
+        "workflow": "convert_to_usd"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/articulation/final_summary.json",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "retained_author_artifact",
+      "member_sha256": "266682d4af3efea71fef6f9a18a83d274cb1ce3733d9f9ad550b8cef1c679c32",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.articulation-finalization-result.v5",
+        "status": "awaiting_decision",
+        "success": false
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/articulation_retry/standalone_articulation_terminal_receipt.json",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "retained_author_artifact",
+      "member_sha256": "7d4d154b1ee6c30799105cf68d0499d630d170e70f9bb7519e7a19c5f0633336",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.standalone-articulation-terminal-receipt.v1",
+        "status": "completed"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/physics/workflow_run_manifest.json",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "retained_author_artifact",
+      "member_sha256": "d5d7b1ed8cec40ffea5a9eae36ef8501d81524c13c42bc0dfe5edadc547d45f5",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "pass",
+        "workflow": "physics_authoring"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/validation/validation_terminal_receipt.json",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "retained_author_artifact",
+      "member_sha256": "d007cd5cd7832db3bd0a451150b9a67339a2a880cc8d12ea3094025c7cbcb364",
+      "observed_fields": {
+        "gate_dispositions": {
+          "cross_stage_integrity": "defer",
+          "package_integrity": "pass",
+          "runtime_validation": "not_evaluated",
+          "static_validation": "pass",
+          "visual_quality": "pass"
+        },
+        "receipt_status": "completed",
+        "schema_version": "content-agent-workflows.validation-terminal-receipt.v1"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/submission.json",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "retained_author_artifact",
+      "member_sha256": "3c100307fa60994ed5d3f8bf9847a230611c9c21612e6d7b9ff2814ae6d33f75",
+      "observed_fields": {
+        "claimed_accepted": false
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/repair_chronology.json",
+      "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "kind": "retained_author_artifact",
+      "member_sha256": "2843f0a69b465896ac068d7f20ee977560be292b3bb6e7f404870fbcc4d2fcb3",
+      "observed_fields": {},
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    }
+  ],
+  "completed_utc": "2026-09-23T04:41:18.529178+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "ddaa040569c879c8dd84610ba999e51c24ac4adb536d8a4f2c099b4cf2496c5a",
+    "author_retention": "c4f4ea02073e838e915366331d6206c9fdd51e992432a133d3a90b33bc7cd194",
+    "declaration": "db772414716ce79ad2982fe49c0ed4463f4989945d6d7b246da4ced4742d7c0b",
+    "launch": "5b106df0bda3dbf159d58b9178b5d4543e919e809629ea313400e243f8bcadf6",
+    "reap": "c72a7a60f25557e6f2d615610ece93353e60e489c1a79fca352243bdf7e7d00c",
+    "timing": "452a955d86bbedf680c5cd564570ed092aad51bd490d912adbe07e30242a4494",
+    "ui_association": "1f1181c8b2b794c61c65ecc3e7bb0cb4e1f7b6043bcfe1d9279f5a51bf5362d5",
+    "ui_metadata": "5c38ed7d38c33c446d56fd89b79916666f5fdee16bf92e0a40d8d378c408c36c",
+    "usage": "70b0901bc369d647809db9d65ab8e5d6758006974130abfc36c8bbb4b5a1498c"
+  },
+  "input_sha256": "e2bdee0c7e8131ca7e1bf5f0ab48661d3bd453d4f14ceab4517e4a41c7d94010",
+  "lane_id": "lane3",
+  "limitations": [
+    "Outcome-blinded protocol review only. No independent evaluator request, log, report, verdict or comparison was read; no authored script was executed.",
+    "Observed native receipts and author diagnostic claims do not establish independent task acceptance or numerical correctness.",
+    "This is automated reviewer work, not observed human review effort. Human review minutes remain unmeasured.",
+    "2 admitted request(s) lack terminal numerical billing. No admitted request starts after the trusted deadline and no recorded finish exceeds it; unrecorded finishes and cost upper bounds remain unknown. Frozen within_deadline=false is preserved, not converted to true."
+  ],
+  "mechanical_findings": {
+    "admitted_requests": 309,
+    "all_observed_ui_matches": true,
+    "allocation_released": true,
+    "billing_complete": false,
+    "budget_s": 2400,
+    "cgroup_empty": true,
+    "cpu_quota_millicores": 4000,
+    "exact_identity_prompt_and_lease_verified": true,
+    "fresh_context_verified": true,
+    "frozen_usage_within_deadline": false,
+    "late_admitted_requests": 0,
+    "memory_bytes": 34359738368,
+    "namespace_reaped": true,
+    "pids_max": 1024,
+    "recorded_late_finishes": 0,
+    "source_unchanged": true,
+    "swap_bytes": 0,
+    "terminal_billing_records": 307,
+    "ui_association_complete": true
+  },
+  "native_terminal_reference_integrity": {
+    "all_match": true,
+    "reference_count": 21,
+    "sha256": "05408344dab51fa75c5ab2f77db59b7a4fc635bcb622e4e35a64a19e2527eca2"
+  },
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "c20b8c5b66185cbd9eaa1d79381ac1327008ca56a838e45eb4e3010273e692ab",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "Observed native conversion and source-bound preparation, native Articulation typed application/outer review/finalization, native Physics direct executor and native Validation coordinator/outer assessment/review. Grouping/collider/mass preparation is retained, and the one-seed low-level force diagnostic is explicitly supplemental rather than a native acceptance receipt. The final declaration is false and preserves task-evidence limitations. All frozen mechanical gates hold; two missing terminal billing records are separate accounting gaps.",
+  "review_coverage": {
+    "all_original_archive_bytes_rehashed": true,
+    "all_original_capture_and_navigation_hashes_verified": true,
+    "capture_count": 6,
+    "copied_ancestor_context_not_counted_as_new_invocation": true,
+    "navigation_not_used_as_verdict": true,
+    "review_navigation_sha256": "7fe078bba4d302dfd7b419ec4a89dafb480859f4213e549ba8aac8d84c26b656",
+    "script_inventory_count": 15,
+    "script_inventory_sha256": "3881ea03cb9cde58b7094e8f47975f366b44936562fef0bcd7341f0556a95f83",
+    "unique_navigation_tool_calls": 276
+  },
+  "run_id": "v2_08_excavator_content_agents",
+  "schema_version": "outcome-blinded-protocol-adjudication.agent06.v1",
+  "script_review_inventory": [
+    {
+      "archive_member": "workspace/analyze_stl_holes.py",
+      "line_count": 46,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "162690f12d3cbe3c95fc447ebc5ce92e318a04989542e5f1b517bdeca82c36e8"
+    },
+    {
+      "archive_member": "workspace/analyze_usd_actuator_holes.py",
+      "line_count": 51,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6d710ebb44c973404ded64b0a164cd78f37dc490bc7959f80459501de31e5caa"
+    },
+    {
+      "archive_member": "workspace/analyze_usd_holes.py",
+      "line_count": 50,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "50dca614507259d062ed8e887192a43d17f193571074d30341c3128421f075b2"
+    },
+    {
+      "archive_member": "workspace/audit_geometry.py",
+      "line_count": 22,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "2fda568bdc41fb854616a2e479f0667ce92d1095774a02daaf746cd0537ecd74"
+    },
+    {
+      "archive_member": "workspace/diagnostic_force_pd.failed_cuda13.py",
+      "line_count": 200,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "dde334012b4f07878e985abf1b7fa304d9cbc34457e05efe9a5b50cb1b1d033c"
+    },
+    {
+      "archive_member": "workspace/diagnostic_force_pd.failed_two_stages.py",
+      "line_count": 197,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "95fd5a38be2f3ac0186b720262d4ae8d09cb6cc5dc85c49e088326ca733089f9"
+    },
+    {
+      "archive_member": "workspace/diagnostic_force_pd.py",
+      "line_count": 200,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "c688301eb23594dd0d8e3d9292487da2d14f5f281891e2802290c906f21732f9"
+    },
+    {
+      "archive_member": "workspace/generate_preparation.py",
+      "line_count": 192,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "9ea7bf9c46263f3581144b94e006567314a6c1785944fed4b765c4d93076a938"
+    },
+    {
+      "archive_member": "workspace/generate_preparation_v2.py",
+      "line_count": 192,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "d15418ffaae8cf52c4629a7c44d98e7b85f3d52ad0535b9bf53625b537011ab8"
+    },
+    {
+      "archive_member": "workspace/native_deinstance.py",
+      "line_count": 17,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "1814419aa2a6cd5a7a837cb71ba276ac37506077fa707106f8ad325d5e056652"
+    },
+    {
+      "archive_member": "workspace/native_group.py",
+      "line_count": 65,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "2201be4387da3233cf990a7c05b57946b2d04c67d46d560e6a94568ddfe9a9a8"
+    },
+    {
+      "archive_member": "workspace/prepare_physics.py",
+      "line_count": 30,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "49b9356b93727b99180d27adffd6a2ea058b98a25fbacb705608e15e378ba8ff"
+    },
+    {
+      "archive_member": "workspace/retained/preparation_inspector.py",
+      "line_count": 192,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "d15418ffaae8cf52c4629a7c44d98e7b85f3d52ad0535b9bf53625b537011ab8"
+    },
+    {
+      "archive_member": "workspace/retry_articulation.py",
+      "line_count": 7,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "873a964c70f34d59cf898b0a152f293cc2f859e3f1b75ae7956c79b14c2e5ed9"
+    },
+    {
+      "archive_member": "workspace/write_articulation_postreview.py",
+      "line_count": 6,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "c72720db0918f65a412bf634db80c609e4aabb71877675c1ad7582eff85a2df1"
+    }
+  ],
+  "source_sha256": "3be46f6303915f2681e71aeb12c9f67d6ba106a2d7d7b34b5c69af5c6e8e05f7",
+  "started_utc": "2026-09-23T04:27:46.647162+00:00",
+  "task_sha256": "5b370f08436e80e7d1983675e864a0087f66bfea63cb1c73db5f44ef830167cc",
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": {
+    "author_claimed_accepted": false,
+    "independent_physical_acceptance": "not_accessed",
+    "scope": "Reviewed execution operations, static script imports/calls and native contracts for phases reached. Failure/conditional receipts and missing later task success are not treatment violations.",
+    "status": "observed_compliance"
+  }
+}

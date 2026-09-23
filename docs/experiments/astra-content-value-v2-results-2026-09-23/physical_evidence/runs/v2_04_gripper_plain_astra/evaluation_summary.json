@@ -1,0 +1,11 @@
+{
+  "case_id": "04_gripper",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 65.65570121444762,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "cfd600ee2f56f5bc515d4ffe1d01d85cffef40064d6de23cee0a2815fccb8d05",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_04_gripper_plain_astra",
+  "status": "PASS",
+  "timed_out": false
+}

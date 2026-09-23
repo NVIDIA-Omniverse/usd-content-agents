@@ -1,0 +1,3875 @@
+{
+  "accepted": true,
+  "status": "accepted",
+  "inconclusive_checks": [],
+  "concrete_failures": [],
+  "checks": [
+    {
+      "name": "frozen_evaluator:bindings.schema.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:common.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:contract.json",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:evaluate.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:fixtures.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:geometry.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:solver.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:structural.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:structural_fixtures.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:v2_control.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:v2_geometry.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:v2_inputs.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:v2_policy.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:v2_process.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_evaluator:v2_verdict.py",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_source_inventory",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "case_identity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "original_initial_world_frame",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "usd_stage_load",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "meters_and_z_up",
+      "passed": true,
+      "evidence": {
+        "meters_per_unit": 1.0,
+        "up_axis": "Z"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "no_prescribed_time_sampled_motion_or_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "frozen_source_coverage_complete",
+      "passed": true,
+      "evidence": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor individual components in step format/base_and_support v3.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor individual components in step format/box v2.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor individual components in step format/pick v2.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor individual components in step format/rail v2.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/box.ipt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/conveyor_model.iam",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/part.ipt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/rail.ipt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1/support.ipt",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1.f3d",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_bytes:source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unique_body_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "required_body_roles_unique",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "required_body_roles",
+      "passed": true,
+      "evidence": {
+        "required": [
+          "base",
+          "rail",
+          "carrier",
+          "payload"
+        ],
+        "given": {
+          "rail": "/conveyor_model_v1/Mechanism/rail",
+          "carrier": "/conveyor_model_v1/Mechanism/carrier",
+          "base": "/conveyor_model_v1/Mechanism/base",
+          "payload": "/conveyor_model_v1/Mechanism/payload"
+        }
+      },
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/conveyor_model_v1/Mechanism/rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/conveyor_model_v1/Mechanism/rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/conveyor_model_v1/Mechanism/rail",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/conveyor_model_v1/Mechanism/rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/conveyor_model_v1/Mechanism/rail",
+      "passed": true,
+      "evidence": [
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_0",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_1",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_2",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_3",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_4",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_5",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_6",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_7",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_8",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_9",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_10",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_11",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_12",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_13",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_14",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_15",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_16",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_17",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_18",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_19",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_20",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_21",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_22",
+        "/conveyor_model_v1/Mechanism/rail/Collision/Tile_23"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/conveyor_model_v1/Mechanism/rail",
+      "passed": true,
+      "evidence": [
+        0.20000000298023224,
+        0.0005699999746866524,
+        0.0005699999746866524,
+        0.001129999989643693
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/conveyor_model_v1/Mechanism/rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/conveyor_model_v1/Mechanism/carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/conveyor_model_v1/Mechanism/carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/conveyor_model_v1/Mechanism/carrier",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/conveyor_model_v1/Mechanism/carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/conveyor_model_v1/Mechanism/carrier",
+      "passed": true,
+      "evidence": [
+        "/conveyor_model_v1/Mechanism/carrier/Collision/Floor",
+        "/conveyor_model_v1/Mechanism/carrier/Collision/WallX0",
+        "/conveyor_model_v1/Mechanism/carrier/Collision/WallX1",
+        "/conveyor_model_v1/Mechanism/carrier/Collision/WallY0",
+        "/conveyor_model_v1/Mechanism/carrier/Collision/WallY1"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/conveyor_model_v1/Mechanism/carrier",
+      "passed": true,
+      "evidence": [
+        0.029999999329447746,
+        1.6899999764063978e-06,
+        1.160000010713702e-06,
+        2.3499999315390596e-06
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/conveyor_model_v1/Mechanism/carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/conveyor_model_v1/Mechanism/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/conveyor_model_v1/Mechanism/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/conveyor_model_v1/Mechanism/base",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/conveyor_model_v1/Mechanism/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/conveyor_model_v1/Mechanism/base",
+      "passed": true,
+      "evidence": [
+        "/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "body_exists:/conveyor_model_v1/Mechanism/payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rigid_body_binding:/conveyor_model_v1/Mechanism/payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "unobserved_dynamic_body:/conveyor_model_v1/Mechanism/payload",
+      "passed": true,
+      "evidence": "A body declared nonmoving must be static or explicitly kinematic; otherwise its native state would escape observation.",
+      "failure_class": null
+    },
+    {
+      "name": "finite_rigid_transform:/conveyor_model_v1/Mechanism/payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "body_collider:/conveyor_model_v1/Mechanism/payload",
+      "passed": true,
+      "evidence": [
+        "/conveyor_model_v1/Mechanism/payload/Collision/MainEnvelope"
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "positive_finite_mass_inertia:/conveyor_model_v1/Mechanism/payload",
+      "passed": true,
+      "evidence": [
+        0.009999999776482582,
+        1.1299999869152089e-06,
+        9.400000067216752e-07,
+        5.499999815583578e-07
+      ],
+      "failure_class": null
+    },
+    {
+      "name": "inertia_triangle_inequality:/conveyor_model_v1/Mechanism/payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "all_rigid_bodies_observed",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "unique_joint_bindings",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_observer_supported:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68",
+      "passed": true,
+      "evidence": "revolute",
+      "failure_class": null
+    },
+    {
+      "name": "joint_enabled:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68:0",
+      "passed": true,
+      "evidence": "/conveyor_model_v1/Mechanism/base",
+      "failure_class": null
+    },
+    {
+      "name": "joint_body_known:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68:1",
+      "passed": true,
+      "evidence": "/conveyor_model_v1/Mechanism/rail",
+      "failure_class": null
+    },
+    {
+      "name": "all_joints_declared",
+      "passed": true,
+      "evidence": {
+        "undeclared": [],
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "required_joint_roles",
+      "passed": true,
+      "evidence": {
+        "rail_rotation": "/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68"
+      },
+      "failure_class": null
+    },
+    {
+      "name": "joint_kind:rail_rotation",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_parts_mapped_once",
+      "passed": true,
+      "evidence": {
+        "required": 4,
+        "mapped": 4,
+        "missing": []
+      },
+      "failure_class": null
+    },
+    {
+      "name": "assembly_alignment_is_rigid",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "passed": true,
+      "evidence": {
+        "measurement_version": 2,
+        "area_ratio": 0.9997075041511772,
+        "bounds_error_m": 1.2413589583495921e-05,
+        "tolerance_m": 0.00024615516170434877,
+        "source_vertices": 24852,
+        "final_vertices": 10976,
+        "source_triangles": 24912,
+        "final_triangles": 11128,
+        "source_loose_point_count": 0,
+        "final_loose_point_count": 0,
+        "source_to_final_max_sample_distance_m": 0.0002458172943573569,
+        "final_to_source_max_sample_distance_m": 0.0002459371136170101,
+        "method": "all_vertices_and_seed101_area_samples_symmetric_nearest_triangles_recentered_mm",
+        "distance_semantics": "conservative candidate-triangle upper bounds; otherwise minimum over every triangle whose AABB can meet the threshold",
+        "source_query_statistics": {
+          "query_points": 36852,
+          "candidate_triangle_certificates": 35606,
+          "exact_fallback_points": 1246
+        },
+        "final_query_statistics": {
+          "query_points": 22104,
+          "candidate_triangle_certificates": 21452,
+          "exact_fallback_points": 652
+        },
+        "sample_count_per_direction": [
+          36852,
+          22104
+        ],
+        "elapsed_s": 0.8894939981400967
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "passed": true,
+      "evidence": {
+        "measurement_version": 2,
+        "area_ratio": 1.0000001259786542,
+        "bounds_error_m": 1.5263153137212715e-09,
+        "tolerance_m": 5e-05,
+        "source_vertices": 48,
+        "final_vertices": 48,
+        "source_triangles": 28,
+        "final_triangles": 28,
+        "source_loose_point_count": 0,
+        "final_loose_point_count": 0,
+        "source_to_final_max_sample_distance_m": 4.932071392743965e-05,
+        "final_to_source_max_sample_distance_m": 3.504822933411445e-05,
+        "method": "all_vertices_and_seed101_area_samples_symmetric_nearest_triangles_recentered_mm",
+        "distance_semantics": "conservative candidate-triangle upper bounds; otherwise minimum over every triangle whose AABB can meet the threshold",
+        "source_query_statistics": {
+          "query_points": 2048,
+          "candidate_triangle_certificates": 1631,
+          "exact_fallback_points": 417
+        },
+        "final_query_statistics": {
+          "query_points": 2048,
+          "candidate_triangle_certificates": 1655,
+          "exact_fallback_points": 393
+        },
+        "sample_count_per_direction": [
+          2048,
+          2048
+        ],
+        "elapsed_s": 0.18464573472738266
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "passed": true,
+      "evidence": {
+        "measurement_version": 2,
+        "area_ratio": 0.9990442281320203,
+        "bounds_error_m": 5.319714543872145e-09,
+        "tolerance_m": 0.0002757403122656282,
+        "source_vertices": 3746,
+        "final_vertices": 1592,
+        "source_triangles": 3652,
+        "final_triangles": 1516,
+        "source_loose_point_count": 0,
+        "final_loose_point_count": 0,
+        "source_to_final_max_sample_distance_m": 0.00026863916489927434,
+        "final_to_source_max_sample_distance_m": 0.00027332082516894865,
+        "method": "all_vertices_and_seed101_area_samples_symmetric_nearest_triangles_recentered_mm",
+        "distance_semantics": "conservative candidate-triangle upper bounds; otherwise minimum over every triangle whose AABB can meet the threshold",
+        "source_query_statistics": {
+          "query_points": 7398,
+          "candidate_triangle_certificates": 6618,
+          "exact_fallback_points": 780
+        },
+        "final_query_statistics": {
+          "query_points": 3592,
+          "candidate_triangle_certificates": 3127,
+          "exact_fallback_points": 465
+        },
+        "sample_count_per_direction": [
+          7398,
+          3592
+        ],
+        "elapsed_s": 0.3572016004472971
+      },
+      "failure_class": null
+    },
+    {
+      "name": "frozen_geometry_hash:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_mesh_body_binding:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_visuals_visible:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_surface_retained:source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "passed": true,
+      "evidence": {
+        "measurement_version": 2,
+        "area_ratio": 0.9998140785051015,
+        "bounds_error_m": 1.2251548629771403e-09,
+        "tolerance_m": 5e-05,
+        "source_vertices": 668,
+        "final_vertices": 688,
+        "source_triangles": 620,
+        "final_triangles": 976,
+        "source_loose_point_count": 0,
+        "final_loose_point_count": 0,
+        "source_to_final_max_sample_distance_m": 4.8387862170616546e-05,
+        "final_to_source_max_sample_distance_m": 4.726000132364838e-05,
+        "method": "all_vertices_and_seed101_area_samples_symmetric_nearest_triangles_recentered_mm",
+        "distance_semantics": "conservative candidate-triangle upper bounds; otherwise minimum over every triangle whose AABB can meet the threshold",
+        "source_query_statistics": {
+          "query_points": 2668,
+          "candidate_triangle_certificates": 2113,
+          "exact_fallback_points": 555
+        },
+        "final_query_statistics": {
+          "query_points": 2688,
+          "candidate_triangle_certificates": 1971,
+          "exact_fallback_points": 717
+        },
+        "sample_count_per_direction": [
+          2668,
+          2688
+        ],
+        "elapsed_s": 0.3096484746783972
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_visual_meshes_unique",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_unmapped_visible_geometry",
+      "passed": true,
+      "evidence": [],
+      "failure_class": null
+    },
+    {
+      "name": "exactly_one_physics_scene",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "earth_gravity_authored",
+      "passed": true,
+      "evidence": {
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "magnitude": 9.8100004196167
+      },
+      "failure_class": null
+    },
+    {
+      "name": "source_role:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_inherits_correct_body:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_role:carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_inherits_correct_body:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_role:base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_inherits_correct_body:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_role:payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "source_inherits_correct_body:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "exact_mechanism_bodies",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "free_carrier_and_payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rail_joint_endpoints",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "rail_axis_and_center",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "dynamic_role:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "declared_mass_range:rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "dynamic_role:carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "declared_mass_range:carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "dynamic_role:payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "declared_mass_range:payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Looks/Physics_component_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Looks/Physics_component_001",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_001.physics:density",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_001.physics:dynamicFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_001.physics:restitution",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_001.physics:staticFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Looks/Physics_component_002",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Looks/Physics_component_002",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_002.physics:density",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_002.physics:dynamicFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_002.physics:restitution",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_002.physics:staticFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Looks/Physics_component_003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Looks/Physics_component_003",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_003.physics:density",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_003.physics:dynamicFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_003.physics:restitution",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_003.physics:staticFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Looks/Physics_component_004",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Looks/Physics_component_004",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_004.physics:density",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_004.physics:dynamicFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_004.physics:restitution",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Looks/Physics_component_004.physics:staticFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/conveyor_model",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/conveyor_model",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/conveyor_model.xformOp:transform",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:angularVelocity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:centerOfMass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:density",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:diagonalInertia",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:kinematicEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:principalAxes",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:rigidBodyEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:startsAsleep",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physics:velocity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physxContactReport:threshold",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physxRigidBody:disableGravity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physxRigidBody:solverPositionIterationCount",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.physxRigidBody:solverVelocityIterationCount",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA.xformOp:transform",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1.xformOp:transform",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1/Mesh.faceVertexCounts",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1/Mesh.faceVertexIndices",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1/Mesh.points",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Body1/Mesh.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/tn__rail1_gA/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_0",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_0",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_0.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_0.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_0.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_0.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_1.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_1.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_1.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_1.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_2",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_2.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_2.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_2.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_2.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_3",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_3",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_3.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_3.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_3.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_3.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_4",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_4",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_4.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_4.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_4.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_4.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_5",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_5",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_5.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_5.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_5.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_5.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_6",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_6",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_6.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_6.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_6.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_6.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_7",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_7",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_7.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_7.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_7.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_7.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_8.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_8.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_8.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_8.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_9",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_9",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_9.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_9.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_9.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_9.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_10",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_10",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_10.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_10.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_10.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_10.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_11",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_11",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_11.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_11.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_11.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_11.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_12",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_12",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_12.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_12.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_12.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_12.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_13",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_13",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_13.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_13.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_13.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_13.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_14",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_14",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_14.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_14.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_14.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_14.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_15",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_15",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_15.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_15.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_15.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_15.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_16",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_16",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_16.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_16.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_16.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_16.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_17",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_17",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_17.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_17.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_17.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_17.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_18",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_18",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_18.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_18.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_18.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_18.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_19",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_19",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_19.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_19.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_19.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_19.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_20",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_20",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_20.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_20.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_20.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_20.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_21",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_21",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_21.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_21.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_21.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_21.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_22",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_22",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_22.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_22.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_22.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_22.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/rail/Collision/Tile_23",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/rail/Collision/Tile_23",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_23.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_23.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_23.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/rail/Collision/Tile_23.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:angularVelocity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:centerOfMass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:density",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:diagonalInertia",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:kinematicEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:principalAxes",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:rigidBodyEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:startsAsleep",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physics:velocity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physxContactReport:threshold",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physxRigidBody:disableGravity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physxRigidBody:solverPositionIterationCount",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.physxRigidBody:solverVelocityIterationCount",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8.xformOp:transform",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1.xformOp:transform",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1/Mesh.faceVertexCounts",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1/Mesh.faceVertexIndices",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1/Mesh.points",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Body1/Mesh.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/tn__box1_j8/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/Collision",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/Collision",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/Collision/Floor",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/Collision/Floor",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/Floor.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/Floor.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/Floor.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/Floor.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/Collision/WallX0",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/Collision/WallX0",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallX0.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallX0.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallX0.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallX0.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/Collision/WallX1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/Collision/WallX1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallX1.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallX1.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallX1.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallX1.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/Collision/WallY0",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/Collision/WallY0",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallY0.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallY0.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallY0.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallY0.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/carrier/Collision/WallY1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/carrier/Collision/WallY1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallY1.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallY1.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallY1.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/carrier/Collision/WallY1.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/payload",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:angularVelocity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:centerOfMass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:density",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:diagonalInertia",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:kinematicEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:principalAxes",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:rigidBodyEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:startsAsleep",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physics:velocity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physxContactReport:threshold",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physxRigidBody:disableGravity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physxRigidBody:solverPositionIterationCount",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.physxRigidBody:solverVelocityIterationCount",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/payload/tn__part1_gA",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/payload/tn__part1_gA",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/tn__part1_gA.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/tn__part1_gA.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/tn__part1_gA.xformOp:transform",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/tn__part1_gA.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1.xformOp:transform",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1/Mesh.faceVertexCounts",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1/Mesh.faceVertexIndices",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1/Mesh.points",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Body1/Mesh.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/payload/tn__part1_gA/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/payload/Collision",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/payload/Collision",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/payload/Collision/MainEnvelope",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/payload/Collision/MainEnvelope",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/Collision/MainEnvelope.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/Collision/MainEnvelope.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/Collision/MainEnvelope.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/payload/Collision/MainEnvelope.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/base",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base.physxContactReport:threshold",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/base/tn__support1_XG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/base/tn__support1_XG",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG.xformOp:rotateXYZ",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG.xformOp:scale",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG.xformOp:transform",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1.xformOp:transform",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh.faceVertexCounts",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh.faceVertexIndices",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh.physics:approximation",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh.points",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Body1/Mesh.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Looks",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Looks/Diffuse",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Mechanism/base/tn__support1_XG/Looks/Diffuse/PreviewSurface",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/PhysicsScene",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/PhysicsScene",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/PhysicsScene.physics:gravityDirection",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/PhysicsScene.physics:gravityMagnitude",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/ContactMaterial",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/ContactMaterial",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/ContactMaterial.physics:density",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/ContactMaterial.physics:dynamicFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/ContactMaterial.physics:restitution",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/ContactMaterial.physics:staticFriction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Joints",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Joints",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:axis",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:breakForce",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:breakTorque",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:collisionEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:excludeFromArticulation",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:jointEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:localPos0",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:localPos1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:localRot0",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:localRot1",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:lowerLimit",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/conveyor_model_v1/Joints/rail_rotation_0bc294ae1d68.physics:upperLimit",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_articulation:/__EvaluatorGravityWitness",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_authored_force:/__EvaluatorGravityWitness",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:angularVelocity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:centerOfMass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:density",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:diagonalInertia",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:kinematicEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:principalAxes",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:rigidBodyEnabled",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:startsAsleep",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.physics:velocity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "no_time_samples:/__EvaluatorGravityWitness.xformOp:translate",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:finite",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:rail_rotated",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:carrier_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:payload_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:penetration",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_closed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:joint_axis",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:linear_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:angular_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:carrier_stayed_on_track",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:payload_retained",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:force_limited",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:carrier_rail_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:payload_carrier_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:independent_gravity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:rail_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:carrier_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed11:payload_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:finite",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:rail_rotated",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:carrier_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:payload_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:penetration",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:joint_closed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:joint_axis",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:linear_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:angular_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:carrier_stayed_on_track",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:payload_retained",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:force_limited",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:carrier_rail_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:payload_carrier_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:independent_gravity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:rail_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:carrier_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed23:payload_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:finite",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:rail_rotated",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:carrier_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:payload_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:penetration",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:joint_closed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:joint_axis",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:linear_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:angular_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:carrier_stayed_on_track",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:payload_retained",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:force_limited",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:carrier_rail_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:payload_carrier_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:independent_gravity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:rail_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:carrier_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed47:payload_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:finite",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:rail_rotated",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:carrier_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:payload_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:penetration",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:joint_closed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:joint_axis",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:linear_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:angular_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:carrier_stayed_on_track",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:payload_retained",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:force_limited",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:carrier_rail_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:payload_carrier_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:independent_gravity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:rail_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:carrier_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed83:payload_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:completed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:finite",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:rail_rotated",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:carrier_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:payload_transferred",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:penetration",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:joint_closed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:joint_axis",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:linear_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:angular_speed",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:carrier_stayed_on_track",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:payload_retained",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:force_limited",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:carrier_rail_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:payload_carrier_contact_fraction",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:independent_gravity",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:rail_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:carrier_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    },
+    {
+      "name": "seed131:payload_native_mass",
+      "passed": true,
+      "evidence": null,
+      "failure_class": null
+    }
+  ],
+  "case_id": "02_conveyor",
+  "source_inventory_sha256": "86c694f6d012bf8e787cc640af12742b385e15f3264b1f0d650de36f1f4f1ff1",
+  "scene_sha256": "f91e9e2d1f511c075b1987a8d7b66f9aa2aa06063f531322ade51bd072e7953b",
+  "bindings_sha256": "aed5e388ae24fb0ed207d4087ed0407761f03dbff22ab5c23d56db2f1e3d6a3e",
+  "scope": "A rotary-annulus abstraction of the original circular conveyor: bounded torque turns the original fused rail/roller assembly; its free carrier and original target move through contacts. This tests contact transfer, not individual powered rollers, belt deformation, or a real conveyor installation."
+}

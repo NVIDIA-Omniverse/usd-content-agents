@@ -1,0 +1,227 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "plain_astra",
+  "author_budget_observation": {
+    "cgroup_populated": 0,
+    "elapsed_seconds": 1922.56717598252,
+    "namespace_init_exited": true,
+    "timed_out": false
+  },
+  "author_claim_only": {
+    "claimed_accepted": true,
+    "declared_repairs_used": 6,
+    "physical_acceptance": "NOT_ASSESSED",
+    "task_outcome": "submitted"
+  },
+  "case_id": "10_complex",
+  "citations": {
+    "author_archive": {
+      "bytes": 249130615,
+      "sha256": "eadffd3e298e4d02697bfb2bd0996f75de626848e6bed94a92c3a81732bc7f8b"
+    },
+    "mechanical_review": {
+      "sha256": "5732ff8ae6cf4e82d064857652a387f76a129458a7795d19dfe0a780e1938232"
+    },
+    "native_or_author_record_members": [
+      {
+        "archive_member": "workspace/submission.json",
+        "kind": "retained_native_or_author_record",
+        "scope": "Native/author evidence only; no independent physical verdict.",
+        "sha256": "0b776674f0b9278a7edc2d1fe9385d40daec0f27ce876d53a09c96000dd7bcb8"
+      }
+    ],
+    "original_capture_calls": [
+      {
+        "call_input_sha256": "e669b7bb1d365de64990e4a1a14c609cbb57c2a0564cfae84fab1e6f944ed41c",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 189,
+        "capture_sha256": "303dd53ccce73e2f59b09fecae3b115a0483e3c646852995adf15f3be34fb1d5",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 23
+      },
+      {
+        "call_input_sha256": "d7720b791a55533d0e03663b1edabf2816125849a02d5a9bc352d6cc5c365370",
+        "capture_archive_member": "private/session_captures/capture_000000_000.jsonl",
+        "capture_line": 248,
+        "capture_sha256": "303dd53ccce73e2f59b09fecae3b115a0483e3c646852995adf15f3be34fb1d5",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 31
+      },
+      {
+        "call_input_sha256": "b383fcb92fb8c7c7aaa7cbfbc0ee4ff07489a6cbebd00e718fc26ba702dc7255",
+        "capture_archive_member": "private/session_captures/capture_000002_000.jsonl",
+        "capture_line": 427,
+        "capture_sha256": "d009663089d5255b5cd8324e93827efcc719707c359dd6edfb8e94e585aa03e8",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 183
+      },
+      {
+        "call_input_sha256": "7c1d150c3b8fb1b1df6979942cb686d92e4c9f077977bd2a42edc79fe63a1f01",
+        "capture_archive_member": "private/session_captures/capture_000002_000.jsonl",
+        "capture_line": 454,
+        "capture_sha256": "d009663089d5255b5cd8324e93827efcc719707c359dd6edfb8e94e585aa03e8",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 187
+      },
+      {
+        "call_input_sha256": "612e6d5ffbf33510f00bd3dce2931691ea4edabd33a31dd80f3f22da25e11152",
+        "capture_archive_member": "private/session_captures/capture_000002_000.jsonl",
+        "capture_line": 520,
+        "capture_sha256": "d009663089d5255b5cd8324e93827efcc719707c359dd6edfb8e94e585aa03e8",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 197
+      },
+      {
+        "call_input_sha256": "017a257057b070170cde2e121576c295ffe96a47624117143052016883a893ca",
+        "capture_archive_member": "private/session_captures/capture_000002_000.jsonl",
+        "capture_line": 535,
+        "capture_sha256": "d009663089d5255b5cd8324e93827efcc719707c359dd6edfb8e94e585aa03e8",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 199
+      },
+      {
+        "call_input_sha256": "f689a080db4433b21ce8f12dcd2c7dc0959b58bc8916263a300d155a4d302d80",
+        "capture_archive_member": "private/session_captures/capture_000002_000.jsonl",
+        "capture_line": 567,
+        "capture_sha256": "d009663089d5255b5cd8324e93827efcc719707c359dd6edfb8e94e585aa03e8",
+        "kind": "retained_tool_call",
+        "navigation_ordinal": 203
+      }
+    ],
+    "retained_script_members": [
+      {
+        "archive_member": "workspace/author_hand.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          115
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "9962c577e331ae59b7c86567e8a334a8f2e9a910b6876c0e6b9f79e403e4f9d8"
+      },
+      {
+        "archive_member": "workspace/runtime/force_trial.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          139
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "e72938afea09f84f2c8e34f82b89c37e43018d32facb65acba0ff5c0a47d1d39"
+      },
+      {
+        "archive_member": "workspace/runtime/read_stage.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          26
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "85e1a7459363f0d0cf514eba960aa2711dcb04e360a0d61a51b1211b235d6788"
+      },
+      {
+        "archive_member": "workspace/runtime/optimize_seed_alignment.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          23
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "abaec30ea6940625439c7a90fdd20d7645fbf1f934e4bddb0161df54a208f9ae"
+      },
+      {
+        "archive_member": "workspace/runtime/optimize_alignment.py",
+        "kind": "retained_script",
+        "reviewed_lines": [
+          1,
+          47
+        ],
+        "scope": "Static executable route/import and relevant helper review; not author-code execution or physical validation.",
+        "sha256": "35d82ae45efa038fa530d56759829b2922e7d2db285d2e9e92e9ec978243abd8"
+      }
+    ],
+    "review_package": {
+      "sha256": "15da107fa7a326b7cd4f906609a2e7c0b835bbaae2f620792f7e1a01323914a1"
+    },
+    "static_route_review": {
+      "sha256": "7ecde46bc7f95ccad879a016b26188339c5ed0e76a73386a8673f162e51c65e3"
+    }
+  },
+  "completed_utc": "2026-09-23T04:43:25.766219+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "f1063cb0ddb3f461ed04e20eafec74f04a98da6392d255a58c0ce8d31daaff45",
+    "author_retention": "f72b905c7ec48e005fdf2f40d32fa2c30ae0cf4ecdb23e7276bad54f610c3206",
+    "declaration": "f04b337e896395a0bc1a59ae7577ff109b76ced0a63d490804c4693ad05bf9ec",
+    "launch": "1241eb5b4c3b65bac9c4d70ba82591f11ba33136661903dfa28d709a0b984ef5",
+    "reap": "92f5448b355ba664e0775cf0f59136046c5f03bd94f18e016a6d69d478b2366c",
+    "timing": "1edddc4f0b535648496daad302cf089f73d09089356137713334d92cde6f5e61",
+    "ui_association": "1adfcbbbc665499dfdd650edab5508436a0a67da69a115737502d8d81aabf544",
+    "ui_metadata": "9190c442e502d41c514bf7408dd87db0a1b9a0e7ec88bd335548c986f708017d",
+    "usage": "b6fb09d9c94f5c1450be60678d1834fbdfcf3db37ac2e2649f01dbe3e86ba374"
+  },
+  "explicit_unresolved_eligibility_questions": [],
+  "frozen_files_modified": false,
+  "independent_physical_evaluation": "UNOPENED",
+  "input_sha256": "75adfd61b7025c6867b4897fd17add806ae1002df8474d140430929fbb05532b",
+  "lane_id": "lane1",
+  "limitations": [
+    "This is an outcome-blinded protocol/treatment adjudication, not source-surface fidelity, physical task acceptance, hardware realism or universal simulation readiness.",
+    "The complete archive was verified by the trusted retention proof. This review rechecks referenced metadata/capture/script bytes; it does not rerun authors or independently execute every retained script.",
+    "Repair chronology is supported only by cited actual calls and retained artifacts. No repair count cap is introduced; reconstructed historical helpers and author-declared counts are not independent contemporaneous observations.",
+    "Native/author acceptance statements are kept separate from the unopened independent physical evaluations.",
+    "Automated review time is not measured human review effort. Raw captures, session identifiers and process-list outputs remain private."
+  ],
+  "mechanical_checks": {
+    "all9_reference_bytes": true,
+    "association_reproduced": true,
+    "captured_bytes": true,
+    "drained_usage": true,
+    "fresh_model": true,
+    "job_identity": true,
+    "limits": true,
+    "metadata_reproduced": true,
+    "prompt_exact": true,
+    "protocol_exact": true,
+    "reaped": true,
+    "retained": true,
+    "snapshot_complete": true,
+    "source_inventory_binding": true,
+    "source_unchanged": true,
+    "task_exact": true,
+    "time": true,
+    "ui_complete": true
+  },
+  "model_request_count": 324,
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "0d6fbde8d6804fa83034a5039c367fc8c969548323fbf0a9b89d11d82d82a49a",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "All frozen mechanical/model/source gates pass. Direct cached-source/OCP extraction, own OpenUSD hand authoring and low-level OvPhysX wrench trials are observed. Runtime subprocesses call the own read_stage/force_trial helpers, and dynamic exec reads the own mathematical alignment script. Optimization uses the public seeds and own author measurements; no hidden evaluator access or workflow invocation is observed.",
+  "run_id": "v2_10_complex_plain_astra",
+  "schema_version": "outcome-blinded-protocol-adjudication.v1",
+  "scored_result_data_modified": false,
+  "source_sha256": "fc80e688adc2f445eadb652a4c1799ebce0d50e279aae6bb8ef184855871381d",
+  "task_sha256": "c8a93332e7f10e2930e1b733008fd9221ef267310a7c829a6a9ecbb21fa27eb7",
+  "terminal_billing_complete": true,
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": [
+    "Direct cached-source/OCP extraction, own OpenUSD hand authoring and low-level OvPhysX wrench trials are observed. Runtime subprocesses call the own read_stage/force_trial helpers, and dynamic exec reads the own mathematical alignment script. Optimization uses the public seeds and own author measurements; no hidden evaluator access or workflow invocation is observed."
+  ],
+  "ui_association_complete": true
+}

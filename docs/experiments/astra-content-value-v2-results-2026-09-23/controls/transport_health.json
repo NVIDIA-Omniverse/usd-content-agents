@@ -1,0 +1,49 @@
+{
+  "final_gateway_drain_sha256": "399541366fd05042b7f33484079014c4c5acfad36f9d15a5993879c1f4d2204c",
+  "limitations": [
+    "One failed health cycle recovered on the next recorded cycle; the interval is not an author-traffic outage measurement.",
+    "Twenty failed health records per node occurred after intentional gateway shutdown and are separate from the monitored author window.",
+    "Unknown terminal usage remains unknown. This projection does not resolve missing usage or the printer plain UI gap."
+  ],
+  "monitor_interventions_during_author_runs": 0,
+  "nodes": {
+    "node0": {
+      "failed_health_records_during_window": 1,
+      "final_transport_exit_code": 0,
+      "health_records_during_window": 881,
+      "new_transport_attempts_during_window": 0,
+      "owned_transport_process_absent": true,
+      "post_shutdown_failed_health_records": 20,
+      "supervisor_stopped_utc": "2026-09-23T04:26:44.524389+00:00",
+      "transport_disconnects_during_window": 0
+    },
+    "node1": {
+      "failed_health_records_during_window": 0,
+      "final_transport_exit_code": 0,
+      "health_records_during_window": 885,
+      "new_transport_attempts_during_window": 0,
+      "owned_transport_process_absent": true,
+      "post_shutdown_failed_health_records": 20,
+      "supervisor_stopped_utc": "2026-09-23T04:26:44.554174+00:00",
+      "transport_disconnects_during_window": 0
+    }
+  },
+  "original_bytes_provided": false,
+  "original_receipt_sha256": "06470ba83fbeac5a51750b0cb6022bfa5b2b3779d0068a530c6cbf49b7db9a8b",
+  "recovered_probe": {
+    "author_impact_established": false,
+    "duration_is_measured_author_outage": false,
+    "failed_probe_utc": "2026-09-23T01:29:51.489794+00:00",
+    "first_recovery_utc": "2026-09-23T01:30:04.846763+00:00",
+    "interval_between_failed_and_recovery_records_seconds": 13.356968879699707,
+    "node": "node0",
+    "previous_healthy_utc": "2026-09-23T01:29:28.840064+00:00",
+    "probe_error_class": "TimeoutError"
+  },
+  "schema_version": "transport-health-public-projection.v1",
+  "scope": "Sampled passive connectivity only. No continuous-availability, author-impact, model-accounting, eligibility or task-acceptance conclusion.",
+  "teardown": "Only owned local transport supervisors and the local read-only watcher were stopped after drain; evaluator access and nodes were untouched by this teardown.",
+  "window_end_semantics": "Controller-authorized shutdown after all authors reaped and original request deadlines plus 65 seconds.",
+  "window_end_utc": "2026-09-23T04:21:48.312998+00:00",
+  "window_start_utc": "2026-09-23T01:03:19+00:00"
+}

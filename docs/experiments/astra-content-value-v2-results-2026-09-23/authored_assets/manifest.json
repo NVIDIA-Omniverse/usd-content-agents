@@ -1,0 +1,465 @@
+{
+  "created_utc": "2026-09-23T04:56:27.252565+00:00",
+  "files": [
+    {
+      "bytes": 417936,
+      "path": "outputs/01_drawer/content_agents/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "cb1c5a8f70b851f4ef5483769ee1a17905e27708cc3626497566960ece82e0eb",
+      "source_identity": {
+        "archive_member": "v2_01_drawer_content_agents/workspace/final.usd",
+        "original_bytes": 417936,
+        "original_sha256": "cb1c5a8f70b851f4ef5483769ee1a17905e27708cc3626497566960ece82e0eb"
+      }
+    },
+    {
+      "bytes": 888,
+      "path": "outputs/01_drawer/content_agents/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "0e293d2d8c88fdbb492ed0b034b8ab34d6364e70bf5af2b5b62104502360a1cc",
+      "source_identity": {
+        "archive_member": "v2_01_drawer_content_agents/workspace/bindings.json",
+        "original_bytes": 888,
+        "original_sha256": "0e293d2d8c88fdbb492ed0b034b8ab34d6364e70bf5af2b5b62104502360a1cc"
+      }
+    },
+    {
+      "bytes": 700623,
+      "path": "outputs/01_drawer/plain_astra/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "c01956d9a524d098482448e0919fbb5cec05d50ddb1822d2ac83b3e7d2969a8d",
+      "source_identity": {
+        "archive_member": "v2_01_drawer_plain_astra/workspace/final.usd",
+        "original_bytes": 700623,
+        "original_sha256": "c01956d9a524d098482448e0919fbb5cec05d50ddb1822d2ac83b3e7d2969a8d"
+      }
+    },
+    {
+      "bytes": 621,
+      "path": "outputs/01_drawer/plain_astra/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "0266179a69aa197bfe4da73a1d852781ecd7086d8175754c89ef3ba0c0e41145",
+      "source_identity": {
+        "archive_member": "v2_01_drawer_plain_astra/workspace/bindings.json",
+        "original_bytes": 621,
+        "original_sha256": "0266179a69aa197bfe4da73a1d852781ecd7086d8175754c89ef3ba0c0e41145"
+      }
+    },
+    {
+      "bytes": 150011,
+      "path": "outputs/01_drawer/plain_astra/textures/drawer_cabinet_diff_1k.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source_identity": {
+        "archive_member": "v2_01_drawer_plain_astra/workspace/textures/drawer_cabinet_diff_1k.jpg",
+        "original_bytes": 150011,
+        "original_sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb"
+      }
+    },
+    {
+      "bytes": 124942,
+      "path": "outputs/01_drawer/plain_astra/textures/drawer_cabinet_arm_1k.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source_identity": {
+        "archive_member": "v2_01_drawer_plain_astra/workspace/textures/drawer_cabinet_arm_1k.jpg",
+        "original_bytes": 124942,
+        "original_sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c"
+      }
+    },
+    {
+      "bytes": 61593,
+      "path": "outputs/01_drawer/plain_astra/textures/drawer_cabinet_nor_gl_1k.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source_identity": {
+        "archive_member": "v2_01_drawer_plain_astra/workspace/textures/drawer_cabinet_nor_gl_1k.jpg",
+        "original_bytes": 61593,
+        "original_sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa"
+      }
+    },
+    {
+      "bytes": 2035181,
+      "path": "outputs/02_conveyor/content_agents/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "f91e9e2d1f511c075b1987a8d7b66f9aa2aa06063f531322ade51bd072e7953b",
+      "source_identity": {
+        "archive_member": "v2_02_conveyor_content_agents/workspace/final.usd",
+        "original_bytes": 2035181,
+        "original_sha256": "f91e9e2d1f511c075b1987a8d7b66f9aa2aa06063f531322ade51bd072e7953b"
+      }
+    },
+    {
+      "bytes": 3318,
+      "path": "outputs/02_conveyor/content_agents/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "aed5e388ae24fb0ed207d4087ed0407761f03dbff22ab5c23d56db2f1e3d6a3e",
+      "source_identity": {
+        "archive_member": "v2_02_conveyor_content_agents/workspace/bindings.json",
+        "original_bytes": 3318,
+        "original_sha256": "aed5e388ae24fb0ed207d4087ed0407761f03dbff22ab5c23d56db2f1e3d6a3e"
+      }
+    },
+    {
+      "bytes": 549509,
+      "path": "outputs/02_conveyor/plain_astra/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "7c6e358e86a051e4f2746b309a454699f288d74cd2dd50473b0fa4d3c640e63c",
+      "source_identity": {
+        "archive_member": "v2_02_conveyor_plain_astra/workspace/final.usd",
+        "original_bytes": 549509,
+        "original_sha256": "7c6e358e86a051e4f2746b309a454699f288d74cd2dd50473b0fa4d3c640e63c"
+      }
+    },
+    {
+      "bytes": 3190,
+      "path": "outputs/02_conveyor/plain_astra/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "dddabc341528060e6f1f9dd057cd7d50600ca160462ca23dd6ce70fa981c0755",
+      "source_identity": {
+        "archive_member": "v2_02_conveyor_plain_astra/workspace/bindings.json",
+        "original_bytes": 3190,
+        "original_sha256": "dddabc341528060e6f1f9dd057cd7d50600ca160462ca23dd6ce70fa981c0755"
+      }
+    },
+    {
+      "bytes": 1065,
+      "path": "notices/02_conveyor/upstream_LICENSE",
+      "role": "exact_upstream_notice",
+      "sha256": "6144fd8afc4d2c905690a82f0ab5d0e9a98104f5b357c07fd7907865ed224e65",
+      "source_identity": {
+        "original_sha256": "6144fd8afc4d2c905690a82f0ab5d0e9a98104f5b357c07fd7907865ed224e65",
+        "upstream_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/LICENSE"
+      }
+    },
+    {
+      "bytes": 9685,
+      "path": "notices/02_conveyor/upstream_README.md",
+      "role": "exact_upstream_notice",
+      "sha256": "48ab5a758f54b4e0fa9bdc935a40d7330d05073658a0438d7d48d7b70ae2e8d1",
+      "source_identity": {
+        "original_sha256": "48ab5a758f54b4e0fa9bdc935a40d7330d05073658a0438d7d48d7b70ae2e8d1",
+        "upstream_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/README.md"
+      }
+    },
+    {
+      "bytes": 1654,
+      "path": "notices/SOURCE_NOTICES.md",
+      "role": "new_publication_notice",
+      "sha256": "0acd80a568b189276649f4156953a61008be172c0f46439940d8e2c55785edfb"
+    },
+    {
+      "bytes": 1523,
+      "path": "notices/MODIFICATIONS.md",
+      "role": "new_publication_notice",
+      "sha256": "453e9384f4c7bf1db0d144ba8dda0a088223844045148797e661b6c6088f61a6"
+    },
+    {
+      "bytes": 1361,
+      "path": "README.md",
+      "role": "new_publication_wrapper",
+      "sha256": "04360f105831172b18a11acddc9746578e83e726b69f823c85818301b93d821d"
+    },
+    {
+      "bytes": 2107,
+      "path": "verify.py",
+      "role": "new_publication_verifier",
+      "sha256": "1305375f176c2778ad5ad8eef4f6295ff973ed87ad9873a7410b49249a4ddd4f"
+    }
+  ],
+  "original_files_changed": false,
+  "private_archive_paths_included": false,
+  "private_candidate_manifest_sha256": "0cbb676fee9159750ddc51918ffc9f06b07c0437ac2cc19e64130cabac691713",
+  "runs": [
+    {
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "arm": "content_agents",
+      "asset": "final.usd",
+      "bindings": "bindings.json",
+      "candidate_review_sha256": "45c6c7dde0e5aa9dfc2a817d62cd4feac811106b0540f3f72bf6e367ffc89abf",
+      "case_id": "01_drawer",
+      "declaration_sha256": "48acd8c3622e26d574c25d9547417e21803b44a646dcb1b745178995b92c364c",
+      "dependency_paths_complete_in_selected_files": true,
+      "directory": "outputs/01_drawer/content_agents",
+      "privacy_review": [
+        {
+          "authored_asset_references": [],
+          "bounded_locator_dispositions": [
+            {
+              "asset_dependency": false,
+              "contains_only_generated_from_composed_stage_lines_under_work": true,
+              "disposition": "Retain exact provenance string; no relocation or broad scanner exception required.",
+              "field": "rootLayer.documentation",
+              "kind": "canonical_nonsecret_workspace_provenance",
+              "value_sha256": "1fbd67872dae67646e499a2a195fb17dce80de97ad8812832c2b7b6899826668"
+            }
+          ],
+          "decoded_text_sha256": "3be13ea55eb174ae2b0186545dfe00176b06ee24c9507bbca15f34274c8dd8fb",
+          "exact_file_sha256": "cb1c5a8f70b851f4ef5483769ee1a17905e27708cc3626497566960ece82e0eb",
+          "method": "Full uncomposed Sdf layer text decoded in memory, scanned with unchanged trusted publication.scan(structured=False).",
+          "path": "outputs/01_drawer/content_agents/final.usd",
+          "scanner_pass": true
+        },
+        {
+          "exact_file_sha256": "0e293d2d8c88fdbb492ed0b034b8ab34d6364e70bf5af2b5b62104502360a1cc",
+          "method": "Exact bindings JSON through unchanged trusted publication.scan(structured=True).",
+          "path": "outputs/01_drawer/content_agents/bindings.json",
+          "scanner_pass": true
+        }
+      ],
+      "relocation_required": false,
+      "retained_manifest_sha256": "14bfb3579e6b0bbe46bbf0a6b6f285db1f5a2a18933dff4290c232038a8e8695",
+      "run_id": "v2_01_drawer_content_agents",
+      "selected_files": [
+        "outputs/01_drawer/content_agents/final.usd",
+        "outputs/01_drawer/content_agents/bindings.json"
+      ]
+    },
+    {
+      "archive_sha256": "f7e2f24890d3ef2a36b2d660ac220321c586dee5c375415ed8f6d8c2db7cceea",
+      "arm": "plain_astra",
+      "asset": "final.usd",
+      "bindings": "bindings.json",
+      "candidate_review_sha256": "d20a6094b0a647127883f95159feebfd4e9c733d2f60423ca0adbefaff3fcd64",
+      "case_id": "01_drawer",
+      "declaration_sha256": "3b8073c2a0beb6cded98b454ee97348c2e45e0dff25515bf5756ddbc1ff94c58",
+      "dependency_paths_complete_in_selected_files": true,
+      "directory": "outputs/01_drawer/plain_astra",
+      "privacy_review": [
+        {
+          "authored_asset_references": [
+            {
+              "kind": "asset_path",
+              "location": "/World/Materials/OriginalWood/BaseColor.inputs:file/default",
+              "reference": "textures/drawer_cabinet_diff_1k.jpg"
+            },
+            {
+              "kind": "asset_path",
+              "location": "/World/Materials/OriginalWood/ARM.inputs:file/default",
+              "reference": "textures/drawer_cabinet_arm_1k.jpg"
+            },
+            {
+              "kind": "asset_path",
+              "location": "/World/Materials/OriginalWood/Normal.inputs:file/default",
+              "reference": "textures/drawer_cabinet_nor_gl_1k.jpg"
+            }
+          ],
+          "bounded_locator_dispositions": [],
+          "decoded_text_sha256": "92080df9ed566f2723e59f98966d72087ab8c59f77134ec907f1433617cc3858",
+          "exact_file_sha256": "c01956d9a524d098482448e0919fbb5cec05d50ddb1822d2ac83b3e7d2969a8d",
+          "method": "Full uncomposed Sdf layer text decoded in memory, scanned with unchanged trusted publication.scan(structured=False).",
+          "path": "outputs/01_drawer/plain_astra/final.usd",
+          "scanner_pass": true
+        },
+        {
+          "exact_file_sha256": "0266179a69aa197bfe4da73a1d852781ecd7086d8175754c89ef3ba0c0e41145",
+          "method": "Exact bindings JSON through unchanged trusted publication.scan(structured=True).",
+          "path": "outputs/01_drawer/plain_astra/bindings.json",
+          "scanner_pass": true
+        },
+        {
+          "exact_file_sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+          "metadata_segments": [
+            {
+              "bytes": 14,
+              "marker": "0xe0",
+              "metadata_kind": "JFIF version/density, no text",
+              "sha256": "fd08fbd3243f516c5eddbc12dfce3099349a6824eaa1b00cb09e221d61f99009"
+            },
+            {
+              "bytes": 60,
+              "marker": "0xe1",
+              "metadata_kind": "EXIF only X/Y resolution; no GPS, identity, software, comment or trailing IFD",
+              "sha256": "86d264541c8f3d938e17bc5f047b13e4e3d3057317c16afeb379fefbe45c8f87",
+              "tags": [
+                {
+                  "denominator": 1000,
+                  "kind": "XResolution",
+                  "numerator": 72009,
+                  "tag": 282
+                },
+                {
+                  "denominator": 1000,
+                  "kind": "YResolution",
+                  "numerator": 72009,
+                  "tag": 283
+                }
+              ]
+            }
+          ],
+          "method": "JPEG application/comment segment inventory plus typed EXIF field decoding; original source-byte match.",
+          "path": "outputs/01_drawer/plain_astra/textures/drawer_cabinet_diff_1k.jpg",
+          "scanner_pass": true,
+          "source_sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb"
+        },
+        {
+          "exact_file_sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+          "metadata_segments": [
+            {
+              "bytes": 14,
+              "marker": "0xe0",
+              "metadata_kind": "JFIF version/density, no text",
+              "sha256": "fd08fbd3243f516c5eddbc12dfce3099349a6824eaa1b00cb09e221d61f99009"
+            },
+            {
+              "bytes": 60,
+              "marker": "0xe1",
+              "metadata_kind": "EXIF only X/Y resolution; no GPS, identity, software, comment or trailing IFD",
+              "sha256": "86d264541c8f3d938e17bc5f047b13e4e3d3057317c16afeb379fefbe45c8f87",
+              "tags": [
+                {
+                  "denominator": 1000,
+                  "kind": "XResolution",
+                  "numerator": 72009,
+                  "tag": 282
+                },
+                {
+                  "denominator": 1000,
+                  "kind": "YResolution",
+                  "numerator": 72009,
+                  "tag": 283
+                }
+              ]
+            }
+          ],
+          "method": "JPEG application/comment segment inventory plus typed EXIF field decoding; original source-byte match.",
+          "path": "outputs/01_drawer/plain_astra/textures/drawer_cabinet_arm_1k.jpg",
+          "scanner_pass": true,
+          "source_sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c"
+        },
+        {
+          "exact_file_sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+          "metadata_segments": [
+            {
+              "bytes": 14,
+              "marker": "0xe0",
+              "metadata_kind": "JFIF version/density, no text",
+              "sha256": "fd08fbd3243f516c5eddbc12dfce3099349a6824eaa1b00cb09e221d61f99009"
+            },
+            {
+              "bytes": 60,
+              "marker": "0xe1",
+              "metadata_kind": "EXIF only X/Y resolution; no GPS, identity, software, comment or trailing IFD",
+              "sha256": "86d264541c8f3d938e17bc5f047b13e4e3d3057317c16afeb379fefbe45c8f87",
+              "tags": [
+                {
+                  "denominator": 1000,
+                  "kind": "XResolution",
+                  "numerator": 72009,
+                  "tag": 282
+                },
+                {
+                  "denominator": 1000,
+                  "kind": "YResolution",
+                  "numerator": 72009,
+                  "tag": 283
+                }
+              ]
+            }
+          ],
+          "method": "JPEG application/comment segment inventory plus typed EXIF field decoding; original source-byte match.",
+          "path": "outputs/01_drawer/plain_astra/textures/drawer_cabinet_nor_gl_1k.jpg",
+          "scanner_pass": true,
+          "source_sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa"
+        }
+      ],
+      "relocation_required": false,
+      "retained_manifest_sha256": "44a10165f15c6875090d8cccb56f026078cf2cf25e7369a526ce32cce95e7c73",
+      "run_id": "v2_01_drawer_plain_astra",
+      "selected_files": [
+        "outputs/01_drawer/plain_astra/final.usd",
+        "outputs/01_drawer/plain_astra/bindings.json",
+        "outputs/01_drawer/plain_astra/textures/drawer_cabinet_diff_1k.jpg",
+        "outputs/01_drawer/plain_astra/textures/drawer_cabinet_arm_1k.jpg",
+        "outputs/01_drawer/plain_astra/textures/drawer_cabinet_nor_gl_1k.jpg"
+      ]
+    },
+    {
+      "archive_sha256": "497c5fc09a53fda5d798403a3689af18b82790bd1879cee5358531d028ba7dd9",
+      "arm": "content_agents",
+      "asset": "final.usd",
+      "bindings": "bindings.json",
+      "candidate_review_sha256": "2ddd4a6b49c68f621fe44f35773ee056112123b80ff99cf082a37e94cfac9fc2",
+      "case_id": "02_conveyor",
+      "declaration_sha256": "995b584d2459d286b4c70d3b1c2fb01198a37e3442b3fcc9829a3b054e1ec5f0",
+      "dependency_paths_complete_in_selected_files": true,
+      "directory": "outputs/02_conveyor/content_agents",
+      "privacy_review": [
+        {
+          "authored_asset_references": [],
+          "bounded_locator_dispositions": [
+            {
+              "asset_dependency": false,
+              "contains_only_generated_from_composed_stage_lines_under_work": true,
+              "disposition": "Retain exact provenance string; no relocation or broad scanner exception required.",
+              "field": "rootLayer.documentation",
+              "kind": "canonical_nonsecret_workspace_provenance",
+              "value_sha256": "7f0e760dec2728564d121905d5179be92397c560b06fbdd2bdcf9514bf03e4fb"
+            }
+          ],
+          "decoded_text_sha256": "f91e9e2d1f511c075b1987a8d7b66f9aa2aa06063f531322ade51bd072e7953b",
+          "exact_file_sha256": "f91e9e2d1f511c075b1987a8d7b66f9aa2aa06063f531322ade51bd072e7953b",
+          "method": "Full uncomposed Sdf layer text decoded in memory, scanned with unchanged trusted publication.scan(structured=False).",
+          "path": "outputs/02_conveyor/content_agents/final.usd",
+          "scanner_pass": true
+        },
+        {
+          "exact_file_sha256": "aed5e388ae24fb0ed207d4087ed0407761f03dbff22ab5c23d56db2f1e3d6a3e",
+          "method": "Exact bindings JSON through unchanged trusted publication.scan(structured=True).",
+          "path": "outputs/02_conveyor/content_agents/bindings.json",
+          "scanner_pass": true
+        }
+      ],
+      "relocation_required": false,
+      "retained_manifest_sha256": "e79231f6242ac6e7282a72367e7dc5993f34567e8e5134cde9427a2415b31f1e",
+      "run_id": "v2_02_conveyor_content_agents",
+      "selected_files": [
+        "outputs/02_conveyor/content_agents/final.usd",
+        "outputs/02_conveyor/content_agents/bindings.json"
+      ]
+    },
+    {
+      "archive_sha256": "6c85cf166b3218b45cf6f743b8c9dc3e7c679575fd81e7a321231c111f8f1ddc",
+      "arm": "plain_astra",
+      "asset": "final.usd",
+      "bindings": "bindings.json",
+      "candidate_review_sha256": "38d1e70e522b32eeef4111e2b3ad41df71728cc13aa67337e220257193803015",
+      "case_id": "02_conveyor",
+      "declaration_sha256": "37023c3cb33a0c59c05c45d71197a5010c73ff5b80efcd5ae4d4aa853ae81bf6",
+      "dependency_paths_complete_in_selected_files": true,
+      "directory": "outputs/02_conveyor/plain_astra",
+      "privacy_review": [
+        {
+          "authored_asset_references": [],
+          "bounded_locator_dispositions": [],
+          "decoded_text_sha256": "baa5d284642b588c11c32f7a0e315aab9d0d885ccb20461f187aeb6bd40aaaaa",
+          "exact_file_sha256": "7c6e358e86a051e4f2746b309a454699f288d74cd2dd50473b0fa4d3c640e63c",
+          "method": "Full uncomposed Sdf layer text decoded in memory, scanned with unchanged trusted publication.scan(structured=False).",
+          "path": "outputs/02_conveyor/plain_astra/final.usd",
+          "scanner_pass": true
+        },
+        {
+          "exact_file_sha256": "dddabc341528060e6f1f9dd057cd7d50600ca160462ca23dd6ce70fa981c0755",
+          "method": "Exact bindings JSON through unchanged trusted publication.scan(structured=True).",
+          "path": "outputs/02_conveyor/plain_astra/bindings.json",
+          "scanner_pass": true
+        }
+      ],
+      "relocation_required": false,
+      "retained_manifest_sha256": "c2b58aea5b72f98b37740c3e32857ecb926dff396606dc253d8e6395a56ae616",
+      "run_id": "v2_02_conveyor_plain_astra",
+      "selected_files": [
+        "outputs/02_conveyor/plain_astra/final.usd",
+        "outputs/02_conveyor/plain_astra/bindings.json"
+      ]
+    }
+  ],
+  "scanner_sha256": "100339638100c2264c192710164d062f6adfdb99653b7dd48d7663b172ba6581",
+  "schema_version": "exact-submitted-priority-publication.v1",
+  "scope": "Exact submitted four-output companion only; no outcome claim and no complete ten-case replay claim.",
+  "source_bound_private_review_sha256": "354b029d3064663756708b7949ec904012f7d50cc7d49460e7bbe8d0c2527127",
+  "status": "PUBLICATION_READY_PRIVATE_STAGING_NOT_YET_PUBLISHED",
+  "submitted_payload_bytes": 4047812,
+  "submitted_payload_files": 11,
+  "verification_boundary": "Manifest excludes itself; parent publishes its SHA256 separately. Private archives remain private; only source member names and digests cross the boundary."
+}

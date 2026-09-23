@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "case_id": "02_conveyor",
+  "assembly_from_source": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "bodies": [
+    {
+      "path": "/World/Rail",
+      "role": "rail",
+      "moving": true
+    },
+    {
+      "path": "/World/Carrier",
+      "role": "carrier",
+      "moving": true
+    },
+    {
+      "path": "/World/Base",
+      "role": "base",
+      "moving": false
+    },
+    {
+      "path": "/World/Payload",
+      "role": "payload",
+      "moving": true
+    }
+  ],
+  "joints": [
+    {
+      "path": "/World/Joints/RailRotation",
+      "role": "rail_rotation"
+    }
+  ],
+  "source_map": [
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "mesh_paths": [
+        "/World/Rail/SourceVisual"
+      ],
+      "body_path": "/World/Rail",
+      "source_to_body": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          -0.075
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          -6.938893903907228e-18
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0035
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "mesh_paths": [
+        "/World/Carrier/SourceVisual"
+      ],
+      "body_path": "/World/Carrier",
+      "source_to_body": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          -0.004759742019869421
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.003079972882626075
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          -0.005
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "mesh_paths": [
+        "/World/Base/SourceVisual"
+      ],
+      "body_path": "/World/Base",
+      "source_to_body": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          -0.07499999991097452
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          -0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.058
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "mesh_paths": [
+        "/World/Payload/SourceVisual"
+      ],
+      "body_path": "/World/Payload",
+      "source_to_body": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          -0.00476
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.00308
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          -0.0147500001117587
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}

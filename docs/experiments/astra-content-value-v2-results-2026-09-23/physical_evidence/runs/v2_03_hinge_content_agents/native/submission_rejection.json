@@ -1,0 +1,18 @@
+{
+  "delivery": {
+    "artifact_closure_valid": true,
+    "budget_exhausted": true,
+    "claimed_accepted": false,
+    "declared_repairs_used": 1,
+    "errors": [],
+    "physical_acceptance": "NOT_ASSESSED",
+    "protocol_validity": "requires independent protocol audit",
+    "reap_sha256": "2cd6e6557bb42814ccf02d66a47a009a3f3712baec592bd4ab16b14ebcfc110f",
+    "run_id": "v2_03_hinge_content_agents",
+    "schema_version": "author-delivery.v2",
+    "submission_sha256": "ff8d2fa7e119093930d8a48dc7b87ddbbc7513a9d7773180caa256a71008d98d",
+    "task_outcome": "not_submitted"
+  },
+  "reason": "Required immutable scene/bindings were not submitted.",
+  "status": "FAIL"
+}

@@ -1,0 +1,11 @@
+{
+  "case_id": "01_drawer",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 88.92481952346861,
+  "report": "home/evidence/result/report.json",
+  "report_sha256": "e482df730ecd8d8187356dd44a0d68106d4f4429b45335cd6825dd00565cb22b",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_01_drawer_plain_astra",
+  "status": "PASS",
+  "timed_out": false
+}

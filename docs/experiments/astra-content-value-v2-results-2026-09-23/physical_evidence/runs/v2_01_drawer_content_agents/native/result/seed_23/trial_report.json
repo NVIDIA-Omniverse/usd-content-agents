@@ -1,0 +1,122 @@
+{
+  "status": "PASS",
+  "pass": true,
+  "seed": 23,
+  "backend": "ovphysx native USD / CPU PhysX",
+  "errors": [],
+  "scene_sha256": "9024b636862d9d8f37796c90d83c89e0eadb7acfdc0abb43d6b4ec49a62a4bd6",
+  "resolved_contact_sensor_paths": [
+    "/__EvaluatorPayload"
+  ],
+  "resolved_contact_filter_paths": [
+    [
+      "/drawer_cabinet_1k/Scene/drawer_cabinet_drawer_01"
+    ]
+  ],
+  "initial_drawer_pose": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "initial_payload_pose": [
+    0.019393308088183403,
+    1.05299973487854,
+    0.009902075864374638,
+    0.0,
+    -0.06476844102144241,
+    0.0,
+    0.9979003071784973
+  ],
+  "import_pose_error_m": 0.0,
+  "import_rotation_error_deg": 0.0,
+  "interior_queries": [
+    {
+      "position": [
+        -0.32,
+        1.03,
+        -0.08
+      ],
+      "overlap_count": 0,
+      "collision_ids": []
+    },
+    {
+      "position": [
+        -0.32,
+        1.03,
+        0.04
+      ],
+      "overlap_count": 0,
+      "collision_ids": []
+    },
+    {
+      "position": [
+        -0.32,
+        1.03,
+        0.12
+      ],
+      "overlap_count": 0,
+      "collision_ids": []
+    },
+    {
+      "position": [
+        0.32,
+        1.03,
+        -0.08
+      ],
+      "overlap_count": 0,
+      "collision_ids": []
+    },
+    {
+      "position": [
+        0.32,
+        1.03,
+        0.04
+      ],
+      "overlap_count": 0,
+      "collision_ids": []
+    },
+    {
+      "position": [
+        0.32,
+        1.03,
+        0.12
+      ],
+      "overlap_count": 0,
+      "collision_ids": []
+    }
+  ],
+  "metrics": {
+    "max_q_m": 0.2415623664855957,
+    "max_penetration_m": 8.381903171539307e-07,
+    "max_off_axis_m": 3.6954879797003503e-06,
+    "max_rotation_deg": 0.0,
+    "max_linear_speed_m_s": 0.408750057220459,
+    "max_angular_speed_rad_s": 0.025481121614575386,
+    "payload_contact_samples": 2280,
+    "payload_retained": true,
+    "max_force_n": 0.5950516842617765,
+    "initial_drift_m": 0.0001249164342880249,
+    "min_open_hold_q_m": 0.2399781346321106,
+    "max_closed_hold_error_m": 8.312985301017761e-05,
+    "max_closed_hold_speed_m_s": 0.0011149309575557709
+  },
+  "checks": {
+    "opening": true,
+    "closing": true,
+    "closed_settled": true,
+    "payload_retained": true,
+    "payload_contact": true,
+    "penetration": true,
+    "off_axis": true,
+    "rotation": true,
+    "initial_drift": true,
+    "force_bounded": true,
+    "finite_and_stable": true,
+    "interior_clear": true
+  },
+  "pass_rule": "all checks"
+}

@@ -1,0 +1,221 @@
+{
+  "attempts": [
+    {
+      "arm": "content_agents",
+      "author_artifact_closure_valid": true,
+      "author_declaration": "not_submitted",
+      "bindings": null,
+      "candidate_state": "no_declared_candidate",
+      "case_id": "03_hinge",
+      "declaration_sha256": "f7e094d6b4288ede90f7264ea929a741a8029c523e853c2b85b15afb1564510e",
+      "directory": null,
+      "final_scene": null,
+      "independent_outcome_inferred": false,
+      "publication_note": "No declared final scene or bindings. No undeclared file is substituted.",
+      "retained_archive_sha256": "bef45924f9c81d2c8586a534840acbaa652634cf589515ccc15d4162e3f2aea7",
+      "retained_manifest_sha256": "5f25eee9003f26cd5a4f667dbc4c6a4104fbe6d3038012e9ac01aa39f59527a5",
+      "run_id": "v2_03_hinge_content_agents",
+      "selected_bytes": 0,
+      "selected_paths": []
+    },
+    {
+      "arm": "plain_astra",
+      "author_artifact_closure_valid": true,
+      "author_declaration": "submitted",
+      "bindings": "outputs/03_hinge/plain_astra/bindings.json",
+      "candidate_state": "declared_submission",
+      "case_id": "03_hinge",
+      "declaration_sha256": "712eec545e58fcb67d14369470ed70bae6359e335e559bbd7fc0080f7a5bacf4",
+      "directory": "outputs/03_hinge/plain_astra",
+      "final_scene": "outputs/03_hinge/plain_astra/final.usd",
+      "independent_outcome_inferred": false,
+      "publication_note": "Exact author-declared output and required authored asset dependencies. No task acceptance is implied by this package.",
+      "retained_archive_sha256": "84f7f8a742888657ba08b770f8295d996e98eab0b972b74cb0f0cd6de2cb03c0",
+      "retained_manifest_sha256": "4188e5440d297482d387f068cf01fe93b5d39f2696e87f1808a0060290cab186",
+      "run_id": "v2_03_hinge_plain_astra",
+      "selected_bytes": 5560541,
+      "selected_paths": [
+        "outputs/03_hinge/plain_astra/final.usd",
+        "outputs/03_hinge/plain_astra/bindings.json",
+        "outputs/03_hinge/plain_astra/assets/geometry.usdc",
+        "outputs/03_hinge/plain_astra/assets/textures/image_09.jpg",
+        "outputs/03_hinge/plain_astra/assets/textures/image_04.jpg",
+        "outputs/03_hinge/plain_astra/assets/textures/image_06.jpg",
+        "outputs/03_hinge/plain_astra/assets/textures/image_08.jpg",
+        "outputs/03_hinge/plain_astra/assets/textures/image_07.jpg",
+        "outputs/03_hinge/plain_astra/assets/textures/image_05.jpg",
+        "outputs/03_hinge/plain_astra/assets/textures/image_00.jpg",
+        "outputs/03_hinge/plain_astra/assets/textures/image_02.jpg"
+      ]
+    },
+    {
+      "arm": "content_agents",
+      "author_artifact_closure_valid": false,
+      "author_declaration": "invalid_or_missing_submission",
+      "bindings": null,
+      "candidate_state": "declared_partial_invalid_submission",
+      "case_id": "04_gripper",
+      "declaration_sha256": "5614379852f4ce87af2d910b7dd93b50e568f97ecf0c7c30438be7bc8f109147",
+      "directory": "outputs/04_gripper/content_agents",
+      "final_scene": "outputs/04_gripper/content_agents/final.usd",
+      "independent_outcome_inferred": false,
+      "publication_note": "Incomplete declared USD-only artifact. Submission was invalid because bindings were missing. This is not a complete replayable submission.",
+      "retained_archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "retained_manifest_sha256": "830c124d40c0e811fa86ee5e0ba2ed72dfb29d454d0c784877f173dc9f66ab2a",
+      "run_id": "v2_04_gripper_content_agents",
+      "selected_bytes": 3885815,
+      "selected_paths": [
+        "outputs/04_gripper/content_agents/final.usd"
+      ]
+    },
+    {
+      "arm": "plain_astra",
+      "author_artifact_closure_valid": true,
+      "author_declaration": "submitted",
+      "bindings": "outputs/04_gripper/plain_astra/bindings.json",
+      "candidate_state": "declared_submission",
+      "case_id": "04_gripper",
+      "declaration_sha256": "d71c04adb6d52a710deced436b97627746131996e6559dfe5616cb9a004f75ff",
+      "directory": "outputs/04_gripper/plain_astra",
+      "final_scene": "outputs/04_gripper/plain_astra/final.usd",
+      "independent_outcome_inferred": false,
+      "publication_note": "Exact author-declared output and required authored asset dependencies. No task acceptance is implied by this package.",
+      "retained_archive_sha256": "fec9246434656930ae73d0dab36bcd9bbb045ce0e3e42c79413532c5c6f7dbb7",
+      "retained_manifest_sha256": "8fbb61957c344c20a547d5570ec1f36b5b7c4c6aadfcbe92476d2f827abd383a",
+      "run_id": "v2_04_gripper_plain_astra",
+      "selected_bytes": 2537548,
+      "selected_paths": [
+        "outputs/04_gripper/plain_astra/final.usd",
+        "outputs/04_gripper/plain_astra/bindings.json"
+      ]
+    },
+    {
+      "arm": "content_agents",
+      "author_artifact_closure_valid": true,
+      "author_declaration": "submitted",
+      "bindings": "outputs/07_robot_arm/content_agents/bindings.json",
+      "candidate_state": "declared_submission",
+      "case_id": "07_robot_arm",
+      "declaration_sha256": "046636ea12db965851abe5961c3ade980c5439b481f4dbd64379de84047efe12",
+      "directory": "outputs/07_robot_arm/content_agents",
+      "final_scene": "outputs/07_robot_arm/content_agents/final.usd",
+      "independent_outcome_inferred": false,
+      "publication_note": "Exact author-declared output and required authored asset dependencies. No task acceptance is implied by this package.",
+      "retained_archive_sha256": "b72fdc7bac72e3d9b225997aa60f472b243d19dadf1c77b4f19d5eb2cdeb1a5e",
+      "retained_manifest_sha256": "8dcb97b81ef8f1054b5a20df71b7be23ac9ff4733699c5f48e31b46d3f52c7ac",
+      "run_id": "v2_07_robot_arm_content_agents",
+      "selected_bytes": 52217827,
+      "selected_paths": [
+        "outputs/07_robot_arm/content_agents/final.usd",
+        "outputs/07_robot_arm/content_agents/bindings.json"
+      ]
+    },
+    {
+      "arm": "plain_astra",
+      "author_artifact_closure_valid": true,
+      "author_declaration": "submitted",
+      "bindings": "outputs/07_robot_arm/plain_astra/bindings.json",
+      "candidate_state": "declared_submission",
+      "case_id": "07_robot_arm",
+      "declaration_sha256": "431dbbc89ee40d8ec55908d9ab4830092af940ec6d023bece87a96e25de53000",
+      "directory": "outputs/07_robot_arm/plain_astra",
+      "final_scene": "outputs/07_robot_arm/plain_astra/final.usd",
+      "independent_outcome_inferred": false,
+      "publication_note": "Exact author-declared output and required authored asset dependencies. No task acceptance is implied by this package.",
+      "retained_archive_sha256": "5fb3d7601db565b250a8b78f5493350663b5ca128645ee38062ef5f4ef7ad53c",
+      "retained_manifest_sha256": "2ca8aa6f705afce9a21f11e8ac4c2b09b0ea276e9614246d64bd0b4c0f4663ee",
+      "run_id": "v2_07_robot_arm_plain_astra",
+      "selected_bytes": 52167020,
+      "selected_paths": [
+        "outputs/07_robot_arm/plain_astra/final.usd",
+        "outputs/07_robot_arm/plain_astra/bindings.json"
+      ]
+    },
+    {
+      "arm": "content_agents",
+      "author_artifact_closure_valid": true,
+      "author_declaration": "submitted",
+      "bindings": "outputs/08_excavator/content_agents/bindings.json",
+      "candidate_state": "declared_submission",
+      "case_id": "08_excavator",
+      "declaration_sha256": "db772414716ce79ad2982fe49c0ed4463f4989945d6d7b246da4ced4742d7c0b",
+      "directory": "outputs/08_excavator/content_agents",
+      "final_scene": "outputs/08_excavator/content_agents/final.usd",
+      "independent_outcome_inferred": false,
+      "publication_note": "Exact author-declared output and required authored asset dependencies. No task acceptance is implied by this package.",
+      "retained_archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+      "retained_manifest_sha256": "ddaa040569c879c8dd84610ba999e51c24ac4adb536d8a4f2c099b4cf2496c5a",
+      "run_id": "v2_08_excavator_content_agents",
+      "selected_bytes": 687096,
+      "selected_paths": [
+        "outputs/08_excavator/content_agents/final.usd",
+        "outputs/08_excavator/content_agents/bindings.json"
+      ]
+    },
+    {
+      "arm": "plain_astra",
+      "author_artifact_closure_valid": true,
+      "author_declaration": "submitted",
+      "bindings": "outputs/08_excavator/plain_astra/bindings.json",
+      "candidate_state": "declared_submission",
+      "case_id": "08_excavator",
+      "declaration_sha256": "246cfe95d4e5ed1adc7368f7f2c10d3c90cf12eb9463b5a48291e2fdcad1585a",
+      "directory": "outputs/08_excavator/plain_astra",
+      "final_scene": "outputs/08_excavator/plain_astra/final.usd",
+      "independent_outcome_inferred": false,
+      "publication_note": "Exact author-declared output and required authored asset dependencies. No task acceptance is implied by this package.",
+      "retained_archive_sha256": "d80543cf1851ad805ae7de58c5c92d15cf8cf5713ee098b42633dcbb9f3d2e7c",
+      "retained_manifest_sha256": "65f154fa6fb548d297dc63239de04c58d3002953c3784c3320001d12d6aaeb51",
+      "run_id": "v2_08_excavator_plain_astra",
+      "selected_bytes": 2775439,
+      "selected_paths": [
+        "outputs/08_excavator/plain_astra/final.usd",
+        "outputs/08_excavator/plain_astra/bindings.json"
+      ]
+    },
+    {
+      "arm": "content_agents",
+      "author_artifact_closure_valid": true,
+      "author_declaration": "submitted",
+      "bindings": "outputs/10_complex/content_agents/bindings.json",
+      "candidate_state": "declared_submission",
+      "case_id": "10_complex",
+      "declaration_sha256": "ada81580acc6f35fbe5e82b98df44c40830d5c4c588156245608a802b5252745",
+      "directory": "outputs/10_complex/content_agents",
+      "final_scene": "outputs/10_complex/content_agents/final.usd",
+      "independent_outcome_inferred": false,
+      "publication_note": "Exact author-declared output and required authored asset dependencies. No task acceptance is implied by this package.",
+      "retained_archive_sha256": "487432f37a2ab0af8c1bcd53da88134721d30ff848acf8cfa40e32924c67a15b",
+      "retained_manifest_sha256": "95d33abf45a6f350ed7cfdf38ae37caec24733da5896f7bde91e3e4990cbbffe",
+      "run_id": "v2_10_complex_content_agents",
+      "selected_bytes": 72556493,
+      "selected_paths": [
+        "outputs/10_complex/content_agents/final.usd",
+        "outputs/10_complex/content_agents/bindings.json"
+      ]
+    },
+    {
+      "arm": "plain_astra",
+      "author_artifact_closure_valid": true,
+      "author_declaration": "submitted",
+      "bindings": "outputs/10_complex/plain_astra/bindings.json",
+      "candidate_state": "declared_submission",
+      "case_id": "10_complex",
+      "declaration_sha256": "f04b337e896395a0bc1a59ae7577ff109b76ced0a63d490804c4693ad05bf9ec",
+      "directory": "outputs/10_complex/plain_astra",
+      "final_scene": "outputs/10_complex/plain_astra/final.usd",
+      "independent_outcome_inferred": false,
+      "publication_note": "Exact author-declared output and required authored asset dependencies. No task acceptance is implied by this package.",
+      "retained_archive_sha256": "eadffd3e298e4d02697bfb2bd0996f75de626848e6bed94a92c3a81732bc7f8b",
+      "retained_manifest_sha256": "f1063cb0ddb3f461ed04e20eafec74f04a98da6392d255a58c0ce8d31daaff45",
+      "run_id": "v2_10_complex_plain_astra",
+      "selected_bytes": 19789976,
+      "selected_paths": [
+        "outputs/10_complex/plain_astra/final.usd",
+        "outputs/10_complex/plain_astra/bindings.json"
+      ]
+    }
+  ],
+  "schema_version": "additional-submitted-attempts.v1",
+  "scope": "Author declarations only; absent and invalid attempts retained. No physical evaluation results are inputs."
+}

@@ -1,0 +1,245 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "content_agents",
+  "case_id": "04_gripper",
+  "citations": [
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "original_tool_call",
+      "line": 195,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "24acde68d9afa294783d2d8a65e075012646b5b74bfede878359cc5cc2d29ead",
+      "navigation_line": 195,
+      "observation": "Native Astra Ultra Physics apply attempt, later interrupted during preflight."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "original_tool_call",
+      "line": 260,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "24acde68d9afa294783d2d8a65e075012646b5b74bfede878359cc5cc2d29ead",
+      "navigation_line": 260,
+      "observation": "Native Validation attempt disclosing missing closed-chain/runtime evidence."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "original_tool_call",
+      "line": 312,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "24acde68d9afa294783d2d8a65e075012646b5b74bfede878359cc5cc2d29ead",
+      "navigation_line": 312,
+      "observation": "Fresh native Validation retry; required physical evidence remains unavailable."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "original_tool_call",
+      "line": 328,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "24acde68d9afa294783d2d8a65e075012646b5b74bfede878359cc5cc2d29ead",
+      "navigation_line": 328,
+      "observation": "Native source-preserving Geometry handoff."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "original_tool_call",
+      "line": 474,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "24acde68d9afa294783d2d8a65e075012646b5b74bfede878359cc5cc2d29ead",
+      "navigation_line": 474,
+      "observation": "Public typed Geometry API replay correcting metric normalization, preserved as conditional geometry only."
+    },
+    {
+      "archive_member": "workspace/conversion/workflow_run_manifest.json",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "retained_author_artifact",
+      "member_sha256": "5ce0697536a03cc7caf8429106eb0d161d6a2dc4b7c209adb2e072c37bb88497",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "pass",
+        "workflow": "convert_to_usd"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/physics_initial/workflow_run_manifest.json",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "retained_author_artifact",
+      "member_sha256": "e180002ac7b8365402c8942be844b8c8d2a34748246c6185f88122ef14e1be71",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "running",
+        "workflow": "physics.apply"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/articulation_prep/preparation_blocker_report.json",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "retained_author_artifact",
+      "member_sha256": "3c2a72e00dad4f7e99c1d7061cf141c7eb26e4a006c156e35c694626190109ae",
+      "observed_fields": {
+        "schema_version": "author-preparation-status.v1",
+        "status": "blocked_before_publication"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/geometry_metric_repair/native_sdk_return.json",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "retained_author_artifact",
+      "member_sha256": "fa09ce06173425bb2fcc2ba19e6b7467a100e64c790b448b6009240af1ed3582",
+      "observed_fields": {
+        "success": true
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/workflow_outcomes.json",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "retained_author_artifact",
+      "member_sha256": "a783730156cd21d6b3a5ef96656220b50882cd78a53a1171f17f0ce9bb24cab1",
+      "observed_fields": {
+        "schema_version": 1
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/native_capability_limits.md",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "retained_author_artifact",
+      "member_sha256": "9a8956e5b9879d6003fd7f63255268dbd6620af14dc6903691ce7218b2f6c0f8",
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/submission.json",
+      "archive_sha256": "071c38673de5b23212a32ba0b9866920a0599cbd52ccb849ffdc34224cbca6d3",
+      "kind": "retained_author_artifact",
+      "member_sha256": "30d9f9df032b13875dd5d4e24b35a048438d3458e03dbfa6cf7cea0fe1a009ba",
+      "observed_fields": {
+        "claimed_accepted": false
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    }
+  ],
+  "completed_utc": "2026-09-23T04:41:18.120453+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "830c124d40c0e811fa86ee5e0ba2ed72dfb29d454d0c784877f173dc9f66ab2a",
+    "author_retention": "4cafd102f2fee09bab5ad9e27c89d80e84bf9604632e58cce12feb034cdab16e",
+    "declaration": "5614379852f4ce87af2d910b7dd93b50e568f97ecf0c7c30438be7bc8f109147",
+    "launch": "891dac4c0643453eb6f6c2466044f3d549b2c872c575f0cf71428b774fe226b8",
+    "reap": "554038bb28610568e06d6b8a7d871596c57f9584e1268f77dd27282064ca001b",
+    "timing": "e641fd0a534a689c12a803c93bf5d1af2b244b1842cb7c1058ff7b32703ea05c",
+    "ui_association": "a62ec43481d92083cbddb47b78beb476d6c5cdcca1ccc8d9dd9c970d9643f668",
+    "ui_metadata": "cfdce45bcc197f4e9e941f8713e6d3e045c17969b8ae08c8e3910637024307a1",
+    "usage": "2e3e523e89a5f198a5da208d27ffba21abc20c7d6f8713ebb46ae59da8d51059"
+  },
+  "input_sha256": "5c088d37d6558722a41f16078342ae10ad41293d9edf31b42b62eb7836360031",
+  "lane_id": "lane3",
+  "limitations": [
+    "Outcome-blinded protocol review only. No independent evaluator request, log, report, verdict or comparison was read; no authored script was executed.",
+    "Observed native receipts and author diagnostic claims do not establish independent task acceptance or numerical correctness.",
+    "This is automated reviewer work, not observed human review effort. Human review minutes remain unmeasured."
+  ],
+  "mechanical_findings": {
+    "admitted_requests": 184,
+    "all_observed_ui_matches": true,
+    "allocation_released": true,
+    "billing_complete": true,
+    "budget_s": 2400,
+    "cgroup_empty": true,
+    "cpu_quota_millicores": 4000,
+    "exact_identity_prompt_and_lease_verified": true,
+    "fresh_context_verified": true,
+    "frozen_usage_within_deadline": true,
+    "late_admitted_requests": 0,
+    "memory_bytes": 34359738368,
+    "namespace_reaped": true,
+    "pids_max": 1024,
+    "recorded_late_finishes": 0,
+    "source_unchanged": true,
+    "swap_bytes": 0,
+    "terminal_billing_records": 184,
+    "ui_association_complete": true
+  },
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "b555caf52f8d62740fbdf8d5e72dfc75767e764894d7076f7ee66efd1fa88a45",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "Observed native conversion, Articulation preparation investigation, a native Physics apply attempt, native Geometry CLI/public typed API handoffs and native Validation attempts. The author retained unavailable preparation/render evidence, the interrupted Physics preflight, rejected physical-behavior plan and conditional geometry. The final declaration claims no accepted mechanism and does not relabel an ad hoc substitute as native success. A blocked phase and absent later successful receipts are task limitations under the frozen policy, not treatment noncompliance. All frozen mechanical gates are satisfied.",
+  "review_coverage": {
+    "all_original_archive_bytes_rehashed": true,
+    "all_original_capture_and_navigation_hashes_verified": true,
+    "capture_count": 5,
+    "copied_ancestor_context_not_counted_as_new_invocation": true,
+    "navigation_not_used_as_verdict": true,
+    "review_navigation_sha256": "9479cad15a5b4a87945328628f6b77388572856f9ade00383a16a39e5bd40467",
+    "script_inventory_count": 5,
+    "script_inventory_sha256": "fdeeb74d56154bcd9dadf0b86c0167bbe8927b26ffe20ebc89a099ede4c3906e",
+    "unique_navigation_tool_calls": 164
+  },
+  "run_id": "v2_04_gripper_content_agents",
+  "schema_version": "outcome-blinded-protocol-adjudication.agent06.v1",
+  "script_review_inventory": [
+    {
+      "archive_member": "workspace/articulation_prep/retained/inspect_saved_stage.py",
+      "line_count": 102,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "7b450c13379cb0b36d27bba03266dd30620ab98ba116af07421a9a2df9c43875"
+    },
+    {
+      "archive_member": "workspace/cad_repair/audit_fidelity.py",
+      "line_count": 53,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "3a97973ddb5f7d9650f881f70778c0f294b41e0026675190187e924d650a6bdd"
+    },
+    {
+      "archive_member": "workspace/cad_repair/motorhousing_witness.py",
+      "line_count": 60,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "c676df3a0acfefa85b9e75661d7c4879fdecc0f6ad44ed7ba031305276038fb1"
+    },
+    {
+      "archive_member": "workspace/finalize_submission.py",
+      "line_count": 31,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "94736660383c8e2bedab1d589b96e7e1a530bce4ea946aefbfec3fc77f3816cf"
+    },
+    {
+      "archive_member": "workspace/run_metric_geometry.py",
+      "line_count": 11,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "029a1ecc1252d3559de3955c8c520d894f417c20acad82c60c117cac5a42e368"
+    }
+  ],
+  "source_sha256": "4958fd3337b99596c0d78aa76edae59145192563abe2854cf42c7cc4b5a94aba",
+  "started_utc": "2026-09-23T04:27:43.647819+00:00",
+  "task_sha256": "8535c0d01c74372a537af4ff3d32fa0f8b127892662421501a2ddeba6a48b2dc",
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": {
+    "author_claimed_accepted": false,
+    "independent_physical_acceptance": "not_accessed",
+    "scope": "Reviewed execution operations, static script imports/calls and native contracts for phases reached. Failure/conditional receipts and missing later task success are not treatment violations.",
+    "status": "observed_compliance"
+  }
+}

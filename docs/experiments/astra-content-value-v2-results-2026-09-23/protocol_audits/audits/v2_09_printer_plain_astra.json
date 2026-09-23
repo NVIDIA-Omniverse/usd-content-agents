@@ -1,0 +1,269 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "plain_astra",
+  "case_id": "09_printer",
+  "citations": [
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "844726c75cd6c6ec429ff0b4be984ac45bde4272b986824f53098990c029a0d2",
+      "kind": "original_tool_call",
+      "line": 162,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "e9ada305bf8d51ad4b182148fc83ba5f2959d3b461c8d091b3c0ec6279bb038e",
+      "navigation_line": 162,
+      "observation": "OCP source tessellation through retained extraction script."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "844726c75cd6c6ec429ff0b4be984ac45bde4272b986824f53098990c029a0d2",
+      "kind": "original_tool_call",
+      "line": 632,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "e9ada305bf8d51ad4b182148fc83ba5f2959d3b461c8d091b3c0ec6279bb038e",
+      "navigation_line": 632,
+      "observation": "Direct OpenUSD mechanism authoring."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000001_000.jsonl",
+      "archive_sha256": "844726c75cd6c6ec429ff0b4be984ac45bde4272b986824f53098990c029a0d2",
+      "kind": "original_tool_call",
+      "line": 459,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "fb5de74141c4b2de065084bce956a3e0db9ab866bb6dc1684e7e87ee0c0c2948",
+      "navigation_line": 469,
+      "observation": "Direct author-owned final-scene native diagnostic preparation."
+    },
+    {
+      "archive_member": "workspace/submission.json",
+      "archive_sha256": "844726c75cd6c6ec429ff0b4be984ac45bde4272b986824f53098990c029a0d2",
+      "kind": "retained_author_artifact",
+      "member_sha256": "35cd6e8114e45a4dc190915944198c39969d852582e8bf93f824daac52b965a5",
+      "observed_fields": {
+        "claimed_accepted": true
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    }
+  ],
+  "completed_utc": "2026-09-23T04:41:17.892131+00:00",
+  "compliance_status": "insufficient_evidence",
+  "evidence_sha256": {
+    "author_manifest": "580c9a50a941863444711b6592a7b39b1c069e4084d1c8b6f701bdb3069988a0",
+    "author_retention": "7a6f71dfa1a226dfbc594a88b6aac52eb48136cadb1655c75834a6868a9326e5",
+    "declaration": "6542de514a36bd3c658da363f723a6aee088c2ae06e27b365a4ebb888af69570",
+    "launch": "6b2d52fcbb213041c8d9b19828d0a047926471f8477debed7719a22fd482ec2b",
+    "reap": "25b2a4d7e12497c81ca530a253605aa5cdce3f27ba45c19216952ba9f039dc50",
+    "timing": "614322e0f2327e461642085a65624cc1845d472ced14d86a8fe41eaa56080712",
+    "ui_association": "71ac9a07f6776635be88887e1f8ebf65d211f45351849dc165f276326c7bc1f6",
+    "ui_metadata": "df8ab4debfe81a497fc30e5b4cd814770bb8e9c815dc3411158ee1108e205055",
+    "usage": "63e59a1e22ad2625b122de74c14f2a25e114d62b9721b306787b19418ab4e8b9"
+  },
+  "input_sha256": "aec5f11330c816ec936fd84d6822bd9e27d7140399c4cd28dca0988dcdd07c83",
+  "lane_id": "lane0",
+  "limitations": [
+    "Outcome-blinded protocol review only. No independent evaluator request, log, report, verdict or comparison was read; no authored script was executed.",
+    "Observed native receipts and author diagnostic claims do not establish independent task acceptance or numerical correctness.",
+    "This is automated reviewer work, not observed human review effort. Human review minutes remain unmeasured.",
+    "Frozen UI parsing has capture errors despite all admitted requests associating and all observed UI contexts matching Astra Ultra. The explanatory LF-vs-Unicode split diagnosis does not replace frozen audit evidence."
+  ],
+  "mechanical_findings": {
+    "admitted_requests": 288,
+    "all_observed_ui_matches": true,
+    "allocation_released": true,
+    "billing_complete": true,
+    "budget_s": 2400,
+    "cgroup_empty": true,
+    "cpu_quota_millicores": 4000,
+    "exact_identity_prompt_and_lease_verified": true,
+    "fresh_context_verified": true,
+    "frozen_usage_within_deadline": true,
+    "late_admitted_requests": 0,
+    "memory_bytes": 34359738368,
+    "namespace_reaped": true,
+    "pids_max": 1024,
+    "recorded_late_finishes": 0,
+    "source_unchanged": true,
+    "swap_bytes": 0,
+    "terminal_billing_records": 288,
+    "ui_association_complete": false
+  },
+  "outcome_blinded": true,
+  "protocol_eligible": false,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "bb84d260e32f3872b336be8552de1147c156afa82a6d2c823d40463015967dce",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance.",
+    "ui_diagnostic_scope": "posthoc_explanation_only_no_eligibility_change"
+  },
+  "reason": "INELIGIBLE for insufficient frozen mechanical UI evidence, not for an observed non-Ultra call. The final frozen ui_association.complete is false because ui_metadata retains invalid_json capture errors. All 288 admitted requests are nevertheless associated and all observed own-thread UI contexts match Astra Ultra. A read-only byte diagnosis identifies a Unicode-line-separator parsing boundary; the frozen method/result is preserved. Direct OCP/OpenUSD/native OvPhysX treatment use otherwise shows no observed prohibited invocation. All costs and the author acceptance claim remain retained.",
+  "review_coverage": {
+    "all_original_archive_bytes_rehashed": true,
+    "all_original_capture_and_navigation_hashes_verified": true,
+    "capture_count": 4,
+    "copied_ancestor_context_not_counted_as_new_invocation": true,
+    "navigation_not_used_as_verdict": true,
+    "review_navigation_sha256": "40dbe1fc7d7e2523cd56eae7f56da1cb5ae9b19da41f74486baf1d5dc250aad3",
+    "script_inventory_count": 18,
+    "script_inventory_sha256": "a6fe401ce2ee2db4975f384234527bf3928e02f5f5c1a59e472bf54b89223a31",
+    "unique_navigation_tool_calls": 257
+  },
+  "run_id": "v2_09_printer_plain_astra",
+  "schema_version": "outcome-blinded-protocol-adjudication.agent06.v1",
+  "script_review_inventory": [
+    {
+      "archive_member": "workspace/scripts/author_scene.py",
+      "line_count": 75,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "3c8e4dbd5f44b161d7735ddb01c433c97cabf5689b756df40b5c31ef017ef553"
+    },
+    {
+      "archive_member": "workspace/scripts/check_submission.py",
+      "line_count": 428,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "125e06d6727761ea8e953b5a91b3cd7ac08bffaf0a85e2d1dc74cc8d56b13ece"
+    },
+    {
+      "archive_member": "workspace/scripts/compare_direct_triangles.py",
+      "line_count": 26,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "d89c3b8777dc464d644a8706b97f7baa143d32ed48e5fe6b9c3795816bec6069"
+    },
+    {
+      "archive_member": "workspace/scripts/direct_025_step_probe.py",
+      "line_count": 48,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "2b8002d16e681ebc0a4fd1430a7393785b57acb2f0e452b9a5fd9ff85e1b914f"
+    },
+    {
+      "archive_member": "workspace/scripts/direct_source_repairs.py",
+      "line_count": 36,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "be2139674ffcca6ab282418d3ee8b0e95cf97d94bafdf917f4fb528e045fbf33"
+    },
+    {
+      "archive_member": "workspace/scripts/direct_step_probe.py",
+      "line_count": 48,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "84ec17d857366ca3385203606bd63d89e12f106470b97cd3f1d52a62a58050d6"
+    },
+    {
+      "archive_member": "workspace/scripts/extract_geometry.py",
+      "line_count": 55,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "5536b87c0408c0ee9af9399e43aa63bf0113df6b08fefbe5cd5cbbc9885805af"
+    },
+    {
+      "archive_member": "workspace/scripts/extract_geometry_attempt_000.py",
+      "line_count": 55,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "188d816b4b5191d8eee8863fcd54d7cbb9ca4e2812d4c95871596580a793b4dc"
+    },
+    {
+      "archive_member": "workspace/scripts/finalize_submission.py",
+      "line_count": 40,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "fe4396f05b2b57ab819b3ad38cf2c3278ee4de06256686b07c7c277531b589e6"
+    },
+    {
+      "archive_member": "workspace/scripts/native_smoke.py",
+      "line_count": 462,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "0f3e3dc39bb4cd9216e5e55cdd55168199c41901fc87941375e3a5b34443b19a"
+    },
+    {
+      "archive_member": "workspace/scripts/probe_loose_vertices.py",
+      "line_count": 19,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "8f1f4804f503453b5879e0f3504f4bf646a3b92dfb538e02371efcba3398f323"
+    },
+    {
+      "archive_member": "workspace/scripts/probe_params.py",
+      "line_count": 24,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "c17cb788d6c8b887317e0979158316951497c7642a16c0b54f420fdf44e8e5e4"
+    },
+    {
+      "archive_member": "workspace/scripts/probe_relative.py",
+      "line_count": 24,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "1494d1a42c893bf7714993fd4ea702c56bc8ef77865b264d245bb1744ade572b"
+    },
+    {
+      "archive_member": "workspace/scripts/probe_step.py",
+      "line_count": 27,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "9f1ed64d7b4cf26fb775c4dc57bd96027cb1364d564ab1194da9b2c8e6a447cc"
+    },
+    {
+      "archive_member": "workspace/scripts/probe_tiny.py",
+      "line_count": 24,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "160671c96690af15eac314add12e72579a974b7dee634941e62db5bc678af9bc"
+    },
+    {
+      "archive_member": "workspace/scripts/summarize_native.py",
+      "line_count": 74,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "79a6c233d4c61fd1568605e0595a6b7180fcc6b632001320fc57927a13ed28cf"
+    },
+    {
+      "archive_member": "workspace/scripts/tessellation_accuracy_probe.py",
+      "line_count": 51,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "5d525cc0713b9314bae1b9201fa7fac2c85d62bcf099fe9b305696deb945735c"
+    },
+    {
+      "archive_member": "workspace/scripts/tessellation_probe.py",
+      "line_count": 35,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "412695ce3ff1a9d8e64b660a3332bf45a6248dfd1c07985588fefa57161b73b5"
+    }
+  ],
+  "source_sha256": "52d4324033aecd057b28c5d60b2bda0945ce46c1e46764ea9d4b489dc47017c5",
+  "started_utc": "2026-09-23T04:27:48.122484+00:00",
+  "task_sha256": "19dc5bf786736697bb8da64bd70d66757b62fb187211f4762acf945bcccdf2fb",
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": {
+    "author_claimed_accepted": true,
+    "independent_physical_acceptance": "not_accessed",
+    "scope": "Reviewed execution operations, static script imports/calls and native contracts for phases reached. Failure/conditional receipts and missing later task success are not treatment violations.",
+    "status": "observed_compliance"
+  },
+  "ui_evidence_boundary": {
+    "admission_identity_associations": 26,
+    "all_observed_ui_matches": true,
+    "archive_member": "private/session_captures/capture_000001_000.jsonl",
+    "associated_requests": 288,
+    "capture_sha256": "fb5de74141c4b2de065084bce956a3e0db9ab866bb6dc1684e7e87ee0c0c2948",
+    "disposition": "Preserve frozen incomplete result and ineligibility. No parser fix, inferred mode violation, or post-hoc eligibility promotion.",
+    "frozen_parser_file": "harness/ui_audit.py",
+    "frozen_parser_sha256": "9c74bb9464bbce16838e6fec656cb9b163c4222d626102ae68a48e21a6eb00e5",
+    "frozen_str_splitlines_invalid_fragment_count": 11,
+    "frozen_ui_complete": false,
+    "lf_record_line": 117,
+    "lf_record_sha256": "5075ea545b4eed970f19e8db68bd8d78cc731f10157babf3aca1e2b0e71bd7bc",
+    "literal_lf_json_records_valid": true,
+    "parser_lines": [
+      79,
+      83
+    ],
+    "record_type": "event_msg/item_completed",
+    "request_count": 288,
+    "retained_capture_error_count": 22,
+    "separator": "U+0085",
+    "separator_count_in_lf_record_117": 10,
+    "terminal_response_id_associations": 262,
+    "unassociated_request_count": 0
+  }
+}

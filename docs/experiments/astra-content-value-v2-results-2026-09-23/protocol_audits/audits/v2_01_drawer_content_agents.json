@@ -1,0 +1,347 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "content_agents",
+  "case_id": "01_drawer",
+  "citations": [
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "original_tool_call",
+      "line": 55,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "0e0be5ac60fb13e39b7cb63c8fd9a59d254ef3f6b93e65d478ecda0628fec4ad",
+      "navigation_line": 55,
+      "observation": "Native convert-to-usd entrypoint."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000002_000.jsonl",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "original_tool_call",
+      "line": 360,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "1abf30d9cabef4c6bb58b8973ce75abdfef7a783a5093bfb39d79bc8855fdbae",
+      "navigation_line": 360,
+      "observation": "Native preparation publication."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "original_tool_call",
+      "line": 470,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "0e0be5ac60fb13e39b7cb63c8fd9a59d254ef3f6b93e65d478ecda0628fec4ad",
+      "navigation_line": 470,
+      "observation": "Explicit Astra Ultra native Articulation retry launcher."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000004_000.jsonl",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "original_tool_call",
+      "line": 165,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "2c7074fdb684f90ce1880aa29489484f9f704d37ea9811a5fc7743d49cd776b4",
+      "navigation_line": 165,
+      "observation": "Native Articulation typed decision application."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "original_tool_call",
+      "line": 750,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "0e0be5ac60fb13e39b7cb63c8fd9a59d254ef3f6b93e65d478ecda0628fec4ad",
+      "navigation_line": 750,
+      "observation": "Native Physics direct executor with reviewed target-ID decision patch."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "original_tool_call",
+      "line": 798,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "0e0be5ac60fb13e39b7cb63c8fd9a59d254ef3f6b93e65d478ecda0628fec4ad",
+      "navigation_line": 798,
+      "observation": "Native Astra Ultra Validation coordinator, explicitly limited to static/render evidence."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "original_tool_call",
+      "line": 899,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "0e0be5ac60fb13e39b7cb63c8fd9a59d254ef3f6b93e65d478ecda0628fec4ad",
+      "navigation_line": 899,
+      "observation": "Native exact outer Validation assessment review."
+    },
+    {
+      "archive_member": "workspace/conversion/workflow_run_manifest.json",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "retained_author_artifact",
+      "member_sha256": "1b85f774dc9836a1d9b38e1bb02a356a977d101948475395c6cbb98ba1d6b462",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "pass",
+        "workflow": "convert_to_usd"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/articulation/final_summary.json",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "retained_author_artifact",
+      "member_sha256": "266682d4af3efea71fef6f9a18a83d274cb1ce3733d9f9ad550b8cef1c679c32",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.articulation-finalization-result.v5",
+        "status": "awaiting_decision",
+        "success": false
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/articulation_02/standalone_articulation_terminal_receipt.json",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "retained_author_artifact",
+      "member_sha256": "ea30381c530fe4883283dba23982d81fa513d6e750f01153d9a21ca2834752d8",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.standalone-articulation-terminal-receipt.v1",
+        "status": "completed"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/physics_native/workflow_run_manifest.json",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "retained_author_artifact",
+      "member_sha256": "6dad757f58ff9df409c61659655bee7b4b96abd1138310553b6d0206bd1d2a18",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "pass",
+        "workflow": "physics_authoring"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/physics_native_02/workflow_run_manifest.json",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "retained_author_artifact",
+      "member_sha256": "b584086be97e42a3adf140ac32ed0dbdeda0e50e80e5a87ea25384a0b8105ad2",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "pass",
+        "workflow": "physics_authoring"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/validation_final/validation_terminal_receipt.json",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "retained_author_artifact",
+      "member_sha256": "6ff63f5425abd99e93ab998381ee24de942e6bb60e34bd3d93f937cd509a1718",
+      "observed_fields": {
+        "gate_dispositions": {
+          "cross_stage_integrity": "defer",
+          "package_integrity": "pass",
+          "runtime_validation": "not_evaluated",
+          "static_validation": "pass",
+          "visual_quality": "pass"
+        },
+        "receipt_status": "completed",
+        "schema_version": "content-agent-workflows.validation-terminal-receipt.v1"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/submission.json",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "retained_author_artifact",
+      "member_sha256": "dedd99131ed7d681c08140f61229d373cadc0375ae7df0cbae190afd2daecaa5",
+      "observed_fields": {
+        "claimed_accepted": true
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/repair_history.json",
+      "archive_sha256": "166d5413be8550090616d900452afe4bf065a9784be4e061e2efb5150831e436",
+      "kind": "retained_author_artifact",
+      "member_sha256": "5e1409e4337b4fc583c98d1c2bf2bca8fc9434b9b43607846d6dfe747ccbd69f",
+      "observed_fields": {},
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    }
+  ],
+  "completed_utc": "2026-09-23T04:41:18.032237+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "14bfb3579e6b0bbe46bbf0a6b6f285db1f5a2a18933dff4290c232038a8e8695",
+    "author_retention": "5f755243d43bbadacc2295545d7428bd43e49d86ed5a85a852a3629d6c6c7bb5",
+    "declaration": "48acd8c3622e26d574c25d9547417e21803b44a646dcb1b745178995b92c364c",
+    "launch": "1fcec7fd6d53e67cd6f735ed9635c9f0ecbefefd4415917bc1f008742e595c09",
+    "reap": "b40999c63b1370eb18d9035820ced11c6b5a7260e46f88523cb09f35cf2b0e92",
+    "timing": "3a4cfacae28401ce605c91f2544cb2f32eefa91e946847155c545134b5d4766f",
+    "ui_association": "f55e6b44b8d96100e90677eb0ae981245b2a0ffdfac07fb6f7c57d04e0d09acb",
+    "ui_metadata": "0d62eff91417051d081423f565460d7a1265f3a7bfbda827b6effe09db8ff288",
+    "usage": "031370cb5cd9e66f4b72d0105589ac603d5690dd4321787c72edb1e4f7224dce"
+  },
+  "input_sha256": "b72cb05a79d548c416d274f0974fac09ef0fa5f71a771ec1f2cefa40471b1e93",
+  "lane_id": "lane0",
+  "limitations": [
+    "Outcome-blinded protocol review only. No independent evaluator request, log, report, verdict or comparison was read; no authored script was executed.",
+    "Observed native receipts and author diagnostic claims do not establish independent task acceptance or numerical correctness.",
+    "This is automated reviewer work, not observed human review effort. Human review minutes remain unmeasured."
+  ],
+  "mechanical_findings": {
+    "admitted_requests": 364,
+    "all_observed_ui_matches": true,
+    "allocation_released": true,
+    "billing_complete": true,
+    "budget_s": 2400,
+    "cgroup_empty": true,
+    "cpu_quota_millicores": 4000,
+    "exact_identity_prompt_and_lease_verified": true,
+    "fresh_context_verified": true,
+    "frozen_usage_within_deadline": true,
+    "late_admitted_requests": 0,
+    "memory_bytes": 34359738368,
+    "namespace_reaped": true,
+    "pids_max": 1024,
+    "recorded_late_finishes": 0,
+    "source_unchanged": true,
+    "swap_bytes": 0,
+    "terminal_billing_records": 364,
+    "ui_association_complete": true
+  },
+  "native_terminal_reference_integrity": {
+    "all_match": true,
+    "reference_count": 21,
+    "sha256": "fcc0f50e2edebbca575a205eefb92ae20251e1d285c13a55ad771a0212d78844"
+  },
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "11e712b15455ddf253e3f03c0f66fbc6a700300c4f4ac4d20273e5be4448701d",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "Observed genuine native convert-to-usd, retained source/collider preparation, native Articulation preparation/typed application/outer review/finalization, native Physics reviewed target-ID application and mounted runtime receipt, and native Validation coordinator/collect/assessment/review. Low-level source restoration and collision-filter preparation are explicitly retained and subsequently consumed by native stages; they are not presented as fabricated native receipts. Failed initial Articulation and author diagnostics remain retained. Final Validation explicitly covers static/render/package evidence, while force trials and the final acceptance claim remain author-owned and separate. All frozen mechanical gates are satisfied.",
+  "review_coverage": {
+    "all_original_archive_bytes_rehashed": true,
+    "all_original_capture_and_navigation_hashes_verified": true,
+    "capture_count": 6,
+    "copied_ancestor_context_not_counted_as_new_invocation": true,
+    "navigation_not_used_as_verdict": true,
+    "review_navigation_sha256": "9a5f338c3a96b886255699372a3705d82e296316e23ebef6eaa5028ee3e43757",
+    "script_inventory_count": 14,
+    "script_inventory_sha256": "31768f12d832b888bee04573b4086b33bb824d533fe88e84b3c5458879dc774a",
+    "unique_navigation_tool_calls": 325
+  },
+  "run_id": "v2_01_drawer_content_agents",
+  "schema_version": "outcome-blinded-protocol-adjudication.agent06.v1",
+  "script_review_inventory": [
+    {
+      "archive_member": "workspace/articulation_prep/build_post_review_patch.py",
+      "line_count": 56,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "b135c9331a53530556c42ada9c9853456f1b070860011169bfab89a21b649cd5"
+    },
+    {
+      "archive_member": "workspace/articulation_prep/retained/inspector.py",
+      "line_count": 116,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "b25ea661fc11544029bae598b00da94a5e3e9ab53851a74adf66837c8d37c994"
+    },
+    {
+      "archive_member": "workspace/authoring/launch_articulation.py",
+      "line_count": 6,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "e0b70764107aadad1f908edf0fb2a22fbec72ede55e8e14327fdcfe4b6671070"
+    },
+    {
+      "archive_member": "workspace/authoring/physics_decisions.py",
+      "line_count": 26,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "4bb9cf7fc3f7d1a7658a71a221274cc917ea163324dbeac2fe5d92213e4d5060"
+    },
+    {
+      "archive_member": "workspace/authoring/prepare_colliders.py",
+      "line_count": 47,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "204cc9b65d029a8cb0e9d006753ecef486bc3a7e83f369d0dbc316a7c8250359"
+    },
+    {
+      "archive_member": "workspace/authoring/prepare_colliders_attempt1.py",
+      "line_count": 47,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "c15a12876c782696b5fdeb258eca53bb0ef6415c35d9ed39a800ea40837ecc08"
+    },
+    {
+      "archive_member": "workspace/authoring/repair_collision_filter.py",
+      "line_count": 20,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "7c17cd0655728deb0bc4008fd3ad3f76db1a15541215be838e62c7c1059cec19"
+    },
+    {
+      "archive_member": "workspace/runtime_check/prepare_smoke.py",
+      "line_count": 136,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "dea223570637c13b9e83e95821d5b96241cefd0b08fbb225eee10f678452119c"
+    },
+    {
+      "archive_member": "workspace/runtime_check/run_smoke.py",
+      "line_count": 215,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "9c0a2383c4d9d50ff4ae96c6e2ca58af5f111c46b5a06eb4e7f1a5c7778c29e4"
+    },
+    {
+      "archive_member": "workspace/source_analysis/audit_restoration.py",
+      "line_count": 32,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "2c479694abd64f54ee34f31666ea5492a75deee199740091704786999514ce91"
+    },
+    {
+      "archive_member": "workspace/source_analysis/restore_source_faces.py",
+      "line_count": 14,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "fcde4b828ebfc7540dfb57a22d8dbef5749b41ae937b8a224604e7c6a37fb0e5"
+    },
+    {
+      "archive_member": "workspace/source_analysis/verify_prepared.py",
+      "line_count": 15,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "fc731c5554151339638404ca36b327bc3babfc5e272e04141b4b232ceee5c90d"
+    },
+    {
+      "archive_member": "workspace/validation_helpers/assessment_helper.py",
+      "line_count": 70,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "5adb79257431263078f84bb2be34d4d1b860f8b7c4b07856473131bedaf4d2a0"
+    },
+    {
+      "archive_member": "workspace/validation_helpers/assessment_helper_initial.py",
+      "line_count": 69,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "412c2ff107c25889c0ca8d360521e71a7f6cb077b9d94b2b6d9c8ef3846b84da"
+    }
+  ],
+  "source_sha256": "5dd75c019eacbbe34f8af86a635d1e0848d871a2015d836637e2162a8ec99ad1",
+  "started_utc": "2026-09-23T04:27:42.849448+00:00",
+  "task_sha256": "e70a4e69cf8db242ecd17b78771868d6a476ced458e36fed7e37e8856d13e5af",
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": {
+    "author_claimed_accepted": true,
+    "independent_physical_acceptance": "not_accessed",
+    "scope": "Reviewed execution operations, static script imports/calls and native contracts for phases reached. Failure/conditional receipts and missing later task success are not treatment violations.",
+    "status": "observed_compliance"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "author_runs": 20,
+  "billing_complete_runs": 12,
+  "completed_request_count": 5354,
+  "controller_failures": 0,
+  "model_request_count": 5367,
+  "reaped_runs": 20,
+  "retention_limit": "Archive digests and prior member verification are projected from trusted retention receipts. Archive payloads are not read or provided here.",
+  "schema_version": "author-control-summary-projection.v1",
+  "scope": "Trusted control metadata only. Eligibility, treatment compliance, physical outcomes and comparative benefit are not assessed.",
+  "sources_unchanged_runs": 20,
+  "ui_complete_runs": 19,
+  "ui_incomplete_run": "v2_09_printer_plain_astra",
+  "ui_limit": "Printer plain retains UI incomplete despite associated recorded requests; capture errors are counted without disclosing private content.",
+  "unknown_terminal_request_count": 13,
+  "unknown_terminal_usage_treated_as_zero": false,
+  "verified_retention_runs": 20
+}

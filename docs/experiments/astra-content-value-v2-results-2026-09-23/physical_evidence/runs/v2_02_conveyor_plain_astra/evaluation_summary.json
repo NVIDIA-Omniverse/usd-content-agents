@@ -1,0 +1,11 @@
+{
+  "case_id": "02_conveyor",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 111.70973876863718,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "8ec569afcaee34b73d2e51a822e793602bbdd1bd0314bf42da1711f04a1ccbc7",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_02_conveyor_plain_astra",
+  "status": "PASS",
+  "timed_out": false
+}

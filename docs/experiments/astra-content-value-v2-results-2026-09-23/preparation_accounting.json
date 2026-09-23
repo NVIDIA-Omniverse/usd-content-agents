@@ -1,0 +1,148 @@
+{
+  "schema_version": "preparation-accounting.v2",
+  "created_utc": "2026-09-23T01:10:25.405966+00:00",
+  "scope": "Observed admitted model requests in the thirteen retained unscored qualification ledgers only. Root orchestrator and collaboration-agent model usage, earlier pilot and capstone work, invoice, GPU dollars and human time are not included and remain unmeasured here. This is not complete setup cost.",
+  "rates_sha256": "5637a2f729c4764e93c60cf166f2273dd09fb6fa98e2f976b0560b12f3cc7e58",
+  "probes": [
+    {
+      "qualification": "gateway_qualification01",
+      "admitted_requests": 0,
+      "requests_with_terminal_usage": 0,
+      "requests_with_unknown_usage": 0,
+      "input_tokens_observed": 0,
+      "output_tokens_observed": 0,
+      "standard_api_equivalent_usd_lower": 0,
+      "standard_api_equivalent_usd_upper": 0
+    },
+    {
+      "qualification": "gateway_qualification03",
+      "admitted_requests": 1,
+      "requests_with_terminal_usage": 0,
+      "requests_with_unknown_usage": 1,
+      "input_tokens_observed": 0,
+      "output_tokens_observed": 0,
+      "standard_api_equivalent_usd_lower": 0.0,
+      "standard_api_equivalent_usd_upper": null
+    },
+    {
+      "qualification": "gateway_qualification04",
+      "admitted_requests": 1,
+      "requests_with_terminal_usage": 0,
+      "requests_with_unknown_usage": 1,
+      "input_tokens_observed": 0,
+      "output_tokens_observed": 0,
+      "standard_api_equivalent_usd_lower": 0.0,
+      "standard_api_equivalent_usd_upper": null
+    },
+    {
+      "qualification": "gateway_qualification05",
+      "admitted_requests": 1,
+      "requests_with_terminal_usage": 0,
+      "requests_with_unknown_usage": 1,
+      "input_tokens_observed": 0,
+      "output_tokens_observed": 0,
+      "standard_api_equivalent_usd_lower": 0.0,
+      "standard_api_equivalent_usd_upper": null
+    },
+    {
+      "qualification": "gateway_qualification06",
+      "admitted_requests": 1,
+      "requests_with_terminal_usage": 1,
+      "requests_with_unknown_usage": 0,
+      "input_tokens_observed": 9890,
+      "output_tokens_observed": 21,
+      "standard_api_equivalent_usd_lower": 0.09995,
+      "standard_api_equivalent_usd_upper": 0.09995
+    },
+    {
+      "qualification": "gateway_qualification07",
+      "admitted_requests": 5,
+      "requests_with_terminal_usage": 4,
+      "requests_with_unknown_usage": 1,
+      "input_tokens_observed": 40256,
+      "output_tokens_observed": 399,
+      "standard_api_equivalent_usd_lower": 0.39716599999999996,
+      "standard_api_equivalent_usd_upper": null
+    },
+    {
+      "qualification": "gateway_qualification08",
+      "admitted_requests": 5,
+      "requests_with_terminal_usage": 5,
+      "requests_with_unknown_usage": 0,
+      "input_tokens_observed": 50520,
+      "output_tokens_observed": 636,
+      "standard_api_equivalent_usd_lower": 0.37456799999999996,
+      "standard_api_equivalent_usd_upper": 0.37456799999999996
+    },
+    {
+      "qualification": "gateway_qualification09",
+      "admitted_requests": 4,
+      "requests_with_terminal_usage": 4,
+      "requests_with_unknown_usage": 0,
+      "input_tokens_observed": 46840,
+      "output_tokens_observed": 593,
+      "standard_api_equivalent_usd_lower": 0.389762,
+      "standard_api_equivalent_usd_upper": 0.389762
+    },
+    {
+      "qualification": "gateway_qualification10",
+      "admitted_requests": 0,
+      "requests_with_terminal_usage": 0,
+      "requests_with_unknown_usage": 0,
+      "input_tokens_observed": 0,
+      "output_tokens_observed": 0,
+      "standard_api_equivalent_usd_lower": 0,
+      "standard_api_equivalent_usd_upper": 0
+    },
+    {
+      "qualification": "gateway_qualification11",
+      "admitted_requests": 63,
+      "requests_with_terminal_usage": 63,
+      "requests_with_unknown_usage": 0,
+      "input_tokens_observed": 3892071,
+      "output_tokens_observed": 19937,
+      "standard_api_equivalent_usd_lower": 26.795128000000002,
+      "standard_api_equivalent_usd_upper": 26.795128000000002
+    },
+    {
+      "qualification": "gateway_qualification12",
+      "admitted_requests": 68,
+      "requests_with_terminal_usage": 68,
+      "requests_with_unknown_usage": 0,
+      "input_tokens_observed": 3396664,
+      "output_tokens_observed": 22809,
+      "standard_api_equivalent_usd_lower": 21.678226,
+      "standard_api_equivalent_usd_upper": 21.678226
+    },
+    {
+      "qualification": "gateway_qualification13",
+      "admitted_requests": 98,
+      "requests_with_terminal_usage": 98,
+      "requests_with_unknown_usage": 0,
+      "input_tokens_observed": 3997277,
+      "output_tokens_observed": 30934,
+      "standard_api_equivalent_usd_lower": 23.46071799999999,
+      "standard_api_equivalent_usd_upper": 23.46071799999999
+    },
+    {
+      "qualification": "gateway_qualification14",
+      "admitted_requests": 15,
+      "requests_with_terminal_usage": 15,
+      "requests_with_unknown_usage": 0,
+      "input_tokens_observed": 322129,
+      "output_tokens_observed": 8121,
+      "standard_api_equivalent_usd_lower": 2.3635960000000003,
+      "standard_api_equivalent_usd_upper": 2.3635960000000003
+    }
+  ],
+  "admitted_requests": 262,
+  "requests_with_unknown_usage": 4,
+  "standard_api_equivalent_usd_lower": 75.559114,
+  "standard_api_equivalent_usd_upper": null,
+  "four_gpu_reservation_to_first_author_hours": 19.115586356666665,
+  "reservation_start_basis": "Recorded four-GPU resume2026-09-22T20:16:35UTC; firstauthorcontroller dispatch2026-09-23T01:03:19.027721UTC. Reservation time includes idle preparation.",
+  "invoice_usd": null,
+  "horde_usd": null,
+  "human_review_minutes": null,
+  "not_a_comparative_arm_cost": true
+}

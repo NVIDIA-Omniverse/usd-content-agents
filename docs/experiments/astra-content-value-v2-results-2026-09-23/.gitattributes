@@ -1,0 +1,12 @@
+# Exact retained evidence and generated figures keep their original whitespace.
+* -text -whitespace
+*.png binary
+*.jpg binary
+*.usdc binary
+*.usdz binary
+*.gz binary
+*.bin binary
+*.npz binary
+*.f3d binary
+*.ipt binary
+*.iam binary

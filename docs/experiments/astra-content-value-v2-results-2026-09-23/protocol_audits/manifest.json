@@ -1,0 +1,142 @@
+{
+  "files": [
+    {
+      "bytes": 2900,
+      "relative_path": "README.md",
+      "sha256": "acb32ab5b25a0a7e9cd0866bf51f9cf05a569b7a4ed3ac9d07ead9ac4ea3060a"
+    },
+    {
+      "bytes": 18904,
+      "relative_path": "audits/v2_01_drawer_content_agents.json",
+      "sha256": "73030dcc19bd8a4d62a5e5167123f6b5e3d3b05ec3c697277fa2d7c3f43d6e32"
+    },
+    {
+      "bytes": 9500,
+      "relative_path": "audits/v2_01_drawer_plain_astra.json",
+      "sha256": "308f28ffa8185a8c80b0bd3f16c36696b3949e36c59bdf0bff5c46ebe34a3186"
+    },
+    {
+      "bytes": 16169,
+      "relative_path": "audits/v2_02_conveyor_content_agents.json",
+      "sha256": "eb4323093f9d715f491aa6d389c8dfa7a4998e99371206ba38a6ec4766841f91"
+    },
+    {
+      "bytes": 10000,
+      "relative_path": "audits/v2_02_conveyor_plain_astra.json",
+      "sha256": "e4dfcccbc591b017ecf62d8b37b1c4833055addf81d79cc7a24b868557bbe629"
+    },
+    {
+      "bytes": 15702,
+      "relative_path": "audits/v2_03_hinge_content_agents.json",
+      "sha256": "35306c228fc8dbb506b25a6695765b232690ca75230dfb28a5360a3aeb8b3036"
+    },
+    {
+      "bytes": 11211,
+      "relative_path": "audits/v2_03_hinge_plain_astra.json",
+      "sha256": "5e2957f2d5ddf97437c72fa509c50d9064e262d9e65869b1d92fea12e31af904"
+    },
+    {
+      "bytes": 13396,
+      "relative_path": "audits/v2_04_gripper_content_agents.json",
+      "sha256": "1d2af351ec82ef5891f9e228c7941b6533a69428c101e970d8ed131b35ccfecb"
+    },
+    {
+      "bytes": 14003,
+      "relative_path": "audits/v2_04_gripper_plain_astra.json",
+      "sha256": "0ff8740f2b6f67db004f9576ccd719f387707857ff866e0a9879981579c891c5"
+    },
+    {
+      "bytes": 17120,
+      "relative_path": "audits/v2_05_vise_content_agents.json",
+      "sha256": "e131cea16f7c5d802af8f76fbc9b731fda5b0979bd9c098e90eea174c68a5927"
+    },
+    {
+      "bytes": 9151,
+      "relative_path": "audits/v2_05_vise_plain_astra.json",
+      "sha256": "46f3341fbfbd3727afa920481641c6472f06bd449ee848967534083b26b0f36d"
+    },
+    {
+      "bytes": 42120,
+      "relative_path": "audits/v2_06_engine_content_agents.json",
+      "sha256": "354c914578b0c1d8ebeaf60134257d72ebe40aca90d5bc5d873719adc13e6c06"
+    },
+    {
+      "bytes": 12895,
+      "relative_path": "audits/v2_06_engine_plain_astra.json",
+      "sha256": "228b345406ef6ee6ce9f4a2c726895fe46f059fa5ce9f0ff3dd8a4c2284f162a"
+    },
+    {
+      "bytes": 15169,
+      "relative_path": "audits/v2_07_robot_arm_content_agents.json",
+      "sha256": "09acb465e57e7a8b251f62fcf4656b1d4049b3ac8ba9ecd489f5fae3bf9dde0b"
+    },
+    {
+      "bytes": 10271,
+      "relative_path": "audits/v2_07_robot_arm_plain_astra.json",
+      "sha256": "dd40a3668486ef61dd9215314ecdd8b4dbaa222989312c61e8358f3700183748"
+    },
+    {
+      "bytes": 18114,
+      "relative_path": "audits/v2_08_excavator_content_agents.json",
+      "sha256": "52039720d980df9508e39be621820af77d0bfc040bd8f640021b68f39c17db18"
+    },
+    {
+      "bytes": 11006,
+      "relative_path": "audits/v2_08_excavator_plain_astra.json",
+      "sha256": "57e3536886467ee479bb4c4e1de7238f2d1ef0f4b8d84116d2e5a32b04177733"
+    },
+    {
+      "bytes": 16407,
+      "relative_path": "audits/v2_09_printer_content_agents.json",
+      "sha256": "ec3113131df72f35a2c1be95993aa17a7a1c209decd55daba32d2c013f5fa1a8"
+    },
+    {
+      "bytes": 15172,
+      "relative_path": "audits/v2_09_printer_plain_astra.json",
+      "sha256": "addd5b727164a062ccd1d424a319875dc0af7ef5a9703fb6d4a5a6ce553c6213"
+    },
+    {
+      "bytes": 16451,
+      "relative_path": "audits/v2_10_complex_content_agents.json",
+      "sha256": "ff29044afd356007c22a32a4776dd6b98467a3db0b254e9e37edb594d5496da2"
+    },
+    {
+      "bytes": 11338,
+      "relative_path": "audits/v2_10_complex_plain_astra.json",
+      "sha256": "d7af6aaac84b421957f9be1e1f43fe933b6a67ec1a9bd22284daf60642b716c0"
+    },
+    {
+      "bytes": 9986,
+      "relative_path": "index.json",
+      "sha256": "3768093a3cec4320ace7c95e7d3179a0cc4af0689c5a663511d52bb228112357"
+    },
+    {
+      "bytes": 10105,
+      "relative_path": "preservation_checks.json",
+      "sha256": "f2078e662b2ca6706247601e1ae69b5b9b3babb8fe594b07f1ed01f5a59086f8"
+    },
+    {
+      "bytes": 5435,
+      "relative_path": "tools/check_preservation.py",
+      "sha256": "e300be6238480fc35668eea94280a351c887e117e2e90d42e2ec895b0ee2af8e"
+    },
+    {
+      "bytes": 19641,
+      "relative_path": "tools/project_audits.py",
+      "sha256": "2d329478861523310d39c5eae7c24f768402349504ec05e2503600f69ed071b9"
+    },
+    {
+      "bytes": 12260,
+      "relative_path": "tools/test_projection.py",
+      "sha256": "4920e7cbc296691dff5252d08f06dfa111e8bac5d681f7ee78eb6f151e8f1df2"
+    },
+    {
+      "bytes": 5042,
+      "relative_path": "tools/verify_public.py",
+      "sha256": "9e513c226f0f2742b65f9a97c89890c0547a46257b20917b1e86ad1acdb1709b"
+    }
+  ],
+  "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+  "schema_version": "public-audit-companion-manifest.v1",
+  "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+}

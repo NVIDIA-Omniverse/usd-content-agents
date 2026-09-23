@@ -112,10 +112,15 @@ domain-specific quality measurements, so a visually plausible output cannot
 hide an incomplete workflow. See [Benchmarking USD Content Agents](agentic/docs/benchmarks.md)
 for the evaluation design, coverage, reproducibility rules, and limitations.
 
-The [Astra Ultra paired development experiment](docs/experiments/astra-content-value-v2-2026-09-22/README.md)
-publishes a separate ten-asset protocol comparing identical model, inputs,
-tools and budgets with and without Content Agents workflows. Its scored
-results are pending; the preregistration does not establish comparative value.
+The [completed Astra Ultra paired development experiment](docs/experiments/astra-content-value-v2-results-2026-09-23/README.md)
+compares identical model, inputs, tools and budgets with and without Content
+Agents workflows. Across nine eligible pairs, direct Astra accepted 7/9 assets
+and Content Agents accepted 2/9; this batch did not demonstrate a workflow
+acceptance advantage. All twenty attempts, failures, protocol exclusions,
+API-reference cost bounds and unmeasured human effort remain reported.
+The [original preregistration](docs/experiments/astra-content-value-v2-2026-09-22/README.md)
+is preserved unchanged. These are reused development assets and a repaired
+implementation, not held-out customer validation.
 The [independent evaluator companion](docs/experiments/astra-content-value-v2-evaluator-2026-09-23/README.md)
 provides the frozen scoring code, contracts and preparation evidence, with explicit
 geometry and replay dependencies that remain outside the public bundle.

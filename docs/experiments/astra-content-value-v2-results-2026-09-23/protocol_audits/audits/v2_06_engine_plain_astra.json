@@ -1,0 +1,224 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "plain_astra",
+  "case_id": "06_engine",
+  "citations": [
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "80da55185fea3982fa05dfa0dd5a433c59cd44a2aee86d11faf60fcaab3e9879",
+      "kind": "original_tool_call",
+      "line": 199,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "622a67112b94e724ff33eecb7a6b6a68d25ea41de9b3bf43fccc354a377157ca",
+      "navigation_line": 199,
+      "observation": "Direct OpenUSD engine candidate authoring."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "80da55185fea3982fa05dfa0dd5a433c59cd44a2aee86d11faf60fcaab3e9879",
+      "kind": "original_tool_call",
+      "line": 408,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "622a67112b94e724ff33eecb7a6b6a68d25ea41de9b3bf43fccc354a377157ca",
+      "navigation_line": 408,
+      "observation": "Local native diagnostic orchestration and final candidate copies."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000002_000.jsonl",
+      "archive_sha256": "80da55185fea3982fa05dfa0dd5a433c59cd44a2aee86d11faf60fcaab3e9879",
+      "kind": "original_tool_call",
+      "line": 130,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "301db3b92001a3ab08250026387dcad82df07ab55bc9617725f2c466b4233b1c",
+      "navigation_line": 130,
+      "observation": "Author-owned USD metadata export and direct OvPhysX diagnostic."
+    },
+    {
+      "archive_member": "workspace/submission.json",
+      "archive_sha256": "80da55185fea3982fa05dfa0dd5a433c59cd44a2aee86d11faf60fcaab3e9879",
+      "kind": "retained_author_artifact",
+      "member_sha256": "e2defce43f39c69bee072af2795d2989c51d3fed14f59d3873caec38ace663b5",
+      "observed_fields": {
+        "claimed_accepted": false
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    }
+  ],
+  "completed_utc": "2026-09-23T04:41:17.661361+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "dba3ddd28214d91d069052a2849f4c778998c9de13cac6ebe102a1499dbbac00",
+    "author_retention": "6a4dc3bdb88c0ff342ba5ac6d1a6918f66fce7ec9ab600277922afb01a159bbf",
+    "declaration": "48abbe9f73c4f6644be2a80e4f4eed71e3ff585eadd7f042430b96a065e1624d",
+    "launch": "b46156f1b8dde14d68c1c3555247c08d35ee89b0360bf9d2450baca3c01b2c5b",
+    "reap": "2a9b52990be0c938e2573609985f3477a20a62b0e4acbeae96ab3429fc4a85c0",
+    "timing": "55dc8f5321920a36f753098be5f9879d0ece1743309c69510ed11238abef3d59",
+    "ui_association": "89bd58fec216ae5f6c4c06e074a595abec46921650033312f01a9c56013d79b9",
+    "ui_metadata": "cb72f760e7ddf1ad9503a729e1b136b1c907a3283060cfac017d549c221319bf",
+    "usage": "b4b77052cbc2a6922f3450fe7389297d0fb3f317e9c3321d39e9dfb4e459fa0e"
+  },
+  "input_sha256": "24c223db46bdc9ff04e1ad7f002f6bb7e03bd548d45e835b0eb9b86b861c0603",
+  "lane_id": "lane1",
+  "limitations": [
+    "Outcome-blinded protocol review only. No independent evaluator request, log, report, verdict or comparison was read; no authored script was executed.",
+    "Observed native receipts and author diagnostic claims do not establish independent task acceptance or numerical correctness.",
+    "This is automated reviewer work, not observed human review effort. Human review minutes remain unmeasured.",
+    "1 admitted request(s) lack terminal numerical billing. No admitted request starts after the trusted deadline and no recorded finish exceeds it; unrecorded finishes and cost upper bounds remain unknown. Frozen within_deadline=false is preserved, not converted to true."
+  ],
+  "mechanical_findings": {
+    "admitted_requests": 163,
+    "all_observed_ui_matches": true,
+    "allocation_released": true,
+    "billing_complete": false,
+    "budget_s": 2400,
+    "cgroup_empty": true,
+    "cpu_quota_millicores": 4000,
+    "exact_identity_prompt_and_lease_verified": true,
+    "fresh_context_verified": true,
+    "frozen_usage_within_deadline": false,
+    "late_admitted_requests": 0,
+    "memory_bytes": 34359738368,
+    "namespace_reaped": true,
+    "pids_max": 1024,
+    "recorded_late_finishes": 0,
+    "source_unchanged": true,
+    "swap_bytes": 0,
+    "terminal_billing_records": 162,
+    "ui_association_complete": true
+  },
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "015df15b2fb9a90d3248235f65e7b18769f6d1be336a7746e554adb2b35f0d2c",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "Observed direct FCStd ZIP/BREP extraction through OCP, OpenUSD candidate authoring and direct OvPhysX diagnostics. Local export_usd_config imports resolve to the author's own script; native driver subprocesses re-execute the same direct driver. No Content Agents workflow/decision-helper/skill invocation was observed. Source, identity, resource, reaping and own-thread UI gates are satisfied. One missing terminal billing record is retained as unknown cost, not a treatment exclusion or evidence of late admission.",
+  "review_coverage": {
+    "all_original_archive_bytes_rehashed": true,
+    "all_original_capture_and_navigation_hashes_verified": true,
+    "capture_count": 4,
+    "copied_ancestor_context_not_counted_as_new_invocation": true,
+    "navigation_not_used_as_verdict": true,
+    "review_navigation_sha256": "f112c6813186e590e1e87454ca61c14c744466ebbe3deeeaef0543d819ab0143",
+    "script_inventory_count": 15,
+    "script_inventory_sha256": "0b042d3dff0f080a98855b9ab3e54470d83f913cfcbb95e526e6d6fd4f8ae03c",
+    "unique_navigation_tool_calls": 137
+  },
+  "run_id": "v2_06_engine_plain_astra",
+  "schema_version": "outcome-blinded-protocol-adjudication.agent06.v1",
+  "script_review_inventory": [
+    {
+      "archive_member": "workspace/author_scene.py",
+      "line_count": 106,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "48550a2195fa46da0e445d144f08b710108f5733a64a5be03d796398d4fd6a75"
+    },
+    {
+      "archive_member": "workspace/candidates/initial/author_scene.py",
+      "line_count": 106,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "11c40d1460aabdf0f01c974c4d56dd410fe29a868cc8e84652a2472cfda3dc9d"
+    },
+    {
+      "archive_member": "workspace/candidates/repair_001/author_scene.py",
+      "line_count": 106,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "96f9138078c76171917270db55abe7753c97f4c0a4eee26f453ce6384735bfe6"
+    },
+    {
+      "archive_member": "workspace/candidates/repair_002/author_scene.py",
+      "line_count": 106,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "48550a2195fa46da0e445d144f08b710108f5733a64a5be03d796398d4fd6a75"
+    },
+    {
+      "archive_member": "workspace/run_final_trials.py",
+      "line_count": 21,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "3bbbbdf821d01300bba9d403355ea7165e2874d0621febb26220f2060b0db13d"
+    },
+    {
+      "archive_member": "workspace/runtime_notes/direct_native.py",
+      "line_count": 110,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "73d42f842cc4bfbfe036974e9e71f6034ba6f0349286d23237165b63675b2d03"
+    },
+    {
+      "archive_member": "workspace/runtime_notes/direct_native_v2.py",
+      "line_count": 177,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6b0f67050404c83e317691b379f7344344f7c86cdfc298c16d9dd9544c1d1f22"
+    },
+    {
+      "archive_member": "workspace/runtime_notes/export_usd_config.py",
+      "line_count": 52,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "10ef4188ea4d5c25a351a0d3cb665591a69263d365d27eae7c06c5f8c03037e2"
+    },
+    {
+      "archive_member": "workspace/runtime_notes/export_usd_config_v2.py",
+      "line_count": 28,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "90377e3d68a7e3f60a41ad9deb877a713f255697a555207a7011a4e63a555256"
+    },
+    {
+      "archive_member": "workspace/runtime_notes/make_v2.py",
+      "line_count": 59,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "b782f90a2798df8ee26a3a7a56067f575362b2ea8cd04a35e80e0cdf502493d1"
+    },
+    {
+      "archive_member": "workspace/runtime_notes/probe_contacts.py",
+      "line_count": 7,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "070fb0edcec9071daf9369e34c7808a98603fa5b0e230581e18554ee062994f5"
+    },
+    {
+      "archive_member": "workspace/runtime_notes/probe_contacts_reports.py",
+      "line_count": 7,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "99f330127cbd77581a23625fbaadfc1a15996fe748d05249b6a90b4948d069da"
+    },
+    {
+      "archive_member": "workspace/runtime_notes/smoke.py",
+      "line_count": 39,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "8d417b5766f5bd614bdc47d67dec650a79d2540cfbe22725589ae9b4102cafce"
+    },
+    {
+      "archive_member": "workspace/source_extract/audit_candidate.py",
+      "line_count": 215,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "2364a3fa6f7b0d6c82445e39ec7f202b38faa99ac075241329e5e023a360a761"
+    },
+    {
+      "archive_member": "workspace/source_extract/extract.py",
+      "line_count": 122,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "d9d16350ac04372396a921372bb5f22eea3cd7efd0f289ed4c9700c50b0fb188"
+    }
+  ],
+  "source_sha256": "df12c86b6c66b7687b0b80ed18ffa7431351735c82efa2cfc6c1721adfac9d44",
+  "started_utc": "2026-09-23T04:27:45.572846+00:00",
+  "task_sha256": "bba256bcef4e8622537bd7f690159ab3ea5e416249de9d1786ed21af85126513",
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": {
+    "author_claimed_accepted": false,
+    "independent_physical_acceptance": "not_accessed",
+    "scope": "Reviewed execution operations, static script imports/calls and native contracts for phases reached. Failure/conditional receipts and missing later task success are not treatment violations.",
+    "status": "observed_compliance"
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "created_utc": "2026-09-22T23:39:00.585807+00:00",
+  "hosts": [
+    {
+      "boundary_checks": 16,
+      "cgroup_populated": 0,
+      "evaluator_layout_sha256": "5aa4ef323d2d4ac641d7ab0f08c17636eb61edd65b45cd44537046f3a8274c31",
+      "node": "node0",
+      "parser_cases": {
+        "empty": "FAIL",
+        "malformed": "FAIL",
+        "missing": "FAIL",
+        "unavailable": "INCONCLUSIVE",
+        "valid": "PASS"
+      },
+      "passed": true,
+      "receipt": "qualification/controller_review_agent07/evaluation_boundary_v1/retained/node0/qualification/controller_review_agent07/evaluation_boundary_v1/remote_attempt_01/receipt.json",
+      "receipt_sha256": "76bfd6c9e424f8d707e818a4d5cb1f3ac3385925c7cbcbc160cd27e4b8eb9be9",
+      "rootfs_receipt": "qualification/controller_review_agent07/evaluation_boundary_v1/retained/node0/environment/evidence/evaluator_rootfs.json",
+      "rootfs_receipt_sha256": "4153f510e9c4d31679bda2f24a0f1aa0bb47422df60bd23b909f8479b6b552a0"
+    },
+    {
+      "boundary_checks": 16,
+      "cgroup_populated": 0,
+      "evaluator_layout_sha256": "5aa4ef323d2d4ac641d7ab0f08c17636eb61edd65b45cd44537046f3a8274c31",
+      "node": "node1",
+      "parser_cases": {
+        "empty": "FAIL",
+        "malformed": "FAIL",
+        "missing": "FAIL",
+        "unavailable": "INCONCLUSIVE",
+        "valid": "PASS"
+      },
+      "passed": true,
+      "receipt": "qualification/controller_review_agent07/evaluation_boundary_v1/retained/node1/qualification/controller_review_agent07/evaluation_boundary_v1/remote_attempt_03/receipt.json",
+      "receipt_sha256": "53b244a51bc7acf530e72a5b31d9ae9b38a13059511f245ec3a9bd66c1ce5735",
+      "rootfs_receipt": "qualification/controller_review_agent07/evaluation_boundary_v1/retained/node1/environment/evidence/evaluator_rootfs.json",
+      "rootfs_receipt_sha256": "3f73c624b9084f23e35ce1f30290334aaa86ba3d875af7a313b3a1a2266c3ff8"
+    }
+  ],
+  "limitations": [
+    "No complete scored task evaluator was run in this qualification.",
+    "Root execute() full orchestration and final retention scheduler were reviewed but not invoked with authored outputs.",
+    "Provider-free namespace proof does not qualify native child model routing; separate q12 live probe remains required.",
+    "Initial failed namespace attempt is preserved; no author skeleton changed."
+  ],
+  "local_tests": {
+    "independent_tests_passed": 4,
+    "logs": [
+      {
+        "path": "qualification/controller_review_agent07/evaluation_boundary_v1/independent_archive_tests.log",
+        "sha256": "c07f777f04bfee10b78f084049fcd69d750394224da6408e32fb7d6d7eb7964c"
+      },
+      {
+        "path": "qualification/controller_review_agent07/evaluation_boundary_v1/root_archive_tests.log",
+        "sha256": "de6be585d1e99264deb5e359db68132ed8ad1f224d12b845cc3f748d73ee5537"
+      }
+    ],
+    "root_tests_passed": 6
+  },
+  "model_calls": 0,
+  "resolved_findings": [
+    "Evaluator-only mount targets absent from the author rootfs; separate curated evaluator rootfs now created on both hosts.",
+    "Host-side absolute /work drawer binding mapping corrected before final test.",
+    "Main Python locator corrected to /tools/main-venv/bin/python before final test."
+  ],
+  "reviewed_entrypoints": {
+    "controller/evaluate_run.py": "322e11212f6ead37ebeed483692962248f9c8b148f3e7b51ec3a02223e573897",
+    "controller/evaluation_driver.py": "af56bf5ea48c5a439ca8b5110c55c8c2276bf9557258a37d4127b8a5b562cb3c",
+    "environment/prepare_evaluator_rootfs.py": "ce5df23dc135b24815693f645ea712d04fe5027f97afcccac39778d016acf5d2"
+  },
+  "schema_version": "evaluation-boundary-review.v2",
+  "scope": "Exact immutable workspace packing/restoration, evaluator-only read-only namespace and real USD parser. Synthetic markers only; no authored script or scored evaluator execution.",
+  "scored": false,
+  "source_files": [
+    {
+      "path": "controller/evaluate_run.py",
+      "sha256": "322e11212f6ead37ebeed483692962248f9c8b148f3e7b51ec3a02223e573897"
+    },
+    {
+      "path": "controller/evaluation_driver.py",
+      "sha256": "af56bf5ea48c5a439ca8b5110c55c8c2276bf9557258a37d4127b8a5b562cb3c"
+    },
+    {
+      "path": "controller/retain_run.py",
+      "sha256": "2d10bdfe366c07e49074b751e9e4264f8f73b2d71f1c30d59678b278b85c2fdc"
+    },
+    {
+      "path": "controller/test_evaluate_run.py",
+      "sha256": "7dcb7f3faa0d4e6850096a112f86046d623dd65997431c2b2acf491d840e8236"
+    },
+    {
+      "path": "harness/common.py",
+      "sha256": "cc131ee737079cd2c1a10d89b0a9454443d4bf4287b3fabb148e047c7dc98e06"
+    },
+    {
+      "path": "harness/finalize.py",
+      "sha256": "d7c2c879e2704556a8a0552073c35ecc7ecc03e2a50c78d22850f620fa2a4d5d"
+    },
+    {
+      "path": "harness/isolation.py",
+      "sha256": "a3626d3b0806e3b596bf9b0aba2a00e2326fa222e64aed63b35cfe47b311f5da"
+    },
+    {
+      "path": "harness/network_health.py",
+      "sha256": "de2d40c58e34f8f77eb9aa739ea8e8e7edbeb6e551494af43bfd83797a273b94"
+    },
+    {
+      "path": "harness/run_arm.py",
+      "sha256": "3544ab13432c565ba918bacd6890e019a61d5673032a7e65cdc0e770f3ffffbd"
+    },
+    {
+      "path": "harness/ui_audit.py",
+      "sha256": "b48ce3c3a06684bbbbbce89a4d83b11f927c954de5ca796d2bcdeeaf4d0eb742"
+    }
+  ],
+  "status": "PASS_WITH_DECLARED_SCOPE"
+}

@@ -1,0 +1,14 @@
+{
+  "codex_version": "0.154.0",
+  "model": "gpt-6-astra",
+  "provider_kind": "custom Responses provider",
+  "qualification_threshold_tokens": 13000,
+  "requests": 4,
+  "requests_with_terminal_usage": 4,
+  "resolved_wire_effort": "xhigh",
+  "scope": "Unscored synthetic compaction qualification",
+  "scored_threshold_override": false,
+  "status": "PASS",
+  "ui_effort": "ultra",
+  "ui_gateway_response_ids_reconciled": true
+}

@@ -1,0 +1,18 @@
+{
+  "code_sha256": {
+    "controller/codex_provider_reference/v154_responses_metadata.rs": "715e28a3b05262e57bad12a23364ebf7ded38e41ad795d57defd72efed0129aa",
+    "harness/gateway.py": "e426e3087ec504fdc32846040bdf95dee69e7779eeb938aab1a6838ed3c20159",
+    "harness/ledger.py": "9db8412b03ad97724fe962a0cef8223b420f01e59572c939e5a7ec33e4f5d3ca",
+    "harness/request_identity.py": "9816f4bdb6a0e7b05b3f54b9fc69584a9d29858b97b20d9350bbe0294e1c9aa8",
+    "harness/tests/test_request_identity.py": "ed1a0388d80fbe1122a8e5f77e736f9da1275af2bd4cfd2ad12b9f9acf875284",
+    "harness/ui_audit.py": "9c74bb9464bbce16838e6fec656cb9b163c4222d626102ae68a48e21a6eb00e5"
+  },
+  "limits": [
+    "Identity metadata and session files are client-originated, not cryptographic attestations. Pinned client provenance and process/config/network controls remain required.",
+    "This review does not infer actual request metadata from historical q11 body hashes.",
+    "A missing terminal record with exact admission identity is an association mode, not independently a proven transport disconnect."
+  ],
+  "schema_version": "request-identity-implementation-review.agent06.v1",
+  "scope": "Read-only code review and local metadata tests. No harness, evaluator, private capture or historical audit changed. No remote, model, solver or render jobs.",
+  "status": "NO_BLOCKING_ISSUE_FOR_LIVE_QUALIFICATION"
+}

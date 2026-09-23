@@ -1,0 +1,17 @@
+{
+  "common_mechanical_gates": [
+    "Exact job, source, task, input, protocol, lane and lease bindings match trusted launch/reap/retention receipts.",
+    "Original source remains unchanged, namespace is reaped, and the frozen wall/resource limits and fresh context were enforced.",
+    "Every admitted model request associates with independently captured own-thread Astra Ultra turn evidence. Missing numerical terminal billing is separate from this model/settings check."
+  ],
+  "content_agents": "Check actual use of the requested native workflow entrypoints and their preparation/authoring/review/application/validation contracts where the run reaches those phases. Low-level USD edits performed within a workflow's documented authoring or repair contract are allowed. A blocked or unsuccessful native phase, or absence of later receipts after that failure, is not automatically a protocol violation. The assigned prompt forbids replacing a failed native workflow with an ad hoc solution and labeling that substitute a native success.",
+  "evidence_standard": "Cite exact retained tool-call or artifact paths and hashes for concrete violations. Automated regex matches are only review pointers. Distinguish observed compliance, observed noncompliance and insufficient evidence. Do not infer compliance merely from an author's success claim or a plausible render.",
+  "frozen_before_authors": true,
+  "human_effort": "These are automated independent audits. Their time is not recorded as measured human review time. Record any actual human intervention separately.",
+  "plain_astra": "The assigned prompt forbids invoking Content Agents workflows, decision helpers or workflow skills, including import-and-call routes. Shared low-level APIs and their documentation are allowed. A string search hit, filename, diagnostic error or mention alone is not proof of workflow use. Inspect the actual call and any referenced authored script.",
+  "replacement_rule": "Follow the analysis plan: replacements are permitted only for documented harness invalidation, with both arms rerun fresh and excluded costs preserved. Do not rerun ordinary unsuccessful or noncompliant authors to select a preferable outcome.",
+  "reporting": "Report all twenty assigned attempts, then the eligible paired subset. Uncertain compliance cannot establish pair eligibility. Keep author noncompliance, harness violations, physical task failures and billing gaps separate.",
+  "review_order": "Save the protocol adjudication before supplying the independent physical verdict to the reviewer. Reviewers may inspect author artifacts and claims but do not choose eligibility based on which arm passes.",
+  "schema_version": "treatment-adjudication.v2",
+  "scope": "Interpret the exact assigned arm prompt from retained launch and tool/script evidence. This guidance does not add physical acceptance criteria or replace the assigned prompt."
+}

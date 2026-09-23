@@ -1,0 +1,15 @@
+{
+  "all_observed_ui_matches": true,
+  "association": {
+    "associated": true,
+    "association": "admission_and_own_turn_only",
+    "reason": null
+  },
+  "automatic_capture_qualified": false,
+  "downstream_disconnected": true,
+  "limits": "One explicitly identified completed/disconnected request is associated using prerequest UUID identity and a manually recovered own-thread Ultra turn. Earlier native homes were deleted; the original automatic capture remains incomplete. This does not qualify future automatic capture or the whole run.",
+  "schema_version": "manual-interrupted-request-association.v2",
+  "status": "PASS",
+  "timing_inference_used": false,
+  "whole_q13_ui_complete": false
+}

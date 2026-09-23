@@ -112,6 +112,13 @@ domain-specific quality measurements, so a visually plausible output cannot
 hide an incomplete workflow. See [Benchmarking USD Content Agents](agentic/docs/benchmarks.md)
 for the evaluation design, coverage, reproducibility rules, and limitations.
 
+The [Astra Ultra paired development experiment](docs/experiments/astra-content-value-v2-2026-09-22/README.md)
+publishes a separate ten-asset protocol comparing identical model, inputs,
+tools and budgets with and without Content Agents workflows. Its scored
+results are pending; the preregistration does not establish comparative value.
+The [drawer capstone evidence](docs/experiments/astra-drawer-capstone-2026-09-21/EVIDENCE_NOTES.md)
+documents a separately repaired physical task and its limits.
+
 ## 2. Quick Start
 
 <a id="requirements"></a>

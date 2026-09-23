@@ -1,0 +1,299 @@
+{
+  "case_id": "09_printer",
+  "frozen": true,
+  "mounted_inputs": "Only this original source closure and public task inventory are mounted. Preserve original bytes; save all derivatives under /work.",
+  "primary_input": "/source/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step",
+  "protocol_id": "astra-content-value-rerun-v2",
+  "public_acceptance": {
+    "common": {
+      "angle_tolerance_rad": 0.08726646259971647,
+      "dt_s": 0.004166666666666667,
+      "duration_s": 12.0,
+      "gravity_m_s2": 9.81,
+      "max_angular_speed_rad_s": 30.0,
+      "max_fixed_base_motion_m": 0.002,
+      "max_joint_axis_error_rad": 0.05,
+      "max_joint_closure_m": 0.002,
+      "max_linear_speed_m_s": 5.0,
+      "max_mesh_surface_error_fraction": 0.001,
+      "max_mesh_surface_error_m": 5e-05,
+      "max_penetration_m": 0.003,
+      "minimum_source_surface_coverage": 1.0,
+      "position_tolerance_m": 0.002
+    },
+    "controller_protocol": "12s, dt1/240: settle0-1s; ramp to task target1-5s; hold5-7s with a opposing load5.5-6.5s (1% of max effort unless task_parameters.controller_scale_definition specifies the smaller inertia-normalized torque); return7-9s; settle9-10s; bounded outward upper-limit test10-12s. Engine instead ramps crank through2pi+0.25rad from1-8s and holds; paired zero-load run uses same seed. Only world body forces and torques are applied; source transforms are never prescribed.",
+    "decision_policy": "A concrete failed criterion is not accepted. Missing evaluator/import/runtime capability is INCONCLUSIVE, not demonstrated rejection or a false-pass.",
+    "input_failure_policy": "Missing, empty, malformed or schema-invalid author artifacts are concrete task rejection (FAIL). Evaluator infrastructure, reference availability, native runtime failure or measurement timeout is INCONCLUSIVE unless an independent concrete criterion failed.",
+    "joint_kinds": {
+      "x": "prismatic",
+      "y": "prismatic",
+      "z": "prismatic"
+    },
+    "limits": "Mass/inertia/collision/geometry/closure/finite-state gates and native gravity witness apply. Source shape comparison is symmetric sampled surface distance plus all-vertex coverage with 3% area tolerance, not an exact topology equivalence proof.",
+    "measurement_version": 2,
+    "required_body_roles": [
+      "base",
+      "toolhead",
+      "gantry",
+      "bed"
+    ],
+    "required_joint_roles": [
+      "x",
+      "y",
+      "z"
+    ],
+    "runtime_budgets_s": {
+      "complete_source_stage_inspection": 1800,
+      "each_native_trial": 900,
+      "engine_paired_unloaded_trial": 900,
+      "input_stage_load": 900
+    },
+    "runtime_calibration_policy": "A failed independent gravity witness makes failed physics criteria from that same seed INCONCLUSIVE, including paired engine response when either paired run is uncalibrated. Raw observations and failed predicates are retained. Independent static/source/schema failures remain concrete FAIL.",
+    "scope": "All three source-grounded Cartesian axes physically travel at least20mm, hold within2mm under bounded axial loads, and return without losing joint closure. A separately placed15mm50g block remains on the original bed through the motion with identified contact and <=3mm bed-relative drift. This validates bounded Cartesian motion and payload retention, not printing, extrusion, belt transmission or thermal performance.",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "source_inventory_file": "/input/09_printer_source_inventory.json",
+    "source_inventory_sha256": "a3b6223ee9e5c4bf2100a9681caaa44c3e03335a12cdfa137c6e7042c500bbd1",
+    "source_metric": "All original instances, unchanged bounds and 3% area thresholds. Conservative triangle correspondence proves every surface point within tolerance and preserves all loose points; otherwise symmetric all-vertex plus deterministic surface-sample nearest-triangle distances in recentered millimetres. This remains geometry preservation, not exact topology or materials equivalence.",
+    "task_parameters": {
+      "control_default": {
+        "gain_mode": "mass_scaled",
+        "gravity_compensate": true,
+        "kd": 20.0,
+        "kp": 400.0,
+        "max_effort": 200.0
+      },
+      "controller_scale_definition": "PD gains multiply independently measured downstream native mass (plus evaluator payload on the bed); gravity is compensated inside the same200N cap. Opposing load=min(1% of cap, measured mass times0.5m/s\u00b2). Only body forces are written; upper-limit target ramps from initial to upper+10mm over10-12s.",
+      "frozen_payload_placement": {
+        "payload_source_geometry_clear": true,
+        "source_center_m": [
+          4.028763082447595e-06,
+          -0.04518345351119067,
+          0.22745026967885912
+        ],
+        "source_plane_area_m2": 0.014392262980399941,
+        "source_plane_xy_bounds_m": [
+          [
+            -0.05999597123690616,
+            -0.09185012017785733
+          ],
+          [
+            0.060004028763071066,
+            0.028149879822142662
+          ]
+        ],
+        "source_support_probes_m": [
+          [
+            -0.009495971236917552,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.009495971236917552,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.009495971236917552,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.009495971236917552,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            -0.009495971236917552,
+            -0.03568345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.03568345351119067,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.03568345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.03568345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.03568345351119067,
+            0.2189502696788591
+          ]
+        ],
+        "source_surface_height_m": 0.2189502696788591,
+        "source_top_normal": [
+          0,
+          0,
+          1
+        ],
+        "support_probe_pass": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "joint_moving_body_roles": {
+        "x": "toolhead",
+        "y": "gantry",
+        "z": "bed"
+      },
+      "minimum_each_travel_m": 0.02,
+      "payload": {
+        "contact_offset_m": 0.0002,
+        "contact_unit_policy": "Pinned ovphysx0.4.13 step_sync contact matrix is empirically impulse in Ns; divide each step by its actual dt to obtain N.",
+        "friction": 0.6,
+        "initial_surface_clearance_m": 0.001,
+        "mass_kg": 0.05,
+        "maximum_payload_drift_relative_to_bed_m": 0.003,
+        "minimum_bed_world_Z_rise_m": 0.02,
+        "minimum_contact_force_N": 0.01,
+        "minimum_contact_frame_fraction": 0.9,
+        "observation_start_s": 1.0,
+        "payload_force_policy": "The block is a free nonkinematic rigid body with no joints, pose writes, or external support forces. Only the printer mechanism receives the generic bounded controller efforts; known block weight may be included in bed-actuator gravity compensation.",
+        "placement_policy": "Freeze one clear source-bed top patch from independently tessellated original CAD before either arm runs. Transform that fixed point only by the declared source assembly alignment; its source top normal must map to world+Z. Do not select placement from submitted colliders, meshes or suggested author locations.",
+        "rest_offset_m": 0.0,
+        "restitution": 0.0,
+        "size_m": [
+          0.015,
+          0.015,
+          0.015
+        ],
+        "source_patch_edge_margin_m": 0.002,
+        "source_patch_grid_points_per_axis": 5,
+        "source_planarity_tolerance_m": 5e-05
+      }
+    },
+    "witness_policy": "A collision-free independently instrumented body at (1,1,1)m must show expected freefall within4mm displacement and0.03m/s velocity at0.1s; witness failure means evaluator insufficiency. Authored gravity must independently be Earth gravity. No witness writes to the submitted asset."
+  },
+  "qualification_receipt_sha256": "c264c6d585c87326b95a6d402a3cb688f2cee8906b0266b43ebc82cb93c4a9b2",
+  "schema_version": "astra-content-value-task.v2",
+  "source_inventory_file": "/input/09_printer_source_inventory.json",
+  "source_inventory_sha256": "a3b6223ee9e5c4bf2100a9681caaa44c3e03335a12cdfa137c6e7042c500bbd1",
+  "source_root": "/source",
+  "submission_contract": "Save final.usd with metersPerUnit=1 and Z up. Retain each required original shape instance as a visible mesh (multiple mesh prims per source_id are permitted); map every instance once in bindings.json. Collision approximations may differ, but mark added collision-only primitives/meshes purpose=proxy/guide or invisible. Intended moving bodies must be dynamic/nonkinematic with finite positive mass and diagonal inertia. Base is static or explicitly kinematic. No time-sampled transforms/mesh points, prescribed pose updates, or substitute visual geometry. Declare ALL rigid bodies and ALL joints. Evaluator copy zeroes initial velocities and authored drive stiffness/damping; only the frozen independent bounded controller remains active. Nonzero authored external force APIs are rejected. Actual USD body0/body1/local frames/limits are read independently. Matrix convention is 4x4 column-vector rigid transform, translation in last column; no scale/shear/reflection. For source_assembly_world references, assembly_from_source is one rigid initial assembly alignment in meters. For part_local_only references, source_to_body is that part's rigid local alignment in meters. Preserve every original dependency. Source-to-body role requirements in public inventory are mandatory. Bindings JSON schema:\n{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"title\":\"Mechanism evaluation bindings; identifiers only, never acceptance evidence\",\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"schema_version\",\"case_id\",\"bodies\",\"joints\",\"source_map\",\"assembly_from_source\"],\"properties\":{\"schema_version\":{\"const\":1},\"case_id\":{\"type\":\"string\"},\"assembly_from_source\":{\"$ref\":\"#/$defs/matrix\"},\"bodies\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\",\"moving\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"},\"moving\":{\"type\":\"boolean\"}}}},\"joints\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"}}}},\"source_map\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"source_id\",\"mesh_paths\",\"body_path\",\"source_to_body\"],\"properties\":{\"source_id\":{\"type\":\"string\"},\"body_path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"mesh_paths\":{\"type\":\"array\",\"minItems\":1,\"uniqueItems\":true,\"items\":{\"type\":\"string\",\"pattern\":\"^/\"}},\"source_to_body\":{\"$ref\":\"#/$defs/matrix\"}}}}},\"$defs\":{\"matrix\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"number\"}}}}}",
+  "task": "Using the unchanged original Voron0.2r1 CoreXY printer source closure, author a physically simulated articulated USD mechanism that retains the source geometry and component identity. All three source-grounded Cartesian axes physically travel at least20mm, hold within2mm under bounded axial loads, and return without losing joint closure. A separately placed15mm50g block remains on the original bed through the motion with identified contact and <=3mm bed-relative drift. This validates bounded Cartesian motion and payload retention, not printing, extrusion, belt transmission or thermal performance. Required body roles: base, toolhead, gantry, bed. Required joint roles: x, y, z. The evaluator applies its own bounded efforts and opens your final scene in a fresh solver; do not rely on your controller script or animation being executed. Read the public source inventory at /input/09_printer_source_inventory.json; map every required source_id once. Case-normalizing source filename lookup and reading cached FreeCAD BREP shapes is permitted, but preserve original files and record any derived repair. Independent source reference uses saved source geometry; it does not certify real hardware accuracy.",
+  "v2_measurement_changes": [
+    "All original source identities, grounded roles, force/torque controllers, task thresholds and five seeds retained.",
+    "Recentered millimetre nearest-triangle queries; conservative all-surface triangle-correspondence fast path; unchanged area/bounds tolerances.",
+    "Exact correspondence also retains every loose tessellation point; an unchanged original off-surface point is no longer incorrectly required to lie on a triangle.",
+    "Source progress retained; measurement/worker timeout is INCONCLUSIVE, never an author failure or a pass.",
+    "Collision-free evaluator gravity witness moved to (1,1,1) metres; witness failure is evaluator insufficiency; actual authored Earth gravity remains a concrete criterion.",
+    "Controller effort is clamped after the same seeded0.98\u20131.02 jitter, making the published actuator cap a hard limit. PD gains, distribution, targets, separate external test load and all acceptance thresholds remain unchanged."
+  ]
+}

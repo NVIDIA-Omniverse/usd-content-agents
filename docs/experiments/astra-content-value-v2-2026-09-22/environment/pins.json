@@ -1,0 +1,45 @@
+{
+  "schema_version": "matched-environment-pins.v2",
+  "repository": "https://github.com/NVIDIA-Omniverse/usd-content-agents.git",
+  "commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+  "tree": "5f1d5f95d31bd0ba5a93090097de90f2561037b5",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "ultra",
+  "python_major_minor": "3.12",
+  "scene_optimizer": {
+    "version": "1.0.3",
+    "url": "https://github.com/NVIDIA-Omniverse/usd-optimize/releases/download/v1.0.3/scene_optimizer_core_usd_25.11_py_3.12%401.0.3.1-0-3.506.5ccdcb0b.gl.manylinux_2_35_x86_64.release.zip",
+    "sha256": "9d98d22eed1eb31da3183bfd4155f3b8eca48576e6eb5947d126e781f0edc671",
+    "bytes": 331478728
+  },
+  "geogram": {
+    "repository": "https://github.com/BrunoLevy/geogram.git",
+    "commit": "c8529bb00838186938ab31d96008a59b6a892dee",
+    "version": "1.10.0",
+    "binary_approval": "Separate independently verified executable SHA256 required; build completion alone does not approve repair results."
+  },
+  "runtime_versions": {
+    "ovphysx": "0.4.13",
+    "ovrtx": "0.4.1.364340",
+    "ovstage": "0.1.1.355824",
+    "warp-lang": "1.16.0",
+    "usd-convert-cad": "0.2.0"
+  },
+  "source_files_sha256": {
+    "scripts/setup_content_agent.sh": "5ee8934cf89ce1417e8da77ed26eb0642e4ba848500039a82fa5af5fd755e3ae",
+    "scripts/fetch_build_resources.sh": "2f0584c7fb3b4a8c235a7a42f08309d269ec970569b529bad792449366d4fa2f",
+    "apps/usd_cli/requirements/usd-exchange-override.txt": "05376ded042533b6c80eec464da1c131a599ae737c42062d34d4a88b1dd86f0f",
+    "apps/usd_cli/src/usd_core/pylock.ovphysx-runtime.toml": "3685f9f9a92b1c0c7ea60a55eb57b1022b25f8786d1ef120c00fe1a2625d434f",
+    "apps/usd_cli/src/usd_core/render/pylock.ovrtx-runtime.toml": "0b9357b7ac2f4ae9f051cf0f74946cbc45309d196ffb8e83472db4a63970de0c",
+    "agentic/packages/geometry_repair/native/geogram-1.10.0-no-tbb.patch": "e1c8f7efccf406d6cb4e0d8564abe4571a5691c3923f4ba0887c680adfa7eaab",
+    "agentic/packages/content_workflow_cli/package-lock.json": "ceaadc014c527a275b1da63574896e41435c01abc7f94cb457f895a0fc3ed912",
+    "AGENTS.md": "c000a56ac42923fd1559108c10a40f4f27caa94a284ffd5dac66a89f39b9d020"
+  },
+  "max_ephemeral_bytes": 26843545600,
+  "freeze_status": "NOT_FROZEN_PENDING_TWO_HOST_RUNTIME_AND_SYNTHETIC_QUALIFICATION",
+  "uv": {
+    "version": "0.8.22",
+    "url": "https://github.com/astral-sh/uv/releases/download/0.8.22/uv-x86_64-unknown-linux-gnu.tar.gz",
+    "sha256": "741ff1f5742c5a4a25d2f829e8395355e43f7a5ae2ebc6368e9ae2df0efb69cf"
+  }
+}

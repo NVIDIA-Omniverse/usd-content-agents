@@ -1,0 +1,15 @@
+{
+  "model_provider": "trial_gateway",
+  "model_providers": {
+    "trial_gateway": {
+      "base_url": "http://127.0.0.1:18862/v1",
+      "env_key": "ASTRA_GATEWAY_TOKEN",
+      "name": "Run-scoped Astra gateway",
+      "request_max_retries": 0,
+      "requires_openai_auth": false,
+      "stream_max_retries": 0,
+      "supports_websockets": false,
+      "wire_api": "responses"
+    }
+  }
+}

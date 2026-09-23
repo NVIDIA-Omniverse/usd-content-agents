@@ -1,0 +1,47 @@
+{
+  "astra_catalog_sha256": "e612a56f9fef06041483ddd20cbea586f50d2fbf12e558e852dfa40bd332f976",
+  "catalog_source_url": "https://chatgpt.com/backend-api/codex/models?client_version=0.154.0",
+  "full_catalog_sha256": "2650ade469f605cc4ab46733a33cd28b0478d83b64050e104ce72896ee9a20b0",
+  "interpretation": "Ultra is the Codex automatic-delegation mode. The pinned model catalog maps its inference requests to this underlying effort. Wire effort alone does not prove Ultra CLI selection; launcher and child settings require independent audit. reasoning.context=all_turns comes from Responses Lite and is not an Ultra marker.",
+  "mapping_source_sha256": "62089cb92996bb0030d4a219a6ba06b3bcf8f2f45e95ef7204bc8632d07ea08d",
+  "mapping_source_url": "https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/protocol/src/openai_models/reasoning_effort.rs",
+  "model_configuration": {
+    "context_window": 272000,
+    "default_reasoning_level": "low",
+    "max_context_window": 872000,
+    "multi_agent_reasoning_effort": "xhigh",
+    "multi_agent_version": "v2",
+    "slug": "gpt-6-astra",
+    "supported_reasoning_levels": [
+      {
+        "description": "Fast responses with lighter reasoning",
+        "effort": "low"
+      },
+      {
+        "description": "Balances speed and reasoning depth for everyday tasks",
+        "effort": "medium"
+      },
+      {
+        "description": "Greater reasoning depth for complex problems",
+        "effort": "high"
+      },
+      {
+        "description": "Extra high reasoning depth for complex problems",
+        "effort": "xhigh"
+      },
+      {
+        "description": "Maximum reasoning depth for the hardest problems",
+        "effort": "max"
+      },
+      {
+        "description": "Maximum reasoning with automatic task delegation",
+        "effort": "ultra"
+      }
+    ],
+    "tool_mode": "code_mode_only",
+    "use_responses_lite": true
+  },
+  "observed_utc": "2026-09-22T20:51:55.634158+00:00",
+  "resolved_wire_effort": "xhigh",
+  "selected_cli_effort": "ultra"
+}

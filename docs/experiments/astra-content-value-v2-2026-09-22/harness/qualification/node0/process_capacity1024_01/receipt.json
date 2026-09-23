@@ -1,0 +1,17 @@
+{
+  "checks": {
+    "all_lanes_quiescent_at_transition": true,
+    "cpu_ram_swap_unchanged": true,
+    "new_process_limit_enforced": true,
+    "orphan_killed_and_reaped": true
+  },
+  "elapsed_seconds": 1.31996457464993,
+  "model_calls": 0,
+  "observed": {
+    "created_children": 1023,
+    "refused_errno": 11
+  },
+  "schema_version": "pre-freeze-process-capacity.v2",
+  "scope": "Only the two empty author leaves inside this dedicated container changed512 to1024; CPU/RAM/swap unchanged. Dedicated inert-process fixture proves refusal/reaping. Native capacity positive is separate.",
+  "status": "PASS"
+}

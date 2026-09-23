@@ -1,0 +1,834 @@
+{
+  "asset_id": "09_printer",
+  "curated_at_utc": "2026-09-21T21:42:01.170384+00:00",
+  "curation_status": "complete",
+  "destination": "<PRIVATE_RUNTIME_LOCATOR>",
+  "files": [
+    {
+      "derivation": "Read-only observations and provenance of the preserved upstream files; not modified geometry.",
+      "kind": "generated_curation_metadata",
+      "path": "README.md",
+      "sha256": "34a2cd963b2f8c75aac7668fec2a53cfa68322308ab9daf9885568cf5fdcab65",
+      "size_bytes": 1977,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_url": null
+    },
+    {
+      "archive_crc32": "fb3b5a24",
+      "archive_member": "V0.2R1 Master Assembly v63.step",
+      "kind": "unmodified_archive_member",
+      "license_file": "original/LICENSE",
+      "path": "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step",
+      "sha256": "d5a9d40db82c55eee20203608a5a4e784b54b87ae339861af577c5aeb182d61f",
+      "size_bytes": 179234641,
+      "source_archive": "original/CAD/V0.2R1_Master_Assembly_STEP.zip",
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/CAD/V0.2R1_Master_Assembly_STEP.zip"
+    },
+    {
+      "git_blob_sha1": "4356853d4ae17c9cffb945b5e192545d7aa8e422",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/CAD/ADXL_Mounts/MiniSB_adxl_mount_generic_15.5mm_c_c.step",
+      "sha256": "bec09377a030a831fad139d0f0d9428d98e84952514118de2e47d3b2bc6d07f5",
+      "size_bytes": 1305138,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "CAD/ADXL_Mounts/MiniSB_adxl_mount_generic_15.5mm_c_c.step",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/CAD/ADXL_Mounts/MiniSB_adxl_mount_generic_15.5mm_c_c.step"
+    },
+    {
+      "git_blob_sha1": "860442b2a9f899bc5c3cd204076d8545e5c5394d",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/CAD/ADXL_Mounts/MiniSB_adxl_mount_ldo_15mm_c_c.step",
+      "sha256": "35fc48aba108e08881f93c2b6f6e3158bb92cc110e6cc32bc58b1638f5a445d0",
+      "size_bytes": 1232488,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "CAD/ADXL_Mounts/MiniSB_adxl_mount_ldo_15mm_c_c.step",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/CAD/ADXL_Mounts/MiniSB_adxl_mount_ldo_15mm_c_c.step"
+    },
+    {
+      "git_blob_sha1": "4c0053f2f9f7219aeb95567bf17713d61d5a992e",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/CAD/Hotend Mounts/Standard/Hotend_Mount_Revo_Voron.step",
+      "sha256": "43d1bb1262cbd30a62f29d41ce7509265606ff09bda991a9ffa3135d4334c507",
+      "size_bytes": 251208,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "CAD/Hotend Mounts/Standard/Hotend_Mount_Revo_Voron.step",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/CAD/Hotend%20Mounts/Standard/Hotend_Mount_Revo_Voron.step"
+    },
+    {
+      "git_blob_sha1": "20db428d63e9fa8df1b9ee2bad1752241d3ea703",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/CAD/V0.2R1_Master_Assembly_STEP.zip",
+      "sha256": "a1cf81917dbeb55c13b23a490763297f85e4aeef5c0f2c45274a4969b5103b25",
+      "size_bytes": 32088462,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "CAD/V0.2R1_Master_Assembly_STEP.zip",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/CAD/V0.2R1_Master_Assembly_STEP.zip"
+    },
+    {
+      "git_blob_sha1": "77edd84b8cc227c98fcdd89d3b141950e89da274",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/Firmware/README.md",
+      "sha256": "85ddcaba26d91e34c7ef3663465b94444ee75dc0cee993a336f8f898bccfbdbc",
+      "size_bytes": 1037,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "Firmware/README.md",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/Firmware/README.md"
+    },
+    {
+      "git_blob_sha1": "64f2924efec7ed0de32c5903f3536383e648d0c7",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/Firmware/bigtreetech-skr-mini-e3-v3.0.cfg",
+      "sha256": "7a7ef6ee9b0a9d535003dcd23ebb7d985b4389a3d7c214ad2e89c4a30d0f9c33",
+      "size_bytes": 16230,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "Firmware/bigtreetech-skr-mini-e3-v3.0.cfg",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/Firmware/bigtreetech-skr-mini-e3-v3.0.cfg"
+    },
+    {
+      "git_blob_sha1": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/LICENSE",
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "size_bytes": 35149,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "LICENSE",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/LICENSE"
+    },
+    {
+      "git_blob_sha1": "d49d60fc6ab353e226cbf99a29dbda05c50761ac",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/Manuals/VORON_V0.2r1_Assembly_Manual.pdf",
+      "sha256": "5d9af5a34304c751799c4ab71d9d42ed0c3ebc20b14df4b612d332ce1cb44b6f",
+      "size_bytes": 62274910,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "Manuals/VORON_V0.2r1_Assembly_Manual.pdf",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/Manuals/VORON_V0.2r1_Assembly_Manual.pdf"
+    },
+    {
+      "git_blob_sha1": "89d8656439198084b9ea54885eed0f0f7fab7d98",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/README.md",
+      "sha256": "50be0a91556c553c819d0608be89875938e1412c00fb322d6c69e092bc5876d6",
+      "size_bytes": 3249,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "README.md",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/README.md"
+    },
+    {
+      "git_blob_sha1": "636c8e9f5a1e85be71f654e9332e944c86d82e10",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/Front_Bed_Mount_x1.stl",
+      "sha256": "00ec3260fddcf3e63e4e9bcc68fc2ad7d0089de87be9177e2c930f1bff7768a6",
+      "size_bytes": 355284,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/Front_Bed_Mount_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/Front_Bed_Mount_x1.stl"
+    },
+    {
+      "git_blob_sha1": "e10df94e56e53337e65219d994df842635e1ebd6",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/Readme.md",
+      "sha256": "f2968fef9794353f5c9cc018ea466a30b8e4a13b536cbe06120baa49095bdfcc",
+      "size_bytes": 1551,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/Readme.md",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/Readme.md"
+    },
+    {
+      "git_blob_sha1": "67371545ecadf54686520b8415c21c20db100278",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/Rear_Bed_Mount_Left_x1.stl",
+      "sha256": "32a40fe45262795ca9496af819c89ec36f3aa44a8212216f41ccdaf96e9243d0",
+      "size_bytes": 503584,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/Rear_Bed_Mount_Left_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/Rear_Bed_Mount_Left_x1.stl"
+    },
+    {
+      "git_blob_sha1": "3edf3b84bebfaf2094fec0b4494b999ed1ee701d",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/Rear_Bed_Mount_Right_x1.stl",
+      "sha256": "5ff656d2e9bce70997903d1e82b6369e8b4c86860c65a55ddb099b755560496c",
+      "size_bytes": 1253784,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/Rear_Bed_Mount_Right_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/Rear_Bed_Mount_Right_x1.stl"
+    },
+    {
+      "git_blob_sha1": "b4eb787a0d19840151243d6eb11f24177d06b3d5",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/T8_Nut_Block_x1.stl",
+      "sha256": "9232d9d7194cf10e113e280a54a8e97fded568ba619cef34579e86c59968f615",
+      "size_bytes": 954184,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/T8_Nut_Block_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/T8_Nut_Block_x1.stl"
+    },
+    {
+      "git_blob_sha1": "1318ab34c0a273b6142cfed12e2a01999789b467",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/XY_Joint_Left_Lower_x1.stl",
+      "sha256": "3ffd785e6aad879c288f71d6bc0857e8886aab52694c74f2e8cc773f551336b7",
+      "size_bytes": 962284,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/XY_Joint_Left_Lower_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/XY_Joint_Left_Lower_x1.stl"
+    },
+    {
+      "git_blob_sha1": "b3a1d6f45e751945aead3ddecb83c6f6e90e88f0",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/XY_Joint_Left_Upper_x1.stl",
+      "sha256": "d63181859b0461f89f8eca2ea298552b8899efdafd5e4df7c4eaf869f0eed788",
+      "size_bytes": 493084,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/XY_Joint_Left_Upper_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/XY_Joint_Left_Upper_x1.stl"
+    },
+    {
+      "git_blob_sha1": "677ab08fd2a5860dca0da71b4064e9b9047d5ef4",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/XY_Joint_Right_Lower_x1.stl",
+      "sha256": "c8ed0735e8f02e14875db87ee528d7a1753c3be6b7aeea04461ca917edfbcaa2",
+      "size_bytes": 957784,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/XY_Joint_Right_Lower_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/XY_Joint_Right_Lower_x1.stl"
+    },
+    {
+      "git_blob_sha1": "a0f3cdf1d5ef9b39c7a758cc45291c4fddd84c5f",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/XY_Joint_Right_Upper_x1.stl",
+      "sha256": "5912b7cafa26c92e85e173461b7f83493c0c90557f2d7f300fb8dd06649bac5b",
+      "size_bytes": 489084,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/XY_Joint_Right_Upper_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/XY_Joint_Right_Upper_x1.stl"
+    },
+    {
+      "git_blob_sha1": "65db833ddf8fc3f8424be913c6a07e41e20945e2",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/X_Carriage_x1.stl",
+      "sha256": "87b8e0eb9a39a36d5e4fb8d388e32921204d49dadc56da25b7cea2e39ae84ff4",
+      "size_bytes": 1280484,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/X_Carriage_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/X_Carriage_x1.stl"
+    },
+    {
+      "git_blob_sha1": "49d65b3ffaf018408fb10e80387570dd43e07584",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/[a]_A_Drive_Tensioner_x1.stl",
+      "sha256": "2617c3442a74e302011c6bce727cadc263be807e2f130341fc100e19fdefc16c",
+      "size_bytes": 1207084,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/[a]_A_Drive_Tensioner_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/%5Ba%5D_A_Drive_Tensioner_x1.stl"
+    },
+    {
+      "git_blob_sha1": "24ff71f299dedf9e8ba0acb39c984c252dc341ba",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/[a]_B_Drive_Tensioner_x1.stl",
+      "sha256": "015a6e4a5044a648f962772896fc5c99d21a6914380d15a9e213dbc6f2c6e8d5",
+      "size_bytes": 1289684,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/[a]_B_Drive_Tensioner_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/%5Ba%5D_B_Drive_Tensioner_x1.stl"
+    },
+    {
+      "git_blob_sha1": "a9c4544715b1f8dc3d01c009010291dc9c6dd649",
+      "kind": "unmodified_upstream_original",
+      "license_file": "original/LICENSE",
+      "path": "original/STLs/[a]_Z_Motor_Mount_x1.stl",
+      "sha256": "1c35ac46c5150542e0e319ab443a2717264aa35dbe03b092a07b368134bd4007",
+      "size_bytes": 1571884,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_repository_path": "STLs/[a]_Z_Motor_Mount_x1.stl",
+      "source_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/STLs/%5Ba%5D_Z_Motor_Mount_x1.stl"
+    },
+    {
+      "derivation": "Read-only observations and provenance of the preserved upstream files; not modified geometry.",
+      "kind": "generated_curation_metadata",
+      "path": "provenance/assembly_graph.json",
+      "sha256": "da43314d1c61932506d9f0baf8a8927d9914cb73e90d3bef60eba5523683d9da",
+      "size_bytes": 843630,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_url": null
+    },
+    {
+      "derivation": "Read-only observations and provenance of the preserved upstream files; not modified geometry.",
+      "kind": "generated_curation_metadata",
+      "path": "provenance/downloads.json",
+      "sha256": "e11f69d37fd344633abb43cc94693d3b8b00c0a2b112050d7c5f55d033adff36",
+      "size_bytes": 36990,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_url": null
+    },
+    {
+      "derivation": "Read-only observations and provenance of the preserved upstream files; not modified geometry.",
+      "kind": "generated_curation_metadata",
+      "path": "provenance/material_metadata.json",
+      "sha256": "66cd039610641e85963987afc091fcc41a039f23b636b2621dfed3a14f1ee6c5",
+      "size_bytes": 363082,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_url": null
+    },
+    {
+      "derivation": "Read-only observations and provenance of the preserved upstream files; not modified geometry.",
+      "kind": "generated_curation_metadata",
+      "path": "provenance/source_revision.json",
+      "sha256": "33a0bb7c0c6116dc61231e6e078294e21cae74d81278a2ebc66c205f248c4dc0",
+      "size_bytes": 534,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_url": null
+    },
+    {
+      "derivation": "Read-only observations and provenance of the preserved upstream files; not modified geometry.",
+      "kind": "generated_curation_metadata",
+      "path": "provenance/step_structure.json",
+      "sha256": "4f8f5f0ce1faa75508c24a16da59b73b7e1ea57b9d3addb06d1573ec08caa958",
+      "size_bytes": 1382918,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_url": null
+    },
+    {
+      "derivation": "Read-only observations and provenance of the preserved upstream files; not modified geometry.",
+      "kind": "generated_curation_metadata",
+      "path": "provenance/supplemental_step_inspection.json",
+      "sha256": "dfbc32163d604a56ce8d401a54ecd20b54825900b4e1266960feed8bd94e4a84",
+      "size_bytes": 3611,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_url": null
+    },
+    {
+      "derivation": "Read-only observations and provenance of the preserved upstream files; not modified geometry.",
+      "kind": "generated_curation_metadata",
+      "path": "provenance/validation.json",
+      "sha256": "9cfbcd791f36b8dc5248e194c704647b32353d557ff219eb2931b361fb4092e9",
+      "size_bytes": 7968,
+      "source_commit": "a53fc87562fd630c846af38d7de850c894dc3d85",
+      "source_url": null
+    }
+  ],
+  "geometry": {
+    "archive_file": "original/CAD/V0.2R1_Master_Assembly_STEP.zip",
+    "archive_member": "V0.2R1 Master Assembly v63.step",
+    "assembly_structure": {
+      "assembly_occurrence_relationship_count": 2456,
+      "expanded_leaf_occurrences_from_root": 1670,
+      "full_graph_file": "provenance/assembly_graph.json",
+      "item_defined_transformations": 2456,
+      "kinematic_joints_encoded": false,
+      "maximum_containment_depth_edges": 7,
+      "product_definition_count": 1158,
+      "product_record_count": 1158,
+      "root_name": "(Unsaved)",
+      "root_product_definition": "#2557204",
+      "root_product_entity": "#2560681",
+      "top_level_groups": [
+        {
+          "immediate_children": [
+            "Extrusions (1)",
+            "Hardware (6)",
+            "Linear Rails",
+            "Printed Parts (13)"
+          ],
+          "name": "Frame",
+          "product_definition": "#2557205",
+          "product_entity": "#2560682"
+        },
+        {
+          "immediate_children": [
+            "Belts",
+            "A/B Drives",
+            "Idlers",
+            "X Axis",
+            "Mini Stealthburner"
+          ],
+          "name": "Gantry",
+          "product_definition": "#2557272",
+          "product_entity": "#2560749"
+        },
+        {
+          "immediate_children": [
+            "Bed Assembly",
+            "Z Motor Assembly"
+          ],
+          "name": "Z Axis",
+          "product_definition": "#2557499",
+          "product_entity": "#2560976"
+        },
+        {
+          "immediate_children": [
+            "Perimeter Skirts",
+            "Feet",
+            "Display"
+          ],
+          "name": "Skirts",
+          "product_definition": "#2557547",
+          "product_entity": "#2561024"
+        },
+        {
+          "immediate_children": [
+            "Side Panels",
+            "Opaque Panels",
+            "1515 Spool Holder",
+            "Door Assembly"
+          ],
+          "name": "Panels & Clips",
+          "product_definition": "#2557635",
+          "product_entity": "#2561112"
+        },
+        {
+          "immediate_children": [
+            "Tophat Frame",
+            "Printed Parts (3)",
+            "Panels",
+            "Hardware (21)"
+          ],
+          "name": "Extrusion Tophat",
+          "product_definition": "#2557717",
+          "product_entity": "#2561194"
+        },
+        {
+          "immediate_children": [
+            "Electronics Fan",
+            "BTT SKR Pico",
+            "Raspberry Pi 4",
+            "LRS-150"
+          ],
+          "name": "Electronics",
+          "product_definition": "#2557758",
+          "product_entity": "#2561235"
+        },
+        {
+          "immediate_children": [
+            "Filament",
+            "Spool",
+            "Filament Guide Path"
+          ],
+          "name": "Filament Spool",
+          "product_definition": "#2558355",
+          "product_entity": "#2561832"
+        },
+        {
+          "immediate_children": [],
+          "name": "Banana",
+          "product_definition": "#2558359",
+          "product_entity": "#2561836"
+        },
+        {
+          "immediate_children": [
+            "Swiss Army Jig"
+          ],
+          "name": "Tools",
+          "product_definition": "#2558360",
+          "product_entity": "#2561837"
+        }
+      ]
+    },
+    "bounding_box_mm": null,
+    "bounding_box_note": "Not computed; nominal build volume is not the outer machine envelope.",
+    "build_volume_evidence": [
+      "original/README.md",
+      "original/Firmware/bigtreetech-skr-mini-e3-v3.0.cfg"
+    ],
+    "complexity": {
+      "advanced_brep_shape_representations": 390,
+      "advanced_faces": 60543,
+      "brep_with_voids_records": 1,
+      "closed_shell_records": 949,
+      "interpretation": "Record counts include reused components, detailed hardware/electronics and reference objects. They are not physical part, moving-body or CAD-kernel-valid solid counts.",
+      "manifold_solid_brep_records": 947
+    },
+    "format": "ISO 10303-21 STEP AP214; AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }",
+    "inspection_evidence": [
+      "provenance/step_structure.json",
+      "provenance/assembly_graph.json",
+      "provenance/supplemental_step_inspection.json"
+    ],
+    "nominal_build_volume_mm": [
+      120,
+      120,
+      120
+    ],
+    "originating_system": "Autodesk Translation Framework v12.6.0.85",
+    "preprocessor": "ST-DEVELOPER v19.2",
+    "preserved_reference_objects": [
+      "Filament Spool",
+      "Banana",
+      "Tools"
+    ],
+    "primary_file": "extracted/CAD/V0.2R1_Master_Assembly_STEP/V0.2R1 Master Assembly v63.step",
+    "primary_sha256": "d5a9d40db82c55eee20203608a5a4e784b54b87ae339861af577c5aeb182d61f",
+    "primary_size_bytes": 179234641,
+    "representation": "Analytic and spline boundary representations with named products, component placements and hierarchical assembly occurrences.",
+    "separate_neutral_parts": [
+      {
+        "path": "original/CAD/ADXL_Mounts/MiniSB_adxl_mount_generic_15.5mm_c_c.step",
+        "product_records": 21,
+        "role": "ADXL mount subassembly with sensor, spacers, screws and toolhead context; optional accessory variant",
+        "solid_brep_records": 12
+      },
+      {
+        "path": "original/CAD/ADXL_Mounts/MiniSB_adxl_mount_ldo_15mm_c_c.step",
+        "product_records": 21,
+        "role": "ADXL mount subassembly with sensor, spacers, screws and toolhead context; optional accessory variant",
+        "solid_brep_records": 12
+      },
+      {
+        "path": "original/CAD/Hotend Mounts/Standard/Hotend_Mount_Revo_Voron.step",
+        "product_records": 1,
+        "role": "Standalone Revo Voron hotend mount",
+        "solid_brep_records": 1
+      }
+    ],
+    "separate_original_stl_count": 12,
+    "separate_parts_note": "Independent source files are preserved; no parts were split or re-exported from the master STEP. The generic ADXL mount corresponds by name to the master component; the LDO mount is an optional alternative. Supplemental-file geometry equivalence to the master was not checked.",
+    "units": {
+      "angle": "radian",
+      "declared_model_uncertainty_mm": 0.01,
+      "density_annotation_unit": "kilogram per cubic metre",
+      "density_unit_evidence": "DERIVED_UNIT_ELEMENT references kilogram exponent +1 and metre exponent -3; the separate metre unit is for density, not geometric coordinates.",
+      "length": "millimetre",
+      "length_evidence": "#2551269 SI_UNIT(.MILLI.,.METRE.); all 1,159 GLOBAL_UNIT_ASSIGNED_CONTEXT records use this length unit.",
+      "length_to_metre_scale": 0.001,
+      "mass_annotation_unit": "kilogram",
+      "solid_angle": "steradian",
+      "stl_units": "STL has no encoded units; millimetres inferred from the associated hardware project.",
+      "uncertainty_note": "STEP connectivity tolerance metadata; not a mechanical clearance, manufacturing tolerance or verified geometry error."
+    }
+  },
+  "hashing": {
+    "algorithm": "SHA-256",
+    "checksum_ledger": "SHA256SUMS",
+    "checksum_ledger_scope": "Every package file including manifest.json, except SHA256SUMS itself.",
+    "manifest_inventory_scope": "Every payload, original file and generated evidence file; manifest.json and SHA256SUMS excluded to avoid circular references."
+  },
+  "license": {
+    "applies_as": "Repository license published with the original hardware/CAD source; not a claim of separate OSHWA certification.",
+    "attribution": "Voron Design and the contributors to VoronDesign/Voron-0; Voron 0.2r1.",
+    "attribution_evidence": [
+      "original/README.md",
+      "original/LICENSE",
+      "https://github.com/VoronDesign/Voron-0"
+    ],
+    "declared_name": "GNU General Public License, Version 3, 29 June 2007",
+    "license_file": "original/LICENSE",
+    "license_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "license_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/LICENSE",
+    "preservation": "Unmodified source files and license are retained. The STEP exporter has empty author/organization fields; credit is established from the official upstream project, not from those fields.",
+    "spdx_expression": null,
+    "uncertainty": "Third-party vendor-branded component geometry is included upstream; this curation did not audit separate vendor model licenses or trademark rights.",
+    "upstream_github_label": "GPL-3.0",
+    "version_qualifier_note": "The repository includes the full GPLv3 text. A project-specific only-versus-or-later grant was not established; no narrower SPDX expression is asserted."
+  },
+  "motion": {
+    "classification": "CoreXY planar gantry plus lead-screw bed elevator and geared direct-drive extrusion",
+    "controlled_process_dofs": {
+      "actuators": [
+        "A belt motor",
+        "B belt motor",
+        "Z integrated lead-screw motor",
+        "extruder motor"
+      ],
+      "cartesian_translations": 3,
+      "extrusion_feed": 1,
+      "total_independent_process_coordinates": 4
+    },
+    "evidence_basis": "Source STEP component names/containment, upstream README and unmodified source firmware configuration. Joint types, moving-body grouping and equations below are proposed engineering interpretations; the STEP does not supply a ready joint model.",
+    "joint_axes_origins_and_limits_status": "Principal directions inferred; exact transforms, axis signs, angular limits, physical stops and collision pairs have not been authored or validated.",
+    "moving_groups": [
+      {
+        "components": [
+          "Mini Stealthburner",
+          "X Carriage",
+          "MGN7H Carriage",
+          "36mm Round Stepper Motor",
+          "Hotend Assembly"
+        ],
+        "dof": "1 prismatic along X relative to moving crossbeam",
+        "evidence_product_entities": [
+          "#2560890",
+          "#2560897",
+          "#2560882"
+        ],
+        "name": "X toolhead carriage",
+        "nominal_travel_mm": 120
+      },
+      {
+        "components": [
+          "X Axis",
+          "XY Joint Left",
+          "XY Joint Right",
+          "1515 200mm - A (1)",
+          "X rail and toolhead"
+        ],
+        "dof": "1 prismatic along Y relative to fixed frame",
+        "evidence_product_entities": [
+          "#2560841",
+          "#2560842",
+          "#2560857"
+        ],
+        "name": "Y gantry/crossbeam",
+        "nominal_travel_mm": 120
+      },
+      {
+        "components": [
+          "A Belt",
+          "B Belt",
+          "A Drive",
+          "B Drive",
+          "GT2 20T 6mm Pulley",
+          "F623 bearing stacks"
+        ],
+        "dof": "2 motor revolute coordinates coupled to the two Cartesian translations; do not double-count these as extra independent motion DOFs",
+        "drive_displacement_mm_per_motor_revolution": 40,
+        "evidence_product_entities": [
+          "#2560751",
+          "#2560752",
+          "#2560754",
+          "#2560782",
+          "#2560757"
+        ],
+        "ideal_relation": "Under one sign convention, x=(s_A+s_B)/2 and y=(s_A-s_B)/2, where s_A,s_B are driven belt displacements. Motor signs and frame origins must be established before using this equation.",
+        "name": "CoreXY transmission",
+        "passive_motion": "Idler/bearing rotations and belt shape changes follow the drive constraints; belt flexibility would introduce additional elastic modes."
+      },
+      {
+        "components": [
+          "Bed Assembly",
+          "T8 Nut Block",
+          "Rear Bed Mount Left",
+          "Rear Bed Mount Right",
+          "200mm Integrated Leadscrew Stepper",
+          "Z linear-rail carriages"
+        ],
+        "configuration_limits_mm": {
+          "endstop": 120,
+          "maximum": 120,
+          "minimum": -1.5
+        },
+        "dof": "1 prismatic bed coordinate coupled to one revolute lead-screw coordinate",
+        "evidence_product_entities": [
+          "#2560977",
+          "#2561001",
+          "#2561015"
+        ],
+        "ideal_relation": "z = z0 +/- 8 * theta_z / (2*pi) mm; direction and datum require validation.",
+        "limit_note": "These are sample firmware coordinates, not geometric collision limits.",
+        "name": "Z bed elevator",
+        "nominal_travel_mm": 120,
+        "screw_lead_mm_per_revolution": 8
+      },
+      {
+        "calibration_note": "Source configuration contains a legacy Mini Afterburner comment; 22.23 is a configurable/calibrated feed value, not independently verified geometry.",
+        "components": [
+          "36mm Round Stepper Motor",
+          "Drive Gear",
+          "50 Tooth Gear",
+          "Idler Gear Assembly",
+          "Tensioner Spring Assembly"
+        ],
+        "dof": "1 driven feed coordinate with coupled gear/hob rotations",
+        "evidence_product_entities": [
+          "#2560915",
+          "#2560919",
+          "#2560920",
+          "#2560911"
+        ],
+        "name": "Extruder drive and idler",
+        "source_gear_ratio": "50:10",
+        "source_rotation_distance_mm": 22.23
+      },
+      {
+        "components": [
+          "Door Assembly",
+          "Extrusion Tophat",
+          "Tophat Hinges"
+        ],
+        "dof": "Approximately 1 revolute coordinate each for front door and hinged extrusion tophat, subject to latch state",
+        "evidence_product_entities": [
+          "#2561170",
+          "#2561194",
+          "#2561214"
+        ],
+        "limits": null,
+        "name": "Enclosure access"
+      },
+      {
+        "components": [
+          "A Drive Tensioner",
+          "B Drive Tensioner",
+          "Guidler",
+          "Latch",
+          "Tensioner Spring",
+          "Filament Spool",
+          "Fans"
+        ],
+        "dof": "Tensioner screws, extruder guidler/latch, spring preload, spool and fans may add setup or passive DOFs; no exact total asserted",
+        "name": "Secondary adjustment/passive motion"
+      }
+    ]
+  },
+  "physics": {
+    "existing_metadata": {
+      "density_measure_records": 371,
+      "density_units": "kg/m^3",
+      "evidence_file": "provenance/material_metadata.json",
+      "material_label_counts": {
+        "ABS Plastic": 9,
+        "Acrylic, Clear": 4,
+        "Steel": 358
+      },
+      "trust": "Partial CAD annotations only. They do not establish complete material coverage or accurate assembly mass/inertia; default material assignments may be unsuitable."
+    },
+    "missing_or_unverified": [
+      "Rigid-body partition and fixed/joint constraints",
+      "Joint axes, zero poses, limits and damping",
+      "Validated mass, centre of mass and inertia tensors for moving groups",
+      "Material assignment completeness and printed-part infill/density",
+      "Belt axial stiffness, tension/preload, damping, tooth contact and slip",
+      "Lead-screw thread/contact model, efficiency, backlash and nut friction",
+      "Linear guide friction/preload and bearing resistance",
+      "Motor rotor inertia, torque/speed/current curves and controller model",
+      "Extruder gear contact, filament traction, feed calibration and spring preload",
+      "Collision filtering, contact friction/restitution/compliance and tolerances",
+      "Cable-chain/cable flexibility and thermal/deposition physics"
+    ],
+    "not_established_by_inspection": [
+      "Watertightness and manifold validity in a CAD kernel",
+      "Physical interference-free configuration",
+      "Separate rotor/shaft bodies for every motor",
+      "Complete belt-tooth and lead-screw-thread geometry suitable for contact simulation"
+    ],
+    "provided_simulation_formats": []
+  },
+  "preservation": {
+    "archive_preserved": true,
+    "cad_conversion_performed": false,
+    "extracted_member_byte_identical": true,
+    "nested_agents_used": false,
+    "originals_modified": false,
+    "other_assets_inspected": false,
+    "repair_performed": false,
+    "scope": "All files created during this curation are under the requested 09_printer directory.",
+    "shared_files_modified": false,
+    "simulation_performed": false
+  },
+  "proposed_solver_task": {
+    "candidate_trajectories": [
+      "X-only and Y-only traverses to reveal incorrect CoreXY motor signs",
+      "45-degree XY diagonals and a square path with corner acceleration changes",
+      "Synchronous XY motion with Z stepping across the nominal 120 mm build volume",
+      "Extrusion feed and idler rotation with several tension/preload assumptions"
+    ],
+    "four_full_gpu_horde_plan": {
+      "allocation": "One independent case family per full GPU, subject to the downstream solver and measured memory needs.",
+      "case_families": [
+        {
+          "case": "Ideal rigid kinematics with holonomic CoreXY and screw coupling baseline",
+          "gpu": 0
+        },
+        {
+          "case": "Belt compliance, damping and pretension sensitivity sweep",
+          "gpu": 1
+        },
+        {
+          "case": "Z nut friction/backlash and guide preload sensitivity sweep",
+          "gpu": 2
+        },
+        {
+          "case": "Coupled XYZ trajectories with assembly collision checks and timestep/convergence sweep",
+          "gpu": 3
+        }
+      ],
+      "execution_performed": false
+    },
+    "future_work_required": "A downstream owner must define moving-body groups, validated joints, physical parameters and a solver representation while preserving this original source package.",
+    "limits": "The four GPUs do not supply missing physical measurements. Contact-detail, rigid aggregation and belt/screw model choices will materially change solver cost and results.",
+    "metrics": [
+      "Nozzle tracking error",
+      "Belt/screw coupling constraint residual",
+      "Energy/constraint drift",
+      "Peak contact force or motor effort under explicitly supplied parameters",
+      "Collision penetration and solver convergence",
+      "Throughput and memory per model; measure rather than assume fit"
+    ],
+    "objective": "Recover and validate coupled CoreXY and lead-screw kinematics, then compare tracking, constraint drift and contact/stability sensitivity on this detailed original hardware assembly.",
+    "preserved_source_handling": "Use the primary master assembly as the reference. Treat banana/tools as reference geometry and classify fixed hardware, electronics and optional accessories during downstream model construction; nothing has been removed from this package.",
+    "status": "Proposal only; no conversion, repair, solver setup or simulation executed."
+  },
+  "schema_version": "1.0",
+  "size_budget": {
+    "counting_rule": "All regular files in this directory, including original ZIP, extracted STEP, supplementary original files, evidence, manifest and checksum ledger; decimal MB.",
+    "package_bytes": 290446634,
+    "package_decimal_mb": 290.446634,
+    "primary_assembly_bytes": 179234641,
+    "target_bytes": 300000000,
+    "under_target": true
+  },
+  "source": {
+    "branch_at_retrieval": "Voron0.2r1",
+    "commit_sha": "a53fc87562fd630c846af38d7de850c894dc3d85",
+    "commit_url": "https://github.com/VoronDesign/Voron-0/commit/a53fc87562fd630c846af38d7de850c894dc3d85",
+    "discovery_urls": [
+      "https://github.com/VoronDesign/Voron-0",
+      "https://docs.vorondesign.com/"
+    ],
+    "downloaded_original_file_count": 22,
+    "not_selected": {
+      "native_fusion_cad_url": "https://github.com/VoronDesign/Voron-0/blob/a53fc87562fd630c846af38d7de850c894dc3d85/CAD/V0.2R1_Master_Assembly.f3d",
+      "other_content": "Remaining alternative CAD, STLs, DXFs, drawings, firmware variants and slicer profiles were not downloaded."
+    },
+    "original_hardware_source": true,
+    "owner": "VoronDesign",
+    "pinned_primary_download_url": "https://raw.githubusercontent.com/VoronDesign/Voron-0/a53fc87562fd630c846af38d7de850c894dc3d85/CAD/V0.2R1_Master_Assembly_STEP.zip",
+    "primary_cad_export_timestamp": "2023-06-14T07:18:16-07:00",
+    "project": "Voron-0",
+    "ready_simulation_model": false,
+    "release_designation": "V0.2r1",
+    "repository_url": "https://github.com/VoronDesign/Voron-0",
+    "revision_evidence": "provenance/source_revision.json",
+    "selection_rationale": "Official hardware author repository; compact 120 x 120 x 120 mm CoreXY machine with two belt drives, X/Y gantry and linear rails, integrated Z lead screw and bed, geared extruder, enclosure hinges and detailed hardware. Neutral full assembly and original separate parts fit below 300 MB, including preserved ZIP and documentation.",
+    "selection_scope": "One full original master STEP archive and its unchanged extracted member; three original standalone STEP files; twelve original printed motion-part STLs; assembly manual; license; READMEs; one unmodified firmware configuration retained only as documentary evidence."
+  },
+  "title": "Voron 0.2r1 complete CoreXY printer hardware assembly",
+  "uncertainties": [
+    "Neutral STEP preserves assembly products and placements, but not a native parametric feature history or a complete articulated mechanism.",
+    "No CAD-kernel import, visual render, repair, tessellation or simulation was performed. Geometry quality is not certified.",
+    "Main CAD header dates to June 2023 while the repository revision was pinned at retrieval; individual files can reflect different upstream edits.",
+    "1,158 products, 2,456 containment relationships and 1,670 expanded leaf occurrences include electronics, reused hardware and reference objects, so none is an exact moving-link count.",
+    "Existing density/material annotations are incomplete and uncalibrated; no mass/inertia was calculated.",
+    "STL part coordinates are standalone manufacturing exports with implicit units; assembly placement must come from STEP or later reconstruction.",
+    "Source firmware values are documentary starting points and can require machine-specific calibration.",
+    "Supplemental STEP mount assemblies include context geometry and optional alternatives; do not add them blindly to the complete master assembly.",
+    "Exact GPLv3 only-versus-or-later project grant and separate third-party vendor-model terms were not independently established."
+  ],
+  "validation": {
+    "geometry_kernel_validation_performed": false,
+    "integrity_checks_passed": true,
+    "report": "provenance/validation.json"
+  }
+}

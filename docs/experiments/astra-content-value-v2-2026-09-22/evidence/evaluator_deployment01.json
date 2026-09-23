@@ -1,0 +1,8 @@
+{
+  "hosts": [
+    "node0",
+    "node1"
+  ],
+  "scope": "Frozen evaluator code and references; inaccessible to author namespaces",
+  "status": "PASS"
+}

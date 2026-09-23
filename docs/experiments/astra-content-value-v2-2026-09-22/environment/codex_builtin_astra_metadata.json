@@ -1,0 +1,40 @@
+{
+  "astra": [
+    {
+      "context_window": 272000,
+      "default_reasoning_level": "low",
+      "multi_agent_reasoning_effort": "xhigh",
+      "multi_agent_version": "v2",
+      "slug": "gpt-6-astra",
+      "supported_reasoning_levels": [
+        {
+          "description": "Fast responses with lighter reasoning",
+          "effort": "low"
+        },
+        {
+          "description": "Balances speed and reasoning depth for everyday tasks",
+          "effort": "medium"
+        },
+        {
+          "description": "Greater reasoning depth for complex problems",
+          "effort": "high"
+        },
+        {
+          "description": "Extra high reasoning depth for complex problems",
+          "effort": "xhigh"
+        },
+        {
+          "description": "Maximum reasoning depth for the hardest problems",
+          "effort": "max"
+        },
+        {
+          "description": "Maximum reasoning with automatic task delegation",
+          "effort": "ultra"
+        }
+      ],
+      "tool_mode": "code_mode_only",
+      "use_responses_lite": true
+    }
+  ],
+  "model_count": 11
+}

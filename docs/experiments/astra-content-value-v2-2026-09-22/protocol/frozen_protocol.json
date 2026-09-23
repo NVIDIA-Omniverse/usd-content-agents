@@ -1,0 +1,187 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "codex_version": "0.154.0",
+  "common_environment_sha256": "081df287b1710f11a3e3251071a9696b02d077fd6265db5ff7a19aa956221543",
+  "common_rootfs_sha256": "579c82d02a33a7b695d386b114240063eb61133075bdf9b5678d0875f743e16b",
+  "common_tools_sha256": "10b7e933df6a1d6bee6d1a92874b122f2837b861c2287228dff888e728b6e151",
+  "created_utc": "2026-09-23T00:55:07.314319+00:00",
+  "experiment_design": {
+    "arms": [
+      "plain_astra",
+      "content_agents"
+    ],
+    "assets": 10,
+    "case_order": "Counterbalance arm order by case number. Both arms of each asset use the same GPU lane, with fresh contexts and homes.",
+    "common_inputs": [
+      "Original ten source closures, hash-identical to v1",
+      "Same public task contract, including qualified corrections",
+      "Same installed low-level tools, renderer and physics versions",
+      "Same model and 40-minute wall budget",
+      "Same hardware lane and five independent physical-test seeds"
+    ],
+    "context_policy": "Fresh Astra Ultra Codex0.154.0 contexts; pinned single-model catalog. Custom-provider compaction uses ordinary same-model Responses. Default model context and compaction threshold are identical across arms; threshold13000 is qualification only.",
+    "cost": "Use the per-run Responses ledger. Account/date Tokenomics totals are not experiment costs. Report API-equivalent estimates with rate provenance separately from unknown invoice, GPU and human costs. Missing terminal usage affects cost completeness independently of task validity.",
+    "created_utc": "2026-09-22T20:24:20.495780+00:00",
+    "human_effort": "Record human interventions during authoring. Separate automated setup and review effort. Human review minutes remain unmeasured unless observed; zero interventions does not establish labor savings.",
+    "implementation_scope": "Previously repaired development implementation installed identically in both arms. This is a development rerun, not a replication of the unmodified v1 baseline.",
+    "invalidation_policy": "A harness violation invalidates affected matched pairs. Preserve attempts, repair and version the harness, then rerun both arms in fresh contexts. Never select reruns based on which arm won.",
+    "lane_assignment": {
+      "01_drawer": "lane0",
+      "02_conveyor": "lane1",
+      "03_hinge": "lane2",
+      "04_gripper": "lane3",
+      "05_vise": "lane0",
+      "06_engine": "lane1",
+      "07_robot_arm": "lane2",
+      "08_excavator": "lane3",
+      "09_printer": "lane0",
+      "10_complex": "lane1"
+    },
+    "model": "gpt-6-astra",
+    "per_arm_wall_time_limit_s": 2400,
+    "preflight_gates": [
+      "Complete known workflow dependencies, including Scene Optimizer, Geogram and usable Git provenance",
+      "Read-only source and common tools; private author PID, filesystem, network and cgroup boundaries; no other cases, evaluator or prior outcomes visible",
+      "Responses gateway enforces Astra Ultra and records numeric usage for every child call",
+      "Native renderer readiness on all four GPUs and native physics readiness on both workers",
+      "All ten evaluators pass positive and negative qualification before any scored author",
+      "No concurrent setup or evaluator work during the scored author batch",
+      "Freeze source, code, tool, evaluator, protocol and qualification hashes before launch"
+    ],
+    "publication": "Publish new versioned evidence without overwriting the v1 pilot or capstone. Draft PR publication is already authorized.",
+    "reasoning_effort": "ultra",
+    "repair_budget": "Measure repairs and candidate checkpoints without a count cap. All author effort, including child calls, is inside the common 40-minute wall budget.",
+    "resource_budget": "Four exclusive GPU lanes, each with hard4 CPU quota,32GiB memory,zero swap and1024 process/thread slots. Initial fourCPU affinity controls native pool sizing. Each twoGPU worker has8 CPU/64GiB; all native child processes share their lane limits.",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "sole_treatment": "Content Agents workflow instructions and required native orchestration in the treatment arm; direct low-level tool use in the control. Installed implementation code is identical. Control workflow non-use is audited, not claimed as filesystem isolation.",
+    "source_commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+    "state": "FROZEN_BEFORE_SCORED_AUTHORS",
+    "storage_budget": {
+      "charged_within_memory_limit": true,
+      "home_bytes": 2147483648,
+      "kind": "tmpfs",
+      "workspace_bytes": 8589934592
+    },
+    "success_definition": "Complete 20 protocol-valid author attempts and independent evaluations. Report all ten matched pairs regardless of which arm wins. An author failure under valid conditions is a valid experimental outcome.",
+    "user_intent": "Resume and complete a valid controlled comparison on four Horde GPUs; preserve the original pilot.",
+    "v1_changes_before_freeze": [
+      "Four exclusive resource-bounded author lanes replace the unenforced global native-process count",
+      "A hard 40-minute budget with measured repairs replaces the declared two-repair cap",
+      "Both arms use the same repaired e640 implementation and fully provisioned dependencies",
+      "Qualified source-distance, initial-placement, query-initialization, timeout and fidelity fixes preserve the declared physical task intent",
+      "Before scored authors, common thread cap512\u21921024 following isolated renderer-plus-parent-overhead reproduction; exact prior analysis plan preserved and amendment recorded."
+    ]
+  },
+  "fresh_context": true,
+  "frozen": true,
+  "implementation_commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+  "lane_assignment": {
+    "01_drawer": "lane0",
+    "02_conveyor": "lane1",
+    "03_hinge": "lane2",
+    "04_gripper": "lane3",
+    "05_vise": "lane0",
+    "06_engine": "lane1",
+    "07_robot_arm": "lane2",
+    "08_excavator": "lane3",
+    "09_printer": "lane0",
+    "10_complex": "lane1"
+  },
+  "lanes": [
+    {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "cpu_millicores": 4000,
+      "gpu_uuid": "<PRIVATE_RUNTIME_LOCATOR>",
+      "host": "node0",
+      "id": "lane0",
+      "memory_bytes": 34359738368,
+      "pids_max": 1024,
+      "qualification_sha256": "874755d21e6c86544fc03d51c2cb74fc57a2f315b91b7d987522328ed3c6f6b6"
+    },
+    {
+      "cpu_affinity": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "cpu_millicores": 4000,
+      "gpu_uuid": "<PRIVATE_RUNTIME_LOCATOR>",
+      "host": "node0",
+      "id": "lane1",
+      "memory_bytes": 34359738368,
+      "pids_max": 1024,
+      "qualification_sha256": "68b063e98126578e46922c853769058feb79f3e5d73060f6417871d53d9e5c75"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "cpu_millicores": 4000,
+      "gpu_uuid": "<PRIVATE_RUNTIME_LOCATOR>",
+      "host": "node1",
+      "id": "lane2",
+      "memory_bytes": 34359738368,
+      "pids_max": 1024,
+      "qualification_sha256": "34c16a6773ff0f01d6607470df65843286e31b5f50db76c870b220094319378c"
+    },
+    {
+      "cpu_affinity": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "cpu_millicores": 4000,
+      "gpu_uuid": "<PRIVATE_RUNTIME_LOCATOR>",
+      "host": "node1",
+      "id": "lane3",
+      "memory_bytes": 34359738368,
+      "pids_max": 1024,
+      "qualification_sha256": "1a001554baec86bc47fa58242ac9f329d0c3f6932eb3d0a98eb44e47f61a407c"
+    }
+  ],
+  "model": "gpt-6-astra",
+  "model_catalog_sha256": "e612a56f9fef06041483ddd20cbea586f50d2fbf12e558e852dfa40bd332f976",
+  "model_gateway_policy_sha256": "00105eeff74fe8ba2ba4bd5da99f7068219fd0937c894cf739c3cdf0bf6bdb8a",
+  "network_policy": "model_gateway_only",
+  "public_inputs_manifest_sha256": "eb4f3d6345358848fcc49c6d5be7d04fede49ec6f60e3ea02b70ac8990e866bd",
+  "reasoning_effort": "ultra",
+  "reasoning_mapping_sha256": "156f5bdb76caa83e16f92f74a55f38cc361a870957966a32713c953556e46fb7",
+  "remote_experiment_root": "/opt/astra-content-value-20260922-rerun",
+  "repair_definition": "measured_not_capped",
+  "repair_limit": null,
+  "resource_rule": "four_exclusive_gpu_lanes",
+  "schema_version": "isolated-lanes.v2",
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "source_closures_sha256": "8f67e1d05d72a270d8953c08d499f09521c87645923771287c4c8643f45bb9ff",
+  "storage": {
+    "charged_within_memory_limit": true,
+    "home_bytes": 2147483648,
+    "kind": "tmpfs",
+    "workspace_bytes": 8589934592
+  },
+  "wall_seconds": 2400,
+  "wire_reasoning_effort": "xhigh",
+  "workflow_sha256": "eabd9c0c4987bca122db5c6f68c9e02c7baf840ae2a0bc303b16aa5edd0a63f5"
+}

@@ -1,0 +1,23 @@
+{
+  "all_observed_ui_matches": true,
+  "automatic_sessions": 2,
+  "cgroup_reaped": true,
+  "exact_current_harness_matches_launch": true,
+  "limitations": [
+    "Q14 had no interrupted response; separate q13 manually recovered one-request admission-only proof remains scoped and historical q13 automated capture stays incomplete.",
+    "Synthetic invocation does not prove arbitrary workflow/task success. Runtime renderer-to-solver capacity remains separately pending."
+  ],
+  "native_child_sandbox": "workspace-write",
+  "request_ui_complete": true,
+  "requests": 15,
+  "schema_version": "native-child-automatic-capture-review.v2",
+  "scope": "Real native Validation planner invocation and automatic temporary-home session capture, model/UI/wire/accounting closure. Not physical task acceptance or successful native Physics runtime.",
+  "source_unchanged": true,
+  "status": "PASS",
+  "task_outcome": "Expected FAIL: source analytic cube lacks required physics. No acceptance promotion.",
+  "temporary_staging_within_captured_home": true,
+  "terminal_billing_complete": true,
+  "terminal_response_id_and_admission_associations": 15,
+  "unsafe_host_child": false,
+  "usage_sha256": "995b705b3d38220434ebd25a046c9a7fb56a56aa106a157a76997d221de5a073"
+}

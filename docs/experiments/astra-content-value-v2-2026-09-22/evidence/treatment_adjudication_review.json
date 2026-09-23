@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "ad_hoc_substitute_cannot_be_native_success": true,
+    "billing_gaps_separate": true,
+    "blocked_native_phase_not_automatically_noncompliant": true,
+    "outcome_blinded_adjudication_order": true,
+    "plain_low_level_allowed_workflow_invocation_forbidden": true,
+    "seal_includes_exact_adjudication": true,
+    "unknown_compliance_cannot_establish_eligibility": true
+  },
+  "created_utc": "2026-09-23T00:48:48.662582+00:00",
+  "findings": [],
+  "schema_version": "independent-protocol-review.v2",
+  "scope": "Bounded independent review of treatment guidance against exact author prompts and analysis plan; no added physical success criteria. Review precedes authoring and independent task verdicts.",
+  "status": "PASS"
+}

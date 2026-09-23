@@ -1,0 +1,89 @@
+{
+  "case_id": "05_vise",
+  "frozen": true,
+  "mounted_inputs": "Only this original source closure and public task inventory are mounted. Preserve original bytes; save all derivatives under /work.",
+  "primary_input": "/source/Machine Vice  Assembly.STEP",
+  "protocol_id": "astra-content-value-rerun-v2",
+  "public_acceptance": {
+    "common": {
+      "angle_tolerance_rad": 0.08726646259971647,
+      "dt_s": 0.004166666666666667,
+      "duration_s": 12.0,
+      "gravity_m_s2": 9.81,
+      "max_angular_speed_rad_s": 30.0,
+      "max_fixed_base_motion_m": 0.002,
+      "max_joint_axis_error_rad": 0.05,
+      "max_joint_closure_m": 0.002,
+      "max_linear_speed_m_s": 5.0,
+      "max_mesh_surface_error_fraction": 0.001,
+      "max_mesh_surface_error_m": 5e-05,
+      "max_penetration_m": 0.003,
+      "minimum_source_surface_coverage": 1.0,
+      "position_tolerance_m": 0.002
+    },
+    "controller_protocol": "12s, dt1/240: settle0-1s; ramp to task target1-5s; hold5-7s with a opposing load5.5-6.5s (1% of max effort unless task_parameters.controller_scale_definition specifies the smaller inertia-normalized torque); return7-9s; settle9-10s; bounded outward upper-limit test10-12s. Engine instead ramps crank through2pi+0.25rad from1-8s and holds; paired zero-load run uses same seed. Only world body forces and torques are applied; source transforms are never prescribed.",
+    "decision_policy": "A concrete failed criterion is not accepted. Missing evaluator/import/runtime capability is INCONCLUSIVE, not demonstrated rejection or a false-pass.",
+    "input_failure_policy": "Missing, empty, malformed or schema-invalid author artifacts are concrete task rejection (FAIL). Evaluator infrastructure, reference availability, native runtime failure or measurement timeout is INCONCLUSIVE unless an independent concrete criterion failed.",
+    "joint_kinds": {
+      "jaw_slide": "prismatic"
+    },
+    "limits": "Mass/inertia/collision/geometry/closure/finite-state gates and native gravity witness apply. Source shape comparison is symmetric sampled surface distance plus all-vertex coverage with 3% area tolerance, not an exact topology equivalence proof.",
+    "measurement_version": 2,
+    "required_body_roles": [
+      "moving_jaw",
+      "fixed_jaw",
+      "base"
+    ],
+    "required_joint_roles": [
+      "jaw_slide"
+    ],
+    "runtime_budgets_s": {
+      "complete_source_stage_inspection": 1800,
+      "each_native_trial": 900,
+      "engine_paired_unloaded_trial": 900,
+      "input_stage_load": 900
+    },
+    "runtime_calibration_policy": "A failed independent gravity witness makes failed physics criteria from that same seed INCONCLUSIVE, including paired engine response when either paired run is uncalibrated. Raw observations and failed predicates are retained. Independent static/source/schema failures remain concrete FAIL.",
+    "scope": "Moving jaw physically travels at least 20mm, holds its commanded position to 2mm under a 1N axial external load for 0.8s, returns, and respects an authored upper limit under a bounded outward force. This is slider positioning/load holding, not workpiece clamping or machining force validation.",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "source_inventory_file": "/input/05_vise_source_inventory.json",
+    "source_inventory_sha256": "ffbc3f371126f01e7ca3419d2cbb085122ac6349f791e1fe0dec5234ee700fc4",
+    "source_metric": "All original instances, unchanged bounds and 3% area thresholds. Conservative triangle correspondence proves every surface point within tolerance and preserves all loose points; otherwise symmetric all-vertex plus deterministic surface-sample nearest-triangle distances in recentered millimetres. This remains geometry preservation, not exact topology or materials equivalence.",
+    "targets": "jaw_slide +0.03m relative to initial pose, then initial; >=0.02m measured travel; 1N opposing hold load; <=0.002m holding/return error. Upper-limit test must exercise authored upper stop.",
+    "task_parameters": {
+      "control": {
+        "jaw_slide": {
+          "kd": 30.0,
+          "kp": 800.0,
+          "max_effort": 100.0
+        }
+      },
+      "joint_moving_body_roles": {
+        "jaw_slide": "moving_jaw"
+      },
+      "minimum_travel_m": 0.02
+    },
+    "witness_policy": "A collision-free independently instrumented body at (1,1,1)m must show expected freefall within4mm displacement and0.03m/s velocity at0.1s; witness failure means evaluator insufficiency. Authored gravity must independently be Earth gravity. No witness writes to the submitted asset."
+  },
+  "qualification_receipt_sha256": "c264c6d585c87326b95a6d402a3cb688f2cee8906b0266b43ebc82cb93c4a9b2",
+  "schema_version": "astra-content-value-task.v2",
+  "source_inventory_file": "/input/05_vise_source_inventory.json",
+  "source_inventory_sha256": "ffbc3f371126f01e7ca3419d2cbb085122ac6349f791e1fe0dec5234ee700fc4",
+  "source_root": "/source",
+  "submission_contract": "Save final.usd with metersPerUnit=1 and Z up. Retain each required original shape instance as a visible mesh (multiple mesh prims per source_id are permitted); map every instance once in bindings.json. Collision approximations may differ, but mark added collision-only primitives/meshes purpose=proxy/guide or invisible. Intended moving bodies must be dynamic/nonkinematic with finite positive mass and diagonal inertia. Base is static or explicitly kinematic. No time-sampled transforms/mesh points, prescribed pose updates, or substitute visual geometry. Declare ALL rigid bodies and ALL joints. Actual USD body0/body1/local frames/limits are read independently. Matrix convention is 4x4 column-vector rigid transform, translation in last column; no scale/shear/reflection. For source_assembly_world references, assembly_from_source is one rigid initial assembly alignment in meters. For part_local_only references, source_to_body is that part's rigid local alignment in meters. Preserve every original dependency. Source-to-body role requirements in public inventory are mandatory. Bindings JSON schema:\n{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"title\":\"Mechanism evaluation bindings; identifiers only, never acceptance evidence\",\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"schema_version\",\"case_id\",\"bodies\",\"joints\",\"source_map\",\"assembly_from_source\"],\"properties\":{\"schema_version\":{\"const\":1},\"case_id\":{\"type\":\"string\"},\"assembly_from_source\":{\"$ref\":\"#/$defs/matrix\"},\"bodies\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\",\"moving\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"},\"moving\":{\"type\":\"boolean\"}}}},\"joints\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"}}}},\"source_map\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"source_id\",\"mesh_paths\",\"body_path\",\"source_to_body\"],\"properties\":{\"source_id\":{\"type\":\"string\"},\"body_path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"mesh_paths\":{\"type\":\"array\",\"minItems\":1,\"uniqueItems\":true,\"items\":{\"type\":\"string\",\"pattern\":\"^/\"}},\"source_to_body\":{\"$ref\":\"#/$defs/matrix\"}}}}},\"$defs\":{\"matrix\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"number\"}}}}}",
+  "task": "Using the unchanged original Machine vise source closure, author a physically simulated articulated USD mechanism that retains the source geometry and component identity. Moving jaw physically travels at least 20mm, holds its commanded position to 2mm under a 1N axial external load for 0.8s, returns, and respects an authored upper limit under a bounded outward force. This is slider positioning/load holding, not workpiece clamping or machining force validation. Required body roles: moving_jaw, fixed_jaw, base. Required joint roles: jaw_slide. The evaluator applies its own bounded efforts and opens your final scene in a fresh solver; do not rely on your controller script or animation being executed. Read the public source inventory at /input/05_vise_source_inventory.json; map every required source_id once. Case-normalizing source filename lookup and reading cached FreeCAD BREP shapes is permitted, but preserve original files and record any derived repair. Independent source reference uses saved source geometry; it does not certify real hardware accuracy.",
+  "v2_measurement_changes": [
+    "All original source identities, grounded roles, force/torque controllers, task thresholds and five seeds retained.",
+    "Recentered millimetre nearest-triangle queries; conservative all-surface triangle-correspondence fast path; unchanged area/bounds tolerances.",
+    "Exact correspondence also retains every loose tessellation point; an unchanged original off-surface point is no longer incorrectly required to lie on a triangle.",
+    "Source progress retained; measurement/worker timeout is INCONCLUSIVE, never an author failure or a pass.",
+    "Collision-free evaluator gravity witness moved to (1,1,1) metres; witness failure is evaluator insufficiency; actual authored Earth gravity remains a concrete criterion.",
+    "Controller effort is clamped after the same seeded0.98\u20131.02 jitter, making the published actuator cap a hard limit. PD gains, distribution, targets, separate external test load and all acceptance thresholds remain unchanged."
+  ]
+}

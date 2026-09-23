@@ -1,0 +1,41 @@
+{
+  "checks": {
+    "assigned_ovrtx_frame": true,
+    "common_implementation_identical_both_arms": true,
+    "cpu_limit_enforced": true,
+    "foreign_cmdline_unreadable": true,
+    "foreign_files_unreadable": true,
+    "fresh_home_no_history": true,
+    "memory_limit_enforced": true,
+    "model_effort_gate": true,
+    "mount_escape_refused": true,
+    "native_child_workflow_compatible": true,
+    "network_gateway_only": true,
+    "no_new_privileges": true,
+    "nonroot_no_capabilities": true,
+    "only_assigned_gpu_accessible": true,
+    "orphan_killed_and_reaped": true,
+    "other_gpu_compute_and_vulkan_refused": true,
+    "primary_child_requests_accounted": true,
+    "private_pid_namespace": true,
+    "process_limit_enforced": true,
+    "source_readonly": true,
+    "tools_readonly": true,
+    "workflow_activation_matches_treatment": true
+  },
+  "created_utc": "2026-09-23T00:54:33.977973+00:00",
+  "limits": {
+    "cpu_millicores": 4000,
+    "initial_cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "memory_bytes": 34359738368,
+    "memory_swap_bytes": 0,
+    "pids_max": 1024
+  },
+  "schema_version": "reviewed-author-lane-qualification.v2",
+  "status": "PASS"
+}

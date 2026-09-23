@@ -1,0 +1,330 @@
+{
+  "assembly": {
+    "all_external_dependencies_present": true,
+    "component_instances": 13,
+    "moving_parts": [
+      "Sliding Jaw",
+      "Screw Spindle",
+      "Block: intended coupling group must be verified against source geometry"
+    ],
+    "parts": [
+      {
+        "part": "Base",
+        "quantity": 1,
+        "role": "fixed support"
+      },
+      {
+        "part": "Fixed Jaw",
+        "quantity": 1,
+        "role": "fixed clamping jaw"
+      },
+      {
+        "part": "Sliding Jaw",
+        "quantity": 1,
+        "role": "linearly translating jaw"
+      },
+      {
+        "part": "Screw Spindle",
+        "quantity": 1,
+        "role": "rotating threaded drive"
+      },
+      {
+        "part": "Block",
+        "quantity": 1,
+        "role": "spindle/jaw coupling; constrain from actual geometry"
+      },
+      {
+        "part": "End plate",
+        "quantity": 1,
+        "role": "spindle retention"
+      },
+      {
+        "part": "Set Screw M8",
+        "quantity": 2,
+        "role": "fastener"
+      },
+      {
+        "part": "Screw M8",
+        "quantity": 4,
+        "role": "fastener"
+      },
+      {
+        "part": "Set Screw M6",
+        "quantity": 1,
+        "role": "fastener"
+      }
+    ],
+    "unique_part_files": 9
+  },
+  "asset_id": "05_vise",
+  "category": "mechanical_articulation",
+  "commit": "5f00c8e02457a010b3950491153832fd039e40ac",
+  "curation_status": "selected_source_acquired",
+  "files": [
+    {
+      "bytes": 65060,
+      "git_blob_sha": "6a781fe876a8394b7643d1f8fab912c32cbb7b46",
+      "path": "source/1.JPG",
+      "sha256": "4cfa7d1e9736b8b277e677f7f6bad819e29ee522056cc9276081b28d4a77e0f4",
+      "source_path": "Chapter 12/Number 9/1.JPG",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/1.JPG"
+    },
+    {
+      "bytes": 55292,
+      "git_blob_sha": "89db85d928f58cb76293ff00efca2b7abc6f2b31",
+      "path": "source/2.JPG",
+      "sha256": "7361e0b2e2e144382f79b8eccb31a3e3efe3e3e8ab66587bc9c7c33affc4a554",
+      "source_path": "Chapter 12/Number 9/2.JPG",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/2.JPG"
+    },
+    {
+      "bytes": 57493,
+      "git_blob_sha": "432210691808d3a1c3ad298e8802f638c4929a31",
+      "path": "source/3.JPG",
+      "sha256": "0058d00d4c7273b489a77c1940d362de6cbe74f26be1b75335a6b56fed0a3525",
+      "source_path": "Chapter 12/Number 9/3.JPG",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/3.JPG"
+    },
+    {
+      "bytes": 51804,
+      "git_blob_sha": "e70fa99bbe896d0054f130a0f22ece106285ba93",
+      "path": "source/4.JPG",
+      "sha256": "dff6617cbf70cb68a5ad3699aa6a4a6f94697c05df78b0c34c9e875fa0712c03",
+      "source_path": "Chapter 12/Number 9/4.JPG",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/4.JPG"
+    },
+    {
+      "bytes": 150668,
+      "git_blob_sha": "8867906d9e7a478d17677b3ec55f92c9af525112",
+      "path": "source/Base.SLDPRT",
+      "sha256": "8d6949f9b5224c9e8f0d858133cb6b02c321fba52813c738f2684cbcfa48b5e5",
+      "source_path": "Chapter 12/Number 9/Base.SLDPRT",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Base.SLDPRT"
+    },
+    {
+      "bytes": 142021,
+      "git_blob_sha": "4d6a6849ada155841ac6aded1630a6ae155bb307",
+      "path": "source/Base.STEP",
+      "sha256": "447cc1c1fc13a386531c93e053258b4d0f38dc228a822cfb3ee3b5931bb3c02c",
+      "source_path": "Chapter 12/Number 9/Base.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Base.STEP"
+    },
+    {
+      "bytes": 352665,
+      "git_blob_sha": "c988ad785c30c887ab71582640b280e800e84439",
+      "path": "source/Block.SLDPRT",
+      "sha256": "e240376bbcf831977f7e431c5301df9b512467db8b55f23bf9fde8815a980bce",
+      "source_path": "Chapter 12/Number 9/Block.SLDPRT",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Block.SLDPRT"
+    },
+    {
+      "bytes": 680729,
+      "git_blob_sha": "a9f206276d162874b9b7cda867ca71243e598b66",
+      "path": "source/Block.STEP",
+      "sha256": "b60e7809758dac52bcb6a65c798533484f386cda7291b45e0d787561eb61ea7d",
+      "source_path": "Chapter 12/Number 9/Block.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Block.STEP"
+    },
+    {
+      "bytes": 83739,
+      "git_blob_sha": "196e3fbc3501cf2113a13b6bfd16ba5a526cb751",
+      "path": "source/End plate.SLDPRT",
+      "sha256": "58ed399a656102d6265a8e7b0d9781ca1e6c1dfc7e91637bf397967b8e535dbe",
+      "source_path": "Chapter 12/Number 9/End plate.SLDPRT",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/End%20plate.SLDPRT"
+    },
+    {
+      "bytes": 36036,
+      "git_blob_sha": "9644538f8896d818a673ac31c4cccdfed7428b24",
+      "path": "source/End plate.STEP",
+      "sha256": "b95bd301db5d58c3fab9c7c7ce0e972641c169e39ddd2eb4c01b8ec56ece2cfa",
+      "source_path": "Chapter 12/Number 9/End plate.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/End%20plate.STEP"
+    },
+    {
+      "bytes": 88410,
+      "git_blob_sha": "d8e83cc5c5bd5cb72b367be42ea7815387e8ef6a",
+      "path": "source/Fixed Jaw.SLDPRT",
+      "sha256": "89644f5a32b6d2423e749f105ee7513fd043b8734e0c6b81cefc380e83d67d03",
+      "source_path": "Chapter 12/Number 9/Fixed Jaw.SLDPRT",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Fixed%20Jaw.SLDPRT"
+    },
+    {
+      "bytes": 38213,
+      "git_blob_sha": "b4b6769d8a3d0036a82b0ed576b605709807f492",
+      "path": "source/Fixed Jaw.STEP",
+      "sha256": "c8ad1fb38de202dfe0d8cba02d3717b48c0c8d2e084393762a710156fbd95563",
+      "source_path": "Chapter 12/Number 9/Fixed Jaw.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Fixed%20Jaw.STEP"
+    },
+    {
+      "bytes": 2186031,
+      "git_blob_sha": "b530375e8e95d51475be62fbfbbc003a2bcd7577",
+      "path": "source/Machine Vice  Assembly.SLDASM",
+      "sha256": "8cf6b062d37b9de616b6d196a31b9e3ba3cc9e1fda610635119b82f8f0bba50c",
+      "source_path": "Chapter 12/Number 9/Machine Vice  Assembly.SLDASM",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Machine%20Vice%20%20Assembly.SLDASM"
+    },
+    {
+      "bytes": 38490,
+      "git_blob_sha": "bd722ca1fc0924638d2ac25030b4558cd392f1b5",
+      "path": "source/Machine Vice  Assembly.STEP",
+      "sha256": "0300d68d082e5d7b1d6cfa47a789dbf624bc59f2cf23934ea15d2858bbf3b766",
+      "source_path": "Chapter 12/Number 9/Machine Vice  Assembly.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Machine%20Vice%20%20Assembly.STEP"
+    },
+    {
+      "bytes": 4610,
+      "git_blob_sha": "90c2b47fc93376ac722ae95ddce802810757fe60",
+      "path": "source/Readme.md",
+      "sha256": "93d6d55887cfc68f94ee3f3e8f5c3f24489001afe36a2e8b97cc6a60686c2a8e",
+      "source_path": "Chapter 12/Number 9/Readme.md",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Readme.md"
+    },
+    {
+      "bytes": 462861,
+      "git_blob_sha": "89a42562a49a131860f0b6908d97cd87ab4c075d",
+      "path": "source/Screw M8.SLDPRT",
+      "sha256": "1fe5d1139a13411c576c53d00e30e07876788759f34867cdc2a4e0093943359d",
+      "source_path": "Chapter 12/Number 9/Screw M8.SLDPRT",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Screw%20M8.SLDPRT"
+    },
+    {
+      "bytes": 512007,
+      "git_blob_sha": "05339b019d6dec800e0aea17b490d9523607d6df",
+      "path": "source/Screw M8.STEP",
+      "sha256": "50b7ff9f9be06cd63131d77ce3bd4e237778e59572ad65f026f322b38321a02a",
+      "source_path": "Chapter 12/Number 9/Screw M8.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Screw%20M8.STEP"
+    },
+    {
+      "bytes": 1559446,
+      "git_blob_sha": "0482ee8ebe73f5bf2a865906bf02f5220d41aad2",
+      "path": "source/Screw Spindle.SLDPRT",
+      "sha256": "b3d3279d2b5f9199fc0af480bf7645d13e0ac8ab5c5e9a095306fa8a2da067a7",
+      "source_path": "Chapter 12/Number 9/Screw Spindle.SLDPRT",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Screw%20Spindle.SLDPRT"
+    },
+    {
+      "bytes": 1432080,
+      "git_blob_sha": "275331b4ddb67826d5eb9e437f7a09c5d7497093",
+      "path": "source/Screw Spindle.STEP",
+      "sha256": "a770a6c8eac274d84bda2f008fd3f2dc654d67b3e65f13c97292532f33889ebe",
+      "source_path": "Chapter 12/Number 9/Screw Spindle.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Screw%20Spindle.STEP"
+    },
+    {
+      "bytes": 234683,
+      "git_blob_sha": "dfa2c0656ab65b36b5a6a4aec3b2e88078694faf",
+      "path": "source/Set Screw M6.SLDPRT",
+      "sha256": "505666ee58959bdcf3750da88dc82bdf7372a483cf07d17466c31088a24e5c30",
+      "source_path": "Chapter 12/Number 9/Set Screw M6.SLDPRT",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Set%20Screw%20M6.SLDPRT"
+    },
+    {
+      "bytes": 223960,
+      "git_blob_sha": "f7ef71128afc81fee194eeb0c97c47aaaf932118",
+      "path": "source/Set Screw M6.STEP",
+      "sha256": "210ff1c31538e485f7678fbba7d348e4f6725849a6cd2e20358ec325cee2f1e6",
+      "source_path": "Chapter 12/Number 9/Set Screw M6.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Set%20Screw%20M6.STEP"
+    },
+    {
+      "bytes": 64875,
+      "git_blob_sha": "cc0dcc68dc7243481ed19fb5ceb3cedc773aab2c",
+      "path": "source/Set Screw M8.SLDPRT",
+      "sha256": "fa2e78523257ea2fcdf07dc19d6f3464f50614ffb7a7cfa07da9c74f9285f84c",
+      "source_path": "Chapter 12/Number 9/Set Screw M8.SLDPRT",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Set%20Screw%20M8.SLDPRT"
+    },
+    {
+      "bytes": 24010,
+      "git_blob_sha": "a61fd51f52b5d27afc23a022476f7f0ebb6689db",
+      "path": "source/Set Screw M8.STEP",
+      "sha256": "4d44b8db18eba79c95b70a96f90a6ea00943a1b4c7116a770512b286c0a0a348",
+      "source_path": "Chapter 12/Number 9/Set Screw M8.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Set%20Screw%20M8.STEP"
+    },
+    {
+      "bytes": 91261,
+      "git_blob_sha": "8bab4d18581323115d55c32932b693ad0d280673",
+      "path": "source/Sliding Jaw.SLDPRT",
+      "sha256": "5535b497909f8ac361a880b2c1570663b538b9aea388cb088329c51de81760c1",
+      "source_path": "Chapter 12/Number 9/Sliding Jaw.SLDPRT",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Sliding%20Jaw.SLDPRT"
+    },
+    {
+      "bytes": 57176,
+      "git_blob_sha": "6b2ee51654f88dc7806cb4f67268afaf3ad8985f",
+      "path": "source/Sliding Jaw.STEP",
+      "sha256": "5dcb45e049011d5e3b4692c760a5b807543616f1ac9b649dcd448d3236584c90",
+      "source_path": "Chapter 12/Number 9/Sliding Jaw.STEP",
+      "url": "https://raw.githubusercontent.com/Amir-souhail/Digital-CADD-Certification-Course/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Sliding%20Jaw.STEP"
+    }
+  ],
+  "input_dependency_directory": "source",
+  "input_sha256": "0300d68d082e5d7b1d6cfa47a789dbf624bc59f2cf23934ea15d2858bbf3b766",
+  "inspection_file": "provenance/inspection.json",
+  "intended_physics_task": {
+    "description": "Mount base, infer and author slider and spindle motion with screw coupling, close jaw on a held-out cuboid workpiece, retain it under a defined lateral disturbance, then reverse and release.",
+    "minimum_active_dofs": [
+      "Jaw prismatic displacement",
+      "Spindle axial rotation coupled to jaw displacement"
+    ],
+    "parameters_to_measure_or_declare": [
+      "Slider axis and allowed stroke",
+      "Spindle axis and pitch",
+      "Mass/inertia and material assumptions",
+      "Collision geometry and friction",
+      "Actuator limits and clamping force envelope"
+    ],
+    "probes": [
+      "Unloaded open/close sweep within geometry-derived limits",
+      "Measured jaw translation versus spindle angle",
+      "Blocked-jaw contact/load behavior and retention",
+      "Reverse/open/release without penetrating workpiece"
+    ],
+    "scope_limit": "This curation supplies no authored joints, colliders, executable physics, conversion, repair, simulation, or experiment arm."
+  },
+  "license": {
+    "attribution": "Amir Souhail (GitHub: Amir-souhail), Machine Vice Assembly, Digital-CADD-Certification-Course, Chapter 12/Number 9.",
+    "caveat": "README explicitly declares MIT but links to a LICENSE file that is absent from the repository. No missing license text has been invented. Original JPG technical drawings visibly carry DigitalCADD Solutions, Satara branding; retain as provenance/reference, not experiment input, and do not assume independent drawing rights from the CAD author declaration.",
+    "declared": "MIT",
+    "evidence": "source/Readme.md, License section",
+    "evidence_url": "https://github.com/Amir-souhail/Digital-CADD-Certification-Course/blob/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209/Readme.md#license"
+  },
+  "name": "Machine Vice Assembly",
+  "native_assembly": "source/Machine Vice  Assembly.SLDASM",
+  "original_physics": {
+    "already_rigged_simulator_source": false,
+    "basis": "Selected original AP214 files are CAD B-rep geometry, assembly hierarchy, transforms, and external part references. No URDF, MJCF, SDF, USD physics file, dynamic solver/controller, or collision model was supplied in selected source folder. Native SolidWorks mates may exist and are preserved, not used as executable dynamic physics.",
+    "executable_simulation_physics_present_in_selected_step_input": false,
+    "physics_removed": false
+  },
+  "primary_input": "source/Machine Vice  Assembly.STEP",
+  "repository_url": "https://github.com/Amir-souhail/Digital-CADD-Certification-Course",
+  "retrieved_at_utc": "2026-09-21T21:27:20.232168+00:00",
+  "source_format": "STEP AP214 externally referenced assembly plus STEP part geometry; original SolidWorks CAD preserved",
+  "source_url": "https://github.com/Amir-souhail/Digital-CADD-Certification-Course/tree/5f00c8e02457a010b3950491153832fd039e40ac/Chapter%2012/Number%209",
+  "units": {
+    "evidence": [
+      "STEP SI_UNIT(.MILLI.,.METRE.) in assembly and all nine unique part files",
+      "source/Readme.md states all dimensions millimeters",
+      "source/1.JPG and source/2.JPG dimension labels"
+    ],
+    "length": "millimeter",
+    "length_scale_to_meter": 0.001
+  },
+  "verification": {
+    "all_file_hashes_recorded": true,
+    "cad_import_and_geometry_render": "not run; remote experiment stage must validate",
+    "license_status": "explicit MIT declaration retained; absent standalone LICENSE flagged",
+    "part_geometry_evidence": "nine part files each contain one MANIFOLD_SOLID_BREP, 380 ADVANCED_FACE entities total across unique parts",
+    "source_bytes_preserved": true,
+    "source_reference_visual_inspection": [
+      "source/1.JPG",
+      "source/2.JPG"
+    ],
+    "step_dependency_resolution": "pass, nine unique references present"
+  }
+}

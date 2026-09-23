@@ -117,7 +117,9 @@ publishes a separate ten-asset protocol comparing identical model, inputs,
 tools and budgets with and without Content Agents workflows. Its scored
 results are pending; the preregistration does not establish comparative value.
 The [drawer capstone evidence](docs/experiments/astra-drawer-capstone-2026-09-21/EVIDENCE_NOTES.md)
-documents a separately repaired physical task and its limits.
+documents a separately repaired physical task and its limits. Its
+[independent evidence audit](docs/experiments/astra-drawer-capstone-chain-audit-2026-09-23/README.md)
+includes a verifier for the published artifacts and identifies unavailable original receipts.
 
 ## 2. Quick Start
 

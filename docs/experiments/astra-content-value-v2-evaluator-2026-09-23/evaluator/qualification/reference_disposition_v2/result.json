@@ -1,0 +1,14 @@
+{
+  "qualified": true,
+  "unavailable_trusted_source_checks": [
+    {
+      "name": "source_bytes:base.stl",
+      "passed": false,
+      "evidence": null,
+      "failure_class": "evaluator_insufficient"
+    }
+  ],
+  "author_output_used": false,
+  "model_calls": 0,
+  "native_calls": 0
+}

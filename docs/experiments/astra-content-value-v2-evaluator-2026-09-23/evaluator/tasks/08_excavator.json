@@ -1,0 +1,125 @@
+{
+  "schema_version": "astra-content-value-task.v1",
+  "case_id": "08_excavator",
+  "frozen": true,
+  "source_root": "assets/08_excavator/source/\u673a\u68b0\u90e8\u5206",
+  "primary_input": "assets/08_excavator/source/\u673a\u68b0\u90e8\u5206/\u5de5\u7a0b\u6587\u4ef6/\u8bd5\u88c51.SLDASM",
+  "task": "Using the unchanged original Mini RC excavator source closure, author a physically simulated articulated USD mechanism that retains the source geometry and component identity. All three source-grounded boom, stick and bucket pivots physically flex at least 10 degrees, hold +0.26rad offsets within 5 degrees under bounded opposing torques, then return within 5 degrees. All authored joint anchors and axes remain closed, base remains fixed, and all finite authored ranges are obeyed. All 80 visible mesh instances from the frozen independent native SolidWorks conversion must remain. This tests articulated motion and load holding; digging, terrain, hydraulic/lead-screw actuation and native SolidWorks assembly completeness are outside scope. Required body roles: base, boom, stick, bucket. Required joint roles: boom_pivot, stick_pivot, bucket_pivot. The evaluator applies its own bounded efforts and opens your final scene in a fresh solver; do not rely on your controller script or animation being executed. Read the public source inventory at /input/08_excavator_source_inventory.json; map every required source_id once. Case-normalizing source filename lookup and reading cached FreeCAD BREP shapes is permitted, but preserve original files and record any derived repair. Independent source reference uses saved source geometry; it does not certify real hardware accuracy.",
+  "submission_contract": "Save final.usd with metersPerUnit=1 and Z up. Retain each required original shape instance as a visible mesh (multiple mesh prims per source_id are permitted); map every instance once in bindings.json. Collision approximations may differ, but mark added collision-only primitives/meshes purpose=proxy/guide or invisible. Intended moving bodies must be dynamic/nonkinematic with finite positive mass and diagonal inertia. Base is static or explicitly kinematic. No time-sampled transforms/mesh points, prescribed pose updates, or substitute visual geometry. Declare ALL rigid bodies and ALL joints. Required joint_body_pairs are ordered: body0 is the listed parent and body1 is the listed child; this order is mandatory for the downstream load controller. Actual USD body0/body1/local frames/limits are read independently. Matrix convention is 4x4 column-vector rigid transform, translation in last column; no scale/shear/reflection. For source_assembly_world references, assembly_from_source is one rigid initial assembly alignment in meters. For part_local_only references, source_to_body is that part's rigid local alignment in meters. Preserve every original dependency. Source-to-body role requirements in public inventory are mandatory. Bindings JSON schema:\n{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"title\":\"Mechanism evaluation bindings; identifiers only, never acceptance evidence\",\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"schema_version\",\"case_id\",\"bodies\",\"joints\",\"source_map\",\"assembly_from_source\"],\"properties\":{\"schema_version\":{\"const\":1},\"case_id\":{\"type\":\"string\"},\"assembly_from_source\":{\"$ref\":\"#/$defs/matrix\"},\"bodies\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\",\"moving\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"},\"moving\":{\"type\":\"boolean\"}}}},\"joints\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"}}}},\"source_map\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"source_id\",\"mesh_paths\",\"body_path\",\"source_to_body\"],\"properties\":{\"source_id\":{\"type\":\"string\"},\"body_path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"mesh_paths\":{\"type\":\"array\",\"minItems\":1,\"uniqueItems\":true,\"items\":{\"type\":\"string\",\"pattern\":\"^/\"}},\"source_to_body\":{\"$ref\":\"#/$defs/matrix\"}}}}},\"$defs\":{\"matrix\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"number\"}}}}}",
+  "public_acceptance": {
+    "scope": "All three source-grounded boom, stick and bucket pivots physically flex at least 10 degrees, hold +0.26rad offsets within 5 degrees under bounded opposing torques, then return within 5 degrees. All authored joint anchors and axes remain closed, base remains fixed, and all finite authored ranges are obeyed. All 80 visible mesh instances from the frozen independent native SolidWorks conversion must remain. This tests articulated motion and load holding; digging, terrain, hydraulic/lead-screw actuation and native SolidWorks assembly completeness are outside scope.",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "required_body_roles": [
+      "base",
+      "boom",
+      "stick",
+      "bucket"
+    ],
+    "required_joint_roles": [
+      "boom_pivot",
+      "stick_pivot",
+      "bucket_pivot"
+    ],
+    "joint_kinds": {
+      "boom_pivot": "revolute",
+      "stick_pivot": "revolute",
+      "bucket_pivot": "revolute"
+    },
+    "common": {
+      "dt_s": 0.004166666666666667,
+      "duration_s": 12.0,
+      "gravity_m_s2": 9.81,
+      "max_linear_speed_m_s": 5.0,
+      "max_angular_speed_rad_s": 30.0,
+      "max_joint_closure_m": 0.002,
+      "max_joint_axis_error_rad": 0.05,
+      "max_penetration_m": 0.003,
+      "max_fixed_base_motion_m": 0.002,
+      "position_tolerance_m": 0.002,
+      "angle_tolerance_rad": 0.08726646259971647,
+      "minimum_source_surface_coverage": 1.0,
+      "max_mesh_surface_error_fraction": 0.001,
+      "max_mesh_surface_error_m": 5e-05
+    },
+    "task_parameters": {
+      "required_joint_body_pairs": {
+        "boom_pivot": [
+          "base",
+          "boom"
+        ],
+        "stick_pivot": [
+          "boom",
+          "stick"
+        ],
+        "bucket_pivot": [
+          "stick",
+          "bucket"
+        ]
+      },
+      "minimum_each_motion_rad": 0.174532925199,
+      "target_offsets_rad": [
+        0.26,
+        0.26,
+        0.26
+      ],
+      "end_effector_role": "bucket",
+      "minimum_end_effector_motion_m": 0.001,
+      "terminal_body_roles": [
+        "bucket"
+      ],
+      "minimum_terminal_motion_m": 0.001,
+      "control_default": {
+        "gain_mode": "inertia_scaled",
+        "kp": 36.0,
+        "kd": 6.0,
+        "max_effort": 5.0,
+        "gravity_compensate": true
+      }
+    },
+    "controller_protocol": "12s, dt1/240: settle0-1s; ramp to task target1-5s; hold5-7s with a opposing load min(1% max effort, estimated downstream inertia times 1rad/s2) at5.5-6.5s; return7-9s; settle9-10s; bounded outward upper-limit test10-12s. Engine instead ramps crank through2pi+0.25rad from1-8s and holds; paired zero-load run uses same seed. Only world body forces and torques are applied; source transforms are never prescribed.",
+    "limits": "Mass/inertia/collision/geometry/closure/finite-state gates and native gravity witness apply. Source shape comparison is symmetric sampled surface distance plus all-vertex coverage with 3% area tolerance, not an exact topology equivalence proof.",
+    "decision_policy": "A concrete failed criterion is not accepted. Missing evaluator/import/runtime capability is INCONCLUSIVE, not demonstrated rejection or a false-pass.",
+    "source_inventory_sha256": "ea1c0f2e1cd183343087602a75a79673e219ce6cdd2c9b287b474fa4d207fcf2",
+    "source_inventory_file": "/input/08_excavator_source_inventory.json",
+    "joint_torque_abstraction": "Normal 9.81m/s2 gravity remains enabled. No per-body weight-cancelling force is applied. For each required revolute joint, Ieff is the sum over reachable dynamic child bodies of maximum native inertia eigenvalue plus m times squared perpendicular COM lever arm at the initial pose. Gravity feed-forward is minus the sum of dot(axis, cross(COM-origin, m*[0,0,-9.81])) over those bodies at the current pose. Command torque is clip(gravity_feedforward + Ieff*(36*(target-q)-6*qdot), -cap, cap) times one seed factor in [0.98,1.02]. Opposing hold torque is -min(0.01*cap,Ieff*1rad/s2) during5.5-6.5s. Equal/opposite axis torques go to joint body1/body0 when dynamic. Thus controller magnitude <=1.02*cap and controller plus hold load <=1.03*cap; the first50ms perturbation is <=0.005*min(cap,Ieff*1rad/s2). This is an abstract bounded joint actuator test. It does not establish native actuator sizing, tendon/lead-screw transmission, physical load ratings, or robot simulation readiness.",
+    "targets": "each required joint gets its corresponding target_offsets_rad relative to initial pose; targets held under opposing torque min(1% max effort, downstream effective inertia times 1rad/s2), return to initial.",
+    "measurement_version": 2,
+    "input_failure_policy": "Missing, empty, malformed or schema-invalid author artifacts are concrete task rejection (FAIL). Evaluator infrastructure, reference availability, native runtime failure or measurement timeout is INCONCLUSIVE unless an independent concrete criterion failed.",
+    "source_metric": "All original instances, unchanged bounds and 3% area thresholds. Conservative triangle correspondence proves every surface point within tolerance and preserves all loose points; otherwise symmetric all-vertex plus deterministic surface-sample nearest-triangle distances in recentered millimetres. This remains geometry preservation, not exact topology or materials equivalence.",
+    "runtime_budgets_s": {
+      "complete_source_stage_inspection": 1800,
+      "each_native_trial": 900,
+      "engine_paired_unloaded_trial": 900,
+      "input_stage_load": 900
+    },
+    "witness_policy": "A collision-free independently instrumented body at (1,1,1)m must show expected freefall within4mm displacement and0.03m/s velocity at0.1s; witness failure means evaluator insufficiency. Authored gravity must independently be Earth gravity. No witness writes to the submitted asset.",
+    "runtime_calibration_policy": "A failed independent gravity witness makes failed physics criteria from that same seed INCONCLUSIVE, including paired engine response when either paired run is uncalibrated. Raw observations and failed predicates are retained. Independent static/source/schema failures remain concrete FAIL."
+  },
+  "source_inventory_file": "/input/08_excavator_source_inventory.json",
+  "source_inventory_sha256": "ea1c0f2e1cd183343087602a75a79673e219ce6cdd2c9b287b474fa4d207fcf2",
+  "private_reference_sha256": "581fd12722d13c5ad5ce5cc09c572b9c6ec789ab53c441a32e5febd325e19c87",
+  "private_evaluator_cases_sha256": "1064f4027959c5e6b3ed6a3ec013b6b097b48122aa48e8401312307f44e9bfd3",
+  "private_evaluator_snapshot": "evaluator/cases/08_excavator",
+  "private_evaluator_snapshot_sha256": "621c5fc5ddafea36ce39fa7d2d942b61513e5a10aa30c8fe34d4ccfcc7c337df",
+  "freeze_basis": "Fresh v2 local, source-only and native synthetic qualification completed before scored authors; source/physics scope remains task-specific.",
+  "protocol_id": "astra-content-value-rerun-v2",
+  "v2_measurement_changes": [
+    "All original source identities, grounded roles, force/torque controllers, task thresholds and five seeds retained.",
+    "Recentered millimetre nearest-triangle queries; conservative all-surface triangle-correspondence fast path; unchanged area/bounds tolerances.",
+    "Exact correspondence also retains every loose tessellation point; an unchanged original off-surface point is no longer incorrectly required to lie on a triangle.",
+    "Source progress retained; measurement/worker timeout is INCONCLUSIVE, never an author failure or a pass.",
+    "Collision-free evaluator gravity witness moved to (1,1,1) metres; witness failure is evaluator insufficiency; actual authored Earth gravity remains a concrete criterion.",
+    "Controller effort is clamped after the same seeded0.98\u20131.02 jitter, making the published actuator cap a hard limit. PD gains, distribution, targets, separate external test load and all acceptance thresholds remain unchanged."
+  ],
+  "evaluator_qualification": {
+    "frozen": true,
+    "native_requalification": "passed",
+    "qualification_receipt_sha256": "fada28adae6999f7dd0cfda7362d629ba8ef85f78eafcce29587b2363ea1bf4e"
+  }
+}

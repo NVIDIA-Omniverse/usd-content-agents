@@ -1,0 +1,99 @@
+{
+  "schema_version": "evaluator-qualification.v2",
+  "qualified": true,
+  "created_at": "2026-09-22T23:32:32.678112+00:00",
+  "scope": "Cases02\u201310 synthetic/native/source-only controls; no benchmark authored output or model call.",
+  "positive_native_trials": 45,
+  "negative_native_controls": 13,
+  "additional_production_gripper_cam_positive_seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "additional_production_gripper_broken_linkage_negative": true,
+  "local_tests_passed": 182,
+  "source_reference_instances_rehashed": 3883,
+  "control_receipts": [
+    {
+      "path": "qualification/branch_controls_v2/summary.json",
+      "bytes": 10439,
+      "sha256": "2eea9da1d63cb35f4da8246c9fc708b7836ea4e94e82922adebcd772f866c701"
+    },
+    {
+      "path": "qualification/final_component_parity.json",
+      "bytes": 12807,
+      "sha256": "ca482cfbf157376255e1545c4c42471bf84c75b8ef86bdd67cebcb5879680ff4"
+    },
+    {
+      "path": "qualification/final_freeze_tests.log",
+      "bytes": 261,
+      "sha256": "bfaf1169d97ade3e83b4528854b3db6c390571a9e238eb9fe1e85b04bf146bc2"
+    },
+    {
+      "path": "qualification/final_structural_controls/summary.json",
+      "bytes": 9691,
+      "sha256": "8b26ce7e214aa5b9df7b09a61757f921d2fc3c1df003d85962aacae9493b3bcc"
+    },
+    {
+      "path": "qualification/final_test_environment.json",
+      "bytes": 496,
+      "sha256": "bd7a92ff1099046f8bc4492fc4c70beb5167abd37866fe1d72486a2073498de8"
+    },
+    {
+      "path": "qualification/native_calibration_v2/summary.json",
+      "bytes": 688,
+      "sha256": "ae9fd07980671e72c7745310ce547354d3e137622e49120c0d040ff93182ed8b"
+    },
+    {
+      "path": "qualification/native_cam_extra_v2/summary.json",
+      "bytes": 5392,
+      "sha256": "8c0b6e5017f976e6a90d286d0976a12f09ef7034d66dbdc95586920fff470843"
+    },
+    {
+      "path": "qualification/native_task_qualification.json",
+      "bytes": 26692,
+      "sha256": "23c9675a1452d21ff598d762cecd5372c6f5117e6d31243ee3318b4a51510d10"
+    },
+    {
+      "path": "qualification/paired_unloaded_calibration_review.json",
+      "bytes": 835,
+      "sha256": "cb273a8e875d7a02ee667f1a7e65d2df81b342e6f607f195a1ec71fe16339a62"
+    },
+    {
+      "path": "qualification/reference_disposition_v2/result.json",
+      "bytes": 288,
+      "sha256": "5ead6d87319601509b3258b32ba189694d488cac0e89c9c1781bded49cc9d58d"
+    },
+    {
+      "path": "qualification/source09_evaluation_v2/summary.json",
+      "bytes": 1155,
+      "sha256": "a77d717cb03a8f05613ba970c6862bc1a80bf57b41d53f653f9d972f4d241f04"
+    },
+    {
+      "path": "qualification/source09_evaluation_v2.limits.json",
+      "bytes": 822,
+      "sha256": "6c8f177f0b63cdd714c16d592cc7c5f9754f55c45199063f5f1986df32763c70"
+    },
+    {
+      "path": "qualification/source09_remote_v2/summary.json",
+      "bytes": 1147,
+      "sha256": "72820059ff77fcfb49d28373b1afd6ffccbb5703751b6e5d160f4a5e4671797b"
+    },
+    {
+      "path": "qualification/source09_remote_v2.limits.json",
+      "bytes": 802,
+      "sha256": "d1d1099b991387eb8a08b9bb254f36e868b70d40e4f7e738c19a9e558c720cc8"
+    },
+    {
+      "path": "qualification/source_hook_controls/summary.json",
+      "bytes": 2249,
+      "sha256": "0b6eab0753eab874ca2df4bbdd352aaeaccf4361e86f28328e4fb0df2c958c85"
+    }
+  ],
+  "post_native_changes": "Input/reference/calibration-dependency failure classification and bounded inspection helpers only; native controllers/solvers, measured predicates, source comparator and all thresholds retain qualified bytes. Failed physics predicates remain raw observations but are inconclusive when their seed witness failed; the paired engine response requires both witnesses. Complete structural inspection1800s, separate input load900s; native02 trial300s, others900s.",
+  "prior_failures_preserved": "Original loose-point false rejection; initial Trimesh stall;900s2CPU/8GiB full-source timeout; RLIMIT_AS native refusal; initial08/10 zero-span fixture refusals; initial small-inertia cam oscillation. No unsuccessful run overwritten.",
+  "limits": "Synthetic native controls prove measured operating regimes, not arbitrary submitted inertia/collider cookability. Source metric preserves all original instances and separately checks loose points; retopology uses deterministic symmetric samples and vertices. Full source visuals are not a solved printer. Global scoring isolation and drawer qualification remain root-owned.",
+  "model_calls": 0
+}

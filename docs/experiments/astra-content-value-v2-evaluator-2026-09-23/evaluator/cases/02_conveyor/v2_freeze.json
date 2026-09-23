@@ -1,0 +1,52 @@
+{
+  "case_id": "02_conveyor",
+  "frozen_at": "2026-09-22T23:32:32.678112+00:00",
+  "runtime_manifest": "freeze.json",
+  "runtime_manifest_sha256": "0e975bcfdba65a6bc468c0819c4a2748bc583f4468fd5bb195f7ea618e1f9f0d",
+  "code_sha256": {
+    "bindings.schema.json": "d3bf23628bc61c9d060b8c9d24c554c3cacf40ebba5ca57d77f745fed6be7ab0",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "contract.json": "2119c39f274497f29f7f38918b9e39a46262d96f28ad78d25ac19ed2d5a1c8dc",
+    "evaluate.py": "95cd3ac11167a703bdaa1695f171f9ac85b1dd7aeec365bd11d46c9b7a295185",
+    "fixtures.py": "4ef97b055ed63f5bec0c11347b4f3bf5e700a6f933850f60346243e1166fde15",
+    "geometry.py": "a7e01e0af5ec964a941c707faf828767cc8dd17649fa86a07a8b029afe1cee14",
+    "solver.py": "51f9b5186dc0394ae3a640c76212925a8359bd3695f228a3afe8b1dc307a8417",
+    "structural.py": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5",
+    "structural_fixtures.py": "e3c06bddb03e6421a4fcae4f635fb07cf6b3c4ffbbb2869a07bdd62dfcf6fd2e",
+    "v2_control.py": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a",
+    "v2_geometry.py": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4",
+    "v2_inputs.py": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528",
+    "v2_policy.py": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20",
+    "v2_process.py": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794",
+    "v2_verdict.py": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+  },
+  "reference_files": [
+    {
+      "path": "cases/02_conveyor/reference/geometry_0000.npz",
+      "bytes": 482753,
+      "sha256": "a595755d9903e97f31af05ce41bdde1d85a5c23563638e0294d0d72e58d8a772"
+    },
+    {
+      "path": "cases/02_conveyor/reference/geometry_0001.npz",
+      "bytes": 738,
+      "sha256": "603cbadd89853ba116c7d445184f5e46b84c3f290673a5524aa3aad86f356546"
+    },
+    {
+      "path": "cases/02_conveyor/reference/geometry_0002.npz",
+      "bytes": 40296,
+      "sha256": "086c7c056118b7bd7e35179a859cd6e541a66f6fc26f8dcd5b4ef0568e36909d"
+    },
+    {
+      "path": "cases/02_conveyor/reference/geometry_0003.npz",
+      "bytes": 5686,
+      "sha256": "33fa56ba73d14aeab6cf36a566e44ae4db79ca4eed4f0043ea787c726d350ee1"
+    },
+    {
+      "path": "cases/02_conveyor/reference/source_inventory.json",
+      "bytes": 6532,
+      "sha256": "86c694f6d012bf8e787cc640af12742b385e15f3264b1f0d650de36f1f4f1ff1"
+    }
+  ],
+  "qualification_receipt_sha256": "fada28adae6999f7dd0cfda7362d629ba8ef85f78eafcce29587b2363ea1bf4e",
+  "qualification_manifest_sha256": "4a87c5ab34bedda9cfe75db907beccb45c9c566dc53c577e3cb05a5d5b98b3c2"
+}

@@ -116,6 +116,9 @@ The [Astra Ultra paired development experiment](docs/experiments/astra-content-v
 publishes a separate ten-asset protocol comparing identical model, inputs,
 tools and budgets with and without Content Agents workflows. Its scored
 results are pending; the preregistration does not establish comparative value.
+The [independent evaluator companion](docs/experiments/astra-content-value-v2-evaluator-2026-09-23/README.md)
+provides the frozen scoring code, contracts and preparation evidence, with explicit
+geometry and replay dependencies that remain outside the public bundle.
 The [drawer capstone evidence](docs/experiments/astra-drawer-capstone-2026-09-21/EVIDENCE_NOTES.md)
 documents a separately repaired physical task and its limits. Its
 [independent evidence audit](docs/experiments/astra-drawer-capstone-chain-audit-2026-09-23/README.md)

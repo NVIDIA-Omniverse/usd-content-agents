@@ -1,0 +1,207 @@
+{
+  "schema_version": "1.0",
+  "asset_id": "07_robot_arm",
+  "display_name": "Thor six-axis physical robot arm — original hardware CAD",
+  "track": "Astra Ultra",
+  "curation_date": "2026-09-21",
+  "curation_status": "selected_with_source_defects_documented",
+  "frozen_protocol_status": "awaiting_parent_protocol_freeze; no conversion, repair or benchmark executed",
+  "selection_rationale": "Public original physical robot hardware design with 49 discrete main STEP solids plus source FreeCAD assemblies and six documented rotary degrees of freedom. It requires articulation and physics authoring; no simulation description was removed to manufacture the starting state.",
+  "source": {
+    "publisher": "AngelLM / Ángel L.M. and contributors",
+    "repository_url": "https://github.com/AngelLM/Thor",
+    "commit": "286b081fe6f056d87c379b884781ef77ff6a0159",
+    "commit_date": "2025-05-09T14:25:28Z",
+    "commit_url": "https://github.com/AngelLM/Thor/commit/286b081fe6f056d87c379b884781ef77ff6a0159",
+    "archive_download_url": "https://codeload.github.com/AngelLM/Thor/zip/286b081fe6f056d87c379b884781ef77ff6a0159",
+    "archive_path": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159.zip",
+    "archive_bytes": 204521555,
+    "archive_sha256": "2b7f578f7909867efeb0b98d3495969c980636b2ac82b5a2373381e113eb0aa0",
+    "extracted_repository": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159",
+    "all_repository_files_preserved": true,
+    "source_modified": false,
+    "download_access": "Public download without sign-in",
+    "origin_class": "Original manufacturer/maker mechanical CAD repository, not a simulation-description export"
+  },
+  "license": {
+    "declared": "CC-BY-SA-4.0",
+    "license_path": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/LICENSE",
+    "license_sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297",
+    "license_url": "https://github.com/AngelLM/Thor/blob/286b081fe6f056d87c379b884781ef77ff6a0159/LICENSE",
+    "readme_license_statement": "README states all source files are published under CC-BY-SA-4.0.",
+    "attribution": "Thor by Ángel L.M. / AngelLM and contributors, https://github.com/AngelLM/Thor, commit 286b081fe6f056d87c379b884781ef77ff6a0159, licensed CC BY-SA 4.0. Original files unchanged.",
+    "redistribution_notes": [
+      "Retain attribution and the supplied license. Mark derivative changes and comply with ShareAlike when distributing adaptations."
+    ],
+    "embedded_metadata_caveat": "Native FreeCAD assembly documents contain an All rights reserved document-property value despite the repository-wide LICENSE and explicit README statement. Both are preserved; this discrepancy is disclosed rather than silently edited."
+  },
+  "input_contract": {
+    "primary_neutral_geometry": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/step/*.step",
+    "neutral_geometry_form": "49 separate STEP AP214 manufacturing parts, each with one MANIFOLD_SOLID_BREP; these are not a single preassembled STEP file.",
+    "native_assembly_entrypoint": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/freecad-src/Assembly.FCStd",
+    "native_assembly_dependencies": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/freecad-src/ (entire original directory preserved)",
+    "source_mesh_alternative": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/stl/*.stl",
+    "optional_mods": "Original mods directory preserved as provenance; use of variants must be explicitly frozen before runs.",
+    "preferred_frozen_variant": "Unmodified main standard design, excluding optional mods from active composition.",
+    "assembly_required_for_placement": true,
+    "assembly_dependent_on_native_import": true,
+    "safe_preflight_boundary": "Only browse, download, checksum, ZIP/XML inspection and STEP entity counting performed. CAD kernel load, geometry conversion, import repair, physics and task execution remain for Horde after protocol freeze."
+  },
+  "structure": {
+    "units": "millimetres",
+    "units_evidence": "All 49 primary STEP files contain SI_UNIT(.MILLI.,.METRE.); doc/ThorDimensions.png labels millimetres.",
+    "meters_per_unit": 0.001,
+    "main_step_files": 49,
+    "main_step_manifold_solid_brep_entities": 49,
+    "main_step_closed_shell_entities": 49,
+    "main_step_advanced_face_entities": 4264,
+    "all_step_files_including_mods": 72,
+    "all_stl_files_including_mods": 72,
+    "freecad_documents_including_mods": 79,
+    "native_assembly_documents": 7,
+    "top_level_assembly_subassembly_links": 6,
+    "top_level_subassemblies": [
+      "AssemblyBase",
+      "AssemblyArt1",
+      "AssemblyArt2",
+      "AssemblyArt3",
+      "AssemblyArt4",
+      "AssemblyArt56"
+    ],
+    "native_assembly_xml_object_records": 1196,
+    "native_assembly_app_link_records": 146,
+    "native_assembly_embedded_brep_files": 582,
+    "counts_caveat": "XML objects, embedded BREP records, instance links and STEP files are different counts; they are not verified rigid-body or final assembled-solid counts. Body grouping must be authored and validated later.",
+    "source_file_count": 236,
+    "source_file_bytes": 285750212,
+    "step_external_reference_entities_found": 0,
+    "simulation_format_files_found": []
+  },
+  "mechanism": {
+    "documented_arm_rotary_dof": 6,
+    "documented_axis_order": [
+      "yaw",
+      "roll",
+      "roll",
+      "yaw",
+      "roll",
+      "yaw"
+    ],
+    "minimum_required_independent_rotary_dof": 5,
+    "source_basis": [
+      "Pinned README technical specifications",
+      "Original native assembly names and separate geometric parts",
+      "Original dimensions drawing and physical/CAD banner"
+    ],
+    "geometry_separability_evidence": "49 primary STEP files each contain a separate single manifold BREP solid. Source assembly preserves six linked subassemblies; wrist Art56 contains multiple separate link/gear/gripper objects. No whole robot single-mesh merge is supplied as the selected input.",
+    "physical_dof_claim_status": "Publisher documented, not independently verified by motion or solver in this curation.",
+    "independent_simulated_joint_count": null,
+    "proposed_rigid_link_chain": [
+      "fixed base",
+      "joint 1 rotating body",
+      "joint 2 upper arm",
+      "joint 3 forearm",
+      "joint 4 wrist carrier",
+      "joint 5 wrist pitch carrier",
+      "joint 6 tool flange"
+    ],
+    "grouping_caveat": "Art56 combines physical joints 5 and 6 in one CAD subassembly and uses coupled wrist transmission; its rigid moving groups and actuator-to-joint mapping must be resolved. No inferred joint definitions have been applied.",
+    "gripper": "Source gripper geometry is preserved; gripper action is optional and outside the proposed arm-pose acceptance gate.",
+    "documented_height_stretched_mm": 625,
+    "documented_payload_g": 750,
+    "physical_claim_caveat": "Height and payload are publisher specifications, not measurements or validated dynamics from this run."
+  },
+  "dependency_audit": {
+    "all_original_repository_files_retained": true,
+    "unique_external_xlink_records": 483,
+    "unique_reference_filename_strings": 52,
+    "missing_file_dependencies_after_case_insensitive_resolution": 0,
+    "case_mismatched_reference_records": 323,
+    "case_mismatched_from_file_reference_pairs": 36,
+    "missing_native_target_objects": [
+      {
+        "from": "freecad-src/AssemblyArt3.FCStd",
+        "reference": "Art3Body.FCStd",
+        "object": "LCS_OptoDisk"
+      },
+      {
+        "from": "freecad-src/AssemblyArt3.FCStd",
+        "reference": "Art3Body.FCStd",
+        "object": "LCS_Art4MotorHolder"
+      }
+    ],
+    "case_sensitive_horde_risk": "323 unique XLink records use filename casing that differs from the preserved filenames. Source files are unchanged. A derived repair, if protocol permits, must count against repair budget.",
+    "nonresolving_object_risk": "Two references in AssemblyArt3 target absent LCS_OptoDisk and LCS_Art4MotorHolder objects in Art3Body. The geometry file exists, but native assembly loading has not been verified.",
+    "standalone_step_geometry": "Each selected STEP part is internally self-contained according to STEP entity inspection; CAD-kernel validity has not been checked.",
+    "software_dependencies_for_future_native_load": [
+      "FreeCAD compatible with original 0.19/0.21 files",
+      "Assembly4 to interpret native CAD placement expressions; exact pinned runtime to be frozen on Horde"
+    ],
+    "retained_evidence": "provenance/structural_inspection.json"
+  },
+  "initial_simulation_readiness": {
+    "ready": false,
+    "reason": "Original manufacturing CAD lacks a physics articulation, collision approximations, validated masses/inertias, authored drives and verified simulation behavior.",
+    "simulation_descriptions_removed": false,
+    "simulation_ready_geometry_intentionally_degraded": false,
+    "other_project_integration": "README links separate AngelLM/Thor-ROS repository. It was not used, downloaded or stripped for this asset.",
+    "existing_metadata": "Native CAD contains placement expressions, coordinate systems, geometric features and assembly references. Preserve these as legitimate original CAD metadata.",
+    "validation_performed": [
+      "Archive extraction without unsafe paths or symlinks",
+      "SHA256 inventory for original archive and every extracted repository file",
+      "Read-only dependency path and object-name inspection",
+      "Read-only STEP units/solid/entity counts",
+      "Visual inspection of publisher dimensions drawing and physical/CAD banner"
+    ],
+    "validation_not_performed": [
+      "CAD kernel import",
+      "Assembled render",
+      "Repair",
+      "Collision generation",
+      "Joint inference or authoring",
+      "Physics run",
+      "Pose/reach acceptance",
+      "Benchmark timing or model evaluation"
+    ]
+  },
+  "proposed_physics_task": {
+    "status": "proposal only; parameters must be frozen before baseline execution",
+    "name": "Gravity-on articulated pose and reach",
+    "setup": "Fix the original base; preserve original geometric link shapes; author a six-revolute-joint rigid-body chain and documented body grouping. Establish units, limits, collision exclusions, inertial policy and drives before task execution.",
+    "sequence": [
+      "Exercise each authored arm joint independently through a small safe-range excursion with other joints commanded to hold. Record measured joint positions, link transforms and unintended motion.",
+      "Reach a frozen set of five feasible end-effector position/orientation targets spanning shoulder/elbow and wrist motion. Targets must be independently established before comparing interventions.",
+      "Hold each target under gravity for a frozen duration and return to the home pose."
+    ],
+    "measurements": [
+      "Number of independently controllable revolute joints (required at least five; expected six)",
+      "End-effector position and orientation error",
+      "Joint tracking and settling time",
+      "Unintended link separation/penetration or self-collision",
+      "Numerical stability and gravity sag",
+      "Source geometry preservation and dimension consistency"
+    ],
+    "thresholds": "Not yet frozen; do not report a pass/fail for this proposal.",
+    "out_of_scope": "Physical hardware performance, certified payload, safety or learned-policy success."
+  },
+  "ambiguities_and_risks": [
+    "The neutral STEP files are individual parts; assembly placements come from original FreeCAD sources. A native importer is needed to recover assembly without manually inventing arrangement.",
+    "The native assembly contains path-case mismatches and two missing coordinate-system targets. These defects are retained and require measured remote preflight and, if permitted, bounded repair.",
+    "Six rotary DOF is supported by publisher documentation; independent geometric mobility and joint axes have not been validated.",
+    "The wrist differential couples motors for axes 5 and 6; do not confuse motor coordinates with independent joint coordinates.",
+    "The 2016 dimensions drawing is an original reference but may differ from later CAD; retain its date and verify actual imported bounds later.",
+    "Density, masses, inertias, damping, friction, joint limits and drive gains are unspecified for simulation. These are authoring decisions that must be documented and frozen.",
+    "Embedded FreeCAD license metadata differs from the explicit repository license; retain both records."
+  ],
+  "evidence": {
+    "readme": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/README.md",
+    "publisher_dimensions_drawing": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/doc/ThorDimensions.png",
+    "publisher_physical_and_cad_banner": "source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/doc/banner.png",
+    "sha256_inventory": "provenance/source_SHA256SUMS.txt",
+    "inventory_json": "provenance/source_inventory.json",
+    "structural_inspection": "provenance/structural_inspection.json",
+    "commit_evidence": "provenance/git_commit.txt",
+    "original_git_tree": "provenance/git_tree.txt"
+  },
+  "provenance_state": "Original archive and all files preserved byte-for-byte. Only manifest/provenance audit files added. No simulation-ready model used."
+}

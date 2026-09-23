@@ -1,0 +1,1785 @@
+{
+  "case_id": "10_complex",
+  "source_files": [
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/.travis.yml",
+      "sha256": "9ff9aa7a03ca733d366c2252bd466f4f9f7ddfd3f948d7eb3345002a7ed81254"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Control/DextraControl.py",
+      "sha256": "e52eccfd22ba5b268e50d837ed20a701a4f1598a6e0c1c28f445c3d2aac90473"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Control/dextracontrol.kv",
+      "sha256": "bdd8e02b30a8982b7bf51c5d9c076dcf31e9ebb13d3bd87ca2ae5e68c77255db"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Control/readme.md",
+      "sha256": "347060ea7fbd74b86987d0231c887807271ac61b8072daca5221b76535e06e2e"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/.gitignore",
+      "sha256": "ce09a09c8aedb9e47b71322f1e716e5a796a4a3252ebdda394bef9b186442285"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/Finger/Finger.cpp",
+      "sha256": "89e0158e4cb444f0bd07b56a60122e12f16db37e86c617d7a778a477439f0128"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/Finger/Finger.h",
+      "sha256": "9fca789cc5e4eead41b7d7b228b504444cc918bfcdaf29d02c22f3ae82fd480c"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/MsTimer2/MsTimer2.cpp",
+      "sha256": "f0ea221e5436a05a78f5c4ef2d209f179f0ed7fa01997bd5f379af4a9eecfcb7"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/MsTimer2/MsTimer2.h",
+      "sha256": "115e7d86a2eacb9491d23d9dd387160a27c2fc13a8b253ae3943643b8536738a"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/Synapse/Synapse.cpp",
+      "sha256": "585f8edc169ba0d833b4ef8f38f4c74ff1234f14c3beba00b513f86dd848ecdc"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/Synapse/Synapse.h",
+      "sha256": "acca24a0a62a0320a393e5ff8af953168457335a1802666559203e784fa6536c"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/readme.txt",
+      "sha256": "c7c1abda90e4c24775dec470ff4bdb176b89b6db77d79288d26a0230cdfc7919"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/platformio.ini",
+      "sha256": "34a6a62a5e0212efeda845200467b884752c6b268e0b73c829bc4cbe856a5078"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/src/main.ino",
+      "sha256": "885fcdcd68c905528ca6d3e93b6236f3dff8bb6e88ef26075e9116b627921a1c"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/readme.md",
+      "sha256": "3dfcedbf94ffb5e8a6bcb174bd16ee574a2c02c61d2c884816b9e9967fe59183"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "sha256": "62fc1bafe7b91b362549b1c24e61f12f2da75bd2c85bb8cad40369923f3ffdfe"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/finger_module.fcstd",
+      "sha256": "cf3e994895bc1085292b661a1dec2c1c45d80462618a8398c5ea61391321fce1"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/thumb.fcstd",
+      "sha256": "d7a4102f794edcc0f6389a0a97dd2897727cd87a6f82e9e3f4e135b2a89cb7ab"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/thumb_module.fcstd",
+      "sha256": "8dbe7d5613e47919400a05d56983711fd5ce120767fb9b797e695721e71b748e"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Turnigy TGY-EX5252.FCStd",
+      "sha256": "c9d567bc8e7d946ae3e6cd0945a0ba6cd5b526e93f3f23c2036a3053aac20557"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/abductor.fcstd",
+      "sha256": "07b8191a79bdf5054289d26d457a0bee44bf624527f9d981c3206fd071d4fa33"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/distal.fcstd",
+      "sha256": "59121d14cae9fed21ed4a0c89b44dbf939e7c6920903f7bea0f1a537cba36656"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/distal_thumb.fcstd",
+      "sha256": "826a7fdb7e743d39e89e7b3310f8f4c8c80ab5081e6050a841b43185c83be6a5"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/dorsal.fcstd",
+      "sha256": "f59ffc78f2ed1830341d7bf466e61b07a492825e48ee302fa5859628dd63f56b"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/encoder_disc.fcstd",
+      "sha256": "9ce27a61cb59098c98e4d36c55f540f520fb7017ab9040cfce0000e23f69ae7b"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/middle.fcstd",
+      "sha256": "12cb6bcfcc3d96866796afe96ab3e509f05fccbc2cf7e7665b514370f1ca67c7"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/motor_holder.fcstd",
+      "sha256": "3747bc040fcfd84230fecac673ce5b068a2bf43f14eeae39340b0bf41ff8102a"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/motor_holder_thumb.fcstd",
+      "sha256": "81206f784345e59216331bb9daa450cca2d55dbbda81b1a359679befe6a5ab64"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/palm.fcstd",
+      "sha256": "c7147b59aaed905fac08167bba771cd1686b83dc671075520c79c220b296ffd3"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/pololu_motor_10001.fcstd",
+      "sha256": "3eec3fa2dcca7575a7c2972632fefe4a7a8d74bf578e3080de313748d54c69ae"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/proximal.fcstd",
+      "sha256": "4dea743ed4d2e0f2828654acd569828eb7f938deeec3a689aaec81f023b88dce"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/proximal_thumb.fcstd",
+      "sha256": "47bc7f2596831ead2c46fa663384456c621954d2fe9be023cbeb9410b0dcf314"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/servo_horn.fcstd",
+      "sha256": "375b0268d498f8858e5deac2e5f747044ef323bc11f2e1bb9bf8dd3ea5d7a612"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/spool.fcstd",
+      "sha256": "b02876620a7629a14c2278f5a17f376d99a412ec84ba3594f965e69df7830826"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/abductor.stl",
+      "sha256": "39a1a697677c0bebd6d7ab6f0fd02d67f4834bae758d2c99c071b6554233b3c6"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/distal.stl",
+      "sha256": "cdf9d6c737e3224257326ad5881c43cd5a70863dc746db8f34579f296c2bb4a7"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/distal_thumb.stl",
+      "sha256": "4d18170ac5d26fd37a593d0f3bb58640a2304756dfdc0d0e201de31e08bce949"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/dorsal.stl",
+      "sha256": "66cdefd3a1f063cedb9cc9f5cab5f559c16d2ff470cdce074cb5702d383a6814"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/middle.stl",
+      "sha256": "4a4e8fbaeb7b3a0f210ac696f1a0a711440fcc1ce43bbe4ed5d75fd56d6c9912"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/motor_holder.stl",
+      "sha256": "21ca35b4aedb91c175df70f3861d4d0e8e0e1192b6ac6d79428ade7431eb8292"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/motor_holder_thumb.stl",
+      "sha256": "e9e915df4bf089b8b10714fc76eaea9d42342e9227f138539748c0c87fb0a393"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/palm.stl",
+      "sha256": "8477069ece047cd0719ddaf5f3ece66ab966a09adccf0071f7d8c0a52ab61ee9"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/proximal.stl",
+      "sha256": "29bda4115e28ffcc89a699a59049a18fb3f99976442a0fcd4588aad8c2caf36b"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/proximal_thumb.stl",
+      "sha256": "e14682802557e874f581abbbba4c96295f638a5e26aa148b5cb2a697c98f49c9"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/spool.stl",
+      "sha256": "28c0f99624013363f66b108eaf6c4e77bb4d8181221fa83fb206b0735ac7c228"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/README.md",
+      "sha256": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/data.json",
+      "sha256": "9dc1588e134bb09a87745cbbd20a6df6b57b2f038f8d065210ffcc00554a9d15"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/dextra_assembly_instructions.pdf",
+      "sha256": "8fb7b19aa409f0fed333a29d586138c868b3d4d9fcfea46746e3fd99dea13d13"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra/dextra1.jpg",
+      "sha256": "7917123de6051986fa10c470c34a7a0153ad99893218916d270a4ae21593eaa7"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra/dextra2.jpg",
+      "sha256": "ec058a26d036232902337f8c279d11ba66e29806728b5f2db7c27ce8b26cd9de"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra/dextra3.jpg",
+      "sha256": "f64a5a56be8e5c19563768721930a6413486017ec1d656d70bc29ef77b061f88"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra/palmar_pinch_grasp.jpg",
+      "sha256": "81c1cd92135e349b8518b6f8b08662817908eb90ecd9d5c09c8185f9118a8ebc"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/dextra.png",
+      "sha256": "5c571c09d88e765498709c1d060e03b4eca6aee21ac722cf4ec7d2e0e54b972e"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui1.png",
+      "sha256": "0944f84b467afea274b7f6c3dc439e438255e99aa067261c6afbde0f42e896c4"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui2.png",
+      "sha256": "7a6e8bc0001b60ab93be8f449b918f7f0f46b174e217bf76cd5cb2690194b91b"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui3.png",
+      "sha256": "0c9a1fabee15729f07f84d8e401178c13331dfb0d3e82064098dd9d19d14d6be"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui4.png",
+      "sha256": "43aea7089c8b59533a015333fd9aca0a9fbfe1ad1d9c1ed1aa2816d1765ca96d"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui5.png",
+      "sha256": "f2696a7607a46dcdd6919f72b32c583d3d4dcb3aa96d956d813e47a8ad1d7016"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui6.png",
+      "sha256": "3b70343f584a6adcb6647d1dd34f5577c3b2b7beb7a808ecfa9058a78c229652"
+    },
+    {
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/doc/images/gui/gui7.png",
+      "sha256": "0657a20efbbe1a7f4977c0c6be55c9c72f2258e23c59b53345ebdb8fde778ea3"
+    }
+  ],
+  "source_coverage_complete": true,
+  "coverage_note": "All BREP shells from all nine visible saved top-level A2plus cached BREP components, without source recomputation. Original cached world placements are frozen in metres. Four fingers each have three uniquely shape-matched phalanges; thumb has two. Rigid-invariant exact BREP volume and area identify template phalanges. This validates saved CAD geometry, not tendon routing, motor transmission, missing original external dependency recomputation, or physical hardware accuracy.",
+  "source_body_role_requirements": {
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/dorsal_01/shell:000": "base",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:009": "thumb_proximal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:011": "thumb_distal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:009": "index_proximal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:010": "index_middle",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:011": "index_distal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:009": "middle_proximal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:010": "middle_middle",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:011": "middle_distal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:009": "ring_proximal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:010": "ring_middle",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:011": "ring_distal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:009": "little_proximal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:010": "little_middle",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:011": "little_distal",
+    "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/palm_01/shell:000": "base"
+  },
+  "parts": [
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/dorsal_01/shell:000",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 8644,
+      "triangles": 8534,
+      "bounds_m": [
+        [
+          -3.5527136788005e-18,
+          -3.5527136788005e-18,
+          0.0
+        ],
+        [
+          0.075,
+          0.093,
+          0.015300000000000001
+        ]
+      ],
+      "area_m2": 0.0154026872247949,
+      "abs_volume_m3": 2.0723144158264158e-05
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/Turnigy_TGY_EX5252_01/shell:000",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1590,
+      "triangles": 1564,
+      "bounds_m": [
+        [
+          0.03725,
+          -0.0040000000000000036,
+          0.006
+        ],
+        [
+          0.06925,
+          0.026000000000000002,
+          0.0155
+        ]
+      ],
+      "area_m2": 0.002409394317265426,
+      "abs_volume_m3": 5.917946106729102e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:000",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 4134,
+      "triangles": 4054,
+      "bounds_m": [
+        [
+          0.055489266820313736,
+          -0.004,
+          0.0020418386250962537
+        ],
+        [
+          0.10433036705848303,
+          0.05167146213794701,
+          0.027260641812371714
+        ]
+      ],
+      "area_m2": 0.009176675902166795,
+      "abs_volume_m3": 1.0137176590091342e-05
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:001",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 123804,
+      "triangles": 136852,
+      "bounds_m": [
+        [
+          0.07716077920027059,
+          0.0016269088435411307,
+          0.008429748241975479
+        ],
+        [
+          0.09308880959118448,
+          0.04498178358565331,
+          0.02202132218174842
+        ]
+      ],
+      "area_m2": 0.0022926812856464483,
+      "abs_volume_m3": 2.2723750896214704e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:002",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.08237455022289145,
+          0.02291915843989454,
+          0.010016540195552745
+        ],
+        [
+          0.085933846957714,
+          0.03502849539662811,
+          0.01190331407010275
+        ]
+      ],
+      "area_m2": 0.00011137924799007871,
+      "abs_volume_m3": 3.497736709930668e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:003",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.0864859634108233,
+          0.021946728644959734,
+          0.018458735519757397
+        ],
+        [
+          0.09004526014564587,
+          0.0340560656016933,
+          0.020345509394307407
+        ]
+      ],
+      "area_m2": 0.00011137924799007875,
+      "abs_volume_m3": 3.4977367099309503e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:004",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 670,
+      "triangles": 662,
+      "bounds_m": [
+        [
+          0.0820603011743624,
+          0.022997278530653004,
+          0.014149977550497413
+        ],
+        [
+          0.08285687024982574,
+          0.023923928370699163,
+          0.0149677853753957
+        ]
+      ],
+      "area_m2": 3.0137584677674432e-06,
+      "abs_volume_m3": 2.5253931484882555e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:005",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.08259682463150951,
+          0.02282157129433897,
+          0.01745855846531742
+        ],
+        [
+          0.08329506123381128,
+          0.022992327625271036,
+          0.01815957334469025
+        ]
+      ],
+      "area_m2": 8.793155957377692e-07,
+      "abs_volume_m3": 1.9234281129324377e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:006",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.08643301224924144,
+          0.020266713628360307,
+          0.018655790561120957
+        ],
+        [
+          0.08764506224383212,
+          0.02119627306827604,
+          0.019777631420300146
+        ]
+      ],
+      "area_m2": 4.4914213381301636e-06,
+      "abs_volume_m3": 7.124534744840496e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:007",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.08232159906130959,
+          0.02123914342329512,
+          0.010213595236916301
+        ],
+        [
+          0.08353364905590024,
+          0.02216870286321085,
+          0.011335436096095493
+        ]
+      ],
+      "area_m2": 4.491421338130179e-06,
+      "abs_volume_m3": 7.124534744840673e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:008",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2407,
+      "triangles": 2394,
+      "bounds_m": [
+        [
+          0.0812938874806883,
+          0.03572316899438379,
+          0.008978879198546985
+        ],
+        [
+          0.09444436374307402,
+          0.049450398282095916,
+          0.022030034482907263
+        ]
+      ],
+      "area_m2": 0.0007369992449089628,
+      "abs_volume_m3": 8.262422557000603e-07
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:009",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 35601,
+      "triangles": 58210,
+      "bounds_m": [
+        [
+          0.08532991822330395,
+          0.056260969408670106,
+          0.008311890283406186
+        ],
+        [
+          0.11345134031222788,
+          0.10145138556868014,
+          0.027631823090765752
+        ]
+      ],
+      "area_m2": 0.00370493572781441,
+      "abs_volume_m3": 6.4473068981001645e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:010",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 21388,
+      "triangles": 30762,
+      "bounds_m": [
+        [
+          0.07641021976179987,
+          0.005889572656657956,
+          0.005877808114719841
+        ],
+        [
+          0.10432997977801187,
+          0.07426062135747699,
+          0.026023560626883203
+        ]
+      ],
+      "area_m2": 0.006328697193916925,
+      "abs_volume_m3": 9.171873313545072e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:011",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 24400,
+      "triangles": 40378,
+      "bounds_m": [
+        [
+          0.09641985198804115,
+          0.08545145983711756,
+          0.009950881745428707
+        ],
+        [
+          0.11789341073122855,
+          0.12235474790828371,
+          0.02839270442469681
+        ]
+      ],
+      "area_m2": 0.002555268315816939,
+      "abs_volume_m3": 5.281363996259684e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/thumb_01/shell:012",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1012,
+      "triangles": 1008,
+      "bounds_m": [
+        [
+          0.07782441408528555,
+          0.0010298967093877339,
+          0.010575509260057455
+        ],
+        [
+          0.08570371802175043,
+          0.004327507881273718,
+          0.01828043098345373
+        ]
+      ],
+      "area_m2": 0.00014466261052505105,
+      "abs_volume_m3": 9.031868867439983e-08
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/servo_horn_01/shell:000",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 3934,
+      "triangles": 3926,
+      "bounds_m": [
+        [
+          0.05710000162403395,
+          -0.0039999999999999905,
+          0.007099999999999998
+        ],
+        [
+          0.07673972251474684,
+          0.0010000000000000102,
+          0.01554608044605273
+        ]
+      ],
+      "area_m2": 0.00046207239283630933,
+      "abs_volume_m3": 2.816678094783489e-07
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:000",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 18498,
+      "triangles": 25978,
+      "bounds_m": [
+        [
+          0.05824999999999999,
+          0.041299999999999996,
+          0.00199999999999989
+        ],
+        [
+          0.07525000000000001,
+          0.10899939077203397,
+          0.0200000000000001
+        ]
+      ],
+      "area_m2": 0.006303989370625397,
+      "abs_volume_m3": 9.269259717814506e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:001",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 123804,
+      "triangles": 136852,
+      "bounds_m": [
+        [
+          0.060723039215686274,
+          0.0351,
+          0.008000000000000089
+        ],
+        [
+          0.0727230392156863,
+          0.07880000093474528,
+          0.0180000000000001
+        ]
+      ],
+      "area_m2": 0.002292681285646449,
+      "abs_volume_m3": 2.272375089521798e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:002",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.0621230392156863,
+          0.0563000000000001,
+          0.015000248654399443
+        ],
+        [
+          0.06372303921568627,
+          0.06832729807579001,
+          0.016599751345600752
+        ]
+      ],
+      "area_m2": 0.00011137924799007862,
+      "abs_volume_m3": 3.497736709930774e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:003",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.0697230392156863,
+          0.0563000000000001,
+          0.009400248654399444
+        ],
+        [
+          0.07132303921568628,
+          0.06832729807579,
+          0.010999751345600751
+        ]
+      ],
+      "area_m2": 0.00011137924799007865,
+      "abs_volume_m3": 3.497736709930668e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:004",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 670,
+      "triangles": 662,
+      "bounds_m": [
+        [
+          0.06632303921568627,
+          0.0563000000000001,
+          0.01545003328762935
+        ],
+        [
+          0.06712303921568631,
+          0.0571000000000001,
+          0.01624987567280042
+        ]
+      ],
+      "area_m2": 3.0137584677676016e-06,
+      "abs_volume_m3": 2.525393148486932e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:005",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0694975377904163,
+          0.0563000000000001,
+          0.014438266681039811
+        ],
+        [
+          0.07019753779041628,
+          0.0563500000000001,
+          0.015138049108440384
+        ]
+      ],
+      "area_m2": 8.793155957377629e-07,
+      "abs_volume_m3": 1.9234281129322015e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:006",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.06997303921568628,
+          0.0545500000000001,
+          0.009650170949899648
+        ],
+        [
+          0.07107303921568629,
+          0.055300000000000106,
+          0.010749829050100546
+        ]
+      ],
+      "area_m2": 4.49142133813015e-06,
+      "abs_volume_m3": 7.124534744840516e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:007",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.06237303921568628,
+          0.0545500000000001,
+          0.015250170949899647
+        ],
+        [
+          0.0634730392156863,
+          0.055300000000000106,
+          0.016349829050100545
+        ]
+      ],
+      "area_m2": 4.4914213381301805e-06,
+      "abs_volume_m3": 7.124534744840617e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:008",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2407,
+      "triangles": 2394,
+      "bounds_m": [
+        [
+          0.0602230392156863,
+          0.07080000000000007,
+          0.006502020316994787
+        ],
+        [
+          0.07322303921568629,
+          0.08280000000000011,
+          0.019497979683005404
+        ]
+      ],
+      "area_m2": 0.0007369992449089637,
+      "abs_volume_m3": 8.262422557000609e-07
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:009",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 32040,
+      "triangles": 51984,
+      "bounds_m": [
+        [
+          0.058249999999999885,
+          0.0910002649187535,
+          0.0020000457002115387
+        ],
+        [
+          0.07524999999999991,
+          0.1424660830799099,
+          0.025077642932863315
+        ]
+      ],
+      "area_m2": 0.0040529974570480565,
+      "abs_volume_m3": 7.767200430395846e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:010",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 30847,
+      "triangles": 49524,
+      "bounds_m": [
+        [
+          0.058249999999999795,
+          0.12646906432463537,
+          0.009077694308295008
+        ],
+        [
+          0.07524999999999982,
+          0.16496054630617887,
+          0.03262773581017154
+        ]
+      ],
+      "area_m2": 0.003012427200672821,
+      "abs_volume_m3": 4.4363078026676275e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:011",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 21426,
+      "triangles": 34914,
+      "bounds_m": [
+        [
+          0.058249999999999774,
+          0.15096058688114455,
+          0.018629126836117494
+        ],
+        [
+          0.0752499999999998,
+          0.18411118891275538,
+          0.04089507836424249
+        ]
+      ],
+      "area_m2": 0.0021911149505226017,
+      "abs_volume_m3": 4.074061401974119e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_01/shell:012",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1012,
+      "triangles": 1008,
+      "bounds_m": [
+        [
+          0.06289803921568628,
+          0.0351,
+          0.009176188878846987
+        ],
+        [
+          0.07054803921568631,
+          0.03710000000000005,
+          0.016823811121153234
+        ]
+      ],
+      "area_m2": 0.0001446626105250509,
+      "abs_volume_m3": 9.031868867439956e-08
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:000",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 18498,
+      "triangles": 25978,
+      "bounds_m": [
+        [
+          0.038749999999999986,
+          0.0493,
+          0.00199999999999989
+        ],
+        [
+          0.05575000000000003,
+          0.11699939077203396,
+          0.0200000000000001
+        ]
+      ],
+      "area_m2": 0.0063039893706254005,
+      "abs_volume_m3": 9.269259717814499e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:001",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 123804,
+      "triangles": 136852,
+      "bounds_m": [
+        [
+          0.04122303921568627,
+          0.04309999999999999,
+          0.00800000000000009
+        ],
+        [
+          0.0532230392156863,
+          0.08680000093474526,
+          0.018000000000000103
+        ]
+      ],
+      "area_m2": 0.002292681285646452,
+      "abs_volume_m3": 2.272375089612397e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:002",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.0426230392156863,
+          0.0643000000000001,
+          0.015000248654399445
+        ],
+        [
+          0.04422303921568627,
+          0.07632729807579,
+          0.016599751345600752
+        ]
+      ],
+      "area_m2": 0.0001113792479900787,
+      "abs_volume_m3": 3.4977367099308092e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:003",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.0502230392156863,
+          0.0643000000000001,
+          0.009400248654399446
+        ],
+        [
+          0.05182303921568628,
+          0.07632729807579,
+          0.010999751345600751
+        ]
+      ],
+      "area_m2": 0.0001113792479900788,
+      "abs_volume_m3": 3.4977367099307385e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:004",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 670,
+      "triangles": 662,
+      "bounds_m": [
+        [
+          0.04682303921568627,
+          0.0643000000000001,
+          0.01545003328762935
+        ],
+        [
+          0.0476230392156863,
+          0.06510000000000012,
+          0.016249875672800423
+        ]
+      ],
+      "area_m2": 3.0137584677676482e-06,
+      "abs_volume_m3": 2.5253931484873734e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:005",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.049997537790416303,
+          0.0643000000000001,
+          0.014438266681039811
+        ],
+        [
+          0.05069753779041627,
+          0.0643500000000001,
+          0.015138049108440384
+        ]
+      ],
+      "area_m2": 8.793155957377773e-07,
+      "abs_volume_m3": 1.9234281129324665e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:006",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.05047303921568627,
+          0.06255000000000009,
+          0.009650170949899648
+        ],
+        [
+          0.0515730392156863,
+          0.06330000000000009,
+          0.010749829050100546
+        ]
+      ],
+      "area_m2": 4.49142133813015e-06,
+      "abs_volume_m3": 7.124534744840524e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:007",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.042873039215686276,
+          0.06255000000000009,
+          0.015250170949899647
+        ],
+        [
+          0.0439730392156863,
+          0.06330000000000009,
+          0.016349829050100545
+        ]
+      ],
+      "area_m2": 4.49142133813016e-06,
+      "abs_volume_m3": 7.124534744840563e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:008",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2407,
+      "triangles": 2394,
+      "bounds_m": [
+        [
+          0.0407230392156863,
+          0.07880000000000006,
+          0.006502020316994786
+        ],
+        [
+          0.05372303921568628,
+          0.09080000000000012,
+          0.019497979683005404
+        ]
+      ],
+      "area_m2": 0.0007369992449089642,
+      "abs_volume_m3": 8.262422557000607e-07
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:009",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 32048,
+      "triangles": 52000,
+      "bounds_m": [
+        [
+          0.03874999999999989,
+          0.09900026491875351,
+          0.0020000457002115387
+        ],
+        [
+          0.055749999999999925,
+          0.1504660830799099,
+          0.025077642932863315
+        ]
+      ],
+      "area_m2": 0.004052998669850395,
+      "abs_volume_m3": 7.767202226213358e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:010",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 30833,
+      "triangles": 49496,
+      "bounds_m": [
+        [
+          0.038749999999999785,
+          0.13446906432463537,
+          0.009077694308295001
+        ],
+        [
+          0.055749999999999814,
+          0.17296054630617888,
+          0.03262773581017153
+        ]
+      ],
+      "area_m2": 0.003012425302665924,
+      "abs_volume_m3": 4.4363057289944165e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:011",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 21436,
+      "triangles": 34934,
+      "bounds_m": [
+        [
+          0.038749999999999785,
+          0.1589605868811446,
+          0.018629126836117508
+        ],
+        [
+          0.055749999999999814,
+          0.19211118891275542,
+          0.04089507836424249
+        ]
+      ],
+      "area_m2": 0.002191120276532733,
+      "abs_volume_m3": 4.074071086832734e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_02/shell:012",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1012,
+      "triangles": 1008,
+      "bounds_m": [
+        [
+          0.043398039215686274,
+          0.0431,
+          0.009176188878846988
+        ],
+        [
+          0.051048039215686306,
+          0.04510000000000005,
+          0.016823811121153234
+        ]
+      ],
+      "area_m2": 0.00014466261052505092,
+      "abs_volume_m3": 9.03186886743995e-08
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:000",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 18498,
+      "triangles": 25978,
+      "bounds_m": [
+        [
+          0.01924999999999999,
+          0.039299999999999995,
+          0.00199999999999989
+        ],
+        [
+          0.03625000000000003,
+          0.10699939077203396,
+          0.0200000000000001
+        ]
+      ],
+      "area_m2": 0.006303989370625401,
+      "abs_volume_m3": 9.269259717814508e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:001",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 123804,
+      "triangles": 136852,
+      "bounds_m": [
+        [
+          0.02172303921568627,
+          0.033100000000000004,
+          0.008000000000000089
+        ],
+        [
+          0.0337230392156863,
+          0.07680000093474527,
+          0.0180000000000001
+        ]
+      ],
+      "area_m2": 0.002292681285646447,
+      "abs_volume_m3": 2.272375089594948e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:002",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.0231230392156863,
+          0.0543000000000001,
+          0.015000248654399443
+        ],
+        [
+          0.024723039215686273,
+          0.06632729807579,
+          0.016599751345600752
+        ]
+      ],
+      "area_m2": 0.00011137924799007859,
+      "abs_volume_m3": 3.4977367099308092e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:003",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.0307230392156863,
+          0.0543000000000001,
+          0.009400248654399444
+        ],
+        [
+          0.03232303921568628,
+          0.06632729807578999,
+          0.010999751345600751
+        ]
+      ],
+      "area_m2": 0.00011137924799007863,
+      "abs_volume_m3": 3.497736709930668e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:004",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 670,
+      "triangles": 662,
+      "bounds_m": [
+        [
+          0.02732303921568627,
+          0.0543000000000001,
+          0.01545003328762935
+        ],
+        [
+          0.0281230392156863,
+          0.0551000000000001,
+          0.01624987567280042
+        ]
+      ],
+      "area_m2": 3.013758467767597e-06,
+      "abs_volume_m3": 2.5253931484867116e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:005",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0304975377904163,
+          0.0543000000000001,
+          0.014438266681039811
+        ],
+        [
+          0.03119753779041627,
+          0.0543500000000001,
+          0.015138049108440384
+        ]
+      ],
+      "area_m2": 8.793155957377629e-07,
+      "abs_volume_m3": 1.9234281129322e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:006",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.030973039215686272,
+          0.0525500000000001,
+          0.009650170949899646
+        ],
+        [
+          0.0320730392156863,
+          0.053300000000000104,
+          0.010749829050100544
+        ]
+      ],
+      "area_m2": 4.49142133813015e-06,
+      "abs_volume_m3": 7.12453474484053e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:007",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.023373039215686273,
+          0.0525500000000001,
+          0.015250170949899645
+        ],
+        [
+          0.0244730392156863,
+          0.053300000000000104,
+          0.016349829050100545
+        ]
+      ],
+      "area_m2": 4.491421338130184e-06,
+      "abs_volume_m3": 7.124534744840637e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:008",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2407,
+      "triangles": 2394,
+      "bounds_m": [
+        [
+          0.021223039215686298,
+          0.06880000000000007,
+          0.006502020316994787
+        ],
+        [
+          0.034223039215686285,
+          0.08080000000000011,
+          0.019497979683005404
+        ]
+      ],
+      "area_m2": 0.0007369992449089637,
+      "abs_volume_m3": 8.262422557000607e-07
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:009",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 32040,
+      "triangles": 51984,
+      "bounds_m": [
+        [
+          0.01924999999999989,
+          0.08900026491875349,
+          0.0020000457002115387
+        ],
+        [
+          0.03624999999999992,
+          0.1404660830799099,
+          0.025077642932863315
+        ]
+      ],
+      "area_m2": 0.004052998043705356,
+      "abs_volume_m3": 7.767202157512158e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:010",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 30839,
+      "triangles": 49508,
+      "bounds_m": [
+        [
+          0.0192499999999998,
+          0.12446906432463535,
+          0.009077694308295014
+        ],
+        [
+          0.03624999999999982,
+          0.1629605463061789,
+          0.03262773581017153
+        ]
+      ],
+      "area_m2": 0.0030124260117278686,
+      "abs_volume_m3": 4.43630670611205e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:011",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 21444,
+      "triangles": 34950,
+      "bounds_m": [
+        [
+          0.019249999999999788,
+          0.1489605868811446,
+          0.018629126836117508
+        ],
+        [
+          0.03624999999999981,
+          0.1821111889127554,
+          0.040895078364242506
+        ]
+      ],
+      "area_m2": 0.002191123112269367,
+      "abs_volume_m3": 4.074077578433794e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_03/shell:012",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1012,
+      "triangles": 1008,
+      "bounds_m": [
+        [
+          0.023898039215686284,
+          0.033100000000000004,
+          0.009176188878846988
+        ],
+        [
+          0.0315480392156863,
+          0.035100000000000055,
+          0.016823811121153234
+        ]
+      ],
+      "area_m2": 0.00014466261052505108,
+      "abs_volume_m3": 9.031868867439983e-08
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:000",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 18497,
+      "triangles": 25976,
+      "bounds_m": [
+        [
+          -0.0002500000000000213,
+          0.0243,
+          0.0019999999999999007
+        ],
+        [
+          0.016750000000000022,
+          0.09199939077203396,
+          0.020000000000000104
+        ]
+      ],
+      "area_m2": 0.006303989281237456,
+      "abs_volume_m3": 9.26925943700209e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:001",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 123804,
+      "triangles": 136852,
+      "bounds_m": [
+        [
+          0.0022230392156862705,
+          0.018100000000000005,
+          0.008000000000000096
+        ],
+        [
+          0.0142230392156863,
+          0.061800000934745254,
+          0.0180000000000001
+        ]
+      ],
+      "area_m2": 0.0022926812856464474,
+      "abs_volume_m3": 2.2723750896311613e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:002",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.0036230392156862703,
+          0.0393000000000001,
+          0.015000248654399443
+        ],
+        [
+          0.005223039215686273,
+          0.05132729807579,
+          0.016599751345600752
+        ]
+      ],
+      "area_m2": 0.00011137924799007865,
+      "abs_volume_m3": 3.4977367099307542e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:003",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1564,
+      "triangles": 1556,
+      "bounds_m": [
+        [
+          0.011223039215686301,
+          0.0393000000000001,
+          0.009400248654399444
+        ],
+        [
+          0.012823039215686276,
+          0.05132729807579001,
+          0.010999751345600751
+        ]
+      ],
+      "area_m2": 0.00011137924799007869,
+      "abs_volume_m3": 3.4977367099307563e-09
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:004",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 670,
+      "triangles": 662,
+      "bounds_m": [
+        [
+          0.007823039215686273,
+          0.0393000000000001,
+          0.01545003328762935
+        ],
+        [
+          0.00862303921568628,
+          0.0401000000000001,
+          0.016249875672800423
+        ]
+      ],
+      "area_m2": 3.013758467767603e-06,
+      "abs_volume_m3": 2.525393148486877e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:005",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.010997537790416302,
+          0.0393000000000001,
+          0.014438266681039811
+        ],
+        [
+          0.011697537790416272,
+          0.0393500000000001,
+          0.015138049108440384
+        ]
+      ],
+      "area_m2": 8.793155957377629e-07,
+      "abs_volume_m3": 1.9234281129321986e-11
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:006",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.01147303921568627,
+          0.0375500000000001,
+          0.009650170949899646
+        ],
+        [
+          0.012573039215686302,
+          0.038300000000000105,
+          0.010749829050100544
+        ]
+      ],
+      "area_m2": 4.491421338130148e-06,
+      "abs_volume_m3": 7.124534744840524e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:007",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0038730392156862727,
+          0.0375500000000001,
+          0.015250170949899645
+        ],
+        [
+          0.0049730392156862695,
+          0.038300000000000105,
+          0.016349829050100545
+        ]
+      ],
+      "area_m2": 4.491421338130182e-06,
+      "abs_volume_m3": 7.124534744840616e-10
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:008",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2407,
+      "triangles": 2394,
+      "bounds_m": [
+        [
+          0.0017230392156862805,
+          0.053800000000000084,
+          0.006502020316994786
+        ],
+        [
+          0.014723039215686282,
+          0.06580000000000011,
+          0.019497979683005404
+        ]
+      ],
+      "area_m2": 0.0007369992449089638,
+      "abs_volume_m3": 8.262422557000607e-07
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:009",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 32036,
+      "triangles": 51976,
+      "bounds_m": [
+        [
+          -0.00025000000000011016,
+          0.0740002649187535,
+          0.002000045700211537
+        ],
+        [
+          0.016749999999999918,
+          0.12546608307990995,
+          0.02507764293286332
+        ]
+      ],
+      "area_m2": 0.004052997460744568,
+      "abs_volume_m3": 7.76720166560689e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:010",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 30854,
+      "triangles": 49538,
+      "bounds_m": [
+        [
+          -0.00025000000000020253,
+          0.10946906432463538,
+          0.009077694308295008
+        ],
+        [
+          0.016749999999999817,
+          0.1479605463061789,
+          0.032627735810171525
+        ]
+      ],
+      "area_m2": 0.0030124285713590618,
+      "abs_volume_m3": 4.436312055646842e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:011",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 21450,
+      "triangles": 34962,
+      "bounds_m": [
+        [
+          -0.00025000000000020964,
+          0.13396058688114462,
+          0.018629126836117508
+        ],
+        [
+          0.01674999999999981,
+          0.16711118891275545,
+          0.040895078364242485
+        ]
+      ],
+      "area_m2": 0.00219112832684945,
+      "abs_volume_m3": 4.074086435873585e-06
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/finger_module_04/shell:012",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1012,
+      "triangles": 1008,
+      "bounds_m": [
+        [
+          0.004398039215686281,
+          0.0181,
+          0.009176188878846987
+        ],
+        [
+          0.0120480392156863,
+          0.020100000000000052,
+          0.016823811121153234
+        ]
+      ],
+      "area_m2": 0.00014466261052505108,
+      "abs_volume_m3": 9.031868867439987e-08
+    },
+    {
+      "source_id": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd#/palm_01/shell:000",
+      "source_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2226,
+      "triangles": 2090,
+      "bounds_m": [
+        [
+          0.0,
+          -3.5527136788005e-18,
+          0.004200000000000059
+        ],
+        [
+          0.075,
+          0.093,
+          0.022000000000000103
+        ]
+      ],
+      "area_m2": 0.016676300072521532,
+      "abs_volume_m3": 2.507961911749956e-05
+    }
+  ]
+}

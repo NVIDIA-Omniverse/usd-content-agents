@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "scope": "Trusted synthetic qualification only; no scored author isolation claim",
+  "started_at": "2026-09-22T21:27:06.663726+00:00",
+  "completed_at": "2026-09-22T21:43:31.024772+00:00",
+  "elapsed_s": 984.3610719926655,
+  "returncode": 1,
+  "cpu_affinity": [
+    0,
+    1
+  ],
+  "threads_per_numerical_library": 1,
+  "nice": 15,
+  "rlimit_as_per_process_bytes": null,
+  "aggregate_cgroup_memory_enforced": true,
+  "cgroup_path": "/sys/fs/cgroup/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-podea17124a_467c_4f01_b689_f878d8fa15a7.slice/cri-containerd-1d292768d8c1b90f0a6683930dd361bbb6701c3504dfa8bb5ce162bc91157a64.scope/evaluator-v2",
+  "child_max_rss_kib": 5432868,
+  "child_user_cpu_s": 915.139263,
+  "child_system_cpu_s": 6.831885,
+  "model_calls": 0
+}

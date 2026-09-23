@@ -1,0 +1,15 @@
+{
+  "executable": "<PRIVATE_RUNTIME_LOCATOR_925ea43112e83812>",
+  "native_solver_locally_installed": false,
+  "packages": {
+    "jsonschema": "4.26.0",
+    "numpy": "2.5.3",
+    "pytest": "9.1.1",
+    "rtree": "1.4.1",
+    "scipy": "1.18.1",
+    "trimesh": "4.12.2",
+    "usd-core": "25.5"
+  },
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "python": "3.12.14 (main, Aug 25 2026, 13:50:33) [Clang 22.1.3 ]"
+}

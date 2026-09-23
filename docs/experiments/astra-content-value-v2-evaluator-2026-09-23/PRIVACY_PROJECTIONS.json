@@ -1,0 +1,165 @@
+{
+  "canonical_opt_prefixes_preserved": true,
+  "code_files_modified": 0,
+  "json_projections": [
+    {
+      "changes": [
+        {
+          "json_pointer": "/executable",
+          "original_value_sha256": "925ea43112e8381288de829971e94a28c55dba5c11d113906619d367abd4454a",
+          "published_value": "<PRIVATE_RUNTIME_LOCATOR_925ea43112e83812>",
+          "published_value_sha256": "48bdaeb406501e0475d3244a61dda575317fd3ee81af53899b6686053dabbbc6",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        }
+      ],
+      "original_retained_sha256": "bd7a92ff1099046f8bc4492fc4c70beb5167abd37866fe1d72486a2073498de8",
+      "path": "evaluator/qualification/final_test_environment.json",
+      "published_sha256": "bdc5b52ac0439b172e1892818a5c3b1e1fd9b3f1535bea3dfabf07c7a5fcaf5b"
+    },
+    {
+      "changes": [
+        {
+          "json_pointer": "/script_provenance/0/source",
+          "original_value_sha256": "c16e3be335e774f06d7f0e2fb8e10d8b2b0d715f8ae5eb1c9a128e5ef853f8d3",
+          "published_value": "<PRIVATE_RUNTIME_LOCATOR_c16e3be335e774f0>",
+          "published_value_sha256": "1954a58e8e3a1fcd97b77f698c0893682ad0acd4eb452cb5253b10a7491cfabc",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        },
+        {
+          "json_pointer": "/script_provenance/1/source",
+          "original_value_sha256": "b3eb3745ec92ea864623a3c9540ff622372e23bb8f0dbadadd05cf9ac2e6b9af",
+          "published_value": "<PRIVATE_RUNTIME_LOCATOR_b3eb3745ec92ea86>",
+          "published_value_sha256": "f67eb50182cdc5129f2104b84db20c758507c6cefa259a8d7be50f00cad211a6",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        },
+        {
+          "json_pointer": "/script_provenance/2/source",
+          "original_value_sha256": "0f50832b415e26541cd5bb2b21655367e3e61e3a20268bce917c749bc18bd598",
+          "published_value": "<PRIVATE_RUNTIME_LOCATOR_0f50832b415e2654>",
+          "published_value_sha256": "6029f59f2f511aead080ad31c77cc197ca2e6a7cbccf175830aafb518fe7d59c",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        },
+        {
+          "json_pointer": "/script_provenance/3/source",
+          "original_value_sha256": "a8d5ff72a58b129df1534a6b63056ce0799d6e472b480bd8e502892500f9cc36",
+          "published_value": "<PRIVATE_RUNTIME_LOCATOR_a8d5ff72a58b129d>",
+          "published_value_sha256": "458155e84be1b0fe3ad51d1706285e239e6ebf7a36c2fdbd6d34285d1073894d",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        }
+      ],
+      "original_retained_sha256": "0b6eab0753eab874ca2df4bbdd352aaeaccf4361e86f28328e4fb0df2c958c85",
+      "path": "evaluator/qualification/source_hook_controls/summary.json",
+      "published_sha256": "b68c763bcf084349b28c97bb0e2f3801f2ba339ff8245a5c86b244c09d28001a"
+    },
+    {
+      "changes": [
+        {
+          "json_pointer": "/files/37/path",
+          "original_value_sha256": "fe60ff9994058736ccfe17e8fb1c2e31595ded909d9ceb40efc81bb2951388af",
+          "published_value": "environment/evidence/retained_native_sequences/node0_lane0_parent48_1024_evidence/render_then_physics_lane0_parent48_1024<PRIVATE_RUNTIME_LOCATOR_bbe89bfb24fe0f5e>",
+          "published_value_sha256": "7bb50b5c7c273b6dd36b3d54f963a85b88e16d79b24511f850481f5fdbfc7b3a",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        },
+        {
+          "json_pointer": "/files/39/path",
+          "original_value_sha256": "d1e397c53bd8efed5b27a2b1c224cef909da64f53a73cc5f1f66987d183ca23f",
+          "published_value": "environment/evidence/retained_native_sequences/node0_lane0_parent48_512_evidence/render_then_physics_lane0_parent48_512<PRIVATE_RUNTIME_LOCATOR_bf9fba0331efc2bb>",
+          "published_value_sha256": "336ef40d66ff64bb7656794962b77bb1f8702fb691d7adbf253fc1a37622b0ac",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        },
+        {
+          "json_pointer": "/files/41/path",
+          "original_value_sha256": "a0ae81a901deaad0750db0fffb03a31468623137372be7b4bf46e02f5234b950",
+          "published_value": "environment/evidence/retained_native_sequences/node0_lane1_evidence/render_then_physics_lane1_01<PRIVATE_RUNTIME_LOCATOR_a3edbf6fed6db9e5>",
+          "published_value_sha256": "b950eb2d20f53adba70dc231eea3861a4605a9296e48c30ba2c2e81e1af3c91e",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        },
+        {
+          "json_pointer": "/files/43/path",
+          "original_value_sha256": "060861e309a387b35b769e1038a5ae8e70cb08ba88f630edab385fd7cfd518d6",
+          "published_value": "environment/evidence/retained_native_sequences/node1_evidence/render_then_physics_lane2_01<PRIVATE_RUNTIME_LOCATOR_71b872c7055cbd66>",
+          "published_value_sha256": "024f498c526ebfbea722098c7af204a96374b1ff3439589a47fef3af9cfcb29b",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        },
+        {
+          "json_pointer": "/files/45/path",
+          "original_value_sha256": "de9d0784a2e73e3e17c9dab25f1523230a61bc9898dde41187a38b2daa29faa9",
+          "published_value": "environment/evidence/retained_native_sequences/node1_evidence/render_then_physics_lane3_01<PRIVATE_RUNTIME_LOCATOR_2b5f9aaa77534383>",
+          "published_value_sha256": "ac0c82902e2ac7cb92a2cc7c98279100ae92c884b0850b53c31e34b932b8d38a",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        }
+      ],
+      "original_retained_sha256": "5b64456b3aaa06754d38bbea6345c2347a2039af3bdd8f71db9b15c1496af097",
+      "path": "protocol/freeze.json",
+      "published_sha256": "e8ef44f006698f630726e47a22b152674a4d353857dbad89c6b43b606134d3ae"
+    },
+    {
+      "changes": [
+        {
+          "json_pointer": "/inspection/write_scope",
+          "original_value_sha256": "27a12c49d2630f25a60af840a66eb17d4f552772a5a783e77d117a01fda6368a",
+          "published_value": "<PRIVATE_RUNTIME_LOCATOR_27a12c49d2630f25>",
+          "published_value_sha256": "ebdfcc7760bd4a60ff18e48f6d84247c7fb879c29b5c1e1e2540c41c9b77dd33",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        }
+      ],
+      "original_retained_sha256": "86cf493c50826fdf4413c70606b69365587cb40ab0c830a8af4961d2d73b0258",
+      "path": "provenance/source_manifests/08_excavator.json",
+      "published_sha256": "48f23e180ebe8a4ea55f891d3e1b475b1a317e64d5a41d4a2eb9aeabfb44e82e"
+    },
+    {
+      "changes": [
+        {
+          "json_pointer": "/destination",
+          "original_value_sha256": "afe29393a3a173ed6f57edead83d27daa58ac4aff5d99970e4c9252219a57321",
+          "published_value": "<PRIVATE_RUNTIME_LOCATOR_afe29393a3a173ed>",
+          "published_value_sha256": "061166dddf9b0c61a288a1bf2cf4b0990885c16c644e855713557bdf8d2639e0",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        }
+      ],
+      "original_retained_sha256": "47d0c3aa66f26335d60ae4a5ef82e1fb5a9ce9dd8b5269bb17d15069b321c386",
+      "path": "provenance/source_manifests/09_printer.json",
+      "published_sha256": "714fc87b6b7afe22c50b59a3c8e904075fea9dd6691ca5592c00b2f29a80b2b2"
+    },
+    {
+      "changes": [
+        {
+          "json_pointer": "/dependencies/native_reference_portability",
+          "original_value_sha256": "b31db2db54be2981f50544f8c8c0087cb83433fe3b3827d53c16e2e9c036ee59",
+          "published_value": "All 24 assembly sourceFile references use the author's absolute <PRIVATE_RUNTIME_LOCATOR_88b1a4011d9d95d7> paths and do not directly resolve in this workspace. The inspection report maps them to retained files without changing source.",
+          "published_value_sha256": "33c4a47a8b5e30c51ef95205562c3595e9e81415722be13d4d77161d0578b089",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        },
+        {
+          "json_pointer": "/scope_compliance/writes_confined_to",
+          "original_value_sha256": "73ae1378b0bdf38344ff01e062c5a094ec852c8146f549dfa69c54c91810dfd2",
+          "published_value": "<PRIVATE_RUNTIME_LOCATOR_73ae1378b0bdf383>",
+          "published_value_sha256": "dd864375280543df15833e4bd98d97c8adf985c1c97731307cad7fb7c118965b",
+          "rule": "Only existing preregistration PRIVATE-regex locator spans replaced; all other characters unchanged."
+        }
+      ],
+      "original_retained_sha256": "3357cc4f1a036a9feb69101e76bd8a2b1c5449ae5ddf7b0942d32867d07c05a1",
+      "path": "provenance/source_manifests/10_complex.json",
+      "published_sha256": "9239d7a5248e9e4e1c370fe027c68ac24369acf1f9081f21858bd41234489cd4"
+    }
+  ],
+  "reviewed_public_field_exceptions": [
+    {
+      "approved_value": true,
+      "json_pointer": "/native_host_authorization_required",
+      "path": "evaluator/qualification_plan.json"
+    },
+    {
+      "approved_value": "Added assembly instructions",
+      "json_pointer": "/cases/8/source/commit_message",
+      "path": "evaluator/reproduction/source_catalog.json"
+    },
+    {
+      "approved_value": "Added assembly instructions",
+      "json_pointer": "/source/commit_message",
+      "path": "provenance/source_manifests/10_complex.json"
+    }
+  ],
+  "schema_version": "evaluator-locator-projections.v1",
+  "scope": "JSON-pointer diffs contain original value digests, never the omitted private locators. No thresholds, statuses or numeric observations changed."
+}

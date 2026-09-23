@@ -1,0 +1,35 @@
+{
+  "complete": true,
+  "qualified": true,
+  "rows": [
+    {
+      "name": "usd_build_read",
+      "returncode": 0,
+      "elapsed_s": 48.017341651022434,
+      "wall_cap_s": 1800,
+      "qualified": true,
+      "result": "/opt/astra-content-value-20260922-rerun/evaluator/qualification/source09_evaluation_v2/usd_build_read/result.json",
+      "disposition": "completed_source_measurement"
+    },
+    {
+      "name": "usd_fresh_read",
+      "returncode": 0,
+      "elapsed_s": 38.065768610686064,
+      "wall_cap_s": 1800,
+      "qualified": true,
+      "result": "/opt/astra-content-value-20260922-rerun/evaluator/qualification/source09_evaluation_v2/usd_fresh_read/result.json",
+      "disposition": "completed_source_measurement"
+    },
+    {
+      "name": "retessellated_all_parts",
+      "returncode": 0,
+      "elapsed_s": 1266.8662038911134,
+      "wall_cap_s": 1800,
+      "qualified": true,
+      "result": "/opt/astra-content-value-20260922-rerun/evaluator/qualification/source09_evaluation_v2/retessellated_all_parts/result.json",
+      "disposition": "completed_source_measurement"
+    }
+  ],
+  "native_solver_calls": 0,
+  "model_calls": 0
+}

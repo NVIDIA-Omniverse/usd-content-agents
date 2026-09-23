@@ -1,0 +1,78 @@
+{
+  "files": [
+    {
+      "path": "builders/general/geometry.py",
+      "retained_source_path": "evaluator/general/geometry.py",
+      "sha256": "8ed38f600d338cca30a3d4d6bcbe7a511922e41598b1189f4dde823ef6e464f1",
+      "bytes": 14407
+    },
+    {
+      "path": "builders/general/common.py",
+      "retained_source_path": "evaluator/general/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+      "bytes": 3505
+    },
+    {
+      "path": "builders/general/freeze_dataset.py",
+      "retained_source_path": "evaluator/general/freeze_dataset.py",
+      "sha256": "51c17653fef11a1dac627749af458de9cf0c188ec7843d30ea148852c0b242ef",
+      "bytes": 5621
+    },
+    {
+      "path": "builders/general/finalize_roles.py",
+      "retained_source_path": "evaluator/general/finalize_roles.py",
+      "sha256": "13f399c241e38e05ccbeafefa0b15f20c9cdc2954ea97e3866ecfb3b37f9eb38",
+      "bytes": 2592
+    },
+    {
+      "path": "builders/general/case09_placement.py",
+      "retained_source_path": "evaluator/general/case09_placement.py",
+      "sha256": "503a23cf86a78e28de1d41e10d9aade373adb17d5497904bd08995c44a998223",
+      "bytes": 6653
+    },
+    {
+      "path": "builders/general/case09_payload_contract.json",
+      "retained_source_path": "evaluator/general/case09_payload_contract.json",
+      "sha256": "cb843047b5f74cac6af037d8db04194b34ba3217e58d6d29b50ca5e0f0bc6096",
+      "bytes": 1279
+    },
+    {
+      "path": "builders/case08_10/case_source_freeze.py",
+      "retained_source_path": "evaluator/case08_10/case_source_freeze.py",
+      "sha256": "7a0a66479ff40f9054310cb38f982adb2e4c6f92ef62897c72790c3aea2f75e7",
+      "bytes": 6821
+    },
+    {
+      "path": "builders/align_reference_rebuild_by_hash.py",
+      "retained_source_path": "scripts/align_reference_rebuild_by_hash.py",
+      "sha256": "f31255ff371c23aa7341ff591dcfbe9ee5dbfd292e252c91cf6bd7efaab252b3",
+      "bytes": 3638
+    },
+    {
+      "path": "evidence/reference_regeneration_v1.md",
+      "retained_source_path": "report/reference_regeneration.md",
+      "sha256": "30d1ca046c2125f95d93d91ee845c8bd7b25b77da2e7ae68a7072c39193e40fc",
+      "bytes": 6124
+    },
+    {
+      "path": "intermediates/08_excavator/reference.usdc",
+      "retained_source_path": "evaluator/case08_10/references/08_excavator/reference.usdc",
+      "sha256": "526380cbae3b02a57713212a2114507a68a906e58df741bd8bc4ab1b5460f8c4",
+      "bytes": 1267190
+    },
+    {
+      "path": "intermediates/08_excavator/original_native_coverage_inventory.json",
+      "retained_source_path": "evaluator/case08_10/references/08_excavator/original_native_coverage_inventory.json",
+      "sha256": "99d5387fa95832d3e24710f39931b6b00163f546f2952aa28314fe74bef0566b",
+      "bytes": 101943
+    },
+    {
+      "path": "original_source_dataset.json",
+      "retained_source_path": "protocol/dataset.json",
+      "sha256": "34c8293ab1be49cd0bbdb8f8fe25278b60ba21c35d52b8009a5065278d25c87f",
+      "bytes": 100725
+    }
+  ],
+  "scope": "Unchanged historical source-freezer helpers and intermediate reference; copied after v2 evaluator freeze only for publication/reproduction. They are not the scoring evaluator and are not author inputs.",
+  "missing_historical_input": "The intermediate nine-component case10 top-level inventory referenced by the historical builder was not found among extracted retained files; its expected SHA remains in the final inventory. Regeneration of that intermediate is described but not claimed byte-qualified."
+}

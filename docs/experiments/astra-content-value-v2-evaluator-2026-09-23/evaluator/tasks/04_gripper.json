@@ -1,0 +1,215 @@
+{
+  "schema_version": "astra-content-value-task.v1",
+  "case_id": "04_gripper",
+  "frozen": true,
+  "source_root": "assets/04_gripper/source_repo",
+  "primary_input": "assets/04_gripper/source_repo/Step/Gripper.step",
+  "task": "Using the unchanged original Linkage servo gripper source closure, author a physically simulated articulated USD mechanism that retains the source geometry and component identity. Original 27-solid source assembly retained in its source rest configuration; source-grounded opposed fingers, carriers, separate rocker arms and cam connected by the specified two-slider closed linkage. Bounded cam torque closes onto an independently placed 10g block. After external loading support is removed, both finger contacts retain the block under gravity, then an additional 0.2N downward load. Opening releases the block and it falls at least20mm. All five fixed seeds must pass; no position or velocity writes during integration. This uses a documented torque actuator abstraction, not an electrical servo model. Required body roles: base, left_finger, right_finger, left_arm, right_arm, turntable. Required joint roles: actuator, left_slide, right_slide, left_inner, left_outer, right_inner, right_outer. The evaluator applies its own bounded efforts and opens your final scene in a fresh solver; do not rely on your controller script or animation being executed. Read the public source inventory at /input/04_gripper_source_inventory.json; map every required source_id once. Case-normalizing source filename lookup and reading cached FreeCAD BREP shapes is permitted, but preserve original files and record any derived repair. Independent source reference uses saved source geometry; it does not certify real hardware accuracy.",
+  "submission_contract": "Save final.usd with metersPerUnit=1 and Z up. Retain each required original shape instance as a visible mesh (multiple mesh prims per source_id are permitted); map every instance once in bindings.json. Collision approximations may differ, but mark added collision-only primitives/meshes purpose=proxy/guide or invisible. Intended moving bodies must be dynamic/nonkinematic with finite positive mass and diagonal inertia. Base is static or explicitly kinematic. No time-sampled transforms/mesh points, prescribed pose updates, or substitute visual geometry. Declare ALL rigid bodies and ALL joints. Evaluator copy zeroes initial velocities and authored drive stiffness/damping; only the frozen independent bounded controller remains active. Nonzero authored external force APIs are rejected. Actual USD body0/body1/local frames/limits are read independently. Matrix convention is 4x4 column-vector rigid transform, translation in last column; no scale/shear/reflection. For source_assembly_world references, assembly_from_source is one rigid initial assembly alignment in meters. For part_local_only references, source_to_body is that part's rigid local alignment in meters. Preserve every original dependency. Source-to-body role requirements in public inventory are mandatory. Bindings JSON schema:\n{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"title\":\"Mechanism evaluation bindings; identifiers only, never acceptance evidence\",\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"schema_version\",\"case_id\",\"bodies\",\"joints\",\"source_map\",\"assembly_from_source\"],\"properties\":{\"schema_version\":{\"const\":1},\"case_id\":{\"type\":\"string\"},\"assembly_from_source\":{\"$ref\":\"#/$defs/matrix\"},\"bodies\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\",\"moving\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"},\"moving\":{\"type\":\"boolean\"}}}},\"joints\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"path\",\"role\"],\"properties\":{\"path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"role\":{\"type\":\"string\"}}}},\"source_map\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"source_id\",\"mesh_paths\",\"body_path\",\"source_to_body\"],\"properties\":{\"source_id\":{\"type\":\"string\"},\"body_path\":{\"type\":\"string\",\"pattern\":\"^/\"},\"mesh_paths\":{\"type\":\"array\",\"minItems\":1,\"uniqueItems\":true,\"items\":{\"type\":\"string\",\"pattern\":\"^/\"}},\"source_to_body\":{\"$ref\":\"#/$defs/matrix\"}}}}},\"$defs\":{\"matrix\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"array\",\"minItems\":4,\"maxItems\":4,\"items\":{\"type\":\"number\"}}}}}",
+  "public_acceptance": {
+    "scope": "Original 27-solid source assembly retained in its source rest configuration; source-grounded opposed fingers, carriers, separate rocker arms and cam connected by the specified two-slider closed linkage. Bounded cam torque closes onto an independently placed 10g block. After external loading support is removed, both finger contacts retain the block under gravity, then an additional 0.2N downward load. Opening releases the block and it falls at least20mm. All five fixed seeds must pass; no position or velocity writes during integration. This uses a documented torque actuator abstraction, not an electrical servo model.",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "required_body_roles": [
+      "base",
+      "left_finger",
+      "right_finger",
+      "left_arm",
+      "right_arm",
+      "turntable"
+    ],
+    "required_joint_roles": [
+      "actuator",
+      "left_slide",
+      "right_slide",
+      "left_inner",
+      "left_outer",
+      "right_inner",
+      "right_outer"
+    ],
+    "joint_kinds": {
+      "actuator": "revolute",
+      "left_slide": "prismatic",
+      "right_slide": "prismatic",
+      "left_inner": "revolute",
+      "left_outer": "revolute",
+      "right_inner": "revolute",
+      "right_outer": "revolute"
+    },
+    "common": {
+      "dt_s": 0.004166666666666667,
+      "duration_s": 9.0,
+      "gravity_m_s2": 9.81,
+      "max_linear_speed_m_s": 5.0,
+      "max_angular_speed_rad_s": 30.0,
+      "max_joint_closure_m": 0.002,
+      "max_joint_axis_error_rad": 0.05,
+      "max_penetration_m": 0.001,
+      "max_fixed_base_motion_m": 0.002,
+      "position_tolerance_m": 0.002,
+      "angle_tolerance_rad": 0.08726646259971647,
+      "minimum_source_surface_coverage": 1.0,
+      "max_mesh_surface_error_fraction": 0.001,
+      "max_mesh_surface_error_m": 5e-05
+    },
+    "task_parameters": {
+      "case_id": "04_gripper",
+      "require_joint_graph_cycle": true,
+      "assembly_orientation": "Rigid translation and rotation about worldZ are allowed; original sourceZ must remain worldZ. Original source rest configuration is retained.",
+      "evaluator_interventions": [
+        "Add a free evaluator-owned payload at the source-derived grasp site; never attach it to any submitted body",
+        "Disable authored joint-drive stiffness/damping and reset initial velocities in a copied scene; prohibit authored external forces",
+        "Normalize finger/payload friction to0.6, restitution0, contact offset0.0002m and rest offset0",
+        "Apply bounded torque only to the cam and the stated temporary loading support/downward payload load",
+        "No pose or velocity writes during simulation"
+      ],
+      "source_body_role_by_solid": {
+        "0": "right_finger",
+        "1": "left_finger",
+        "2": "base",
+        "3": "left_finger",
+        "4": "right_finger",
+        "5": "turntable",
+        "19": "base",
+        "24": "right_arm",
+        "25": "left_arm",
+        "26": "turntable"
+      },
+      "joint_endpoints": {
+        "actuator": [
+          "base",
+          "turntable"
+        ],
+        "left_slide": [
+          "base",
+          "left_finger"
+        ],
+        "right_slide": [
+          "base",
+          "right_finger"
+        ],
+        "left_inner": [
+          "turntable",
+          "left_arm"
+        ],
+        "left_outer": [
+          "left_arm",
+          "left_finger"
+        ],
+        "right_inner": [
+          "turntable",
+          "right_arm"
+        ],
+        "right_outer": [
+          "right_arm",
+          "right_finger"
+        ]
+      },
+      "payload": {
+        "center_source_m": [
+          0,
+          0.134102022251,
+          0.065
+        ],
+        "size_m": [
+          0.004,
+          0.012,
+          0.018
+        ],
+        "mass_kg": 0.01,
+        "friction": 0.6,
+        "restitution": 0,
+        "contact_offset_m": 0.0002,
+        "rest_offset_m": 0
+      },
+      "controller": {
+        "close_offset_rad": 0.2,
+        "kp_Nm_rad": 0.4,
+        "kd_Nms_rad": 0.02,
+        "max_torque_Nm": 0.05,
+        "seed_multiplier_range": [
+          0.98,
+          1.02
+        ],
+        "closing_axis_source": [
+          0,
+          0,
+          1
+        ]
+      },
+      "phases_s": {
+        "start_close": 0.5,
+        "close_end": 2.5,
+        "remove_loading_support": 2.75,
+        "gravity_observe_start": 3.0,
+        "load_start": 4.5,
+        "load_observe_start": 4.75,
+        "start_open": 6.5,
+        "open_end": 8.5,
+        "end": 9.0
+      },
+      "loading_fixture": {
+        "kp_N_m": 20.0,
+        "kd_Ns_m": 0.9,
+        "max_force_N": 0.3
+      },
+      "load_downward_N": 0.2,
+      "dt_s": 0.004166666666666667,
+      "limits": {
+        "max_hold_displacement_m": 0.004,
+        "min_bilateral_normal_force_N": 0.025,
+        "min_bilateral_frame_fraction": 0.95,
+        "min_each_finger_closure_m": 0.0008,
+        "minimum_release_drop_m": 0.02,
+        "max_contact_penetration_m": 0.001,
+        "max_joint_closure_m": 0.002,
+        "max_joint_axis_error_rad": 0.05,
+        "max_linear_speed_m_s": 5.0,
+        "max_angular_speed_rad_s": 30.0,
+        "joint_limit_tolerance_m": 0.002,
+        "joint_limit_tolerance_rad": 0.08726646259971647
+      }
+    },
+    "controller_protocol": "Use the exact9s phases, bounded cam torque, independent payload loading support removal, gravity/downward-load retention and release task specified in task_parameters. All contact forces are derived from native impulses divided bydt; solver never writes body poses or velocities.",
+    "limits": "Mass/inertia/collision/geometry/closure/finite-state gates and native gravity witness apply. Source shape comparison is symmetric sampled surface distance plus all-vertex coverage with 3% area tolerance, not an exact topology equivalence proof.",
+    "decision_policy": "A concrete failed criterion is not accepted. Missing evaluator/import/runtime capability is INCONCLUSIVE, not demonstrated rejection or a false-pass.",
+    "source_inventory_sha256": "5a13a75472fe4f13fa713fa9db364d0b5191b21c738b73e10f7c4befdb9c9715",
+    "source_inventory_file": "/input/04_gripper_source_inventory.json",
+    "measurement_version": 2,
+    "input_failure_policy": "Missing, empty, malformed or schema-invalid author artifacts are concrete task rejection (FAIL). Evaluator infrastructure, reference availability, native runtime failure or measurement timeout is INCONCLUSIVE unless an independent concrete criterion failed.",
+    "source_metric": "All original instances, unchanged bounds and 3% area thresholds. Conservative triangle correspondence proves every surface point within tolerance and preserves all loose points; otherwise symmetric all-vertex plus deterministic surface-sample nearest-triangle distances in recentered millimetres. This remains geometry preservation, not exact topology or materials equivalence.",
+    "runtime_budgets_s": {
+      "complete_source_stage_inspection": 1800,
+      "each_native_trial": 900,
+      "engine_paired_unloaded_trial": 900,
+      "input_stage_load": 900
+    },
+    "witness_policy": "A collision-free independently instrumented body at (1,1,1)m must show expected freefall within4mm displacement and0.03m/s velocity at0.1s; witness failure means evaluator insufficiency. Authored gravity must independently be Earth gravity. No witness writes to the submitted asset.",
+    "runtime_calibration_policy": "A failed independent gravity witness makes failed physics criteria from that same seed INCONCLUSIVE, including paired engine response when either paired run is uncalibrated. Raw observations and failed predicates are retained. Independent static/source/schema failures remain concrete FAIL."
+  },
+  "source_inventory_file": "/input/04_gripper_source_inventory.json",
+  "source_inventory_sha256": "5a13a75472fe4f13fa713fa9db364d0b5191b21c738b73e10f7c4befdb9c9715",
+  "private_reference_sha256": "762a1f3315de9ed42fd1694328c8d2134239a03648f7e39a34415fb1d71ae36c",
+  "private_evaluator_cases_sha256": "54f255250615a79b6824a3dfb0698570adb5ade3f54ee55cc83a05bb6be339d7",
+  "private_evaluator_snapshot": "evaluator/cases/04_gripper",
+  "private_evaluator_snapshot_sha256": "1bc8e89bf9eca8dd8874effd11932f075257bc23f48d032ecb39148038cbd535",
+  "freeze_basis": "Fresh v2 local, source-only and native synthetic qualification completed before scored authors; source/physics scope remains task-specific.",
+  "protocol_id": "astra-content-value-rerun-v2",
+  "v2_measurement_changes": [
+    "All original source identities, grounded roles, force/torque controllers, task thresholds and five seeds retained.",
+    "Recentered millimetre nearest-triangle queries; conservative all-surface triangle-correspondence fast path; unchanged area/bounds tolerances.",
+    "Exact correspondence also retains every loose tessellation point; an unchanged original off-surface point is no longer incorrectly required to lie on a triangle.",
+    "Source progress retained; measurement/worker timeout is INCONCLUSIVE, never an author failure or a pass.",
+    "Collision-free evaluator gravity witness moved to (1,1,1) metres; witness failure is evaluator insufficiency; actual authored Earth gravity remains a concrete criterion."
+  ],
+  "evaluator_qualification": {
+    "frozen": true,
+    "native_requalification": "passed",
+    "qualification_receipt_sha256": "fada28adae6999f7dd0cfda7362d629ba8ef85f78eafcce29587b2363ea1bf4e"
+  }
+}

@@ -1,0 +1,203 @@
+{
+  "case_id": "03_hinge",
+  "source_files": [
+    {
+      "path": "source/CommercialRefrigerator.glb",
+      "sha256": "ef8da8b144e650c277ac953e6d9e50ac1689ff1ee88c2c5bd9551ae8bccb6065"
+    },
+    {
+      "path": "source/README.upstream.md",
+      "sha256": "d4ea5fa49f6cfabe1bed7a00cf2594573cd04e3eb739abe474f2900dee4baaaf"
+    },
+    {
+      "path": "source/screenshot_Large.jpg",
+      "sha256": "d8a5964d9f0b19fb53e07e3382156b2426042dc74ab0f2a23041cd921238bc59"
+    }
+  ],
+  "source_coverage_complete": true,
+  "coverage_note": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+  "source_body_role_requirements": {
+    "source/CommercialRefrigerator.glb#node:FridgeCase": "base",
+    "source/CommercialRefrigerator.glb#node:FridgeDoor": "door",
+    "source/CommercialRefrigerator.glb#node:FridgeDoorInner": "door",
+    "source/CommercialRefrigerator.glb#node:FridgeGlass": "door"
+  },
+  "parts": [
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_c13f78",
+      "source_file": "source/CommercialRefrigerator.glb",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 51224,
+      "triangles": 93024,
+      "bounds_m": [
+        [
+          -0.3587475859000644,
+          0.616304904337492,
+          -0.014546332490771946
+        ],
+        [
+          0.2957343153556481,
+          1.7281114066772831,
+          0.2261059083927831
+        ]
+      ],
+      "area_m2": 0.6196176239602262,
+      "abs_volume_m3": 0.004356555742438313
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_d2eb44",
+      "source_file": "source/CommercialRefrigerator.glb",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 58216,
+      "triangles": 107616,
+      "bounds_m": [
+        [
+          -0.38162619748244114,
+          0.42161911984781497,
+          -0.037442225393016754
+        ],
+        [
+          0.31856291025225614,
+          1.647358915457818,
+          0.24899738263867777
+        ]
+      ],
+      "area_m2": 3.7116930624629165,
+      "abs_volume_m3": 0.057426600370319096
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:ChampagneBottles_f99424",
+      "source_file": "source/CommercialRefrigerator.glb",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 3420,
+      "triangles": 4864,
+      "bounds_m": [
+        [
+          -0.38214774824277453,
+          0.44871855947024253,
+          -0.013328124463720253
+        ],
+        [
+          0.30801103744813707,
+          1.5513083228531659,
+          0.24898411459027908
+        ]
+      ],
+      "area_m2": 0.464820665423815,
+      "abs_volume_m3": 0.010019432429761705
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeCase",
+      "source_file": "source/CommercialRefrigerator.glb",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 720,
+      "triangles": 496,
+      "bounds_m": [
+        [
+          -0.46007776260375977,
+          -5.960464477539063e-08,
+          -0.4603222906589508
+        ],
+        [
+          0.3943006992340088,
+          2.1840403079986572,
+          0.4602578580379486
+        ]
+      ],
+      "area_m2": 8.260076142373215,
+      "abs_volume_m3": 1.597803938714023
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeDoor",
+      "source_file": "source/CommercialRefrigerator.glb",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 582,
+      "triangles": 388,
+      "bounds_m": [
+        [
+          -0.4600776135921479,
+          0.3573247194290161,
+          0.3925893977284432
+        ],
+        [
+          0.39430066943168635,
+          1.9576307535171509,
+          0.4838635995984078
+        ]
+      ],
+      "area_m2": 0.9040822207449112,
+      "abs_volume_m3": 0.05003647228455769
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeDoorInner",
+      "source_file": "source/CommercialRefrigerator.glb",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 42,
+      "triangles": 28,
+      "bounds_m": [
+        [
+          -0.40718865394592285,
+          0.4208833575248718,
+          0.40388792753219604
+        ],
+        [
+          0.34141165018081665,
+          1.895334243774414,
+          0.4374544024467468
+        ]
+      ],
+      "area_m2": 0.15225011315627793,
+      "abs_volume_m3": 0.036760135989388355
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeGlass",
+      "source_file": "source/CommercialRefrigerator.glb",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 4,
+      "triangles": 2,
+      "bounds_m": [
+        [
+          -0.4074607491493225,
+          0.4159911870956421,
+          0.4252135753631592
+        ],
+        [
+          0.34316110610961914,
+          1.8989636898040771,
+          0.42521369457244873
+        ]
+      ],
+      "area_m2": 1.1131515712810154,
+      "abs_volume_m3": 5.683577213397498e-09
+    },
+    {
+      "source_id": "source/CommercialRefrigerator.glb#node:FridgeInterior",
+      "source_file": "source/CommercialRefrigerator.glb",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2612,
+      "triangles": 2261,
+      "bounds_m": [
+        [
+          -0.4490776062011719,
+          0.4212585687637329,
+          -0.1672300398349762
+        ],
+        [
+          0.38330066204071045,
+          2.172428607940674,
+          0.4580133557319641
+        ]
+      ],
+      "area_m2": 5.4160108616081875,
+      "abs_volume_m3": 0.6589375101978806
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "code_sha256": {
+    "bindings.schema.json": "d3bf23628bc61c9d060b8c9d24c554c3cacf40ebba5ca57d77f745fed6be7ab0",
+    "cases.json": "5e6fb947ed79d453e4d20d8c4b16b39c7840db9957784a78d3a510e94c80f90e",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "evaluate.py": "c31dc022ccc5fab5a5d391e6aedbd3c95b836fc8a8f1730ec18a700cef6120c1",
+    "geometry.py": "a7e01e0af5ec964a941c707faf828767cc8dd17649fa86a07a8b029afe1cee14",
+    "solver.py": "79e43d69d81e56d9ee2c791004bf64bfd3d747fc3de55dc330666b00daee7eff",
+    "structural.py": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5",
+    "v2_control.py": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a",
+    "v2_geometry.py": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4",
+    "v2_inputs.py": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528",
+    "v2_policy.py": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20",
+    "v2_process.py": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794",
+    "v2_verdict.py": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+  },
+  "reference_inventory_sha256": "c4fcc67778174cc387d847063096de1a8ca071eaea05fe12e627e31f5b1f55b3"
+}

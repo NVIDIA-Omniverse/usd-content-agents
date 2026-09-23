@@ -1,0 +1,264 @@
+{
+  "qualified": true,
+  "rows": [
+    {
+      "case_id": "02_conveyor",
+      "variant": "positive",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/02_conveyor_positive"
+    },
+    {
+      "case_id": "03_hinge",
+      "variant": "positive",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/03_hinge_positive"
+    },
+    {
+      "case_id": "03_hinge",
+      "variant": "kinematic",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/03_hinge_kinematic"
+    },
+    {
+      "case_id": "03_hinge",
+      "variant": "missing_joint",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/03_hinge_missing_joint"
+    },
+    {
+      "case_id": "03_hinge",
+      "variant": "changed_geometry",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/03_hinge_changed_geometry"
+    },
+    {
+      "case_id": "03_hinge",
+      "variant": "gravity_disabled",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/03_hinge_gravity_disabled"
+    },
+    {
+      "case_id": "04_gripper",
+      "variant": "positive",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/04_gripper_positive"
+    },
+    {
+      "case_id": "05_vise",
+      "variant": "positive",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/05_vise_positive"
+    },
+    {
+      "case_id": "05_vise",
+      "variant": "kinematic",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/05_vise_kinematic"
+    },
+    {
+      "case_id": "05_vise",
+      "variant": "missing_joint",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/05_vise_missing_joint"
+    },
+    {
+      "case_id": "05_vise",
+      "variant": "changed_geometry",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/05_vise_changed_geometry"
+    },
+    {
+      "case_id": "05_vise",
+      "variant": "gravity_disabled",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/05_vise_gravity_disabled"
+    },
+    {
+      "case_id": "06_engine",
+      "variant": "positive",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/06_engine_positive"
+    },
+    {
+      "case_id": "06_engine",
+      "variant": "kinematic",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/06_engine_kinematic"
+    },
+    {
+      "case_id": "06_engine",
+      "variant": "missing_joint",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/06_engine_missing_joint"
+    },
+    {
+      "case_id": "06_engine",
+      "variant": "changed_geometry",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/06_engine_changed_geometry"
+    },
+    {
+      "case_id": "06_engine",
+      "variant": "gravity_disabled",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/06_engine_gravity_disabled"
+    },
+    {
+      "case_id": "07_robot_arm",
+      "variant": "positive",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/07_robot_arm_positive"
+    },
+    {
+      "case_id": "07_robot_arm",
+      "variant": "kinematic",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/07_robot_arm_kinematic"
+    },
+    {
+      "case_id": "07_robot_arm",
+      "variant": "missing_joint",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/07_robot_arm_missing_joint"
+    },
+    {
+      "case_id": "07_robot_arm",
+      "variant": "changed_geometry",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/07_robot_arm_changed_geometry"
+    },
+    {
+      "case_id": "07_robot_arm",
+      "variant": "gravity_disabled",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/07_robot_arm_gravity_disabled"
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "positive",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/08_excavator_positive"
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "kinematic",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/08_excavator_kinematic"
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "missing_joint",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/08_excavator_missing_joint"
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "changed_geometry",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/08_excavator_changed_geometry"
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "gravity_disabled",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/08_excavator_gravity_disabled"
+    },
+    {
+      "case_id": "09_printer",
+      "variant": "positive",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/09_printer_positive"
+    },
+    {
+      "case_id": "09_printer",
+      "variant": "kinematic",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/09_printer_kinematic"
+    },
+    {
+      "case_id": "09_printer",
+      "variant": "missing_joint",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/09_printer_missing_joint"
+    },
+    {
+      "case_id": "09_printer",
+      "variant": "changed_geometry",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/09_printer_changed_geometry"
+    },
+    {
+      "case_id": "09_printer",
+      "variant": "gravity_disabled",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/09_printer_gravity_disabled"
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "positive",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/10_complex_positive"
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "kinematic",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/10_complex_kinematic"
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "missing_joint",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/10_complex_missing_joint"
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "changed_geometry",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/10_complex_changed_geometry"
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "gravity_disabled",
+      "qualified": true,
+      "native_run": false,
+      "path": "output/astra-content-value-20260922-rerun/evaluator/qualification/final_structural_controls/10_complex_gravity_disabled"
+    }
+  ]
+}

@@ -1,0 +1,215 @@
+{
+  "schema_version": 2,
+  "status": "QUALIFIED_CASES_02_TO_10",
+  "positive_native_seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "native_model_calls_permitted": false,
+  "native_host_authorization_required": true,
+  "cases": {
+    "02_conveyor": {
+      "positive_native_seeds": [
+        11,
+        23,
+        47,
+        83,
+        131
+      ],
+      "native_negative_seed": 11,
+      "native_negative_variants": [
+        "blocked_motion",
+        "no_contact"
+      ],
+      "structural_negative_variants": [],
+      "additional": []
+    },
+    "03_hinge": {
+      "positive_native_seeds": [
+        11,
+        23,
+        47,
+        83,
+        131
+      ],
+      "native_negative_seed": 11,
+      "native_negative_variants": [
+        "blocked_motion"
+      ],
+      "structural_negative_variants": [
+        "kinematic",
+        "missing_joint",
+        "changed_geometry",
+        "gravity_disabled"
+      ],
+      "additional": []
+    },
+    "04_gripper": {
+      "positive_native_seeds": [
+        11,
+        23,
+        47,
+        83,
+        131
+      ],
+      "native_negative_seed": 11,
+      "native_negative_variants": [
+        "blocked_motion",
+        "one_contact",
+        "no_friction"
+      ],
+      "structural_negative_variants": [],
+      "additional": [
+        "source role/ancestry mutations",
+        "original source gap and closing-sign proof",
+        "native rotary-actuator linkage closure qualification, separate from toy jaw contact fixture"
+      ]
+    },
+    "05_vise": {
+      "positive_native_seeds": [
+        11,
+        23,
+        47,
+        83,
+        131
+      ],
+      "native_negative_seed": 11,
+      "native_negative_variants": [
+        "blocked_motion"
+      ],
+      "structural_negative_variants": [
+        "kinematic",
+        "missing_joint",
+        "changed_geometry",
+        "gravity_disabled"
+      ],
+      "additional": []
+    },
+    "06_engine": {
+      "positive_native_seeds": [
+        11,
+        23,
+        47,
+        83,
+        131
+      ],
+      "native_negative_seed": 11,
+      "native_negative_variants": [
+        "blocked_motion"
+      ],
+      "structural_negative_variants": [
+        "kinematic",
+        "missing_joint",
+        "changed_geometry",
+        "gravity_disabled"
+      ],
+      "additional": [
+        "same-seed11 unloaded run: shaft response>=1e-4rad",
+        "passive auxiliary declarations and unactuated graph checks"
+      ]
+    },
+    "07_robot_arm": {
+      "positive_native_seeds": [
+        11,
+        23,
+        47,
+        83,
+        131
+      ],
+      "native_negative_seed": 11,
+      "native_negative_variants": [
+        "blocked_motion"
+      ],
+      "structural_negative_variants": [
+        "kinematic",
+        "missing_joint",
+        "changed_geometry",
+        "gravity_disabled"
+      ],
+      "additional": []
+    },
+    "08_excavator": {
+      "positive_native_seeds": [
+        11,
+        23,
+        47,
+        83,
+        131
+      ],
+      "native_negative_seed": 11,
+      "native_negative_variants": [
+        "blocked_motion"
+      ],
+      "structural_negative_variants": [
+        "kinematic",
+        "missing_joint",
+        "changed_geometry",
+        "gravity_disabled"
+      ],
+      "additional": [
+        "wrong branch endpoint negative",
+        "every required source phalanx/link role bound"
+      ]
+    },
+    "09_printer": {
+      "positive_native_seeds": [
+        11,
+        23,
+        47,
+        83,
+        131
+      ],
+      "native_negative_seed": 11,
+      "native_negative_variants": [
+        "blocked_motion",
+        "no_contact"
+      ],
+      "structural_negative_variants": [
+        "kinematic",
+        "missing_joint",
+        "changed_geometry",
+        "gravity_disabled"
+      ],
+      "additional": [
+        "source-derived full3092mesh stage comparison; independent native XYZ/payload fixture cooking/runtime, not an authored full printer solution",
+        "independent original bed placement proof"
+      ]
+    },
+    "10_complex": {
+      "positive_native_seeds": [
+        11,
+        23,
+        47,
+        83,
+        131
+      ],
+      "native_negative_seed": 11,
+      "native_negative_variants": [
+        "blocked_motion"
+      ],
+      "structural_negative_variants": [
+        "kinematic",
+        "missing_joint",
+        "changed_geometry",
+        "gravity_disabled"
+      ],
+      "additional": [
+        "wrong branch endpoint negative",
+        "every required source phalanx/link role bound"
+      ]
+    }
+  },
+  "shared_native_controls": [
+    "One/two kg force response in N",
+    "Pure torque I=.01/.02 and \u00b1.01 Nm response",
+    "Contact matrix is impulse; 1/240 and1/120 dt force conversion",
+    "Gravity near-origin collision-free witness at default and128 position iterations",
+    "Gravity witness cannot contact arbitrarily positioned source mesh",
+    "Source-only full09 USD readback and complete changed-triangulation comparison below1800s under actual4CPU/32GiB evaluation budget, without dropped part checks; original900s prep timeout retained",
+    "Initial native pose and gravity settings readbacks"
+  ],
+  "freeze_rule": "All required controls produce fresh independently observed expected results; original source hashes and final candidate code hashes preserved; global broker/isolation qualified separately by root."
+}

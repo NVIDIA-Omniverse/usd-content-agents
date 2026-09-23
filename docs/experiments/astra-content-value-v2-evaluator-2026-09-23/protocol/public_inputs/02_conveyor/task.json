@@ -1,0 +1,79 @@
+{
+  "case_id": "02_conveyor",
+  "frozen": true,
+  "mounted_inputs": "Only this original source closure and public task inventory are mounted. Preserve original bytes; save all derivatives under /work.",
+  "primary_input": "/source/conveyor_model_v1.step",
+  "protocol_id": "astra-content-value-rerun-v2",
+  "public_acceptance": {
+    "acceptance": "All five seeds: rail, carrier and payload each advance >=1.45rad; identified carrier/rail and payload/carrier contact on >=90% of transport frames2..11s; carrier radial error<=7mm,height error<=4mm; payload radial error<=12mm,height error<=8mm,center remains >3mm above carrier and within25mm; penetration<=1.5mm, joint-anchor error<=1mm,axis error<=0.02rad,speed<=1m/s,spin<=20rad/s,finite native state and independent gravity witness. Exactly one rail revolute joint, no carrier/payload attachment.",
+    "assumptions": "Authored masses, inertia and friction are simulation assumptions; geometry fidelity is relative to the independently meshed original STEP. No real-hardware or per-roller actuation validation.",
+    "backend": "OvPhysX0.4.13 native CPU PhysX on Horde",
+    "case_id": "02_conveyor",
+    "center_world_m": [
+      0.075,
+      0,
+      0
+    ],
+    "controller": "Settle1s; half-cosine rail target ramp1.7rad over10s; hold2s. Torque PD kp0.1Nm/rad,kd0.02Nms/rad,limit0.02Nm. Tiny independent lateral payload force0.0005N with seeded +/-0.0001N perpendicular jitter during6..6.5s. No pose/velocity writes during stepping.",
+    "dt_s": 0.004166666666666667,
+    "duration_s": 13,
+    "gravity_m_s2": [
+      0,
+      0,
+      -9.81
+    ],
+    "input_failure_policy": "Missing, empty, malformed or schema-invalid author artifacts are concrete task rejection (FAIL). Evaluator infrastructure, reference availability, native runtime failure or measurement timeout is INCONCLUSIVE unless an independent concrete criterion failed.",
+    "mass_ranges_kg": {
+      "carrier": [
+        0.01,
+        0.1
+      ],
+      "payload": [
+        0.005,
+        0.05
+      ],
+      "rail": [
+        0.1,
+        2.0
+      ]
+    },
+    "max_torque_nm": 0.02,
+    "measurement_version": 2,
+    "minimum_angle_rad": 1.45,
+    "normalization": "Evaluator disables authored joint drives, resets initial velocities to rest, uses Earth gravity and uniform solver iterations, enables contact reports, and creates a collision-free free-fall witness at (1,1,1)m. Original collider geometry remains submitted geometry.",
+    "runtime_budgets_s": {
+      "complete_source_stage_inspection": 1800,
+      "each_native_trial": 300,
+      "engine_paired_unloaded_trial": 900,
+      "input_stage_load": 900
+    },
+    "runtime_calibration_policy": "A failed independent gravity witness makes failed physics criteria from that same seed INCONCLUSIVE, including paired engine response when either paired run is uncalibrated. Raw observations and failed predicates are retained. Independent static/source/schema failures remain concrete FAIL.",
+    "scope": "A rotary-annulus abstraction of the original circular conveyor: bounded torque turns the original fused rail/roller assembly; its free carrier and original target move through contacts. This tests contact transfer, not individual powered rollers, belt deformation, or a real conveyor installation.",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "source_fidelity": "All four original source assembly-world shape instances retained visibly at original world placement in metres/Z-up; identity assembly_from_source. Surface tolerance max(50um,0.001*part diagonal). Moving visual source must inherit the declared body; support stays static. Added collision approximations are invisible/proxy/guide, never replacements for source visuals.",
+    "source_metric": "All original instances, unchanged bounds and 3% area thresholds. Conservative triangle correspondence proves every surface point within tolerance and preserves all loose points; otherwise symmetric all-vertex plus deterministic surface-sample nearest-triangle distances in recentered millimetres. This remains geometry preservation, not exact topology or materials equivalence.",
+    "target_angle_rad": 1.7,
+    "witness_policy": "A collision-free independently instrumented body at (1,1,1)m must show expected freefall within4mm displacement and0.03m/s velocity at0.1s; witness failure means evaluator insufficiency. Authored gravity must independently be Earth gravity. No witness writes to the submitted asset."
+  },
+  "qualification_receipt_sha256": "c264c6d585c87326b95a6d402a3cb688f2cee8906b0266b43ebc82cb93c4a9b2",
+  "schema_version": "astra-content-value-task.v2",
+  "source_inventory_file": "/input/02_conveyor_source_inventory.json",
+  "source_inventory_sha256": "bb9b02fb7ea057f2507879234ee87545b72ced15cdafce8e2d5ba8d407d280e3",
+  "source_root": "/source",
+  "submission_contract": "Save final.usd with metres and Z up, bindings.json, submission.json, first candidate and up to two preserved repairs. Use identity assembly_from_source. Exactly four declared body roles: base (static support, no enabled rigid-body ancestry), rail (dynamic original rail), carrier (dynamic original box), payload (dynamic original part). Exactly one standalone revolute joint role rail_rotation: body1=rail, body0=world or base, positive-world-Z axis and world pivot [0.075,0,0]m. No ArticulationRoot. All moving bodies have explicit finite positive mass/inertia, nonkinematic dynamics, source visible meshes and collision approximations that preserve open spaces needed for contact. Source visual meshes must inherit only their declared physical body. Added collision-only geometry must be invisible or purpose proxy/guide. No scripted force callbacks, time-sampled geometry or physics, hidden original meshes, preauthored trajectories, or carrier/payload joints. The evaluator disables drives and independently applies the declared rail torque, adds a gravity witness, and resets initial velocities to rest. Bindings schema: {\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"title\": \"Mechanism evaluation bindings; identifiers only, never acceptance evidence\", \"type\": \"object\", \"additionalProperties\": false, \"required\": [\"schema_version\", \"case_id\", \"bodies\", \"joints\", \"source_map\", \"assembly_from_source\"], \"properties\": {\"schema_version\": {\"const\": 1}, \"case_id\": {\"type\": \"string\"}, \"assembly_from_source\": {\"$ref\": \"#/$defs/matrix\"}, \"bodies\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"path\", \"role\", \"moving\"], \"properties\": {\"path\": {\"type\": \"string\", \"pattern\": \"^/\"}, \"role\": {\"type\": \"string\"}, \"moving\": {\"type\": \"boolean\"}}}}, \"joints\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"path\", \"role\"], \"properties\": {\"path\": {\"type\": \"string\", \"pattern\": \"^/\"}, \"role\": {\"type\": \"string\"}}}}, \"source_map\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"source_id\", \"mesh_paths\", \"body_path\", \"source_to_body\"], \"properties\": {\"source_id\": {\"type\": \"string\"}, \"body_path\": {\"type\": \"string\", \"pattern\": \"^/\"}, \"mesh_paths\": {\"type\": \"array\", \"minItems\": 1, \"uniqueItems\": true, \"items\": {\"type\": \"string\", \"pattern\": \"^/\"}}, \"source_to_body\": {\"$ref\": \"#/$defs/matrix\"}}}}}, \"$defs\": {\"matrix\": {\"type\": \"array\", \"minItems\": 4, \"maxItems\": 4, \"items\": {\"type\": \"array\", \"minItems\": 4, \"maxItems\": 4, \"items\": {\"type\": \"number\"}}}}}",
+  "synthetic_evaluator_tests_are_scored": false,
+  "task": "Retain all original shapes and assembly-world placements from conveyor_model_v1.step. Physically transfer its free carrier (source product box) and original target (product part) by rotating the rail product about world +Z at [0.075,0,0]m under bounded torque. The support stays static. This is explicitly a rotary-annulus contact-transfer abstraction: the source fuses its rollers and the task does not claim independent roller or belt mechanics. Rail, carrier and target must each advance at least1.45rad through dynamics and contacts. Do not attach carrier or target to anything. Independently verified source IDs/bounds are at /input/02_conveyor_source_inventory.json.",
+  "v2_measurement_changes": [
+    "All original source identities, grounded roles, force/torque controllers, task thresholds and five seeds retained.",
+    "Recentered millimetre nearest-triangle queries; conservative all-surface triangle-correspondence fast path; unchanged area/bounds tolerances.",
+    "Exact correspondence also retains every loose tessellation point; an unchanged original off-surface point is no longer incorrectly required to lie on a triangle.",
+    "Source progress retained; measurement/worker timeout is INCONCLUSIVE, never an author failure or a pass.",
+    "Collision-free evaluator gravity witness moved to (1,1,1) metres; witness failure is evaluator insufficiency; actual authored Earth gravity remains a concrete criterion."
+  ]
+}

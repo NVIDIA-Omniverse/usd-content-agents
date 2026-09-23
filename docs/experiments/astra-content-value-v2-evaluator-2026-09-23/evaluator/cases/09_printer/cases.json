@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "common": {
+    "dt_s": 0.004166666666666667,
+    "duration_s": 12.0,
+    "gravity_m_s2": 9.81,
+    "max_linear_speed_m_s": 5.0,
+    "max_angular_speed_rad_s": 30.0,
+    "max_joint_closure_m": 0.002,
+    "max_joint_axis_error_rad": 0.05,
+    "max_penetration_m": 0.003,
+    "max_fixed_base_motion_m": 0.002,
+    "position_tolerance_m": 0.002,
+    "angle_tolerance_rad": 0.08726646259971647,
+    "minimum_source_surface_coverage": 1.0,
+    "max_mesh_surface_error_fraction": 0.001,
+    "max_mesh_surface_error_m": 5e-05
+  },
+  "cases": {
+    "09_printer": {
+      "observer": "axes",
+      "required_joint_roles": [
+        "x",
+        "y",
+        "z"
+      ],
+      "required_body_roles": [
+        "base",
+        "toolhead",
+        "gantry",
+        "bed"
+      ],
+      "joint_kinds": {
+        "x": "prismatic",
+        "y": "prismatic",
+        "z": "prismatic"
+      },
+      "minimum_each_travel_m": 0.02,
+      "acceptance": "All three source-grounded Cartesian axes physically travel at least20mm, hold within2mm under bounded axial loads, and return without losing joint closure. A separately placed15mm50g block remains on the original bed through the motion with identified contact and <=3mm bed-relative drift. This validates bounded Cartesian motion and payload retention, not printing, extrusion, belt transmission or thermal performance.",
+      "joint_moving_body_roles": {
+        "x": "toolhead",
+        "y": "gantry",
+        "z": "bed"
+      },
+      "control_default": {
+        "kp": 400.0,
+        "kd": 20.0,
+        "max_effort": 200.0,
+        "gain_mode": "mass_scaled",
+        "gravity_compensate": true
+      },
+      "controller_scale_definition": "PD gains multiply independently measured downstream native mass (plus evaluator payload on the bed); gravity is compensated inside the same200N cap. Opposing load=min(1% of cap, measured mass times0.5m/s\u00b2). Only body forces are written; upper-limit target ramps from initial to upper+10mm over10-12s.",
+      "payload": {
+        "mass_kg": 0.05,
+        "size_m": [
+          0.015,
+          0.015,
+          0.015
+        ],
+        "initial_surface_clearance_m": 0.001,
+        "source_patch_edge_margin_m": 0.002,
+        "source_patch_grid_points_per_axis": 5,
+        "source_planarity_tolerance_m": 5e-05,
+        "friction": 0.6,
+        "restitution": 0.0,
+        "contact_offset_m": 0.0002,
+        "rest_offset_m": 0.0,
+        "observation_start_s": 1.0,
+        "minimum_contact_force_N": 0.01,
+        "minimum_contact_frame_fraction": 0.9,
+        "maximum_payload_drift_relative_to_bed_m": 0.003,
+        "minimum_bed_world_Z_rise_m": 0.02,
+        "payload_force_policy": "The block is a free nonkinematic rigid body with no joints, pose writes, or external support forces. Only the printer mechanism receives the generic bounded controller efforts; known block weight may be included in bed-actuator gravity compensation.",
+        "placement_policy": "Freeze one clear source-bed top patch from independently tessellated original CAD before either arm runs. Transform that fixed point only by the declared source assembly alignment; its source top normal must map to world+Z. Do not select placement from submitted colliders, meshes or suggested author locations.",
+        "contact_unit_policy": "Pinned ovphysx0.4.13 step_sync contact matrix is empirically impulse in Ns; divide each step by its actual dt to obtain N."
+      },
+      "frozen_payload_placement": {
+        "source_center_m": [
+          4.028763082447595e-06,
+          -0.04518345351119067,
+          0.22745026967885912
+        ],
+        "source_top_normal": [
+          0,
+          0,
+          1
+        ],
+        "source_surface_height_m": 0.2189502696788591,
+        "source_support_probes_m": [
+          [
+            -0.009495971236917552,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.009495971236917552,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.009495971236917552,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.009495971236917552,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            -0.009495971236917552,
+            -0.03568345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            -0.004745971236917552,
+            -0.03568345351119067,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            4.028763082447595e-06,
+            -0.03568345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            0.004754028763082447,
+            -0.03568345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.05468345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.04993345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.04518345351119067,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.040433453511190674,
+            0.2189502696788591
+          ],
+          [
+            0.009504028763082447,
+            -0.03568345351119067,
+            0.2189502696788591
+          ]
+        ],
+        "support_probe_pass": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "source_plane_area_m2": 0.014392262980399941,
+        "source_plane_xy_bounds_m": [
+          [
+            -0.05999597123690616,
+            -0.09185012017785733
+          ],
+          [
+            0.060004028763071066,
+            0.028149879822142662
+          ]
+        ],
+        "payload_source_geometry_clear": true
+      }
+    }
+  }
+}

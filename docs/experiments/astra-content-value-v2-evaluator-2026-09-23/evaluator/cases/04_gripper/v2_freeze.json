@@ -1,0 +1,168 @@
+{
+  "case_id": "04_gripper",
+  "frozen_at": "2026-09-22T23:32:32.678112+00:00",
+  "runtime_manifest": "frozen_manifest.json",
+  "runtime_manifest_sha256": "0b5d0051ef537aba333c30cb21fc53d5884bea7583e67ddf871612f34b229981",
+  "code_sha256": {
+    "bindings.schema.json": "d3bf23628bc61c9d060b8c9d24c554c3cacf40ebba5ca57d77f745fed6be7ab0",
+    "case04_contract.json": "9158d495062f21db187549cf66a04200d8e236153d9e988bd4a0be1d36d69e07",
+    "case04_evaluate.py": "f7a15af1784495d4fbd9268dec48a377e55d846023e208d214c6f91009e580af",
+    "case04_solver.py": "47396bc0b3e6e015d916e97ebd17b41199ee9362fafc94519d1dd428c0671047",
+    "cases.json": "54f255250615a79b6824a3dfb0698570adb5ade3f54ee55cc83a05bb6be339d7",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "evaluate.py": "1d53389e6021279bef7360d4205cf2752767468018011d4043b4a96c5eed5bf0",
+    "geometry.py": "0ccc1517a5bedf798f2c136c26fce1efb387eb816e7505a8ce8f5ef7d9777ae3",
+    "solver.py": "8bf1bcd203747face921cbcebe3933402d4855298da26cdf72c735e801c6f0c3",
+    "structural.py": "74227cb17afcf029083528f4342186f273ca91b32e43dfaead490eea0dbd8d52",
+    "v2_control.py": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a",
+    "v2_geometry.py": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4",
+    "v2_inputs.py": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528",
+    "v2_policy.py": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20",
+    "v2_process.py": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794",
+    "v2_verdict.py": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+  },
+  "reference_files": [
+    {
+      "path": "cases/04_gripper/reference/geometry_0000.npz",
+      "bytes": 48863,
+      "sha256": "f71173ef162d5afdab6e4e5c7c0a6c79d3ee4f4bf27fba757ee4704075a3a2fb"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0001.npz",
+      "bytes": 49147,
+      "sha256": "7bed19e4f285dfdb632f44b2a098a3337acfc7303709b239fdcc6a69ced4247a"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0002.npz",
+      "bytes": 122653,
+      "sha256": "bcf5624abc3ae2c9046220abbf8a11e123c7ca59c90c0ff7ca10bd90e605b947"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0003.npz",
+      "bytes": 261599,
+      "sha256": "94cfeefcf5df4e92fc49d5d493f6303f4f33fd04fc117b34506a77687c5c0b1b"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0004.npz",
+      "bytes": 263842,
+      "sha256": "30fbe0cd62eeb6789def7d71770d82f48df535fcc5116f26284326913e164eba"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0005.npz",
+      "bytes": 43876,
+      "sha256": "88e587d9ab7550adf77f6da465e152c837b7aa4d1426c1228b65ec1e4a665370"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0006.npz",
+      "bytes": 164954,
+      "sha256": "8db2e2bace733585270ec6931e44ba65f5518a0f2aa764e110c87d542bf83ac6"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0007.npz",
+      "bytes": 9805,
+      "sha256": "b63d49978287412ae9a96d5173d4a18a03c7bc682bca482af285e90c609b6bc2"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0008.npz",
+      "bytes": 835,
+      "sha256": "4e2255e244b55efb0b1c360639f2084d9ba8871c7d8c970c72a1df08feed05e7"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0009.npz",
+      "bytes": 842,
+      "sha256": "861911772a631bc563c97828802fefedf561e50ed7ee9b5b623e27f2cb2949dd"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0010.npz",
+      "bytes": 4109,
+      "sha256": "52bb7e7f0daf0ec0cba1d312cb7aafa7a67c53f55081c051410a8340ca3bbd7d"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0011.npz",
+      "bytes": 4126,
+      "sha256": "8d75d1a4898af8bdfaf72541ce2d0f06984280e809f12d440a94670e7052d2e6"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0012.npz",
+      "bytes": 4121,
+      "sha256": "044fcc5cbb4948b18c05578c9ab7e76cba4b252bbd1aa55ec202a99d6904d9a4"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0013.npz",
+      "bytes": 4108,
+      "sha256": "3eafa74bcd7af9c42591c05c5ed71ab2c7ea6a7ef7c5fedf85c8fa6c682a051f"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0014.npz",
+      "bytes": 4126,
+      "sha256": "5433e14a4641217ad65e11ce394228944ae43fe37bb44d5283310b7101f0e60a"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0015.npz",
+      "bytes": 4124,
+      "sha256": "a652d722b1600d376c24a7ccb1fcbf86f8c04780c7ce1c7732bb2633976d175c"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0016.npz",
+      "bytes": 52051,
+      "sha256": "6c2d4a73eaae0b975efd1b07d7feb26eeb2f150ea99a86858a1e9145fcaeb493"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0017.npz",
+      "bytes": 44383,
+      "sha256": "ebf706ac5fc32f1d30ed4900875f1255e366b817d4b7a6f359800c989cd968ec"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0018.npz",
+      "bytes": 262170,
+      "sha256": "0138524715038b8b77e1a0152d09702d20df59a68eff0c99a37d34e816ad014a"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0019.npz",
+      "bytes": 727703,
+      "sha256": "da7edbdc1edcedaec682ef1b6282d4ba9de41c22e32ecfc08a3bb4095dcd807a"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0020.npz",
+      "bytes": 25303,
+      "sha256": "d1fe62e1f8d4195e60e11e361c296327898eb7e84185105e43105fabd9a7c386"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0021.npz",
+      "bytes": 25201,
+      "sha256": "10937bb0f848947b3ac9fdc41c0f6edd3319832ad053958d0a87e17d4cf7b37d"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0022.npz",
+      "bytes": 25436,
+      "sha256": "c8787a62c52ce67d40ea1f7543ee3b0c6eb3e861742dea5a7e3dfa5d2c797f62"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0023.npz",
+      "bytes": 25447,
+      "sha256": "e525caba406274c6b523ca5dea9f15c77a356306339d718ce13f9b8fcbed7a1f"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0024.npz",
+      "bytes": 23684,
+      "sha256": "c6f93820a8cdd85a8efe131c50b01ba5de2006c44bba06d18aee93b1d54da8ae"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0025.npz",
+      "bytes": 23764,
+      "sha256": "1ccd4f885c78d3280aac3543828ea4883bd157dc8170a4c1a9621023d3f8bf3c"
+    },
+    {
+      "path": "cases/04_gripper/reference/geometry_0026.npz",
+      "bytes": 139080,
+      "sha256": "de39de35bb01acd9ad908590e0c25190286e272c7aaadaa33732a4838eb027c1"
+    },
+    {
+      "path": "cases/04_gripper/reference/source_inventory.json",
+      "bytes": 33916,
+      "sha256": "762a1f3315de9ed42fd1694328c8d2134239a03648f7e39a34415fb1d71ae36c"
+    }
+  ],
+  "qualification_receipt_sha256": "fada28adae6999f7dd0cfda7362d629ba8ef85f78eafcce29587b2363ea1bf4e",
+  "qualification_manifest_sha256": "4a87c5ab34bedda9cfe75db907beccb45c9c566dc53c577e3cb05a5d5b98b3c2"
+}

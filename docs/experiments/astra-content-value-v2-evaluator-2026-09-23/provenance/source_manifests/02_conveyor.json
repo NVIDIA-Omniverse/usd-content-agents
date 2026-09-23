@@ -1,0 +1,255 @@
+{
+  "asset_id": "02_conveyor",
+  "name": "Roshbeng circular conveyor CAD assembly",
+  "status": "curated_source_pending_protocol_freeze",
+  "curated_at_utc": "2026-09-21T21:25:17.991382+00:00",
+  "source": {
+    "repository_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware",
+    "commit": "d9ab21ced0a26e09a213a218249ac1938340bae6",
+    "commit_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/commit/d9ab21ced0a26e09a213a218249ac1938340bae6",
+    "retrieval": "Pinned sparse Git checkout of complete conveyor CAD subtree, conveyor supporting files, and repository root documentation. Full repository filename inventory retained.",
+    "primary_geometry": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+    "primary_geometry_sha256": "b906c521cba00b8d69d677281a32d07428634bacea4d5e5e466ce78385a600ef",
+    "original_geometry_modified": false
+  },
+  "license": {
+    "spdx": "MIT",
+    "copyright": "Copyright (c) 2025 roshbeng",
+    "path": "source_repo/LICENSE",
+    "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/LICENSE",
+    "sha256": "6144fd8afc4d2c905690a82f0ab5d0e9a98104f5b357c07fd7907865ed224e65",
+    "scope_evidence": "Repository-root MIT license, no separately stated conveyor license in retrieved files. Preserve LICENSE with redistribution."
+  },
+  "source_structure": {
+    "geometry_formats": [
+      "STEP",
+      "Fusion 360 F3D",
+      "Autodesk Inventor IAM/IPT"
+    ],
+    "main_assembly_components": [
+      {
+        "product_id": "conveyor_model",
+        "product_name": "conveyor_model v4"
+      },
+      {
+        "product_id": "rail",
+        "product_name": "rail"
+      },
+      {
+        "product_id": "box",
+        "product_name": "box"
+      },
+      {
+        "product_id": "support",
+        "product_name": "support"
+      },
+      {
+        "product_id": "part",
+        "product_name": "part"
+      }
+    ],
+    "placed_components": 4,
+    "step_manifold_solid_brep_entities": 3,
+    "step_closed_shell_entities": 6,
+    "includes_source_assembly": true,
+    "native_assembly": "source_repo/CAD models/conveyor_model/conveyor_model_v1/conveyor_model.iam",
+    "native_parametric_source": "source_repo/CAD models/conveyor_model/conveyor_model_v1.f3d",
+    "source_preview": "source_repo/opcuaprojectconveyor/conveyor_model_3d_cad_design.png"
+  },
+  "units": {
+    "geometry_length": "millimeter",
+    "meters_per_geometry_unit": 0.001,
+    "evidence": "Main STEP #7611 LENGTH_UNIT SI_UNIT(.MILLI.,.METRE.), referenced by geometric GLOBAL_UNIT_ASSIGNED_CONTEXT entities. Separate meter unit is used in density."
+  },
+  "source_metadata_retained": {
+    "material_density_kg_per_m3": 7850.0,
+    "evidence": "Four STEP density measure metadata entries. This is source CAD metadata, not a validated operating material assumption.",
+    "up_axis": "Not asserted; assembly placements require remote conversion validation."
+  },
+  "moving_parts": [
+    {
+      "name": "rail",
+      "role": "Annular conveyor rail and integrated roller geometry",
+      "basis": "Source CAD preview and STEP product name. Individual rollers are not separate STEP components.",
+      "motion_status": "Candidate driven rotating assembly; axis and mechanical role require remote geometry inspection under frozen protocol."
+    },
+    {
+      "name": "box",
+      "role": "Object carrier placed on circular conveyor",
+      "basis": "Source preview label Box and separate STEP product.",
+      "motion_status": "Candidate contact-driven carried body; must not be animated along a path to claim solver-driven transfer."
+    },
+    {
+      "name": "part",
+      "role": "Target object/payload",
+      "basis": "Source preview label Target Object and separate STEP product; corresponding pick part is also provided.",
+      "motion_status": "Candidate free rigid body for transfer/retention measurement."
+    },
+    {
+      "name": "support",
+      "role": "Base and supports",
+      "basis": "Source preview labels and separate STEP product.",
+      "motion_status": "Candidate fixed support."
+    }
+  ],
+  "intended_task": {
+    "description": "Physics-solver-driven circular conveyor transfer: contact carries the payload or carrier around the annular track under prescribed conveyor actuation.",
+    "stage": "Only source curation completed. Root must freeze exact task/protocol before conversion, baselines, modifications, or repairs.",
+    "success_not_claimed": true
+  },
+  "simulation_readiness_screen": {
+    "preauthored_simulator_asset": false,
+    "evidence": [
+      "Full repository filename tree contains no URDF, SDF, USD, MJCF, Simscape model, or physics scene file.",
+      "Main STEP has 0 KINEMATIC entities and 0 INERTIA text occurrences; ordinary CAD density metadata exists and is preserved.",
+      "Conveyor Python script imports RPi.GPIO and drives a physical PWM servo; it was inspected as text and not executed.",
+      "Native Fusion/Inventor assembly files are retained intact; their internal CAD mates are not claimed absent."
+    ],
+    "scope_limit": "This is a source-screen finding, not a proof of successful import or mechanical correctness."
+  },
+  "limitations": [
+    "Circular conveyor rather than linear belt. Root protocol must explicitly accept the task variant.",
+    "Roller geometry is integrated in the rail component; per-roller articulation is not present as independent STEP components.",
+    "Source preview is evidence of author-intended geometry, not a locally converted render.",
+    "No CAD conversion, simulation, baseline arm, repair arm, or physics benchmark has been run locally. All such compute is reserved for the designated 4-GPU Horde node."
+  ],
+  "snapshot": {
+    "path": "conveyor_source_snapshot.zip",
+    "bytes": 1985233,
+    "sha256": "3b5685e03faf5a9317c2332651983b3c706a48f79c9e5a88f3324a0f586ee6dc"
+  },
+  "rejected_candidate": {
+    "repository_url": "https://github.com/TszLokErinNg/ConveyorBeltCAD",
+    "commit": "ca1af10511f3ad58768be27a8036105e33d0c96a",
+    "path": "rejected_sources/TszLokErinNg_ConveyorBeltCAD",
+    "reason": "Contains a Simscape Multibody Import XML with 15 part masses, centers of mass and inertia tensors plus 90 constraints. Do not strip its physics and call it geometry-only. Also contains identified McMaster-Carr components with source-specific licensing uncertainty."
+  },
+  "files": [
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor individual components in step format/base_and_support v3.step",
+      "repository_path": "CAD models/conveyor_model/conveyor individual components in step format/base_and_support v3.step",
+      "bytes": 81111,
+      "sha256": "2b03446f045574681860127ec6a44f4d9e9c69b11edabeee1df59e860ed88a01",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor%20individual%20components%20in%20step%20format/base_and_support%20v3.step"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor individual components in step format/box v2.step",
+      "repository_path": "CAD models/conveyor_model/conveyor individual components in step format/box v2.step",
+      "bytes": 16503,
+      "sha256": "c6050776b8b6b3fda5c480e27257aa73176b967902b8203f0102c87bd435da37",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor%20individual%20components%20in%20step%20format/box%20v2.step"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor individual components in step format/pick v2.step",
+      "repository_path": "CAD models/conveyor_model/conveyor individual components in step format/pick v2.step",
+      "bytes": 39713,
+      "sha256": "deb16f424479f104647ee5cee59d439014aecb0039031f400117c0fec18ca07b",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor%20individual%20components%20in%20step%20format/pick%20v2.step"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor individual components in step format/rail v2.step",
+      "repository_path": "CAD models/conveyor_model/conveyor individual components in step format/rail v2.step",
+      "bytes": 380817,
+      "sha256": "e4a0d2c5f2d3d26bdc0098cd0c58890a7dc4f8c5ebb1a682d669a4038289423e",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor%20individual%20components%20in%20step%20format/rail%20v2.step"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/box.ipt",
+      "repository_path": "CAD models/conveyor_model/conveyor_model_v1/box.ipt",
+      "bytes": 75264,
+      "sha256": "59829490a42a4391027f42ef8b0ba321ba8fa023a011b06c646fdedee41f1965",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor_model_v1/box.ipt"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/conveyor_model.iam",
+      "repository_path": "CAD models/conveyor_model/conveyor_model_v1/conveyor_model.iam",
+      "bytes": 66048,
+      "sha256": "a2db0b7a6cda924b1e01ec182b663071242003576cdd3d2085779f8ab768f2a3",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor_model_v1/conveyor_model.iam"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/part.ipt",
+      "repository_path": "CAD models/conveyor_model/conveyor_model_v1/part.ipt",
+      "bytes": 92160,
+      "sha256": "72aee9aa6f6f40f926ef4b043ffabd38767a5f14e48cb20fea57f2a20d4aa427",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor_model_v1/part.ipt"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/rail.ipt",
+      "repository_path": "CAD models/conveyor_model/conveyor_model_v1/rail.ipt",
+      "bytes": 238592,
+      "sha256": "83cc80e7be6475e0ea25dead62e184234e03e1b1793c02400deb1c6b033b2a46",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor_model_v1/rail.ipt"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1/support.ipt",
+      "repository_path": "CAD models/conveyor_model/conveyor_model_v1/support.ipt",
+      "bytes": 144384,
+      "sha256": "586f196475c215347b4002106c11a790bfd8ebc352f7525746217aadb9b3cdf7",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor_model_v1/support.ipt"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1.f3d",
+      "repository_path": "CAD models/conveyor_model/conveyor_model_v1.f3d",
+      "bytes": 696203,
+      "sha256": "9032c584d5f4a5d4455abf81f95ade6358c71b7da0eb0045a4bb435a2b51e675",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor_model_v1.f3d"
+    },
+    {
+      "path": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "repository_path": "CAD models/conveyor_model/conveyor_model_v1.step",
+      "bytes": 516720,
+      "sha256": "b906c521cba00b8d69d677281a32d07428634bacea4d5e5e466ce78385a600ef",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/CAD%20models/conveyor_model/conveyor_model_v1.step"
+    },
+    {
+      "path": "source_repo/LICENSE",
+      "repository_path": "LICENSE",
+      "bytes": 1065,
+      "sha256": "6144fd8afc4d2c905690a82f0ab5d0e9a98104f5b357c07fd7907865ed224e65",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/LICENSE"
+    },
+    {
+      "path": "source_repo/README.md",
+      "repository_path": "README.md",
+      "bytes": 9685,
+      "sha256": "48ab5a758f54b4e0fa9bdc935a40d7330d05073658a0438d7d48d7b70ae2e8d1",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/README.md"
+    },
+    {
+      "path": "source_repo/opcuaprojectconveyor/conveyor_model_3d_cad_design.png",
+      "repository_path": "opcuaprojectconveyor/conveyor_model_3d_cad_design.png",
+      "bytes": 565344,
+      "sha256": "184ddc42a7295df3afd34f162ce1bdb9018152cab393f7a540383a3abd000d52",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/opcuaprojectconveyor/conveyor_model_3d_cad_design.png"
+    },
+    {
+      "path": "source_repo/opcuaprojectconveyor/opcua_conveyor_server.py",
+      "repository_path": "opcuaprojectconveyor/opcua_conveyor_server.py",
+      "bytes": 3604,
+      "sha256": "232cd5c00d8a5810732e68fc92efe106984edfad118707e0f7329f107b0749ab",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/opcuaprojectconveyor/opcua_conveyor_server.py"
+    },
+    {
+      "path": "source_repo/opcuaprojectconveyor/shutdownbutton.py",
+      "repository_path": "opcuaprojectconveyor/shutdownbutton.py",
+      "bytes": 446,
+      "sha256": "066b933ebe87a3430cca9e7e22c770e11f432c984b203f371b4e75f6bafdba85",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/opcuaprojectconveyor/shutdownbutton.py"
+    },
+    {
+      "path": "source_repo/opcuaprojectconveyor/the_electronic_circuit_of_the_conveyor_model.PNG",
+      "repository_path": "opcuaprojectconveyor/the_electronic_circuit_of_the_conveyor_model.PNG",
+      "bytes": 71944,
+      "sha256": "08f659b15f71330bae9df514e4fd28d1923ae2db132a806c9c32688853b6d0f2",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/opcuaprojectconveyor/the_electronic_circuit_of_the_conveyor_model.PNG"
+    },
+    {
+      "path": "source_repo/requirements.txt",
+      "repository_path": "requirements.txt",
+      "bytes": 16,
+      "sha256": "eb0f85c6c3454d1ce4b30a4192943682267e9ec2c8312186af4537b8574c06b9",
+      "source_url": "https://github.com/roshbeng/opcua_fusion_test_servers_and_hardware/blob/d9ab21ced0a26e09a213a218249ac1938340bae6/requirements.txt"
+    }
+  ]
+}

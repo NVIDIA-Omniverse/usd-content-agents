@@ -1,0 +1,358 @@
+{
+  "qualified": true,
+  "rows": [
+    {
+      "case_id": "08_excavator",
+      "variant": "positive",
+      "qualified": true
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "wrong_branch",
+      "joint_role": "boom_pivot",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:boom_pivot",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:boom_pivot"
+      ]
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "reversed_endpoints",
+      "joint_role": "boom_pivot",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:boom_pivot",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:boom_pivot"
+      ]
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "wrong_branch",
+      "joint_role": "stick_pivot",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:stick_pivot",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:stick_pivot"
+      ]
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "reversed_endpoints",
+      "joint_role": "stick_pivot",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:stick_pivot",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:stick_pivot"
+      ]
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "wrong_branch",
+      "joint_role": "bucket_pivot",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:bucket_pivot",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:bucket_pivot"
+      ]
+    },
+    {
+      "case_id": "08_excavator",
+      "variant": "reversed_endpoints",
+      "joint_role": "bucket_pivot",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:bucket_pivot",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:bucket_pivot"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "positive",
+      "qualified": true
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "thumb_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:thumb_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:thumb_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "thumb_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:thumb_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:thumb_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "thumb_ip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:thumb_ip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:thumb_ip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "thumb_ip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:thumb_ip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:thumb_ip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "index_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:index_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:index_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "index_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:index_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:index_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "index_pip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:index_pip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:index_pip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "index_pip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:index_pip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:index_pip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "index_dip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:index_dip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:index_dip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "index_dip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:index_dip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:index_dip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "middle_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:middle_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:middle_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "middle_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:middle_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:middle_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "middle_pip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:middle_pip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:middle_pip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "middle_pip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:middle_pip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:middle_pip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "middle_dip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:middle_dip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:middle_dip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "middle_dip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:middle_dip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:middle_dip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "ring_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:ring_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:ring_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "ring_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:ring_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:ring_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "ring_pip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:ring_pip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:ring_pip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "ring_pip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:ring_pip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:ring_pip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "ring_dip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:ring_dip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:ring_dip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "ring_dip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:ring_dip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:ring_dip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "little_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:little_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:little_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "little_mcp",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:little_mcp",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:little_mcp"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "little_pip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:little_pip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:little_pip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "little_pip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:little_pip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:little_pip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "wrong_branch",
+      "joint_role": "little_dip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:little_dip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:little_dip"
+      ]
+    },
+    {
+      "case_id": "10_complex",
+      "variant": "reversed_endpoints",
+      "joint_role": "little_dip",
+      "qualified": true,
+      "expected_failure": "source_grounded_joint_endpoints:little_dip",
+      "actual_failures": [
+        "source_grounded_joint_endpoints:little_dip"
+      ]
+    }
+  ],
+  "model_calls": 0,
+  "native_solver_calls": 0,
+  "author_output_used": false
+}

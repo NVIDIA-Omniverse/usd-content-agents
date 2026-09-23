@@ -1,0 +1,35 @@
+{
+  "model_calls": 0,
+  "native_solver_calls": 0,
+  "passed": true,
+  "script_provenance": [
+    {
+      "copied_sha256": "db8ff7a222ab4ab0d62a3988bde08397438afc7785db3745c1168c635c3ef2bd",
+      "copied_to": "output/astra-content-value-20260922-rerun/evaluator/qualification/source_hook_controls/04_gripper/case04_structure_fixtures.py",
+      "sha256": "db8ff7a222ab4ab0d62a3988bde08397438afc7785db3745c1168c635c3ef2bd",
+      "source": "<PRIVATE_RUNTIME_LOCATOR_c16e3be335e774f0>"
+    },
+    {
+      "copied_sha256": "9b6d21f44eb47028c2e548f2ddc7b37925cf593855e9ce72dd860ccf36ab2b6e",
+      "copied_to": "output/astra-content-value-20260922-rerun/evaluator/qualification/source_hook_controls/04_gripper/case04_source_probe.py",
+      "sha256": "644d9aee1811512f6847569d87cf9ecfc31a9eebb0019bad15baec5517d23f37",
+      "source": "<PRIVATE_RUNTIME_LOCATOR_b3eb3745ec92ea86>"
+    },
+    {
+      "copied_sha256": "503a23cf86a78e28de1d41e10d9aade373adb17d5497904bd08995c44a998223",
+      "copied_to": "output/astra-content-value-20260922-rerun/evaluator/qualification/source_hook_controls/09_printer/case09_placement.py",
+      "sha256": "503a23cf86a78e28de1d41e10d9aade373adb17d5497904bd08995c44a998223",
+      "source": "<PRIVATE_RUNTIME_LOCATOR_0f50832b415e2654>"
+    },
+    {
+      "copied_sha256": "8245c34c5d8c1d8f2105c1858c824b34b32d0184b444fbd58a742856690c7f27",
+      "copied_to": "output/astra-content-value-20260922-rerun/evaluator/qualification/source_hook_controls/09_printer/case09_placement_fixtures.py",
+      "sha256": "8245c34c5d8c1d8f2105c1858c824b34b32d0184b444fbd58a742856690c7f27",
+      "source": "<PRIVATE_RUNTIME_LOCATOR_a8d5ff72a58b129d>"
+    }
+  ],
+  "source04_original_rays_and_sign_passed": true,
+  "source09_placement_exact_rebuilt_json_equality": true,
+  "synthetic_role_ancestry_controls": 7,
+  "synthetic_source_placement_controls": 5
+}

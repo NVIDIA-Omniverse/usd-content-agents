@@ -1,0 +1,326 @@
+{
+  "asset_id": "10_complex",
+  "candidate_physics_task": {
+    "candidate_observables": [
+      "contact-driven closing sequence",
+      "object slip under a specified disturbance",
+      "tendon tension and actuator effort",
+      "joint-limit violations and release behavior"
+    ],
+    "description": "Fix the palm, drive the five tendon winders and thumb-abduction servo, and close around cylinders of several diameters. Later assess whether the distal phalanges continue wrapping after proximal contact, then whether the grasp withstands a specified pull before controlled release.",
+    "name": "Adaptive tendon-driven cylindrical grasp and retention",
+    "physics_parameters_authored": false,
+    "required_mechanisms": [
+      "15 hand joints",
+      "5 tendon transmissions with elastic return",
+      "6 actuator inputs",
+      "multiple simultaneous self/object contacts"
+    ],
+    "simulation_or_benchmark_run": false,
+    "status": "proposal_only_not_executed",
+    "task_geometry_created": false
+  },
+  "category": "very_complex_articulated_mechanism",
+  "created_at_utc": "2026-09-21T21:48:36.534096+00:00",
+  "curation_agent": "agent10",
+  "curation_document": "CURATION.md",
+  "dependencies": {
+    "all_main_repository_files_retained": true,
+    "assembly_source_reference_records": 24,
+    "embedded_shapes": "All referenced Shape members are present in the inspected native documents.",
+    "git_lfs_pointers": 0,
+    "hardware_consumables": "Fishing line tendons, elastic returns, fasteners and electronics are described by original documentation; complete separate CAD for every consumable is not claimed.",
+    "historical_supplement": {
+      "commit": "3c6fbe3933ea13577e9d69149199c423f717edfd",
+      "commit_url": "https://github.com/Alvipe/Dextra/commit/3c6fbe3933ea13577e9d69149199c423f717edfd",
+      "file": {
+        "bytes": 19988,
+        "path": "dependencies/Dextra-3c6fbe3933ea13577e9d69149199c423f717edfd/Parts/FreeCAD files/winder.fcstd",
+        "resolved_url": "https://raw.githubusercontent.com/Alvipe/Dextra/3c6fbe3933ea13577e9d69149199c423f717edfd/Parts/FreeCAD%20files/winder.fcstd",
+        "retrieved_at_utc": "2026-09-21T21:41:19.967959+00:00",
+        "sha256": "51b1bf1fbd069d32dc5322adda16a19f18b7337b1924d234a2f96e78ce9bf4a1",
+        "url": "https://raw.githubusercontent.com/Alvipe/Dextra/3c6fbe3933ea13577e9d69149199c423f717edfd/Parts/FreeCAD%20files/winder.fcstd"
+      },
+      "geometric_equivalence_to_cached_winder": "Not kernel-verified; cached and historical visible shape topology counts agree.",
+      "license_evidence": {
+        "bytes": 1011,
+        "path": "dependencies/Dextra-3c6fbe3933ea13577e9d69149199c423f717edfd/README.md",
+        "resolved_url": "https://raw.githubusercontent.com/Alvipe/Dextra/3c6fbe3933ea13577e9d69149199c423f717edfd/README.md",
+        "retrieved_at_utc": "2026-09-21T21:41:19.850515+00:00",
+        "sha256": "9806972e48573e6f6b1028ee803263c689d659c2cd3379a8ec683ab4ec0095b9",
+        "url": "https://raw.githubusercontent.com/Alvipe/Dextra/3c6fbe3933ea13577e9d69149199c423f717edfd/README.md"
+      },
+      "reason": "Two assembly definitions still reference winder.fcstd. Upstream removed it when adding spool.fcstd in 3b2f01d01cf07881998076ee06c98b115b10e06c. The exact authored historical file is retained separately, not renamed or substituted into the main snapshot.",
+      "repository_url": "https://github.com/Alvipe/Dextra"
+    },
+    "native_reference_paths_rewritten": false,
+    "native_reference_portability": "All 24 assembly sourceFile references use the author's absolute <PRIVATE_RUNTIME_LOCATOR_88b1a4011d9d95d7> paths and do not directly resolve in this workspace. The inspection report maps them to retained files without changing source.",
+    "reference_records_with_retained_source": 24,
+    "runtime_authoring_dependencies": [
+      {
+        "installed_or_run": false,
+        "name": "FreeCAD",
+        "version_recorded": "0.15R4671 (Git)"
+      },
+      {
+        "exact_addon_revision": "Not recorded upstream; not guessed or installed.",
+        "modules": [
+          "importPart.Proxy_importPart",
+          "assembly2lib.ConstraintObjectProxy",
+          "viewProviderProxies.ConstraintMirrorObjectProxy"
+        ],
+        "name": "Assembly2 Python proxies"
+      },
+      {
+        "installed_or_run": false,
+        "module": "OpenSCADFeatures.RefineShape",
+        "name": "FreeCAD OpenSCAD workbench proxy"
+      }
+    ],
+    "submodules": []
+  },
+  "evidence": {
+    "bytes": 2785,
+    "path": "provenance/evidence.json",
+    "sha256": "2ea64c712999c30d38dc75c2d859b0bd670609542bd1df84d709bda0871aaaaf"
+  },
+  "formats": {
+    "cad_converted_or_exported": false,
+    "companion_formats": [
+      "STL (authored printable parts)",
+      "PDF (authored assembly instructions)",
+      "C++/Arduino/Python (retained hardware control source)"
+    ],
+    "primary": "Native FreeCAD .fcstd/.FCStd containing Document.xml, placements, assembly proxies, and OpenCASCADE BRep geometry",
+    "saved_by": "FreeCAD 0.15R4671 (Git)",
+    "single_fused_mesh": false,
+    "step_present": false
+  },
+  "integrity_inventory": "SHA256SUMS",
+  "intended_articulation": {
+    "actuator_count": 6,
+    "count_excludes": "Motor internals, spool shaft coordinates, CAD mate mirror objects and fixed fasteners.",
+    "coupling": "Each three-joint finger has one tendon actuator. Contact and elastic returns determine sequential phalanx motion; those joints are not independently controlled.",
+    "drive": "Five DC gearmotors wind one tendon per digit; one RC servo actuates thumb abduction/adduction. Elastic joint returns extend the fingers.",
+    "evidence_section": "Underactuated, adaptive grip",
+    "evidence_type": "Author-stated intended hand DOFs, consistent with assembly component names; not a kinematic solver result.",
+    "evidence_url": "https://hackaday.io/project/9890-dextra/details",
+    "finger_flexion_joints": 12,
+    "hand_joint_count": 15,
+    "thumb_abduction_adduction_joints": 1,
+    "thumb_flexion_joints": 2
+  },
+  "license": {
+    "attribution": "Dextra by Alvaro Villoslada, https://github.com/Alvipe/Dextra, CC BY-SA 4.0. Original CAD unmodified; curation inventory and inspection reports added.",
+    "cad_and_documentation_spdx": "CC-BY-SA-4.0",
+    "code": "Repository declares GPL v3; this does not change the separate CAD license.",
+    "commercial_use_permitted_under_license": true,
+    "explicit_grant": {
+      "browser_url": "https://github.com/Alvipe/Dextra/blob/33203e128c3d3c4292f41d32275cb336cd211733/README.md",
+      "bytes": 3816,
+      "git_blob_sha1": "2bd826923d9c30e8fa657ae0bfb27bad81a10781",
+      "git_blob_verified": true,
+      "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/README.md",
+      "raw_url": "https://raw.githubusercontent.com/Alvipe/Dextra/33203e128c3d3c4292f41d32275cb336cd211733/README.md",
+      "repository_path": "README.md",
+      "sha256": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83"
+    },
+    "legalcode_url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode.en",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "native_metadata_caveat": "17 of 19 source FreeCAD documents contain the string All rights reserved; 2 specify CreativeCommons Attribution-ShareAlike with the CC BY-SA 4.0 URL. This conflicts with the repository-wide explicit CAD grant; it is preserved and disclosed, not silently rewritten.",
+    "obligations": [
+      "Credit Alvaro Villoslada / Dextra and retain source and license links.",
+      "Indicate modifications; source files in this curation are unmodified.",
+      "Share adaptations under CC BY-SA 4.0 or a compatible license and do not impose additional restrictions."
+    ],
+    "retained_license_text": {
+      "bytes": 18375,
+      "path": "provenance/CC-BY-SA-4.0.txt",
+      "resolved_url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/CC-BY-SA-4.0.txt",
+      "retrieved_at_utc": "2026-09-21T21:41:19.971490+00:00",
+      "sha256": "cde7883b9050a1104f4ac19a1572aafd6e5d7323b68351aaf51fbf4beba54966",
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/CC-BY-SA-4.0.txt"
+    },
+    "third_party_code": [
+      {
+        "evidence": "Notice in original MsTimer2.cpp and MsTimer2.h retained; LGPL text also retained.",
+        "license": "LGPL-2.1-or-later",
+        "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Firmware/Teensy31/lib/MsTimer2"
+      }
+    ],
+    "third_party_geometry_caveat": "Pololu gearmotor and Turnigy servo geometry is retained as published by the project under its CAD grant. Separate manufacturer model provenance/permission is not established by this read-only curation."
+  },
+  "not_simulation_ready": {
+    "mass_inertia_friction_damping_properties_found": [],
+    "physics_or_robot_descriptors_removed": false,
+    "reasons": [
+      "Native CAD mates and absolute import paths encode design assembly relationships, not a simulator joint/link tree.",
+      "No URDF, Xacro, MJCF, SDF, USD physics asset or other standalone XML simulator description is present in the complete source snapshot.",
+      "No rigid-body masses/inertias, contacts, collision proxies, joint limits, motor drives or tendon dynamics are supplied by the inspected CAD properties.",
+      "Tendon/elastic routing and force laws require modeling; CAD part placement alone does not specify underactuated contact behavior.",
+      "Top-level subassembly caches are shell compounds, and the thumb abductor cache has 50 faces versus 51 in the separate source part."
+    ],
+    "simulation_descriptor_filename_matches": [],
+    "source_was_simulation_asset": false
+  },
+  "primary_file": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd",
+  "primary_file_bytes": 22271936,
+  "primary_file_sha256": "62fc1bafe7b91b362549b1c24e61f12f2da75bd2c85bb8cad40369923f3ffdfe",
+  "schema_version": "1.0",
+  "scope_compliance": {
+    "activities": [
+      "public web browsing",
+      "original source downloads",
+      "ZIP extraction preserving file bytes",
+      "read-only structural inspection",
+      "provenance and curation documentation"
+    ],
+    "benchmark_runs": false,
+    "geometry_conversion": false,
+    "geometry_repair": false,
+    "gpu_actions": false,
+    "other_model_calls": false,
+    "physics_stripping": false,
+    "simulation": false,
+    "writes_confined_to": "<PRIVATE_RUNTIME_LOCATOR_73ae1378b0bdf383>"
+  },
+  "size": {
+    "downloaded_cad_source_plus_archive_bytes": 105640471,
+    "expanded_primary_repository_bytes": 53695319,
+    "historical_cad_dependency_bytes": 19988,
+    "original_archive_bytes": 51925164,
+    "under_300_decimal_MB": true
+  },
+  "source": {
+    "all_source_git_blob_sha1_verified": true,
+    "archive": {
+      "bytes": 51925164,
+      "path": "downloads/Dextra-33203e128c3d3c4292f41d32275cb336cd211733.zip",
+      "retrieved_at_utc": "2026-09-21T21:38:30.696969+00:00",
+      "sha256": "e6194ece382fb73a27fa420a203f5cfee3c797b97ce529f4f054713fc002a8c2",
+      "url": "https://codeload.github.com/Alvipe/Dextra/zip/33203e128c3d3c4292f41d32275cb336cd211733"
+    },
+    "author": "Alvaro Villoslada (Alvipe / alvipe)",
+    "author_project_url": "https://hackaday.io/project/9890-dextra",
+    "commit": "33203e128c3d3c4292f41d32275cb336cd211733",
+    "commit_message": "Added assembly instructions",
+    "commit_signature_verified": false,
+    "commit_timestamp_utc": "2016-09-06T18:24:48Z",
+    "commit_url": "https://github.com/Alvipe/Dextra/commit/33203e128c3d3c4292f41d32275cb336cd211733",
+    "entire_snapshot_retained": true,
+    "expanded_snapshot_path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733",
+    "expanded_source_bytes": 53695319,
+    "git_tree_sha1": "98929d687efa2dcf86325306f3c33d68f4a196b9",
+    "originality": "Author-authored FreeCAD manufacturing/design source and authored companion STL exports. No simulator input was stripped or used to generate this source.",
+    "per_file_sha256_and_commit_urls": {
+      "bytes": 37953,
+      "path": "provenance/file_inventory.json",
+      "sha256": "5be92a04dfdf06a175f6743d6e9c2ca891cffffbb42ea626957f4820ebb2a8af"
+    },
+    "primary_cad_browser_url": "https://github.com/Alvipe/Dextra/blob/33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD%20files/Assembly/dextra.fcstd",
+    "primary_cad_raw_url": "https://raw.githubusercontent.com/Alvipe/Dextra/33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD%20files/Assembly/dextra.fcstd",
+    "repository_url": "https://github.com/Alvipe/Dextra",
+    "retrieval_record": {
+      "bytes": 4280,
+      "path": "provenance/downloads.json",
+      "sha256": "be94e28c092af1d9dfba557686ac5e6c205a29df4a0010e014f2c7de4aade3d0"
+    },
+    "source_changes": [],
+    "source_files": 60
+  },
+  "status": "curated_original_source_with_documented_upstream_caveats",
+  "structure": {
+    "assembly_constraint_records_including_mirrors": 74,
+    "assembly_constraints_excluding_mirrors": 37,
+    "assembly_documents": [
+      {
+        "components": 9,
+        "document_objects": 33,
+        "mate_records_including_mirrors": 24,
+        "mates_excluding_mirrors": 12,
+        "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/dextra.fcstd"
+      },
+      {
+        "components": 7,
+        "document_objects": 33,
+        "mate_records_including_mirrors": 26,
+        "mates_excluding_mirrors": 13,
+        "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/finger_module.fcstd"
+      },
+      {
+        "components": 2,
+        "document_objects": 4,
+        "mate_records_including_mirrors": 2,
+        "mates_excluding_mirrors": 1,
+        "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/thumb.fcstd"
+      },
+      {
+        "components": 6,
+        "document_objects": 28,
+        "mate_records_including_mirrors": 22,
+        "mates_excluding_mirrors": 11,
+        "path": "source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/Parts/FreeCAD files/Assembly/thumb_module.fcstd"
+      }
+    ],
+    "cached_subassembly_caveat": "Five top-level imported subassemblies have compound/shell cached geometry rather than solid records. The separate finger/thumb module files retain component solid records and original mate information. No healing or solid reconstruction was attempted.",
+    "detailed_report": {
+      "bytes": 145970,
+      "path": "inspection/structure.json",
+      "sha256": "4bb6b904a3f445feba431a6ef5aca304b38f5b8ae00462af84d3fdefe370f0c2"
+    },
+    "expanded_leaf_component_occurrences": 39,
+    "expanded_unique_leaf_source_documents": 15,
+    "historical_dependency_documents": 1,
+    "inspection_script": {
+      "bytes": 12368,
+      "path": "inspection/inspect_source.py",
+      "sha256": "44a956a03e9ae3ada777de478707aebc0cea511a1e56e4e37ae09b0c25258365"
+    },
+    "interpretation": "39 is the recursively expanded CAD leaf occurrence count, including fixed hardware; 15 unique leaf source documents. 467 includes feature history. 37 CAD mates (74 with mirrored proxy records) are not 37 physical joints.",
+    "missing_embedded_shape_files": 0,
+    "missing_retained_source_files": 0,
+    "native_license_metadata_counts": {
+      "All rights reserved": 17,
+      "CreativeCommons Attribution-ShareAlike": 2
+    },
+    "physics_property_names_found": [],
+    "references_to_historical_winder": 2,
+    "simulation_descriptor_filename_matches": [],
+    "source_assembly_documents": 4,
+    "source_document_objects": 467,
+    "source_embedded_brep_members": 542,
+    "source_file_reference_records": 24,
+    "source_freecad_documents": 19,
+    "source_part_documents": 15,
+    "source_stl_files": 11,
+    "top_level_cached_brep_record_counts": {
+      "compounds": 6,
+      "edges": 47941,
+      "faces": 16150,
+      "shells": 69,
+      "solids": 4,
+      "vertices": 32175,
+      "wires": 16947
+    },
+    "top_level_component_occurrences": 9
+  },
+  "title": "Dextra: original 15-joint tendon-driven robotic hand",
+  "uncertainties": [
+    "Exact articulation axes, ranges, reference poses and mimic/coupling relations are not supplied as physical joints; CAD mates provide evidence, not final dynamics.",
+    "Tendon routing through channels, slack, compliance, pulley radius under winding, friction and elastic return constants require independent modeling or measurement.",
+    "Mass, density, inertia, motor torque/speed, gear backlash and contact friction are uncalibrated. Hardware firmware gains are not a validated dynamics model.",
+    "Published assembly caches and separately updated parts are not perfectly synchronized: thumb abductor face count differs (50 cached / 51 source). No repair was performed.",
+    "Absolute imports, the historical winder filename and an unrecorded Assembly2 addon version may complicate later recomputation; original BReps, placements and part dependencies are retained.",
+    "Repository licensing is explicit, but native license metadata and the separate origin of commercial component CAD should be reconciled before downstream redistribution decisions.",
+    "No CAD-kernel validity, watertightness, interference, geometric equivalence, volume, bounding-box or simulation checks were performed."
+  ],
+  "units": {
+    "basis": "Native FreeCAD internal length convention, corroborated by App::PropertyLength values in the retained XML; this is not a STEP SI_UNIT declaration.",
+    "bounding_box": "Not measured; no CAD kernel operation performed.",
+    "length": "millimetre",
+    "length_to_metre_scale": 0.001,
+    "official_reference": "https://freecad.github.io/SourceDoc/db/d09/classBase_1_1UnitsSchemaInternal.html",
+    "rotation_storage": "Placement Q0/Q1/Q2/Q3 quaternions; angle-valued FreeCAD properties use degrees.",
+    "up_axis": "Not assigned or inferred as a simulation convention."
+  }
+}

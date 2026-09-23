@@ -1,0 +1,980 @@
+{
+  "all_code_exact": true,
+  "numeric_or_boolean_json_values_changed": false,
+  "python_files": [
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "controller/evaluate_run.py",
+      "sha256": "322e11212f6ead37ebeed483692962248f9c8b148f3e7b51ec3a02223e573897"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "controller/evaluation_driver.py",
+      "sha256": "af56bf5ea48c5a439ca8b5110c55c8c2276bf9557258a37d4127b8a5b562cb3c"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "controller/retain_run.py",
+      "sha256": "2d10bdfe366c07e49074b751e9e4264f8f73b2d71f1c30d59678b278b85c2fdc"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "controller/run_evaluations.py",
+      "sha256": "8d088eb9f17c676112d82877a1c3bc916cd9162868fd21edcfe28bb77eb78b05"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "controller/worker_retention.py",
+      "sha256": "9762142e29ffee0ab2b8a467c11a6859476905055a985d4b86c2764cb97698f3"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/build_package.py",
+      "sha256": "5d1271ec6685ea6f942b668943f9215bfb41794085b6e3be377850f95a7a24e1"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/evaluate.py",
+      "sha256": "95cd3ac11167a703bdaa1695f171f9ac85b1dd7aeec365bd11d46c9b7a295185"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/fixtures.py",
+      "sha256": "4ef97b055ed63f5bec0c11347b4f3bf5e700a6f933850f60346243e1166fde15"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/geometry.py",
+      "sha256": "a7e01e0af5ec964a941c707faf828767cc8dd17649fa86a07a8b029afe1cee14"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/solver.py",
+      "sha256": "51f9b5186dc0394ae3a640c76212925a8359bd3695f228a3afe8b1dc307a8417"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/structural.py",
+      "sha256": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/structural_fixtures.py",
+      "sha256": "e3c06bddb03e6421a4fcae4f635fb07cf6b3c4ffbbb2869a07bdd62dfcf6fd2e"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/02_conveyor/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/evaluate.py",
+      "sha256": "c31dc022ccc5fab5a5d391e6aedbd3c95b836fc8a8f1730ec18a700cef6120c1"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/geometry.py",
+      "sha256": "a7e01e0af5ec964a941c707faf828767cc8dd17649fa86a07a8b029afe1cee14"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/solver.py",
+      "sha256": "79e43d69d81e56d9ee2c791004bf64bfd3d747fc3de55dc330666b00daee7eff"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/structural.py",
+      "sha256": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/03_hinge/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/case04_evaluate.py",
+      "sha256": "f7a15af1784495d4fbd9268dec48a377e55d846023e208d214c6f91009e580af"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/case04_solver.py",
+      "sha256": "47396bc0b3e6e015d916e97ebd17b41199ee9362fafc94519d1dd428c0671047"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/evaluate.py",
+      "sha256": "1d53389e6021279bef7360d4205cf2752767468018011d4043b4a96c5eed5bf0"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/geometry.py",
+      "sha256": "0ccc1517a5bedf798f2c136c26fce1efb387eb816e7505a8ce8f5ef7d9777ae3"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/solver.py",
+      "sha256": "8bf1bcd203747face921cbcebe3933402d4855298da26cdf72c735e801c6f0c3"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/structural.py",
+      "sha256": "74227cb17afcf029083528f4342186f273ca91b32e43dfaead490eea0dbd8d52"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/04_gripper/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/evaluate.py",
+      "sha256": "48a846daff018389bdb28aca85677908cf5216c228b4962dc3874f90357b5f66"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/geometry.py",
+      "sha256": "5f2acc5d3ff01582698a288de51996716fd39d634e3dff355a03e7d7795350c4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/solver.py",
+      "sha256": "19f052b8837fa0bbe5f9d177d65e0d15ddc90f987ef2cce2d67d514ac1e3656c"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/structural.py",
+      "sha256": "7789a0fc53007f7359a3d06d1e0d9cd90509f064885efb7c4c3924d9cf4cb1b0"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/05_vise/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/evaluate.py",
+      "sha256": "1d53389e6021279bef7360d4205cf2752767468018011d4043b4a96c5eed5bf0"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/geometry.py",
+      "sha256": "bc6b128bc3e18b69761e5ff9a91fdfe2a3a8794cdbcf5a54b691e91d6a1f63fd"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/solver.py",
+      "sha256": "667c33a5f7823c04aadca540a5930cfb33c3084dc12da540b1760f44d73d9b3a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/structural.py",
+      "sha256": "c458867794a2d6ed25680d083d4856950255e65ff4184570bd9fe60a0542a610"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/06_engine/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/evaluate.py",
+      "sha256": "1d53389e6021279bef7360d4205cf2752767468018011d4043b4a96c5eed5bf0"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/geometry.py",
+      "sha256": "5948a3442a91ee9b69c1db415559e68c0d2bed3b5a3e581bc1277062aaae532b"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/solver.py",
+      "sha256": "8b0e9319435ee09bea5b885f6253c8431ee1f4d981bd90cb3bf3d5fc412f1cd4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/structural.py",
+      "sha256": "5f29f487fd7f30200f1de755ab851ad5a441e81a223e6575f16cf6d3e69b61c3"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/07_robot_arm/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/case_hooks.py",
+      "sha256": "bc73524830314e305c067e5b0aa9a2494c2e0c9fb3d3b0ca288c370aaca85611"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/evaluate.py",
+      "sha256": "2d4f0748a57a31fbced236e6e65e94d1224ce7a4a78fdb36b5eba1c38e6e33de"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/geometry.py",
+      "sha256": "a7e01e0af5ec964a941c707faf828767cc8dd17649fa86a07a8b029afe1cee14"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/solver.py",
+      "sha256": "20a511bd021febe8ccdd91836201b510f5c6b37182e11dfded9e802478dfb720"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/structural.py",
+      "sha256": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/08_excavator/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/case09_payload.py",
+      "sha256": "2a6c20b761f7ad4aa0f6cabddebc73b20697bb03e7b7ae44bd39832821296d0d"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/evaluate.py",
+      "sha256": "7c8372766f6891fe9fdcaffb22f0ddf21a49fc7e2f2732e65ab3ee8d6c0fe887"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/geometry.py",
+      "sha256": "5948a3442a91ee9b69c1db415559e68c0d2bed3b5a3e581bc1277062aaae532b"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/solver.py",
+      "sha256": "8b0e9319435ee09bea5b885f6253c8431ee1f4d981bd90cb3bf3d5fc412f1cd4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/structural.py",
+      "sha256": "5f29f487fd7f30200f1de755ab851ad5a441e81a223e6575f16cf6d3e69b61c3"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/09_printer/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/case_hooks.py",
+      "sha256": "bc73524830314e305c067e5b0aa9a2494c2e0c9fb3d3b0ca288c370aaca85611"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/evaluate.py",
+      "sha256": "2d4f0748a57a31fbced236e6e65e94d1224ce7a4a78fdb36b5eba1c38e6e33de"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/geometry.py",
+      "sha256": "a7e01e0af5ec964a941c707faf828767cc8dd17649fa86a07a8b029afe1cee14"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/solver.py",
+      "sha256": "20a511bd021febe8ccdd91836201b510f5c6b37182e11dfded9e802478dfb720"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/structural.py",
+      "sha256": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/cases/10_complex/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/common/v2_control.py",
+      "sha256": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/common/v2_geometry.py",
+      "sha256": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/common/v2_inputs.py",
+      "sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/common/v2_policy.py",
+      "sha256": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/common/v2_process.py",
+      "sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/common/v2_verdict.py",
+      "sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/drawer_collision_preflight.py",
+      "sha256": "2118370e6cc66bd694c3c4adac952ab27809235d3c8dd3567adade69537f66db"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/drawer_evaluate.py",
+      "sha256": "0d09a0817da25e592136a24f4391f402eabb93da7620e47a48a9c984663a26d4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/drawer_force_units_probe.py",
+      "sha256": "16251ef980b49430518eea0d1409fedea1e15dd586a16ebf3a69a137649bc565"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/drawer_mesh_collision_probe.py",
+      "sha256": "dafbf7f50b4187ce070f736d4c46b3be1a8ff6e21a7da47b692029904cda1ba5"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/drawer_metrics.py",
+      "sha256": "608b8b4a756f85c32a56d839987791425e19356c3e4792913f07b0a9381d9a82"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/drawer_solver.py",
+      "sha256": "c8779f6ce870b4d3c4885cc63399b0c7ad8425fc2588d261910a9e0f07a7371b"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/drawer_static_binding_test.py",
+      "sha256": "8e84955a1861376fb8a36d3621c107691303ff8ba09d0b751e284a23936a2c13"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/drawer_test_fixtures.py",
+      "sha256": "b5ac1bdf8fd2fe6f15b5463eb9eca06993265fab497c618d052e3c5171bc3f1a"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/prepare_source_clear_fixture.py",
+      "sha256": "75cf05edcc9617da55d20bb1da269749b4f8cade77c9510448fb204363636fcf"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/source_direction_probe.py",
+      "sha256": "18adb2648647b6a276e9789c530ed8878da66262ede38356d6f9ab7ac57f141f"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/drawer/test_drawer_metrics.py",
+      "sha256": "6f1c6fb4866047b9f3839559816bb767a9001374fd80cbdb0f6f70fac3666bb6"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/freeze_package.py",
+      "sha256": "427dc4039fdea34ed36b5f4099823f74a001df323df18caad3e6bbaa132cce57"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/batch_native.py",
+      "sha256": "104c1d9d0b06abbbf9fd098863fa97377c9cef5a23ce258c49775aad05ae22e9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/branch_controls.py",
+      "sha256": "3e39cf46765892331ea83d9a550df2957027b0c2695bde2f9adc9284906228f5"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/calibrate.py",
+      "sha256": "babcda695db82b9c4a535470cdd4b32ae9c1dfe5c105ea5e700dccac66d8f3e8"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/calibration_sources/case04_contact_units_probe.py",
+      "sha256": "0175fe9ddc1d4991ea9b4544d8a6bd27b4d6bbe8ad9ceed9a423a60cfdc1cd84"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/calibration_sources/case04_torque_units_probe.py",
+      "sha256": "ae2c392d3b049c759588caa165ff2f39b9b71e418f74929d0041a759d627a6f5"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/calibration_sources/drawer_force_units_probe.py",
+      "sha256": "16251ef980b49430518eea0d1409fedea1e15dd586a16ebf3a69a137649bc565"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/calibration_sources/gravity_witness_v2.py",
+      "sha256": "8b1d1f175d99908a9d44051dfd67e003e1fdef9404c6ffd6497ed2e62cb7ac6b"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/cam_batch.py",
+      "sha256": "b1ea3ac8db59cb26425e80073ebc353fa1033d130e07ec7c5caa4f2cad276076"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/cam_linkage.py",
+      "sha256": "00f742b1da79f7b3cb2146aa28c691ada0d8be2386a9f8a8b1b927027ad8a7e5"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/create_node0_leaf.py",
+      "sha256": "de81a39ed0b3fdae097285844dcec9d652c0fe16b951bff1f93722e32e02b8e4"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/limited_evaluation_run.py",
+      "sha256": "1e75c10c3248b22d9259035fc369be04d20009a56150f9256a5f2b33bc14f921"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/limited_run.py",
+      "sha256": "76636ff0588ed04e5d63d7d1dfd99eed52f83a992b0c692e28e495eebbd06e3b"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/native_qualify.py",
+      "sha256": "5d97751ddc3d12d25ad091846d69e8d9d65ed6ca19540bbe0c03822971db4db2"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/reference_disposition.py",
+      "sha256": "959753d64139bcce47cd87ea18c2ccdd1f6328579614b34f294f9dca626ebee9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/source_hooks.py",
+      "sha256": "cd8058b9645e96c4031c917d6d21165b7cd20fab02dce746a5ebef37f86f6fc5"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/source_performance_batch.py",
+      "sha256": "03d9b99a57dbe3b881d78e463f243e2ce50edab6785cdb9b296fe3918b942a17"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/source_performance_evaluation_batch.py",
+      "sha256": "879c5314b0c449ca17b2a874bd486a1c9c29843d200d949c12c3ae1b1b3add85"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/source_roundtrip.py",
+      "sha256": "ace2e1f8ab065c69a3fa348159f9252ddfa126eeead5c092dd0dd72ad701d9da"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/source_stage.py",
+      "sha256": "1d88d71dd61f45b77ba64ded600ebe5d955f9cecbc7c00624e596162ea1c32de"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/qualification/structural_batch.py",
+      "sha256": "8faab7e64dc5a78227937c6b3c81d616688348685c21b5cb36ad39ffbeedc74f"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/reproduction/builders/align_reference_rebuild_by_hash.py",
+      "sha256": "f31255ff371c23aa7341ff591dcfbe9ee5dbfd292e252c91cf6bd7efaab252b3"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/reproduction/builders/case08_10/case_source_freeze.py",
+      "sha256": "7a0a66479ff40f9054310cb38f982adb2e4c6f92ef62897c72790c3aea2f75e7"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/reproduction/builders/general/case09_placement.py",
+      "sha256": "503a23cf86a78e28de1d41e10d9aade373adb17d5497904bd08995c44a998223"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/reproduction/builders/general/common.py",
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/reproduction/builders/general/finalize_roles.py",
+      "sha256": "13f399c241e38e05ccbeafefa0b15f20c9cdc2954ea97e3866ecfb3b37f9eb38"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/reproduction/builders/general/freeze_dataset.py",
+      "sha256": "51c17653fef11a1dac627749af458de9cf0c188ec7843d30ea148852c0b242ef"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/reproduction/builders/general/geometry.py",
+      "sha256": "8ed38f600d338cca30a3d4d6bcbe7a511922e41598b1189f4dde823ef6e464f1"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/tests/test_author_inputs_v2.py",
+      "sha256": "431a69a6bfede5705b09ec82c5ba8df132f1a59e6d169cbb44271268739c334d"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/tests/test_calibration_dependency.py",
+      "sha256": "6b297839970a969041f10c16ff9dcada1b02ac8ec2b3339880fa4409d54f8ace"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/tests/test_freeze_and_budgets.py",
+      "sha256": "f9875e726fd6cd968c32f66392c16d767dfffe48cf58dd55f4f8a69c09b6af81"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "evaluator/tests/test_measurement_v2.py",
+      "sha256": "c156e8f79dab640c115194ad98a49e65894218d46715e88e14bdeeb9039bb57b"
+    },
+    {
+      "ast_parse_passed": true,
+      "exact_original": true,
+      "path": "controller/publication.py",
+      "sha256": "100339638100c2264c192710164d062f6adfdb99653b7dd48d7663b172ba6581"
+    }
+  ],
+  "schema_version": "evaluator-publication-static.v1",
+  "scope": "Local syntax and privacy checks only. No simulation, author artifact, workflow/model invocation or new functional qualification."
+}

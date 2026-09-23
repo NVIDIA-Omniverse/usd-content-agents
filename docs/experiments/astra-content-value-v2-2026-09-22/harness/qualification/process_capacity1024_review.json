@@ -1,0 +1,10 @@
+{
+  "local_tests": {
+    "passed": 78,
+    "path": "harness/qualification/local_controller_05/receipt.json",
+    "sha256": "2e54a138bba8892d742d37df8d1e916ec941777622fd22bd2df8da1835bb9484"
+  },
+  "model_calls": 0,
+  "schema_version": "process-capacity-review.v2",
+  "status": "PASS"
+}

@@ -1,0 +1,314 @@
+{
+  "schema_version": "additional-companion-delivery.v2",
+  "created_utc": "2026-09-23T05:24:14.096499+00:00",
+  "status": "VERIFIED_LOCAL_DELIVERY_NOT_UPLOADED",
+  "archive_name": "additional_publication_v2.tar.gz",
+  "archive_sha256": "a58fe0ba18b75f1917a17d5dfa12655e4d7d24ef035a3aab2b2ba20a203d6e30",
+  "archive_bytes": 95306294,
+  "manifest_sha256": "7e6b0d27b703899a92a3df5aea6613a1d3fe6247c1f5543373e803e7880898cf",
+  "regular_file_members": 45,
+  "uncompressed_file_bytes": 212714475,
+  "submitted_payload_files": 26,
+  "submitted_payload_bytes": 212177755,
+  "determinism": {
+    "gzip_filename": "",
+    "gzip_mtime": 0,
+    "compression_level": 6,
+    "tar_format": "PAX",
+    "member_order": "lexicographic",
+    "member_mtime": 0,
+    "uid": 0,
+    "gid": 0,
+    "mode": "0644",
+    "second_independent_stream_matches": true
+  },
+  "verification": {
+    "all_members_regular_no_links": true,
+    "exact_membership_and_each_digest_verified": true,
+    "source_directory_unchanged_after_pack": true,
+    "portable_verifier_passed": true,
+    "no_git_release_upload_or_author_code_execution": true
+  },
+  "v1_archive_sha256_unchanged": "e3ad9719a609ac556aeca39a15a109038eb2eb89952bb0a5667dc3b569d1dbe5",
+  "build_script_sha256": "85cf1500069e298641d6d97b73c38a3f2139c75e95c10d09f651e0e873e8c9ad",
+  "packing_script_sha256": "2dc7c549f3710f4597f54367b4228bc79d2098cb8f36274359c7a9e1f87d6973",
+  "qualification": {
+    "additional_v2_verify.log": "926a6c84686d9fb968ea0e48773aa95c6ef1138b28aad6887412649c45d907f2",
+    "additional_v2_usd_verify.log": "b83985e0eb69b9d360e8e88f12f4f5eec3141bba9991029042bd31e2f4d1700a",
+    "additional_v2_tests.log": "087cf38c949e81a65f48dd73386353dae54209196f724e3d16740a50dc7832af",
+    "test_additional_verifier_v2.py": "e09387116c93695ba15f0c6ee1386e55321fc975b5adc0b9c2a17b8162bda547",
+    "additional_v2_change_receipt.json": "08e866540a90b4c6f46159ccc1fcb2b6d7acc6d645bc7d254144d61bd7673b3a"
+  },
+  "entries": [
+    {
+      "archive_member": "additional_publication_v2/README.md",
+      "relative_path": "README.md",
+      "sha256": "04bf542d01ca618f2ff375d1c443e09d65c482ad081ee31601722f2f68086ffc",
+      "bytes": 1811
+    },
+    {
+      "archive_member": "additional_publication_v2/manifest.json",
+      "relative_path": "manifest.json",
+      "sha256": "7e6b0d27b703899a92a3df5aea6613a1d3fe6247c1f5543373e803e7880898cf",
+      "bytes": 20614
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/03_hinge/upstream_README.md",
+      "relative_path": "notices/03_hinge/upstream_README.md",
+      "sha256": "d4ea5fa49f6cfabe1bed7a00cf2594573cd04e3eb739abe474f2900dee4baaaf",
+      "bytes": 17594
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/04_gripper/upstream_LICENSE",
+      "relative_path": "notices/04_gripper/upstream_LICENSE",
+      "sha256": "d8bf1552c6c9c4cee13b973b284c80becc12bef4f28e6539eae343e6fd8d0577",
+      "bytes": 1071
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/04_gripper/upstream_README.md",
+      "relative_path": "notices/04_gripper/upstream_README.md",
+      "sha256": "f462fdf9be54979c2dff99dee46e26804559ec051571f63ce60a50f628793c16",
+      "bytes": 10885
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/07_robot_arm/upstream_LICENSE",
+      "relative_path": "notices/07_robot_arm/upstream_LICENSE",
+      "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297",
+      "bytes": 20131
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/07_robot_arm/upstream_README.md",
+      "relative_path": "notices/07_robot_arm/upstream_README.md",
+      "sha256": "2b76dc893ddde51883e6f8622eab3497901771df388c16ae9af133f1e1ef0f19",
+      "bytes": 5327
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/08_excavator/upstream_LICENSE",
+      "relative_path": "notices/08_excavator/upstream_LICENSE",
+      "sha256": "100bae405e2c4fc75cacd30d1a25454c26c383dc9065894d28b4c76afb893a9d",
+      "bytes": 1062
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/08_excavator/upstream_README.md",
+      "relative_path": "notices/08_excavator/upstream_README.md",
+      "sha256": "73db130932d513c58689f72a85c308104089d96dc7a2fd4c1dc9bd796ff61a4a",
+      "bytes": 1747
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/10_complex/dependency_revision_README.md",
+      "relative_path": "notices/10_complex/dependency_revision_README.md",
+      "sha256": "9806972e48573e6f6b1028ee803263c689d659c2cd3379a8ec683ab4ec0095b9",
+      "bytes": 1011
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/10_complex/upstream_CC-BY-SA-4.0.txt",
+      "relative_path": "notices/10_complex/upstream_CC-BY-SA-4.0.txt",
+      "sha256": "cde7883b9050a1104f4ac19a1572aafd6e5d7323b68351aaf51fbf4beba54966",
+      "bytes": 18375
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/10_complex/upstream_README.md",
+      "relative_path": "notices/10_complex/upstream_README.md",
+      "sha256": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83",
+      "bytes": 3816
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/MODIFICATIONS.md",
+      "relative_path": "notices/MODIFICATIONS.md",
+      "sha256": "eb2fdd2287b729a32e0969cfc36522796530a9901a389d33d5275ebcd906d997",
+      "bytes": 1744
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/SOURCE_NOTICES.md",
+      "relative_path": "notices/SOURCE_NOTICES.md",
+      "sha256": "a3a23b0403be9036419c259db2a40c10cc76556d6732f03390d06111a0038869",
+      "bytes": 3659
+    },
+    {
+      "archive_member": "additional_publication_v2/notices/recorded_source_grants.json",
+      "relative_path": "notices/recorded_source_grants.json",
+      "sha256": "fc9e402ad75e5b022357506e7769342b2f613b2f18cad4d8071859580fff6fd8",
+      "bytes": 12352
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/assets/geometry.usdc",
+      "relative_path": "outputs/03_hinge/plain_astra/assets/geometry.usdc",
+      "sha256": "21c915f313ac6fed1f590a0f55c304c80edaaab13ae130fb4fe7ecc10465a74e",
+      "bytes": 4434739
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/assets/textures/image_00.jpg",
+      "relative_path": "outputs/03_hinge/plain_astra/assets/textures/image_00.jpg",
+      "sha256": "1925737348cd459d8303921e6be9e9b16635aaf5fce8125e7db06117c71bd8eb",
+      "bytes": 17325
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/assets/textures/image_02.jpg",
+      "relative_path": "outputs/03_hinge/plain_astra/assets/textures/image_02.jpg",
+      "sha256": "b2793e05626878830de62fd3d4097f87ffab69803c7ab5f87213411eca70feab",
+      "bytes": 7964
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/assets/textures/image_04.jpg",
+      "relative_path": "outputs/03_hinge/plain_astra/assets/textures/image_04.jpg",
+      "sha256": "c9671cb9a1fb95d7b7b353413a3203a568087bac9e3f5faa4f8c8dfcea5adbec",
+      "bytes": 95760
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/assets/textures/image_05.jpg",
+      "relative_path": "outputs/03_hinge/plain_astra/assets/textures/image_05.jpg",
+      "sha256": "f2f6b70ee8cd14b8ea8123c84610371ee989ef83aa455f3ee7f542939fa9b356",
+      "bytes": 176417
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/assets/textures/image_06.jpg",
+      "relative_path": "outputs/03_hinge/plain_astra/assets/textures/image_06.jpg",
+      "sha256": "fef4afd88ed5d7181c0eb22efc931a2d69b227128696e4fea1829c0fb2501d55",
+      "bytes": 312533
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/assets/textures/image_07.jpg",
+      "relative_path": "outputs/03_hinge/plain_astra/assets/textures/image_07.jpg",
+      "sha256": "e664d2b81300f6dba944fcf3f11bcf4867ff318ba0ab88d8745cd43dc7db81c0",
+      "bytes": 277609
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/assets/textures/image_08.jpg",
+      "relative_path": "outputs/03_hinge/plain_astra/assets/textures/image_08.jpg",
+      "sha256": "369e549907b9ab7e69e89f01dfe8af0c184e6bc5df88c7bdb10db6c651a0a264",
+      "bytes": 108125
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/assets/textures/image_09.jpg",
+      "relative_path": "outputs/03_hinge/plain_astra/assets/textures/image_09.jpg",
+      "sha256": "55b774cb254b6b1e4c5c83ffb11043f668147cb01a968bff8a1bccddddbe526a",
+      "bytes": 121211
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/bindings.json",
+      "relative_path": "outputs/03_hinge/plain_astra/bindings.json",
+      "sha256": "0b07e859de7851dfd56210ddea310d73b2a5e9a97d8bd6920179a34f2f9020ec",
+      "bytes": 5200
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/03_hinge/plain_astra/final.usd",
+      "relative_path": "outputs/03_hinge/plain_astra/final.usd",
+      "sha256": "6a4dee3dea7db3bc05baccf66bbcd45666c7b34bbbd90fe32f1775caf8ea5e6d",
+      "bytes": 3658
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/04_gripper/content_agents/final.usd",
+      "relative_path": "outputs/04_gripper/content_agents/final.usd",
+      "sha256": "732547f888e4537007315906088b870fb5f9887598da7e4c0f6fd57eca4e1f62",
+      "bytes": 3885815
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/04_gripper/plain_astra/bindings.json",
+      "relative_path": "outputs/04_gripper/plain_astra/bindings.json",
+      "sha256": "df49a626e678089d536b852664d6be362912526c368b2413993946f24a463617",
+      "bytes": 17231
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/04_gripper/plain_astra/final.usd",
+      "relative_path": "outputs/04_gripper/plain_astra/final.usd",
+      "sha256": "9630d0885923f642ea937e01b846761fe7e7167e45acdae6c748de1da9206914",
+      "bytes": 2520317
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/07_robot_arm/content_agents/bindings.json",
+      "relative_path": "outputs/07_robot_arm/content_agents/bindings.json",
+      "sha256": "38890484801c45de68b4fe201ba0ffd913aa0132864419ad3e76feccacfc2cbb",
+      "bytes": 410318
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/07_robot_arm/content_agents/final.usd",
+      "relative_path": "outputs/07_robot_arm/content_agents/final.usd",
+      "sha256": "78df65384a81c582b79481538742c8c780d015714fc0f1c4e8a56b96bf9d2fa2",
+      "bytes": 51807509
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/07_robot_arm/plain_astra/bindings.json",
+      "relative_path": "outputs/07_robot_arm/plain_astra/bindings.json",
+      "sha256": "6e0345ff98eddc5b35d05a76d3a43647f01513c78a543e2fe0641cbe8be17d55",
+      "bytes": 414318
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/07_robot_arm/plain_astra/final.usd",
+      "relative_path": "outputs/07_robot_arm/plain_astra/final.usd",
+      "sha256": "b14166e39ef8ecf84429965ffb19a8809c61fc81797d2653b5cc50915136e527",
+      "bytes": 51752702
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/08_excavator/content_agents/bindings.json",
+      "relative_path": "outputs/08_excavator/content_agents/bindings.json",
+      "sha256": "ba05ca72550f45652ec324a553735224afd9fc1aaac309d950e4a3e7f7c73260",
+      "bytes": 60566
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/08_excavator/content_agents/final.usd",
+      "relative_path": "outputs/08_excavator/content_agents/final.usd",
+      "sha256": "cf427009949e4532587810276cfc042797d5c7baea6774905ce738283014aeb7",
+      "bytes": 626530
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/08_excavator/plain_astra/bindings.json",
+      "relative_path": "outputs/08_excavator/plain_astra/bindings.json",
+      "sha256": "4e6aef838ef7da81770600a6ea2e8456a65add522089b26ad0010d79fb87e96b",
+      "bytes": 55761
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/08_excavator/plain_astra/final.usd",
+      "relative_path": "outputs/08_excavator/plain_astra/final.usd",
+      "sha256": "d113a78451e477a6d51548723c0f7055feb86656bc336b75e409d614115fb54a",
+      "bytes": 2719678
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/10_complex/content_agents/bindings.json",
+      "relative_path": "outputs/10_complex/content_agents/bindings.json",
+      "sha256": "c27d17c076cb543d9709860a988e35a702ea3f46ef2e401b374c9d5c7797028a",
+      "bytes": 47091
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/10_complex/content_agents/final.usd",
+      "relative_path": "outputs/10_complex/content_agents/final.usd",
+      "sha256": "5b34eb989d188fcda1b19c6c28a6fa6978a1c2ee3c14672a4de6538aece5cd4b",
+      "bytes": 72509402
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/10_complex/plain_astra/bindings.json",
+      "relative_path": "outputs/10_complex/plain_astra/bindings.json",
+      "sha256": "c1a22ba221c19509010aa7618a3960838cc4b0e631b18f68c635f183c02c0186",
+      "bytes": 49841
+    },
+    {
+      "archive_member": "additional_publication_v2/outputs/10_complex/plain_astra/final.usd",
+      "relative_path": "outputs/10_complex/plain_astra/final.usd",
+      "sha256": "49bd2c7b266d01b802818eaa0d9736aaa70febfd5a590af69643dad51f53a0c1",
+      "bytes": 19740135
+    },
+    {
+      "archive_member": "additional_publication_v2/records/attempts.json",
+      "relative_path": "records/attempts.json",
+      "sha256": "080230946a4c9ba8243dd028bd42cad1bc0d87b054504bc4860cbbf11bc59a30",
+      "bytes": 11630
+    },
+    {
+      "archive_member": "additional_publication_v2/reviews/dependency_closure.json",
+      "relative_path": "reviews/dependency_closure.json",
+      "sha256": "744f3f7b70b0de5a1b632161fb9c21142691285ddd9252096627f584f30315b6",
+      "bytes": 8454
+    },
+    {
+      "archive_member": "additional_publication_v2/reviews/metadata_privacy.json",
+      "relative_path": "reviews/metadata_privacy.json",
+      "sha256": "5a7056af66255d56ba8cd7dc44e874c2dc1155804cdd531f461c2c3a41e05192",
+      "bytes": 390559
+    },
+    {
+      "archive_member": "additional_publication_v2/verify.py",
+      "relative_path": "verify.py",
+      "sha256": "e742bae51b87327463bddd496fe2ee16d7ae186793512b2f8b910e2618bcbc5f",
+      "bytes": 4878
+    }
+  ]
+}

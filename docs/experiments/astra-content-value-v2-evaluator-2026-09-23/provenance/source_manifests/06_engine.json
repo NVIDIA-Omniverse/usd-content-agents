@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0",
+  "asset_id": "06_engine",
+  "title": "Miniature beam steam engine with crank, piston and valve linkage",
+  "curation_status": "downloaded_and_structurally_inspected; repository MIT license with embedded metadata discrepancy disclosed",
+  "retrieved_at_utc": "2026-09-21T21:30:46.511341+00:00",
+  "scope": "Source curation/download and read-only ZIP/XML inventory only. No geometry conversion, repair, new physics, benchmark arm, or simulation was performed.",
+  "source": {
+    "repository": "https://github.com/KenFilms/Miniature-Beam-Steam-Engine-CAD",
+    "commit": "beb82855052bd7834a9dafa2d2e318763f27ee25",
+    "author": "Ken Friedl (KenFilms)",
+    "primary_geometry": "original/steam_engine_mechanism.FCStd",
+    "format": "FreeCAD FCStd ZIP with parametric model, embedded OpenCascade BREP and Assembly4 placement expressions",
+    "source_claim": "CAD reconstructed from the author's measurements of a real miniature beam steam engine originally designed by Lutz Hielscher; author explicitly says inaccurate and missing some parts; educational video model."
+  },
+  "license": {
+    "repository_license": "MIT",
+    "copyright": "Copyright (c) 2023 Ken Friedl",
+    "license_file": "original/LICENSE",
+    "license_url": "https://github.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/blob/beb82855052bd7834a9dafa2d2e318763f27ee25/LICENSE",
+    "obligation": "Retain the copyright and permission notice with copies or substantial portions.",
+    "embedded_document_license": "All rights reserved",
+    "metadata_discrepancy": "FCStd Document.xml retains All rights reserved while the public repository supplies an explicit MIT LICENSE. Both evidence items are preserved; the curation does not silently rewrite or resolve that discrepancy.",
+    "physical_original_design_note": "README credits original physical miniature engine design to Lutz Hielscher; the CAD is the repository author's measurement-based reconstruction."
+  },
+  "files": [
+    {
+      "path": "original/LICENSE",
+      "source_url": "https://github.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/blob/beb82855052bd7834a9dafa2d2e318763f27ee25/LICENSE",
+      "download_url": "https://raw.githubusercontent.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/beb82855052bd7834a9dafa2d2e318763f27ee25/LICENSE",
+      "bytes": 1067,
+      "sha256": "e02f83350902ca094b580f9dc3202fe9513593130b5515c4027aa4911de430e3",
+      "modified": false
+    },
+    {
+      "path": "original/README.md",
+      "source_url": "https://github.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/blob/beb82855052bd7834a9dafa2d2e318763f27ee25/README.md",
+      "download_url": "https://raw.githubusercontent.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/beb82855052bd7834a9dafa2d2e318763f27ee25/README.md",
+      "bytes": 747,
+      "sha256": "026bf42a12b6383badd1c14e8f3fbcaf37f32fc23dc5db05604097c925964a38",
+      "modified": false
+    },
+    {
+      "path": "original/steam_engine_mechanism.FCStd",
+      "source_url": "https://github.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/blob/beb82855052bd7834a9dafa2d2e318763f27ee25/steam_engine_mechanism.FCStd",
+      "download_url": "https://raw.githubusercontent.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/beb82855052bd7834a9dafa2d2e318763f27ee25/steam_engine_mechanism.FCStd",
+      "bytes": 523112,
+      "sha256": "f035c5d2380310654b9ec82a2c13e342f9773a03543f8729a06eb34c7ec487f9",
+      "modified": false
+    },
+    {
+      "path": "original/steam_engine_overview.png",
+      "source_url": "https://github.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/blob/beb82855052bd7834a9dafa2d2e318763f27ee25/steam_engine_overview.png",
+      "download_url": "https://raw.githubusercontent.com/KenFilms/Miniature-Beam-Steam-Engine-CAD/beb82855052bd7834a9dafa2d2e318763f27ee25/steam_engine_overview.png",
+      "bytes": 167622,
+      "sha256": "6a8aa40206c0516b7ee04eae30eb056a99b31fcbe84db956694f402458fca75b",
+      "modified": false
+    }
+  ],
+  "units": {
+    "length": "millimetre",
+    "meters_per_unit": 0.001,
+    "basis": "FreeCAD native length convention; XML length fields use App::PropertyLength. Official Units documentation demonstrates numeric 10 becoming 10 mm in Part.makeBox.",
+    "documentation_url": "https://github.com/FreeCAD/FreeCAD-documentation/blob/main/wiki/Units.md",
+    "dimension_samples": [
+      {
+        "object": "Pad005",
+        "property": "Length",
+        "type": "App::PropertyLength",
+        "value": "1.0000000000000000"
+      },
+      {
+        "object": "Tube001",
+        "property": "Height",
+        "type": "App::PropertyLength",
+        "value": "5.5000000000000000"
+      },
+      {
+        "object": "Cylinder",
+        "property": "Height",
+        "type": "App::PropertyLength",
+        "value": "13.0000000000000000"
+      },
+      {
+        "object": "Cylinder",
+        "property": "Radius",
+        "type": "App::PropertyLength",
+        "value": "0.7500000000000000"
+      }
+    ],
+    "verification_limit": "No kernel recompute or measured CAD bounds was performed."
+  },
+  "part_structure": {
+    "document_objects": 327,
+    "partdesign_bodies": 14,
+    "app_part_containers": 12,
+    "app_links": 11,
+    "embedded_brep_records": 156,
+    "counts_are_not_unique_solid_or_rigid_body_counts": true,
+    "external_xlinks": [],
+    "inventory_file": "structure_inspection.json",
+    "body_labels": [
+      "cylinder_front_plate",
+      "cylinder",
+      "piston_2",
+      "valve",
+      "pole_middle",
+      "machine_base_plate",
+      "spoke_wheel_support",
+      "small_wheel",
+      "spoke_wheel_rod",
+      "beam001",
+      "piston_mount",
+      "small_beam",
+      "middle_beam",
+      "arrow_in"
+    ],
+    "principal_mechanical_groups": [
+      "fixed base, cylinder and bearing supports",
+      "piston and piston mount",
+      "spoked flywheel / shaft / small wheel / crank pieces",
+      "main beam",
+      "connecting rod",
+      "small beam and middle beam valve linkage",
+      "valve"
+    ],
+    "annotation_geometry_present": "arrow_in body is an educational flow arrow, not a physical mechanism part; left unmodified in the source"
+  },
+  "non_simready_evidence": {
+    "natural_source_category": "CAD demonstration assembly with skeleton-sketch and placement-driven kinematics",
+    "source_was_not_a_stripped_simulation_asset": true,
+    "existing_cad_animation_retained": true,
+    "cad_expressions": 13,
+    "driver_variable": "Variables.Angle_disk drives two sketch constraints; App::Link placements derive from LCS placements",
+    "physical_property_name_scan": "No XML property name containing mass, density, inertia, collision, friction, restitution, or joint was found. This is a targeted textual inventory, not a semantic proof of absence.",
+    "missing_for_dynamic_use": [
+      "validated rigid-body grouping",
+      "physical revolute/prismatic/loop-closure joints with axes and limits",
+      "mass and inertia assumptions",
+      "collision representation and contact filtering",
+      "material friction and restitution",
+      "force/torque actuation, integration and acceptance settings"
+    ],
+    "source_limitations": [
+      "Measurement-based and incomplete per author README",
+      "Saved geometric constraints and animation are not physical force-response validation",
+      "Annotation arrow and CAD construction objects need classification before physical asset authoring"
+    ]
+  },
+  "proposed_solver_dynamics": {
+    "status": "proposal_only_not_executed",
+    "mechanism": "A beam-engine linkage with a grounded base, piston slider, rocking beam, connecting rod, crank/flywheel and coupled valve linkage. Closed-chain topology must be confirmed from remote CAD inspection before physics authoring.",
+    "solver_requirement": "Constrained multibody rigid-body solver supporting revolute/prismatic constraints and closed kinematic loops, driven by bounded torque rather than prescribed transforms.",
+    "input": "Bounded shaft torque or initial flywheel angular velocity, plus an explicit load/damping condition. Thermodynamic steam pressure is outside this asset curation.",
+    "observables": [
+      "flywheel angle and angular velocity over time",
+      "piston displacement, stroke extrema and phase relative to flywheel",
+      "beam angle and valve linkage phase",
+      "joint-anchor separation / loop-closure residual",
+      "unintended contact penetration or disconnected motion",
+      "torque versus acceleration and coast-down under a load change",
+      "numerical stability, finite state and bounded energy drift"
+    ],
+    "physical_response_discriminator": "The same initial state should respond differently to added shaft load or inertia. Prescribed CAD placement animation cannot serve as the dynamics result.",
+    "not_claimed": [
+      "verified real-engine accuracy",
+      "validated steam thermodynamics",
+      "successful rigid-body simulation",
+      "collision-clean geometry",
+      "correct physically resolved loop closure"
+    ]
+  },
+  "inspection": {
+    "method": "inspect_source.py; Python standard library ZIP/XML only; source screenshot viewed",
+    "zip_crc": "passed",
+    "visual_reference": "original/steam_engine_overview.png",
+    "visual_review": "Source screenshot shows base, piston/cylinder, main beam, flywheel/crank connecting linkage, valve linkage and a nonphysical arrow annotation. This source screenshot is not a render produced by this run.",
+    "compute": "local bounded file download and structural inventory; all future conversion and simulation deferred to parent's full 4-GPU Horde node"
+  },
+  "alternative_considered": {
+    "repository": "https://github.com/SrisharanMurugesan/2-Cylinder-Steam-Engine",
+    "commit": "cbd1209ae8d81a3d7b18e2d6063eac8d8d9ee97d",
+    "repository_license": "CC0-1.0",
+    "reason_not_selected": "Tree has SolidWorks SLDASM/SLDPRT files with no STEP/FCStd/STL neutral geometry, plus numerous COTS components; the single FCStd beam engine is more practical for the requested later workflow."
+  }
+}

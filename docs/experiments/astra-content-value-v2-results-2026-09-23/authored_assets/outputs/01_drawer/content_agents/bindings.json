@@ -1,0 +1,24 @@
+{
+  "asset_id": "01_drawer",
+  "final_usd": "final.usd",
+  "drawer_body": "/drawer_cabinet_1k/Scene/drawer_cabinet_drawer_01",
+  "cabinet_body": "/drawer_cabinet_1k/Scene/drawer_cabinet",
+  "drawer_joint": "/drawer_cabinet_1k/Joints/drawer_01_prismatic_4c0b0fae1aaa",
+  "source_components": {
+    "drawer_cabinet": [
+      "/drawer_cabinet_1k/Scene/drawer_cabinet/tn__primitive0_pA/Mesh"
+    ],
+    "drawer_cabinet_drawer_01": [
+      "/drawer_cabinet_1k/Scene/drawer_cabinet_drawer_01/tn__primitive0_pA/Mesh"
+    ],
+    "drawer_cabinet_drawer_02": [
+      "/drawer_cabinet_1k/Scene/drawer_cabinet_drawer_02/tn__primitive0_pA/Mesh"
+    ],
+    "drawer_cabinet_drawer_03": [
+      "/drawer_cabinet_1k/Scene/drawer_cabinet_drawer_03/tn__primitive0_pA/Mesh"
+    ],
+    "drawer_cabinet_drawer_04": [
+      "/drawer_cabinet_1k/Scene/drawer_cabinet_drawer_04/tn__primitive0_pA/Mesh"
+    ]
+  }
+}

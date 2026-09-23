@@ -1,0 +1,1881 @@
+{
+  "acquired_at_utc": "2026-09-21T21:39:07.246984+00:00",
+  "archive_member_inventory": [
+    {
+      "bytes": 17,
+      "sha256": "124e735cff092145fd8fd7269ffc7ff79b54fc395074f10e0a8eb34e4a5b817f",
+      "upstream_path": ".gitignore"
+    },
+    {
+      "bytes": 1062,
+      "sha256": "100bae405e2c4fc75cacd30d1a25454c26c383dc9065894d28b4c76afb893a9d",
+      "upstream_path": "LICENSE"
+    },
+    {
+      "bytes": 1747,
+      "sha256": "73db130932d513c58689f72a85c308104089d96dc7a2fd4c1dc9bd796ff61a4a",
+      "upstream_path": "README.md"
+    },
+    {
+      "bytes": 121505,
+      "sha256": "b4243510f25f10727a5c82a90df22185a833a9be4c1b8d0c5e66e140302fe490",
+      "upstream_path": "image/dipan.jpg"
+    },
+    {
+      "bytes": 124003,
+      "sha256": "39c247a70290ef879ede1aa9a27033f61e559c5c4aab58cadfc32bfc3e3ffc5e",
+      "upstream_path": "image/dipanxuanzhuan.jpg"
+    },
+    {
+      "bytes": 128950,
+      "sha256": "f9da31a6c4a55fb5be22dadaa95c6712b3107be6f7b1b1425068a7eb9fd70058",
+      "upstream_path": "image/lvdai.jpg"
+    },
+    {
+      "bytes": 99353,
+      "sha256": "ae2f55bafc7da7be061d5a87295d7cf5216b1f912b4daf7c155b23e163d1db19",
+      "upstream_path": "image/tuigan.jpg"
+    },
+    {
+      "bytes": 117756,
+      "sha256": "eac4742b7b742f9811ecedf1729e09df29972492fe46e2d99bd549b84dde1d1b",
+      "upstream_path": "image/zhuti.jpg"
+    },
+    {
+      "bytes": 61165,
+      "sha256": "1877338df5f8e03c41721730d5b5fc6e6436891939b60c5b1f72ec5022c96db1",
+      "upstream_path": "image/zhutidianji.jpg"
+    },
+    {
+      "bytes": 527684,
+      "sha256": "b42450ecae86ade90a3b5a627a4808ef45d03a2cbb30dd2cb6cee837934b2444",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 主体底-1.STL"
+    },
+    {
+      "bytes": 58884,
+      "sha256": "185a9709b0970a06da53d19a3f5459de84021198d7dbbc44e9418a43ca7c8d2c",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 大臂-1.STL"
+    },
+    {
+      "bytes": 62484,
+      "sha256": "4f79da56e13ac736a4c61df472f27549adb0fcb3ced3260d77b8756e7d3f8369",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 小臂-1.STL"
+    },
+    {
+      "bytes": 72084,
+      "sha256": "1325a5a5730284cb76c9dd27c4e0ee9331ba99fd1cb89f481a7dd119bc3d84a7",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗-1.STL"
+    },
+    {
+      "bytes": 41084,
+      "sha256": "edd5b404bd2cc89497e87b189cd75868d67cce1fd37b63856809aa260e03b853",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆1-1.STL"
+    },
+    {
+      "bytes": 27084,
+      "sha256": "5ea78fc4a2e68d98b950658b0523dd6a485bc41123f0b65c12aa926f6c291531",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆2-1.STL"
+    },
+    {
+      "bytes": 27084,
+      "sha256": "a03035ab35b71426951ee9ee569cf883f1b2ce2f35730d143ed9549835add84a",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆2-2.STL"
+    },
+    {
+      "bytes": 74584,
+      "sha256": "745c65f61eb4531ab50e04af5efb58728f0223144c136c71f1e4b3d25efa3bae",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/主轴齿轮适配体.STL"
+    },
+    {
+      "bytes": 62584,
+      "sha256": "879734d02d15b942cea96c73ec47413104c26e7e2bd5a56107b9f671898eb945",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/试装1 - 新轴承系统-1 轴承内套-1.STL"
+    },
+    {
+      "bytes": 24084,
+      "sha256": "cea28ef29e2780e9b3f436feba6b4a819bfacc2868b046aefd42299348c935af",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/试装1 - 新轴承系统-1 轴承内套垫高-1.STL"
+    },
+    {
+      "bytes": 64684,
+      "sha256": "b23b503cffb0ce4185ed251a7029d9788c54ce37863d4c44b2104c73d8f5b600",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/轴承外套垫高.STL"
+    },
+    {
+      "bytes": 365884,
+      "sha256": "85dfc8a87f845c4c049e54aa4dcfb33283476ac23312ef8c65581b72c32dddf0",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/轴承外套带齿轮.STL"
+    },
+    {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/履带模块总共打印90个.txt"
+    },
+    {
+      "bytes": 91284,
+      "sha256": "298fbed63cdeb37b2f34a45d0c90dde0d84db2ab5b933d63a9409c11c7810d24",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 从动轮3-4.STL"
+    },
+    {
+      "bytes": 91284,
+      "sha256": "4966f74d12a73612c43541623e22f6d0655bf97e719d40159313e3834b8d1565",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 从动轮3-9.STL"
+    },
+    {
+      "bytes": 47884,
+      "sha256": "8963296f5cf98a9dd192badb08c639341141f5a979e512cb710c553748b7b3a7",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 履带模块4-223.STL"
+    },
+    {
+      "bytes": 340684,
+      "sha256": "0d94f34a276928d18454ff42ffe45e2d19e1893002da255ed9d44bd2c4c43941",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 底盘-1.STL"
+    },
+    {
+      "bytes": 89884,
+      "sha256": "c9e46642ab38b18349a2cb61fb2e11a38a8215378a60f0ce851f82b14a955865",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 驱动轮2-3.STL"
+    },
+    {
+      "bytes": 89884,
+      "sha256": "6edf078d481228a80660ea9270721401532dbc4e91484029d41e5f1a2405c762",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 驱动轮2-4.STL"
+    },
+    {
+      "bytes": 51084,
+      "sha256": "89885026e87b4916a8911d1fae32d29c3806357dc26578a5f177e3defcbc882b",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 N20电机固定-1.STL"
+    },
+    {
+      "bytes": 17584,
+      "sha256": "816888f788f377da6fb8495fa7f321225e137a03a5fbfd2bdb7b092923dcea78",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 推杆套-1.STL"
+    },
+    {
+      "bytes": 18084,
+      "sha256": "c897698d87fc9fe2e8f901cfb36ba579f0b767f71dc4c8c055762e76b906a67d",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 螺钉固定头-1.STL"
+    },
+    {
+      "bytes": 51084,
+      "sha256": "19944d4b85edd3479daff13fae40afd01c9004297204983af42495b20595fe03",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 N20电机固定-1.STL"
+    },
+    {
+      "bytes": 17584,
+      "sha256": "882b769b164708bd161a9c11a4746e0c7e4d866a8e6a26751a6f193138c17797",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 推杆套-1.STL"
+    },
+    {
+      "bytes": 18084,
+      "sha256": "856dfbeccf1f40929dd239fd5dd368edac0cbd7f80d59a8675b8ce0417165d9f",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 螺钉固定头-1.STL"
+    },
+    {
+      "bytes": 51084,
+      "sha256": "134c8e096cf625b53dbb43be9cea0834925a4e5c126e9892ceefc344711c095f",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 N20电机固定-1.STL"
+    },
+    {
+      "bytes": 17584,
+      "sha256": "cdadb659c841a5ad61941f1e691f2ac875a90195ab4143af4ac0282fe48cb180",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 推杆套-1.STL"
+    },
+    {
+      "bytes": 18084,
+      "sha256": "768b3d7a2fbb5e2016be5ea196a52c92407a1baa208d0bec3289cda45b96bb9f",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 螺钉固定头-1.STL"
+    },
+    {
+      "bytes": 215496,
+      "sha256": "2580f655f9f6721ed0bf282d05a8dc68cf3da94b30d20bed754cc81e4fffe101",
+      "upstream_path": "机械部分/工程文件/M3螺钉.SLDPRT"
+    },
+    {
+      "bytes": 76216,
+      "sha256": "7b2fdfe6497e5c5b7e8fabe26dcb6368eb85c2ee80753693896fbebcbf433c5a",
+      "upstream_path": "机械部分/工程文件/M3铜柱.SLDPRT"
+    },
+    {
+      "bytes": 118269,
+      "sha256": "a8a8027af2600ef0dbb3e08301818fd2d43f36c438232630ffe202ceb8712bdd",
+      "upstream_path": "机械部分/工程文件/N20减速电机.SLDPRT"
+    },
+    {
+      "bytes": 117419,
+      "sha256": "bc1505f59010da115621aa36760f09fb360b14a866f91d8052f22ed35560193c",
+      "upstream_path": "机械部分/工程文件/N20电机固定.SLDPRT"
+    },
+    {
+      "bytes": 27778,
+      "sha256": "29ba2cede3dddc96a26905d4e01c7616699cb688477486d35f4810c975832e82",
+      "upstream_path": "机械部分/工程文件/pcb.DXF"
+    },
+    {
+      "bytes": 74431,
+      "sha256": "533814594a86c4272efa1b047e70d2274e726cc141fcc55d858ff150aac50bd0",
+      "upstream_path": "机械部分/工程文件/pcb.sldprt"
+    },
+    {
+      "bytes": 273804,
+      "sha256": "052209d7de2fd1c73d838100b79dd4fe5d2f733c36e7cfe0df0d717a975d551e",
+      "upstream_path": "机械部分/工程文件/pcb^主体系统.DWG"
+    },
+    {
+      "bytes": 26689,
+      "sha256": "a7ccc24057d451dbc0df426b626ea72a19e8340e913b461b73be27043fb9634e",
+      "upstream_path": "机械部分/工程文件/pcb^主体系统.DXF"
+    },
+    {
+      "bytes": 349841,
+      "sha256": "e094fb965a67391098804d9a93eb849265aff53d6ed35c86cb1d96ca8bb5629b",
+      "upstream_path": "机械部分/工程文件/主体带推杆系统.sldasm"
+    },
+    {
+      "bytes": 4115838,
+      "sha256": "8dc3e9fabc94bda927aa34cbc3e48b850b3f2d2804fd9b939bd32ab90dfdc7e6",
+      "upstream_path": "机械部分/工程文件/主体底.SLDPRT"
+    },
+    {
+      "bytes": 235025,
+      "sha256": "5f5631d0d8594c95298bc512c6c57224a5f23fd1cc74be61923350c4e48bf567",
+      "upstream_path": "机械部分/工程文件/主体系统.sldasm"
+    },
+    {
+      "bytes": 169281,
+      "sha256": "533a720311454d88eb57ff5917ee2a995e85d220b7f7a345e84688026728031b",
+      "upstream_path": "机械部分/工程文件/主轴齿轮适配体.SLDASM"
+    },
+    {
+      "bytes": 94799,
+      "sha256": "f3286d194441cc1b685349316d19aba5dd1a97b2ba3ff300f953bffa723cfe31",
+      "upstream_path": "机械部分/工程文件/从动轮.SLDPRT"
+    },
+    {
+      "bytes": 126992,
+      "sha256": "278ddb500155db73362c6343b0fc6dc032ce0547c555b881e11d618615e25982",
+      "upstream_path": "机械部分/工程文件/从动轮2.SLDPRT"
+    },
+    {
+      "bytes": 206056,
+      "sha256": "9955790605a51c6cedec14658bce18228150c04a7680b341102a3eea9c9e0729",
+      "upstream_path": "机械部分/工程文件/从动轮3.SLDPRT"
+    },
+    {
+      "bytes": 153956,
+      "sha256": "f8dd68604e8d2a59a5d9688dec0245909db525fa0eb775aeabcabcde47f9c5ae",
+      "upstream_path": "机械部分/工程文件/外壳.sldprt"
+    },
+    {
+      "bytes": 71350,
+      "sha256": "6081b31b0fd3f3632d33d31fc594fb64797fd3a246a5e94d3332319b1393b03d",
+      "upstream_path": "机械部分/工程文件/外挡板.sldprt"
+    },
+    {
+      "bytes": 6112631,
+      "sha256": "119e2972d994c02a3bb049b478326c813df718a984b6fe213c600efa54d4b64f",
+      "upstream_path": "机械部分/工程文件/大臂.SLDPRT"
+    },
+    {
+      "bytes": 6100800,
+      "sha256": "58254b1d681bc8672d003d40118660b36947aa33e8be5871694346ab5ee6b59a",
+      "upstream_path": "机械部分/工程文件/小臂.SLDPRT"
+    },
+    {
+      "bytes": 169826,
+      "sha256": "d119df27673f3d256466e26f068bc18b12659d09fa9c097bde0b2641abc2e50b",
+      "upstream_path": "机械部分/工程文件/履带.SLDPRT"
+    },
+    {
+      "bytes": 92245,
+      "sha256": "b2b61cb4a1f23305442b29690613c5f6c6210195eed786ba76661ac4326ac2f5",
+      "upstream_path": "机械部分/工程文件/履带模块.SLDPRT"
+    },
+    {
+      "bytes": 110063,
+      "sha256": "66e7f6a29fe6d062dbe9c7ea109721bc3d7b2eb6edc65c9451d12f7d67449112",
+      "upstream_path": "机械部分/工程文件/履带模块2.SLDPRT"
+    },
+    {
+      "bytes": 127386,
+      "sha256": "054a145525fcde57953fc91c717a811aa7503d62ba674f3f5d84a4f68b39f13b",
+      "upstream_path": "机械部分/工程文件/履带模块3.SLDPRT"
+    },
+    {
+      "bytes": 126243,
+      "sha256": "9a6afde0b59fe30dcd90499ac4f6f4e0a99548c10b62256c2a730b59206daec8",
+      "upstream_path": "机械部分/工程文件/履带模块4.SLDPRT"
+    },
+    {
+      "bytes": 264841,
+      "sha256": "60df907b08573eea88734f266b021d4ffebed176461065f73ad43085be0c3fa0",
+      "upstream_path": "机械部分/工程文件/底盘.SLDPRT"
+    },
+    {
+      "bytes": 264370,
+      "sha256": "cecaf7c735f7cbfe1206c563e0851f3e87af2ac14e1c5ac0a2cbbb7ddb457ffd",
+      "upstream_path": "机械部分/工程文件/底盘系统.SLDASM"
+    },
+    {
+      "bytes": 6167954,
+      "sha256": "af77053090768e3abdac91adb82ccb110b921e169be1bb52057a92341e385746",
+      "upstream_path": "机械部分/工程文件/挖斗.SLDPRT"
+    },
+    {
+      "bytes": 87631,
+      "sha256": "a99054fe35cac58d64bcd454facb85f5187901a5218256493339f27ff7f355d8",
+      "upstream_path": "机械部分/工程文件/挖斗连杆1.SLDPRT"
+    },
+    {
+      "bytes": 74474,
+      "sha256": "9bc912e07e63aef9ba846bf3e8a2faed6e81f317a0b20303175fd90cae688290",
+      "upstream_path": "机械部分/工程文件/挖斗连杆2.SLDPRT"
+    },
+    {
+      "bytes": 76629,
+      "sha256": "8d2824858dcdb1ffa0342939307d01e44977e9ee8da46514d7d6bb947b1b452b",
+      "upstream_path": "机械部分/工程文件/控制板壳.sldprt"
+    },
+    {
+      "bytes": 98447,
+      "sha256": "ee76a41b355ed33d9df6ca5792312140824ee200108afc38cdcc0d4f870c0a6a",
+      "upstream_path": "机械部分/工程文件/推杆1.SLDASM"
+    },
+    {
+      "bytes": 207617,
+      "sha256": "c30e6a8678e511afea830de19c13fb4bd6ba0a0b778702b7d5788af7da4df820",
+      "upstream_path": "机械部分/工程文件/推杆套.SLDPRT"
+    },
+    {
+      "bytes": 226026,
+      "sha256": "70f5224a49ed1bb5abc0f4f6c0075932efce38cf2519966ffeaa0d651a9e6894",
+      "upstream_path": "机械部分/工程文件/新轴承系统.SLDASM"
+    },
+    {
+      "bytes": 65091,
+      "sha256": "4d1ecbeed09ffca071d772dc868cc12cee9a729ef7ba7e8e8fc18528a4142545",
+      "upstream_path": "机械部分/工程文件/电池仓盖.sldprt"
+    },
+    {
+      "bytes": 106501,
+      "sha256": "4121a4def37b9b57bc0ae1200c0cc475b3dce975304516c095ea80c50ddf2095",
+      "upstream_path": "机械部分/工程文件/螺钉固定头.SLDPRT"
+    },
+    {
+      "bytes": 564374,
+      "sha256": "e1c8f66df634762c77ecb0e6e9af607e88a52518a4021035e8f3dc4633644954",
+      "upstream_path": "机械部分/工程文件/试装1.SLDASM"
+    },
+    {
+      "bytes": 152430,
+      "sha256": "752301653246940566381e112bfee2ec01664cc57a9ec5a679c0bf13daf38d68",
+      "upstream_path": "机械部分/工程文件/轴承20-32-7.SLDPRT"
+    },
+    {
+      "bytes": 89051,
+      "sha256": "6320c95d825d1c3bf685cce78a562f6f091ee5dd48597970d869b6bf46259c5f",
+      "upstream_path": "机械部分/工程文件/轴承内套.SLDPRT"
+    },
+    {
+      "bytes": 71103,
+      "sha256": "9f91cb2800e6bec208aa5009e2e01a14f3dbd82c397102a2aea57f526cea367a",
+      "upstream_path": "机械部分/工程文件/轴承内套垫高.SLDPRT"
+    },
+    {
+      "bytes": 131585,
+      "sha256": "ba94884c8adfc1e09412139fd28097878a29032848f13b833a9139dc40730b2e",
+      "upstream_path": "机械部分/工程文件/轴承外套.SLDPRT"
+    },
+    {
+      "bytes": 95165,
+      "sha256": "4afb55c66d9f05fb6a5ead61a385907334189b18da31ee983bcfd4dda7f795ba",
+      "upstream_path": "机械部分/工程文件/轴承外套垫高.SLDPRT"
+    },
+    {
+      "bytes": 252887,
+      "sha256": "5daa6cf488d542fe5f4d3a0d4fb50a8f86b98c877d9fcd4cea1abe84aaffc83e",
+      "upstream_path": "机械部分/工程文件/轴承外套带齿轮.sldasm"
+    },
+    {
+      "bytes": 121603,
+      "sha256": "d44f6354c4d542352797c63b6588360fac0411d9f79582a67628ca7cf8eff87e",
+      "upstream_path": "机械部分/工程文件/驱动轮.SLDPRT"
+    },
+    {
+      "bytes": 194833,
+      "sha256": "92ed026ab982817a088d38d14973e10a5732ee5e389e27480a67a849575187d0",
+      "upstream_path": "机械部分/工程文件/驱动轮2.SLDPRT"
+    },
+    {
+      "bytes": 8261,
+      "sha256": "a7f9373a2ca28625f263c9c93c6bc81340431e7177129631bf4c65ac56f43808",
+      "upstream_path": "电子部分/固件/发射.hex"
+    },
+    {
+      "bytes": 6257,
+      "sha256": "223f649c81d071723eb6afcd9af5ddf284db1273e30e50c1d8e3577a0daea123",
+      "upstream_path": "电子部分/固件/接收.hex"
+    },
+    {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "upstream_path": "电子部分/硬件电路/立创EDA专业版设计--已在立创开源平台开源.txt"
+    },
+    {
+      "bytes": 6376,
+      "sha256": "0298d03e409c9ecb60da335aec3d7a3eee98762c3efd9dd12eab7612c7104011",
+      "upstream_path": "电子部分/程序源码/6电机接收/STARTUP.A51"
+    },
+    {
+      "bytes": 91486,
+      "sha256": "de9a2349a8455c0b42c3a7f7daacf66cbe1c24ddd69ad98840b721260883ed92",
+      "upstream_path": "电子部分/程序源码/6电机接收/STC15W408.uvgui.hhdell"
+    },
+    {
+      "bytes": 94366,
+      "sha256": "669beecb78369071f0083159dc735ff2551c9025053fe581a3b81372f5a5ff9f",
+      "upstream_path": "电子部分/程序源码/6电机接收/STC15W408.uvgui.hxh"
+    },
+    {
+      "bytes": 6518,
+      "sha256": "fbe210250a4faf755b46ba107737be5ec2b47ec25bd7d890d237d9b7870f4d8e",
+      "upstream_path": "电子部分/程序源码/6电机接收/STC15W408.uvopt"
+    },
+    {
+      "bytes": 14986,
+      "sha256": "762dfb5b7cae359e0d3ddcd0f4ad2a0ea47b97559b502c18e989b099051db67d",
+      "upstream_path": "电子部分/程序源码/6电机接收/STC15W408.uvproj"
+    },
+    {
+      "bytes": 12797,
+      "sha256": "c559f7e98d55b40f914485e81b1d2868fd05a5b850690fd7761a9a826f788e3b",
+      "upstream_path": "电子部分/程序源码/6电机接收/STC15Wxx.h"
+    },
+    {
+      "bytes": 9288,
+      "sha256": "ffb1891998230a5701858b643e97bc25d46544ed67ceaf1e2a2b8b2c184702a6",
+      "upstream_path": "电子部分/程序源码/6电机接收/main.c"
+    },
+    {
+      "bytes": 7965,
+      "sha256": "5c23187b5208fca5fe797e80083c8574382b02988a5e99bb85dec984d0e5b952",
+      "upstream_path": "电子部分/程序源码/6电机接收/nrf24l01.c"
+    },
+    {
+      "bytes": 3116,
+      "sha256": "4a0dfd0ae7c96130da8e5e662c63903c07a71d361f76b41e71af6e839a0c4ac9",
+      "upstream_path": "电子部分/程序源码/6电机接收/nrf24l01.h"
+    },
+    {
+      "bytes": 596,
+      "sha256": "6db4066d0303a8fa44a4a3b9a9deb8eb4c6ee23e2868555188bb4d4c58ad03d5",
+      "upstream_path": "电子部分/程序源码/6电机接收/system.c"
+    },
+    {
+      "bytes": 431,
+      "sha256": "3c82ec0be06bb7eb44f04b4d04d5a1ffbd072382fa832be54961399368d4d9bf",
+      "upstream_path": "电子部分/程序源码/6电机接收/system.h"
+    },
+    {
+      "bytes": 969,
+      "sha256": "0fa9892075fa20618f129ae3d0960108bdca114a580b55f401f4dd20cf5664bd",
+      "upstream_path": "电子部分/程序源码/6电机接收/usart.c"
+    },
+    {
+      "bytes": 202,
+      "sha256": "b40b551280d76e3937c48ed8d5332e6a10a7beeaaf80464f4fada2a7e7af4fcb",
+      "upstream_path": "电子部分/程序源码/6电机接收/usart.h"
+    },
+    {
+      "bytes": 6376,
+      "sha256": "0298d03e409c9ecb60da335aec3d7a3eee98762c3efd9dd12eab7612c7104011",
+      "upstream_path": "电子部分/程序源码/6通道遥控/STARTUP.A51"
+    },
+    {
+      "bytes": 90968,
+      "sha256": "10f70d9fe9dba2aa244636dee380dd384f4bae2b056eae86590ce7e7c8ec7c69",
+      "upstream_path": "电子部分/程序源码/6通道遥控/STC15W408.uvgui.hhdell"
+    },
+    {
+      "bytes": 93793,
+      "sha256": "eea76ef85483a81c5202da7f18beefff0beded5358957e2b5c65b91316c2ddb1",
+      "upstream_path": "电子部分/程序源码/6通道遥控/STC15W408.uvgui.hxh"
+    },
+    {
+      "bytes": 6518,
+      "sha256": "fbe210250a4faf755b46ba107737be5ec2b47ec25bd7d890d237d9b7870f4d8e",
+      "upstream_path": "电子部分/程序源码/6通道遥控/STC15W408.uvopt"
+    },
+    {
+      "bytes": 14986,
+      "sha256": "762dfb5b7cae359e0d3ddcd0f4ad2a0ea47b97559b502c18e989b099051db67d",
+      "upstream_path": "电子部分/程序源码/6通道遥控/STC15W408.uvproj"
+    },
+    {
+      "bytes": 12797,
+      "sha256": "c559f7e98d55b40f914485e81b1d2868fd05a5b850690fd7761a9a826f788e3b",
+      "upstream_path": "电子部分/程序源码/6通道遥控/STC15Wxx.h"
+    },
+    {
+      "bytes": 3971,
+      "sha256": "e852159db844083eb9e99b48712f0807379fa1bbe6dcadf01715c8b747986437",
+      "upstream_path": "电子部分/程序源码/6通道遥控/main.c"
+    },
+    {
+      "bytes": 7965,
+      "sha256": "5c23187b5208fca5fe797e80083c8574382b02988a5e99bb85dec984d0e5b952",
+      "upstream_path": "电子部分/程序源码/6通道遥控/nrf24l01.c"
+    },
+    {
+      "bytes": 3116,
+      "sha256": "b812de1696d09ac174c8d5a0bde4d38822a7eddca1434cfab48d6d566b0a3f45",
+      "upstream_path": "电子部分/程序源码/6通道遥控/nrf24l01.h"
+    },
+    {
+      "bytes": 596,
+      "sha256": "6db4066d0303a8fa44a4a3b9a9deb8eb4c6ee23e2868555188bb4d4c58ad03d5",
+      "upstream_path": "电子部分/程序源码/6通道遥控/system.c"
+    },
+    {
+      "bytes": 431,
+      "sha256": "3c82ec0be06bb7eb44f04b4d04d5a1ffbd072382fa832be54961399368d4d9bf",
+      "upstream_path": "电子部分/程序源码/6通道遥控/system.h"
+    },
+    {
+      "bytes": 969,
+      "sha256": "0fa9892075fa20618f129ae3d0960108bdca114a580b55f401f4dd20cf5664bd",
+      "upstream_path": "电子部分/程序源码/6通道遥控/usart.c"
+    },
+    {
+      "bytes": 202,
+      "sha256": "b40b551280d76e3937c48ed8d5332e6a10a7beeaaf80464f4fada2a7e7af4fcb",
+      "upstream_path": "电子部分/程序源码/6通道遥控/usart.h"
+    }
+  ],
+  "assembly_structure": {
+    "connection_evidence_status": "Mechanical roles inferred from original CAD filenames, original exported instance paths, author README, and inspected author illustrations. No exact joint axes, limits, constraint equations, or native mate types were decoded or invented.",
+    "count_scope": "Counts are distinct supplied files, not component instances, rigid bodies, joint counts, or guaranteed complete dependency counts.",
+    "distinct_articulated_members": [
+      {
+        "file": "source/机械部分/工程文件/大臂.SLDPRT",
+        "role": "boom"
+      },
+      {
+        "file": "source/机械部分/工程文件/小臂.SLDPRT",
+        "role": "stick / dipper"
+      },
+      {
+        "file": "source/机械部分/工程文件/挖斗.SLDPRT",
+        "role": "bucket"
+      },
+      {
+        "file": "source/机械部分/工程文件/挖斗连杆1.SLDPRT",
+        "role": "bucket linkage member 1"
+      },
+      {
+        "file": "source/机械部分/工程文件/挖斗连杆2.SLDPRT",
+        "role": "bucket linkage member 2; two instances appear in original STL names"
+      },
+      {
+        "file": "source/机械部分/工程文件/推杆套.SLDPRT",
+        "role": "actuator sleeve"
+      },
+      {
+        "file": "source/机械部分/工程文件/M3螺钉.SLDPRT",
+        "role": "actuator lead screw"
+      },
+      {
+        "file": "source/机械部分/工程文件/底盘.SLDPRT",
+        "role": "tracked chassis"
+      },
+      {
+        "file": "source/机械部分/工程文件/主体底.SLDPRT",
+        "role": "slewing upper-body base"
+      },
+      {
+        "file": "source/机械部分/工程文件/履带模块4.SLDPRT",
+        "role": "individual track link variant used in chassis STL export"
+      }
+    ],
+    "expected_mechanical_connections": [
+      "Revolute slew connection: chassis to upper body through the bearing/gear assembly.",
+      "Pinned upper-body-to-boom and boom-to-stick connections.",
+      "Pinned stick-to-bucket connection plus the multi-link bucket actuation loop.",
+      "Three motor/screw actuators change boom, stick, and bucket linkage position; these are screw-driven RC actuators, not hydraulic cylinders.",
+      "Track-drive wheel revolute motion and repeated articulated track links."
+    ],
+    "illustrations_visually_inspected": [
+      "source/image/zhuti.jpg",
+      "source/image/dipanxuanzhuan.jpg"
+    ],
+    "native_assembly_file_count": 8,
+    "native_mate_preservation": "Original .SLDASM bytes are preserved; no constraints were removed or edited. Presence, completeness, and solvability of native mates remain unverified.",
+    "native_part_file_count": 33,
+    "original_drawing_file_count": 3,
+    "original_stl_file_count": 27,
+    "root_assembly": {
+      "evidence": "The original STL export filenames begin with this assembly name and include nested subassembly and component instance names.",
+      "file": "source/机械部分/工程文件/试装1.SLDASM",
+      "translation": "trial assembly 1 / supplied overall assembly"
+    },
+    "subassemblies": [
+      {
+        "file": "source/机械部分/工程文件/主体带推杆系统.sldasm",
+        "role": "Upper structure plus three screw-driven actuator instances; supported by STL filename paths and README.",
+        "translation": "upper body with pushrod system"
+      },
+      {
+        "file": "source/机械部分/工程文件/主体系统.sldasm",
+        "role": "Body base, boom, stick, bucket, and bucket connecting links.",
+        "translation": "upper body system"
+      },
+      {
+        "file": "source/机械部分/工程文件/推杆1.SLDASM",
+        "role": "Repeated actuator assembly using N20 motor, sleeve, M3 screw, brass standoff, and screw anchor; three actuator instance names occur in original STL filenames.",
+        "translation": "pushrod actuator 1"
+      },
+      {
+        "file": "source/机械部分/工程文件/底盘系统.SLDASM",
+        "role": "Chassis, drive/idler wheels, and repeated track-link components.",
+        "translation": "chassis system"
+      },
+      {
+        "file": "source/机械部分/工程文件/新轴承系统.SLDASM",
+        "role": "Slewing interface between chassis and upper body.",
+        "translation": "new bearing system"
+      },
+      {
+        "file": "source/机械部分/工程文件/轴承外套带齿轮.sldasm",
+        "role": "Geared part of the slewing interface.",
+        "translation": "outer bearing sleeve with gear"
+      },
+      {
+        "file": "source/机械部分/工程文件/主轴齿轮适配体.SLDASM",
+        "role": "Rotary motor/gear connection component.",
+        "translation": "main-shaft gear adapter"
+      }
+    ],
+    "track_link_count_note": "The supplied instruction filename 履带模块总共打印90个.txt calls for 90 printed track modules. This is a build instruction, not a verified native-assembly instance count."
+  },
+  "asset_id": "08_excavator",
+  "asset_type": "mechanical excavator with articulated boom, stick, bucket linkage, screw actuators, slew bearing, and tracked chassis",
+  "fallback_used": false,
+  "file_hash_scope": "Every saved source file including the full upstream ZIP is hashed in files[]. Every member of that ZIP is also hashed in archive_member_inventory[]. manifest.json is excluded from self-hashing.",
+  "files": [
+    {
+      "bytes": 29245042,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "archives/excavator-source-9449de3aa9573c41aeeb058bc6b3c115c6bd2339.zip",
+      "role": "unchanged_full_upstream_repository_archive",
+      "sha256": "76aab8ae8e42d5f46c833f392e2ecab45ff597650ca2799456ab510ae8f68583",
+      "source_url": "https://codeload.github.com/eyhxh/3Dprint-mini-RC-excavator/zip/9449de3aa9573c41aeeb058bc6b3c115c6bd2339"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 1062,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/LICENSE",
+      "role": "license",
+      "sha256": "100bae405e2c4fc75cacd30d1a25454c26c383dc9065894d28b4c76afb893a9d",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/LICENSE",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/LICENSE",
+      "upstream_path": "LICENSE"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 1747,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/README.md",
+      "role": "original_documentation",
+      "sha256": "73db130932d513c58689f72a85c308104089d96dc7a2fd4c1dc9bd796ff61a4a",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/README.md",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/README.md",
+      "upstream_path": "README.md"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 121505,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/image/dipan.jpg",
+      "role": "original_assembly_illustration",
+      "sha256": "b4243510f25f10727a5c82a90df22185a833a9be4c1b8d0c5e66e140302fe490",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/dipan.jpg",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/dipan.jpg",
+      "upstream_path": "image/dipan.jpg"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 124003,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/image/dipanxuanzhuan.jpg",
+      "role": "original_assembly_illustration",
+      "sha256": "39c247a70290ef879ede1aa9a27033f61e559c5c4aab58cadfc32bfc3e3ffc5e",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/dipanxuanzhuan.jpg",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/dipanxuanzhuan.jpg",
+      "upstream_path": "image/dipanxuanzhuan.jpg"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 128950,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/image/lvdai.jpg",
+      "role": "original_assembly_illustration",
+      "sha256": "f9da31a6c4a55fb5be22dadaa95c6712b3107be6f7b1b1425068a7eb9fd70058",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/lvdai.jpg",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/lvdai.jpg",
+      "upstream_path": "image/lvdai.jpg"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 99353,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/image/tuigan.jpg",
+      "role": "original_assembly_illustration",
+      "sha256": "ae2f55bafc7da7be061d5a87295d7cf5216b1f912b4daf7c155b23e163d1db19",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/tuigan.jpg",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/tuigan.jpg",
+      "upstream_path": "image/tuigan.jpg"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 117756,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/image/zhuti.jpg",
+      "role": "original_assembly_illustration",
+      "sha256": "eac4742b7b742f9811ecedf1729e09df29972492fe46e2d99bd549b84dde1d1b",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/zhuti.jpg",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/zhuti.jpg",
+      "upstream_path": "image/zhuti.jpg"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 61165,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/image/zhutidianji.jpg",
+      "role": "original_assembly_illustration",
+      "sha256": "1877338df5f8e03c41721730d5b5fc6e6436891939b60c5b1f72ec5022c96db1",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/zhutidianji.jpg",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/image/zhutidianji.jpg",
+      "upstream_path": "image/zhutidianji.jpg"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 527684,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 主体底-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "b42450ecae86ade90a3b5a627a4808ef45d03a2cbb30dd2cb6cee837934b2444",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E5%BA%95-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E5%BA%95-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 主体底-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 58884,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 大臂-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "185a9709b0970a06da53d19a3f5459de84021198d7dbbc44e9418a43ca7c8d2c",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E5%A4%A7%E8%87%82-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E5%A4%A7%E8%87%82-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 大臂-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 62484,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 小臂-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "4f79da56e13ac736a4c61df472f27549adb0fcb3ced3260d77b8756e7d3f8369",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E5%B0%8F%E8%87%82-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E5%B0%8F%E8%87%82-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 小臂-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 72084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "1325a5a5730284cb76c9dd27c4e0ee9331ba99fd1cb89f481a7dd119bc3d84a7",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E6%8C%96%E6%96%97-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E6%8C%96%E6%96%97-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 41084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆1-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "edd5b404bd2cc89497e87b189cd75868d67cce1fd37b63856809aa260e03b853",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%861-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%861-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆1-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 27084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆2-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "5ea78fc4a2e68d98b950658b0523dd6a485bc41123f0b65c12aa926f6c291531",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%862-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%862-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆2-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 27084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆2-2.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "a03035ab35b71426951ee9ee569cf883f1b2ce2f35730d143ed9549835add84a",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%862-2.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F-1%20%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%862-2.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆2-2.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 74584,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘旋转结构/主轴齿轮适配体.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "745c65f61eb4531ab50e04af5efb58728f0223144c136c71f1e4b3d25efa3bae",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E4%B8%BB%E8%BD%B4%E9%BD%BF%E8%BD%AE%E9%80%82%E9%85%8D%E4%BD%93.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E4%B8%BB%E8%BD%B4%E9%BD%BF%E8%BD%AE%E9%80%82%E9%85%8D%E4%BD%93.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/主轴齿轮适配体.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 62584,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘旋转结构/试装1 - 新轴承系统-1 轴承内套-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "879734d02d15b942cea96c73ec47413104c26e7e2bd5a56107b9f671898eb945",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E8%AF%95%E8%A3%851%20-%20%E6%96%B0%E8%BD%B4%E6%89%BF%E7%B3%BB%E7%BB%9F-1%20%E8%BD%B4%E6%89%BF%E5%86%85%E5%A5%97-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E8%AF%95%E8%A3%851%20-%20%E6%96%B0%E8%BD%B4%E6%89%BF%E7%B3%BB%E7%BB%9F-1%20%E8%BD%B4%E6%89%BF%E5%86%85%E5%A5%97-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/试装1 - 新轴承系统-1 轴承内套-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 24084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘旋转结构/试装1 - 新轴承系统-1 轴承内套垫高-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "cea28ef29e2780e9b3f436feba6b4a819bfacc2868b046aefd42299348c935af",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E8%AF%95%E8%A3%851%20-%20%E6%96%B0%E8%BD%B4%E6%89%BF%E7%B3%BB%E7%BB%9F-1%20%E8%BD%B4%E6%89%BF%E5%86%85%E5%A5%97%E5%9E%AB%E9%AB%98-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E8%AF%95%E8%A3%851%20-%20%E6%96%B0%E8%BD%B4%E6%89%BF%E7%B3%BB%E7%BB%9F-1%20%E8%BD%B4%E6%89%BF%E5%86%85%E5%A5%97%E5%9E%AB%E9%AB%98-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/试装1 - 新轴承系统-1 轴承内套垫高-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 64684,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘旋转结构/轴承外套垫高.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "b23b503cffb0ce4185ed251a7029d9788c54ce37863d4c44b2104c73d8f5b600",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97%E5%9E%AB%E9%AB%98.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97%E5%9E%AB%E9%AB%98.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/轴承外套垫高.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 365884,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘旋转结构/轴承外套带齿轮.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "85dfc8a87f845c4c049e54aa4dcfb33283476ac23312ef8c65581b72c32dddf0",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97%E5%B8%A6%E9%BD%BF%E8%BD%AE.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E6%97%8B%E8%BD%AC%E7%BB%93%E6%9E%84/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97%E5%B8%A6%E9%BD%BF%E8%BD%AE.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘旋转结构/轴承外套带齿轮.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 0,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘部分/履带模块总共打印90个.txt",
+      "role": "original_documentation",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%97%E6%80%BB%E5%85%B1%E6%89%93%E5%8D%B090%E4%B8%AA.txt",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%97%E6%80%BB%E5%85%B1%E6%89%93%E5%8D%B090%E4%B8%AA.txt",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/履带模块总共打印90个.txt"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 91284,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 从动轮3-4.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "298fbed63cdeb37b2f34a45d0c90dde0d84db2ab5b933d63a9409c11c7810d24",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E4%BB%8E%E5%8A%A8%E8%BD%AE3-4.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E4%BB%8E%E5%8A%A8%E8%BD%AE3-4.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 从动轮3-4.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 91284,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 从动轮3-9.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "4966f74d12a73612c43541623e22f6d0655bf97e719d40159313e3834b8d1565",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E4%BB%8E%E5%8A%A8%E8%BD%AE3-9.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E4%BB%8E%E5%8A%A8%E8%BD%AE3-9.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 从动轮3-9.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 47884,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 履带模块4-223.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "8963296f5cf98a9dd192badb08c639341141f5a979e512cb710c553748b7b3a7",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%974-223.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%974-223.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 履带模块4-223.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 340684,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 底盘-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "0d94f34a276928d18454ff42ffe45e2d19e1893002da255ed9d44bd2c4c43941",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E5%BA%95%E7%9B%98-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E5%BA%95%E7%9B%98-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 底盘-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 89884,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 驱动轮2-3.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "c9e46642ab38b18349a2cb61fb2e11a38a8215378a60f0ce851f82b14a955865",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E9%A9%B1%E5%8A%A8%E8%BD%AE2-3.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E9%A9%B1%E5%8A%A8%E8%BD%AE2-3.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 驱动轮2-3.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 89884,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 驱动轮2-4.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "6edf078d481228a80660ea9270721401532dbc4e91484029d41e5f1a2405c762",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E9%A9%B1%E5%8A%A8%E8%BD%AE2-4.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F-1%20%E9%A9%B1%E5%8A%A8%E8%BD%AE2-4.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 驱动轮2-4.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 51084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 N20电机固定-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "89885026e87b4916a8911d1fae32d29c3806357dc26578a5f177e3defcbc882b",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-1%20N20%E7%94%B5%E6%9C%BA%E5%9B%BA%E5%AE%9A-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-1%20N20%E7%94%B5%E6%9C%BA%E5%9B%BA%E5%AE%9A-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 N20电机固定-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 17584,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 推杆套-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "816888f788f377da6fb8495fa7f321225e137a03a5fbfd2bdb7b092923dcea78",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-1%20%E6%8E%A8%E6%9D%86%E5%A5%97-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-1%20%E6%8E%A8%E6%9D%86%E5%A5%97-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 推杆套-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 18084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 螺钉固定头-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "c897698d87fc9fe2e8f901cfb36ba579f0b767f71dc4c8c055762e76b906a67d",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-1%20%E8%9E%BA%E9%92%89%E5%9B%BA%E5%AE%9A%E5%A4%B4-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-1%20%E8%9E%BA%E9%92%89%E5%9B%BA%E5%AE%9A%E5%A4%B4-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 螺钉固定头-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 51084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 N20电机固定-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "19944d4b85edd3479daff13fae40afd01c9004297204983af42495b20595fe03",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-2%20N20%E7%94%B5%E6%9C%BA%E5%9B%BA%E5%AE%9A-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-2%20N20%E7%94%B5%E6%9C%BA%E5%9B%BA%E5%AE%9A-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 N20电机固定-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 17584,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 推杆套-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "882b769b164708bd161a9c11a4746e0c7e4d866a8e6a26751a6f193138c17797",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-2%20%E6%8E%A8%E6%9D%86%E5%A5%97-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-2%20%E6%8E%A8%E6%9D%86%E5%A5%97-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 推杆套-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 18084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 螺钉固定头-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "856dfbeccf1f40929dd239fd5dd368edac0cbd7f80d59a8675b8ce0417165d9f",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-2%20%E8%9E%BA%E9%92%89%E5%9B%BA%E5%AE%9A%E5%A4%B4-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-2%20%E8%9E%BA%E9%92%89%E5%9B%BA%E5%AE%9A%E5%A4%B4-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 螺钉固定头-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 51084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 N20电机固定-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "134c8e096cf625b53dbb43be9cea0834925a4e5c126e9892ceefc344711c095f",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-3%20N20%E7%94%B5%E6%9C%BA%E5%9B%BA%E5%AE%9A-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-3%20N20%E7%94%B5%E6%9C%BA%E5%9B%BA%E5%AE%9A-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 N20电机固定-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 17584,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 推杆套-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "cdadb659c841a5ad61941f1e691f2ac875a90195ab4143af4ac0282fe48cb180",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-3%20%E6%8E%A8%E6%9D%86%E5%A5%97-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-3%20%E6%8E%A8%E6%9D%86%E5%A5%97-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 推杆套-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 18084,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 螺钉固定头-1.STL",
+      "role": "original_print_mesh_reference_only",
+      "sha256": "768b3d7a2fbb5e2016be5ea196a52c92407a1baa208d0bec3289cda45b96bb9f",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-3%20%E8%9E%BA%E9%92%89%E5%9B%BA%E5%AE%9A%E5%A4%B4-1.STL",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/3D%E6%89%93%E5%8D%B0%E6%9C%BASTL%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E9%83%A8%E5%88%86/%E8%AF%95%E8%A3%851%20-%20%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F-1%20%E6%8E%A8%E6%9D%861-3%20%E8%9E%BA%E9%92%89%E5%9B%BA%E5%AE%9A%E5%A4%B4-1.STL",
+      "upstream_path": "机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 螺钉固定头-1.STL"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 215496,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/M3螺钉.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "2580f655f9f6721ed0bf282d05a8dc68cf3da94b30d20bed754cc81e4fffe101",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/M3%E8%9E%BA%E9%92%89.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/M3%E8%9E%BA%E9%92%89.SLDPRT",
+      "upstream_path": "机械部分/工程文件/M3螺钉.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 76216,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/M3铜柱.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "7b2fdfe6497e5c5b7e8fabe26dcb6368eb85c2ee80753693896fbebcbf433c5a",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/M3%E9%93%9C%E6%9F%B1.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/M3%E9%93%9C%E6%9F%B1.SLDPRT",
+      "upstream_path": "机械部分/工程文件/M3铜柱.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 118269,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/N20减速电机.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "a8a8027af2600ef0dbb3e08301818fd2d43f36c438232630ffe202ceb8712bdd",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/N20%E5%87%8F%E9%80%9F%E7%94%B5%E6%9C%BA.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/N20%E5%87%8F%E9%80%9F%E7%94%B5%E6%9C%BA.SLDPRT",
+      "upstream_path": "机械部分/工程文件/N20减速电机.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 117419,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/N20电机固定.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "bc1505f59010da115621aa36760f09fb360b14a866f91d8052f22ed35560193c",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/N20%E7%94%B5%E6%9C%BA%E5%9B%BA%E5%AE%9A.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/N20%E7%94%B5%E6%9C%BA%E5%9B%BA%E5%AE%9A.SLDPRT",
+      "upstream_path": "机械部分/工程文件/N20电机固定.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 27778,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/pcb.DXF",
+      "role": "original_drawing",
+      "sha256": "29ba2cede3dddc96a26905d4e01c7616699cb688477486d35f4810c975832e82",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/pcb.DXF",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/pcb.DXF",
+      "upstream_path": "机械部分/工程文件/pcb.DXF"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 74431,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/pcb.sldprt",
+      "role": "native_cad_part",
+      "sha256": "533814594a86c4272efa1b047e70d2274e726cc141fcc55d858ff150aac50bd0",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/pcb.sldprt",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/pcb.sldprt",
+      "upstream_path": "机械部分/工程文件/pcb.sldprt"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 273804,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/pcb^主体系统.DWG",
+      "role": "original_drawing",
+      "sha256": "052209d7de2fd1c73d838100b79dd4fe5d2f733c36e7cfe0df0d717a975d551e",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/pcb%5E%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F.DWG",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/pcb%5E%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F.DWG",
+      "upstream_path": "机械部分/工程文件/pcb^主体系统.DWG"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 26689,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/pcb^主体系统.DXF",
+      "role": "original_drawing",
+      "sha256": "a7ccc24057d451dbc0df426b626ea72a19e8340e913b461b73be27043fb9634e",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/pcb%5E%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F.DXF",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/pcb%5E%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F.DXF",
+      "upstream_path": "机械部分/工程文件/pcb^主体系统.DXF"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 349841,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/主体带推杆系统.sldasm",
+      "role": "native_cad_assembly",
+      "sha256": "e094fb965a67391098804d9a93eb849265aff53d6ed35c86cb1d96ca8bb5629b",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F.sldasm",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E5%B8%A6%E6%8E%A8%E6%9D%86%E7%B3%BB%E7%BB%9F.sldasm",
+      "upstream_path": "机械部分/工程文件/主体带推杆系统.sldasm"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 4115838,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/主体底.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "8dc3e9fabc94bda927aa34cbc3e48b850b3f2d2804fd9b939bd32ab90dfdc7e6",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E5%BA%95.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E5%BA%95.SLDPRT",
+      "upstream_path": "机械部分/工程文件/主体底.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 235025,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/主体系统.sldasm",
+      "role": "native_cad_assembly",
+      "sha256": "5f5631d0d8594c95298bc512c6c57224a5f23fd1cc74be61923350c4e48bf567",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F.sldasm",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%B8%BB%E4%BD%93%E7%B3%BB%E7%BB%9F.sldasm",
+      "upstream_path": "机械部分/工程文件/主体系统.sldasm"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 169281,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/主轴齿轮适配体.SLDASM",
+      "role": "native_cad_assembly",
+      "sha256": "533a720311454d88eb57ff5917ee2a995e85d220b7f7a345e84688026728031b",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%B8%BB%E8%BD%B4%E9%BD%BF%E8%BD%AE%E9%80%82%E9%85%8D%E4%BD%93.SLDASM",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%B8%BB%E8%BD%B4%E9%BD%BF%E8%BD%AE%E9%80%82%E9%85%8D%E4%BD%93.SLDASM",
+      "upstream_path": "机械部分/工程文件/主轴齿轮适配体.SLDASM"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 94799,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/从动轮.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "f3286d194441cc1b685349316d19aba5dd1a97b2ba3ff300f953bffa723cfe31",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%BB%8E%E5%8A%A8%E8%BD%AE.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%BB%8E%E5%8A%A8%E8%BD%AE.SLDPRT",
+      "upstream_path": "机械部分/工程文件/从动轮.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 126992,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/从动轮2.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "278ddb500155db73362c6343b0fc6dc032ce0547c555b881e11d618615e25982",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%BB%8E%E5%8A%A8%E8%BD%AE2.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%BB%8E%E5%8A%A8%E8%BD%AE2.SLDPRT",
+      "upstream_path": "机械部分/工程文件/从动轮2.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 206056,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/从动轮3.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "9955790605a51c6cedec14658bce18228150c04a7680b341102a3eea9c9e0729",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%BB%8E%E5%8A%A8%E8%BD%AE3.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E4%BB%8E%E5%8A%A8%E8%BD%AE3.SLDPRT",
+      "upstream_path": "机械部分/工程文件/从动轮3.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 153956,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/外壳.sldprt",
+      "role": "native_cad_part",
+      "sha256": "f8dd68604e8d2a59a5d9688dec0245909db525fa0eb775aeabcabcde47f9c5ae",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%A4%96%E5%A3%B3.sldprt",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%A4%96%E5%A3%B3.sldprt",
+      "upstream_path": "机械部分/工程文件/外壳.sldprt"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 71350,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/外挡板.sldprt",
+      "role": "native_cad_part",
+      "sha256": "6081b31b0fd3f3632d33d31fc594fb64797fd3a246a5e94d3332319b1393b03d",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%A4%96%E6%8C%A1%E6%9D%BF.sldprt",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%A4%96%E6%8C%A1%E6%9D%BF.sldprt",
+      "upstream_path": "机械部分/工程文件/外挡板.sldprt"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 6112631,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/大臂.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "119e2972d994c02a3bb049b478326c813df718a984b6fe213c600efa54d4b64f",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%A4%A7%E8%87%82.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%A4%A7%E8%87%82.SLDPRT",
+      "upstream_path": "机械部分/工程文件/大臂.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 6100800,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/小臂.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "58254b1d681bc8672d003d40118660b36947aa33e8be5871694346ab5ee6b59a",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B0%8F%E8%87%82.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B0%8F%E8%87%82.SLDPRT",
+      "upstream_path": "机械部分/工程文件/小臂.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 169826,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/履带.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "d119df27673f3d256466e26f068bc18b12659d09fa9c097bde0b2641abc2e50b",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6.SLDPRT",
+      "upstream_path": "机械部分/工程文件/履带.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 92245,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/履带模块.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "b2b61cb4a1f23305442b29690613c5f6c6210195eed786ba76661ac4326ac2f5",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%97.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%97.SLDPRT",
+      "upstream_path": "机械部分/工程文件/履带模块.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 110063,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/履带模块2.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "66e7f6a29fe6d062dbe9c7ea109721bc3d7b2eb6edc65c9451d12f7d67449112",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%972.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%972.SLDPRT",
+      "upstream_path": "机械部分/工程文件/履带模块2.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 127386,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/履带模块3.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "054a145525fcde57953fc91c717a811aa7503d62ba674f3f5d84a4f68b39f13b",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%973.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%973.SLDPRT",
+      "upstream_path": "机械部分/工程文件/履带模块3.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 126243,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/履带模块4.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "9a6afde0b59fe30dcd90499ac4f6f4e0a99548c10b62256c2a730b59206daec8",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%974.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%B1%A5%E5%B8%A6%E6%A8%A1%E5%9D%974.SLDPRT",
+      "upstream_path": "机械部分/工程文件/履带模块4.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 264841,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/底盘.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "60df907b08573eea88734f266b021d4ffebed176461065f73ad43085be0c3fa0",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98.SLDPRT",
+      "upstream_path": "机械部分/工程文件/底盘.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 264370,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/底盘系统.SLDASM",
+      "role": "native_cad_assembly",
+      "sha256": "cecaf7c735f7cbfe1206c563e0851f3e87af2ac14e1c5ac0a2cbbb7ddb457ffd",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F.SLDASM",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E5%BA%95%E7%9B%98%E7%B3%BB%E7%BB%9F.SLDASM",
+      "upstream_path": "机械部分/工程文件/底盘系统.SLDASM"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 6167954,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/挖斗.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "af77053090768e3abdac91adb82ccb110b921e169be1bb52057a92341e385746",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8C%96%E6%96%97.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8C%96%E6%96%97.SLDPRT",
+      "upstream_path": "机械部分/工程文件/挖斗.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 87631,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/挖斗连杆1.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "a99054fe35cac58d64bcd454facb85f5187901a5218256493339f27ff7f355d8",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%861.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%861.SLDPRT",
+      "upstream_path": "机械部分/工程文件/挖斗连杆1.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 74474,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/挖斗连杆2.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "9bc912e07e63aef9ba846bf3e8a2faed6e81f317a0b20303175fd90cae688290",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%862.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8C%96%E6%96%97%E8%BF%9E%E6%9D%862.SLDPRT",
+      "upstream_path": "机械部分/工程文件/挖斗连杆2.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 76629,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/控制板壳.sldprt",
+      "role": "native_cad_part",
+      "sha256": "8d2824858dcdb1ffa0342939307d01e44977e9ee8da46514d7d6bb947b1b452b",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8E%A7%E5%88%B6%E6%9D%BF%E5%A3%B3.sldprt",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8E%A7%E5%88%B6%E6%9D%BF%E5%A3%B3.sldprt",
+      "upstream_path": "机械部分/工程文件/控制板壳.sldprt"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 98447,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/推杆1.SLDASM",
+      "role": "native_cad_assembly",
+      "sha256": "ee76a41b355ed33d9df6ca5792312140824ee200108afc38cdcc0d4f870c0a6a",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%861.SLDASM",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%861.SLDASM",
+      "upstream_path": "机械部分/工程文件/推杆1.SLDASM"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 207617,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/推杆套.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "c30e6a8678e511afea830de19c13fb4bd6ba0a0b778702b7d5788af7da4df820",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E5%A5%97.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%8E%A8%E6%9D%86%E5%A5%97.SLDPRT",
+      "upstream_path": "机械部分/工程文件/推杆套.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 226026,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/新轴承系统.SLDASM",
+      "role": "native_cad_assembly",
+      "sha256": "70f5224a49ed1bb5abc0f4f6c0075932efce38cf2519966ffeaa0d651a9e6894",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%96%B0%E8%BD%B4%E6%89%BF%E7%B3%BB%E7%BB%9F.SLDASM",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E6%96%B0%E8%BD%B4%E6%89%BF%E7%B3%BB%E7%BB%9F.SLDASM",
+      "upstream_path": "机械部分/工程文件/新轴承系统.SLDASM"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 65091,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/电池仓盖.sldprt",
+      "role": "native_cad_part",
+      "sha256": "4d1ecbeed09ffca071d772dc868cc12cee9a729ef7ba7e8e8fc18528a4142545",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E7%94%B5%E6%B1%A0%E4%BB%93%E7%9B%96.sldprt",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E7%94%B5%E6%B1%A0%E4%BB%93%E7%9B%96.sldprt",
+      "upstream_path": "机械部分/工程文件/电池仓盖.sldprt"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 106501,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/螺钉固定头.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "4121a4def37b9b57bc0ae1200c0cc475b3dce975304516c095ea80c50ddf2095",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%9E%BA%E9%92%89%E5%9B%BA%E5%AE%9A%E5%A4%B4.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%9E%BA%E9%92%89%E5%9B%BA%E5%AE%9A%E5%A4%B4.SLDPRT",
+      "upstream_path": "机械部分/工程文件/螺钉固定头.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 564374,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/试装1.SLDASM",
+      "role": "native_cad_assembly",
+      "sha256": "e1c8f66df634762c77ecb0e6e9af607e88a52518a4021035e8f3dc4633644954",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%AF%95%E8%A3%851.SLDASM",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%AF%95%E8%A3%851.SLDASM",
+      "upstream_path": "机械部分/工程文件/试装1.SLDASM"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 152430,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/轴承20-32-7.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "752301653246940566381e112bfee2ec01664cc57a9ec5a679c0bf13daf38d68",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF20-32-7.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF20-32-7.SLDPRT",
+      "upstream_path": "机械部分/工程文件/轴承20-32-7.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 89051,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/轴承内套.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "6320c95d825d1c3bf685cce78a562f6f091ee5dd48597970d869b6bf46259c5f",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%86%85%E5%A5%97.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%86%85%E5%A5%97.SLDPRT",
+      "upstream_path": "机械部分/工程文件/轴承内套.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 71103,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/轴承内套垫高.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "9f91cb2800e6bec208aa5009e2e01a14f3dbd82c397102a2aea57f526cea367a",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%86%85%E5%A5%97%E5%9E%AB%E9%AB%98.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%86%85%E5%A5%97%E5%9E%AB%E9%AB%98.SLDPRT",
+      "upstream_path": "机械部分/工程文件/轴承内套垫高.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 131585,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/轴承外套.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "ba94884c8adfc1e09412139fd28097878a29032848f13b833a9139dc40730b2e",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97.SLDPRT",
+      "upstream_path": "机械部分/工程文件/轴承外套.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 95165,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/轴承外套垫高.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "4afb55c66d9f05fb6a5ead61a385907334189b18da31ee983bcfd4dda7f795ba",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97%E5%9E%AB%E9%AB%98.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97%E5%9E%AB%E9%AB%98.SLDPRT",
+      "upstream_path": "机械部分/工程文件/轴承外套垫高.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 252887,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/轴承外套带齿轮.sldasm",
+      "role": "native_cad_assembly",
+      "sha256": "5daa6cf488d542fe5f4d3a0d4fb50a8f86b98c877d9fcd4cea1abe84aaffc83e",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97%E5%B8%A6%E9%BD%BF%E8%BD%AE.sldasm",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%BD%B4%E6%89%BF%E5%A4%96%E5%A5%97%E5%B8%A6%E9%BD%BF%E8%BD%AE.sldasm",
+      "upstream_path": "机械部分/工程文件/轴承外套带齿轮.sldasm"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 121603,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/驱动轮.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "d44f6354c4d542352797c63b6588360fac0411d9f79582a67628ca7cf8eff87e",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E9%A9%B1%E5%8A%A8%E8%BD%AE.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E9%A9%B1%E5%8A%A8%E8%BD%AE.SLDPRT",
+      "upstream_path": "机械部分/工程文件/驱动轮.SLDPRT"
+    },
+    {
+      "byte_identical_to_archive_member": true,
+      "bytes": 194833,
+      "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+      "path": "source/机械部分/工程文件/驱动轮2.SLDPRT",
+      "role": "native_cad_part",
+      "sha256": "92ed026ab982817a088d38d14973e10a5732ee5e389e27480a67a849575187d0",
+      "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E9%A9%B1%E5%8A%A8%E8%BD%AE2.SLDPRT",
+      "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E9%A9%B1%E5%8A%A8%E8%BD%AE2.SLDPRT",
+      "upstream_path": "机械部分/工程文件/驱动轮2.SLDPRT"
+    }
+  ],
+  "inspection": {
+    "conversion_performed": false,
+    "geometry_modified": false,
+    "joint_data_removed": false,
+    "methods": [
+      "Read upstream repository and LICENSE/README",
+      "Pinned HEAD with git ls-remote",
+      "Downloaded GitHub source ZIP at exact commit",
+      "Validated ZIP comment and CRCs",
+      "Byte-compared all extracted files with archive members",
+      "Inspected original assembly illustrations",
+      "Read CAD/mesh filenames and exported instance paths",
+      "Inspected DXF unit headers",
+      "Checked original binary STL byte lengths and triangle counts",
+      "Computed SHA256 of every saved source file and every archived member"
+    ],
+    "native_cad_opened": false,
+    "other_asset_outputs_inspected": false,
+    "repair_performed": false,
+    "simulation_performed": false,
+    "stl_checks": [
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 主体底-1.STL",
+        "format": "binary STL",
+        "triangle_count": 10552,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 大臂-1.STL",
+        "format": "binary STL",
+        "triangle_count": 1176,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 小臂-1.STL",
+        "format": "binary STL",
+        "triangle_count": 1248,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗-1.STL",
+        "format": "binary STL",
+        "triangle_count": 1440,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆1-1.STL",
+        "format": "binary STL",
+        "triangle_count": 820,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆2-1.STL",
+        "format": "binary STL",
+        "triangle_count": 540,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/主体部分/试装1 - 主体带推杆系统-1 主体系统-1 挖斗连杆2-2.STL",
+        "format": "binary STL",
+        "triangle_count": 540,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘旋转结构/主轴齿轮适配体.STL",
+        "format": "binary STL",
+        "triangle_count": 1490,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘旋转结构/试装1 - 新轴承系统-1 轴承内套-1.STL",
+        "format": "binary STL",
+        "triangle_count": 1250,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘旋转结构/试装1 - 新轴承系统-1 轴承内套垫高-1.STL",
+        "format": "binary STL",
+        "triangle_count": 480,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘旋转结构/轴承外套垫高.STL",
+        "format": "binary STL",
+        "triangle_count": 1292,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘旋转结构/轴承外套带齿轮.STL",
+        "format": "binary STL",
+        "triangle_count": 7316,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 从动轮3-4.STL",
+        "format": "binary STL",
+        "triangle_count": 1824,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 从动轮3-9.STL",
+        "format": "binary STL",
+        "triangle_count": 1824,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 履带模块4-223.STL",
+        "format": "binary STL",
+        "triangle_count": 956,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 底盘-1.STL",
+        "format": "binary STL",
+        "triangle_count": 6812,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 驱动轮2-3.STL",
+        "format": "binary STL",
+        "triangle_count": 1796,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/底盘部分/试装1 - 底盘系统-1 驱动轮2-4.STL",
+        "format": "binary STL",
+        "triangle_count": 1796,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 N20电机固定-1.STL",
+        "format": "binary STL",
+        "triangle_count": 1020,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 推杆套-1.STL",
+        "format": "binary STL",
+        "triangle_count": 350,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-1 螺钉固定头-1.STL",
+        "format": "binary STL",
+        "triangle_count": 360,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 N20电机固定-1.STL",
+        "format": "binary STL",
+        "triangle_count": 1020,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 推杆套-1.STL",
+        "format": "binary STL",
+        "triangle_count": 350,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-2 螺钉固定头-1.STL",
+        "format": "binary STL",
+        "triangle_count": 360,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 N20电机固定-1.STL",
+        "format": "binary STL",
+        "triangle_count": 1020,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 推杆套-1.STL",
+        "format": "binary STL",
+        "triangle_count": 350,
+        "units_encoded": false
+      },
+      {
+        "byte_length_consistent_with_triangle_count": true,
+        "file": "source/机械部分/3D打印机STL文件/推杆部分/试装1 - 主体带推杆系统-1 推杆1-3 螺钉固定头-1.STL",
+        "format": "binary STL",
+        "triangle_count": 360,
+        "units_encoded": false
+      }
+    ],
+    "write_scope": "<PRIVATE_RUNTIME_LOCATOR_27a12c49d2630f25>"
+  },
+  "intended_physics_task": {
+    "benchmark_value": "Several separate articulated bodies, three screw actuators, a bucket linkage loop, slewing bearing, and a detailed tracked base require assembly interpretation and physics authoring.",
+    "bounds": "This is a miniature RC excavator. Soil mechanics, excavation performance, and full-scale hydraulic behavior are not established by the source.",
+    "execution_handoff": "Downstream root owns conversion and simulation on its two Horde nodes / four full GPUs; no GPU or remote-node operations were performed here.",
+    "primary": "After downstream preparation, exercise boom lift, stick extension, and bucket curl through a reach-and-scoop trajectory while monitoring bucket-tip pose, linkage closure, actuator travel, self-collision, and ground contact.",
+    "secondary": "Slew the upper body and assess tipping/contact stability; optionally extend to track-driven traversal.",
+    "simulation_performed": false
+  },
+  "license": {
+    "attribution": "3Dprint-mini-RC-excavator by eyhxh, commit 9449de3aa9573c41aeeb058bc6b3c115c6bd2339, https://github.com/eyhxh/3Dprint-mini-RC-excavator",
+    "commercial_use": "Allowed under the repository MIT license; no noncommercial restriction.",
+    "copyright_notice": "Copyright (c) 2022 eyhxh",
+    "local_file": "source/LICENSE",
+    "name": "MIT License",
+    "redistribution_condition": "Retain the copyright and permission notice with copies or substantial portions.",
+    "scope_evidence": "The repository root includes an explicit MIT LICENSE; README identifies the mechanical SolidWorks and STL files as open-source materials updated in this same repository. No alternate license or CAD exclusion was found in the downloaded snapshot.",
+    "source_page_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/blob/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/LICENSE",
+    "source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/LICENSE",
+    "spdx_id": "MIT",
+    "uncertainty": "This records the publisher's repository-wide license grant. Independent provenance of every modeled commodity component is not separately documented."
+  },
+  "schema_version": "1.0",
+  "selection_audit": [
+    {
+      "reason_not_selected": "Detailed STEP excavator, but CC BY-NC 4.0 restricts commercial use.",
+      "repository": "https://github.com/Himalia13/42006-Technic-Model"
+    },
+    {
+      "reason_not_selected": "FreeCAD/STEP excavator, but CC BY-NC-SA 4.0 restricts commercial use.",
+      "repository": "https://github.com/Open-MiRoREA/mirorea_excavator_cad"
+    },
+    {
+      "reason_not_selected": "README excludes CAD assets from the Apache-2.0 grant; usable CAD license not established.",
+      "repository": "https://github.com/zazunanami/HydraulicExcavatorCad"
+    },
+    {
+      "commit": "d822c401ad51aae76cfd4fbbe80d13b42800f339",
+      "reason_not_selected": "MIT STEP suspension candidate inspected; 12 unplaced part exports lack assembly placement graph. Superseded by licensed native excavator; candidate downloads are not part of the final acquisition.",
+      "repository": "https://github.com/Prammit-06/Double_Wishbone_Suspension_CAD"
+    },
+    {
+      "reason_not_selected": "Apache-2.0 placed STEP rocker-bogie suspension is a viable alternative, but a licensed native excavator was found.",
+      "reference": "v3.1.0",
+      "repository": "https://github.com/nasa-jpl/open-source-rover"
+    }
+  ],
+  "selection_note": "A usable MIT-licensed excavator was found. Native SolidWorks is retained even though STEP/FreeCAD was preferred. No STEP or FreeCAD export exists in this pinned repository snapshot; no conversion was performed. The original printing STLs are supplementary references, not replacements for the CAD assemblies.",
+  "source": {
+    "archive_url": "https://codeload.github.com/eyhxh/3Dprint-mini-RC-excavator/zip/9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+    "commit": "9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+    "commit_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/commit/9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+    "commit_verification": [
+      "git ls-remote returned this HEAD commit",
+      "GitHub ZIP archive comment equals this full 40-character commit"
+    ],
+    "default_branch_at_acquisition": "main",
+    "preservation": "Downloaded original full repository ZIP; extracted all mechanical files, README, LICENSE, and six original illustrations without byte changes. Original names, case, Chinese filenames, and directory layout are retained below source/. The ZIP also preserves electronics/firmware, which were not executed.",
+    "primary_cad_entrypoint": "source/机械部分/工程文件/试装1.SLDASM",
+    "primary_cad_source_url": "https://raw.githubusercontent.com/eyhxh/3Dprint-mini-RC-excavator/9449de3aa9573c41aeeb058bc6b3c115c6bd2339/%E6%9C%BA%E6%A2%B0%E9%83%A8%E5%88%86/%E5%B7%A5%E7%A8%8B%E6%96%87%E4%BB%B6/%E8%AF%95%E8%A3%851.SLDASM",
+    "repository_owner": "eyhxh",
+    "repository_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator",
+    "snapshot_url": "https://github.com/eyhxh/3Dprint-mini-RC-excavator/tree/9449de3aa9573c41aeeb058bc6b3c115c6bd2339",
+    "source_format": "SolidWorks 2016 .SLDASM and .SLDPRT, as specified in upstream README"
+  },
+  "status": "acquired_and_byte_verified; native CAD import not validated",
+  "task": "source_curation_only",
+  "title": "MIT-licensed 3D-printed mini RC excavator — original SolidWorks 2016 assembly",
+  "totals": {
+    "archived_upstream_file_count": 110,
+    "native_assembly_files": 8,
+    "native_part_files": 33,
+    "original_print_stl_files": 27,
+    "saved_source_bytes": 60924997,
+    "saved_source_file_count": 81
+  },
+  "uncertainties": [
+    "Preferred STEP/FreeCAD format is absent. A downstream compatible SolidWorks import/export path is needed.",
+    "All supplied mechanical files were preserved, but missing external library references, virtual parts, suppressed configurations, and native assembly dependency completeness cannot be ruled out without a native CAD read.",
+    "Native mate graph, valid degrees of freedom, joint axes, joint limits, and initial placements were not decoded.",
+    "Physical dimensions are documented in mm, but native SolidWorks document unit settings are unverified.",
+    "The author notes known issues in the README; no physical build or CAD solver validation was conducted here.",
+    "Mass, density, inertia, contact friction, actuator motor/gearbox data, screw pitch, force capacity, and travel limits require downstream verification.",
+    "Some filenames are variants or repeated instances; file counts must not be treated as a rigid-body count.",
+    "Upstream MIT license and attribution are preserved; per-component original provenance is not independently proven."
+  ],
+  "units": {
+    "documented_design_dimensions": "millimetres (mm)",
+    "evidence": [
+      {
+        "file": "source/README.md",
+        "observation": "Specifies M3 brass standoff length 12 mm, bucket screw/sleeve lengths 35/40 mm, stick screw/sleeve lengths 50/55 mm, boom screw/sleeve lengths 45/50 mm."
+      },
+      {
+        "file": "source/机械部分/工程文件/pcb.DXF",
+        "observation": "DXF header $INSUNITS = 4 (millimetres); $MEASUREMENT = 1 (metric)."
+      },
+      {
+        "file": "source/机械部分/工程文件/pcb^主体系统.DXF",
+        "observation": "DXF header $INSUNITS = 4 (millimetres); $MEASUREMENT = 1 (metric)."
+      }
+    ],
+    "future_import_requirement": "Confirm native import units and a known physical dimension before applying scale. Do not blindly rescale native SolidWorks data based on the STL convention.",
+    "native_solidworks_document_units": "unverified; native document settings were not decoded",
+    "scale_to_meters_for_documented_mm_dimensions": 0.001,
+    "stl_units": "STL has no encoded units. Millimetres are inferred from README and consistent miniature-part coordinate magnitudes, not guaranteed by STL metadata."
+  },
+  "why_original_is_not_simulation_ready": [
+    "The source is a mechanical fabrication CAD package, with native assemblies and printing meshes; it is not a URDF, SDF, MJCF, USD physics scene, or ready simulator model.",
+    "The proprietary SolidWorks documents require a compatible CAD reader. Their native mate graph and external/virtual component dependencies have not been parsed or validated.",
+    "A simulator still needs rigid-body grouping, joint frames, joint types, limits, collision shapes, and mass/inertia assignments. No verified simulator-specific values are supplied by this curation.",
+    "The screw actuators and bucket linkage introduce coupled/closed-loop motion requiring a physics representation and calibrated actuator travel/force parameters.",
+    "Detailed gears, bearings, screws, and tracks require choices about contacts, friction, and simplification for stable simulation.",
+    "The supplied STL exports are for 3D printing and do not themselves encode articulation or material/physics semantics. Native CAD was preserved alongside them."
+  ]
+}

@@ -1,0 +1,293 @@
+{
+  "runtime_components_match_all_five_seed_matrix": true,
+  "changed_components_qualified_by": [
+    "final_freeze_tests.log",
+    "calibration_dependency_tests.log",
+    "paired_unloaded_calibration_review.json",
+    "final_structural_controls/summary.json",
+    "reference_disposition_v2/result.json",
+    "source09_evaluation_v2/summary.json"
+  ],
+  "scope": "Native solver/controller/source-comparator bytes and measured observer predicates unchanged. evaluate.py only adds reference-integrity and failed-calibration verdict dependencies plus engine paired witness readback; remaining bounded helpers/availability checks qualified separately.",
+  "rows": [
+    {
+      "case_id": "02_conveyor",
+      "only_post_matrix_changes": [
+        {
+          "file": "evaluate.py",
+          "native_matrix_sha256": "49aff038f15a92e8414fa7ed41b2ff7e0a2f543787466202ca18fa9f73e75c0e",
+          "final_sha256": "95cd3ac11167a703bdaa1695f171f9ac85b1dd7aeec365bd11d46c9b7a295185"
+        },
+        {
+          "file": "structural.py",
+          "native_matrix_sha256": "3fdee59ec74bb9ef3f83b5f1c7b3b98e936b204a8bccf242d2275e68c53839c4",
+          "final_sha256": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5"
+        },
+        {
+          "file": "v2_inputs.py",
+          "native_matrix_sha256": "0b82704dd19705aa610da542a1c53880766f6ef4fde89d4031a33ad5ac789080",
+          "final_sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+        },
+        {
+          "file": "v2_process.py",
+          "native_matrix_sha256": "e1df8c178b3cc62ec3e3bf1c32c281b0911c530c2f48112d57325957723b9fe8",
+          "final_sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+        },
+        {
+          "file": "v2_verdict.py",
+          "native_matrix_sha256": null,
+          "final_sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+        }
+      ],
+      "solver_controller_observer_predicates_geometry_unchanged": true
+    },
+    {
+      "case_id": "03_hinge",
+      "only_post_matrix_changes": [
+        {
+          "file": "evaluate.py",
+          "native_matrix_sha256": "4040d1a142d0abc1f617e23954d15e12cd14bef71ba9297956d0f9c2d4a3bcde",
+          "final_sha256": "c31dc022ccc5fab5a5d391e6aedbd3c95b836fc8a8f1730ec18a700cef6120c1"
+        },
+        {
+          "file": "structural.py",
+          "native_matrix_sha256": "3fdee59ec74bb9ef3f83b5f1c7b3b98e936b204a8bccf242d2275e68c53839c4",
+          "final_sha256": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5"
+        },
+        {
+          "file": "v2_inputs.py",
+          "native_matrix_sha256": "0b82704dd19705aa610da542a1c53880766f6ef4fde89d4031a33ad5ac789080",
+          "final_sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+        },
+        {
+          "file": "v2_process.py",
+          "native_matrix_sha256": "e1df8c178b3cc62ec3e3bf1c32c281b0911c530c2f48112d57325957723b9fe8",
+          "final_sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+        },
+        {
+          "file": "v2_verdict.py",
+          "native_matrix_sha256": null,
+          "final_sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+        }
+      ],
+      "solver_controller_observer_predicates_geometry_unchanged": true
+    },
+    {
+      "case_id": "04_gripper",
+      "only_post_matrix_changes": [
+        {
+          "file": "evaluate.py",
+          "native_matrix_sha256": "1c972b805cdb3c9801b0de7c9a454a3395617eb966c7a87d61c3be8f5fb03240",
+          "final_sha256": "1d53389e6021279bef7360d4205cf2752767468018011d4043b4a96c5eed5bf0"
+        },
+        {
+          "file": "structural.py",
+          "native_matrix_sha256": "84b80c71341ef6e7d6c421b2092b3ff35bd43ae424f45675f9979c2c3e42c264",
+          "final_sha256": "74227cb17afcf029083528f4342186f273ca91b32e43dfaead490eea0dbd8d52"
+        },
+        {
+          "file": "v2_inputs.py",
+          "native_matrix_sha256": "0b82704dd19705aa610da542a1c53880766f6ef4fde89d4031a33ad5ac789080",
+          "final_sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+        },
+        {
+          "file": "v2_process.py",
+          "native_matrix_sha256": "e1df8c178b3cc62ec3e3bf1c32c281b0911c530c2f48112d57325957723b9fe8",
+          "final_sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+        },
+        {
+          "file": "v2_verdict.py",
+          "native_matrix_sha256": null,
+          "final_sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+        }
+      ],
+      "solver_controller_observer_predicates_geometry_unchanged": true
+    },
+    {
+      "case_id": "05_vise",
+      "only_post_matrix_changes": [
+        {
+          "file": "evaluate.py",
+          "native_matrix_sha256": "b5800a29d9bb991c21f9b7328dea39cc58cfea91f3127ac80136b10c0e1c6339",
+          "final_sha256": "48a846daff018389bdb28aca85677908cf5216c228b4962dc3874f90357b5f66"
+        },
+        {
+          "file": "structural.py",
+          "native_matrix_sha256": "5a163c5eec5089fd5a328e4f50ce34d0041625748ca1dbc30d6f2c8695fdc12b",
+          "final_sha256": "7789a0fc53007f7359a3d06d1e0d9cd90509f064885efb7c4c3924d9cf4cb1b0"
+        },
+        {
+          "file": "v2_inputs.py",
+          "native_matrix_sha256": "0b82704dd19705aa610da542a1c53880766f6ef4fde89d4031a33ad5ac789080",
+          "final_sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+        },
+        {
+          "file": "v2_process.py",
+          "native_matrix_sha256": "e1df8c178b3cc62ec3e3bf1c32c281b0911c530c2f48112d57325957723b9fe8",
+          "final_sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+        },
+        {
+          "file": "v2_verdict.py",
+          "native_matrix_sha256": null,
+          "final_sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+        }
+      ],
+      "solver_controller_observer_predicates_geometry_unchanged": true
+    },
+    {
+      "case_id": "06_engine",
+      "only_post_matrix_changes": [
+        {
+          "file": "evaluate.py",
+          "native_matrix_sha256": "1c972b805cdb3c9801b0de7c9a454a3395617eb966c7a87d61c3be8f5fb03240",
+          "final_sha256": "1d53389e6021279bef7360d4205cf2752767468018011d4043b4a96c5eed5bf0"
+        },
+        {
+          "file": "structural.py",
+          "native_matrix_sha256": "92b76f2b86c7ba8f62838a6a9fe28cf9cd3fc61e8eba6d54e1a04647cd2f8012",
+          "final_sha256": "c458867794a2d6ed25680d083d4856950255e65ff4184570bd9fe60a0542a610"
+        },
+        {
+          "file": "v2_inputs.py",
+          "native_matrix_sha256": "0b82704dd19705aa610da542a1c53880766f6ef4fde89d4031a33ad5ac789080",
+          "final_sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+        },
+        {
+          "file": "v2_process.py",
+          "native_matrix_sha256": "e1df8c178b3cc62ec3e3bf1c32c281b0911c530c2f48112d57325957723b9fe8",
+          "final_sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+        },
+        {
+          "file": "v2_verdict.py",
+          "native_matrix_sha256": null,
+          "final_sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+        }
+      ],
+      "solver_controller_observer_predicates_geometry_unchanged": true
+    },
+    {
+      "case_id": "07_robot_arm",
+      "only_post_matrix_changes": [
+        {
+          "file": "evaluate.py",
+          "native_matrix_sha256": "1c972b805cdb3c9801b0de7c9a454a3395617eb966c7a87d61c3be8f5fb03240",
+          "final_sha256": "1d53389e6021279bef7360d4205cf2752767468018011d4043b4a96c5eed5bf0"
+        },
+        {
+          "file": "structural.py",
+          "native_matrix_sha256": "9f8cda7408d71250ab524e2a5eeb851b41ae4354bef5db30580741db07063745",
+          "final_sha256": "5f29f487fd7f30200f1de755ab851ad5a441e81a223e6575f16cf6d3e69b61c3"
+        },
+        {
+          "file": "v2_inputs.py",
+          "native_matrix_sha256": "0b82704dd19705aa610da542a1c53880766f6ef4fde89d4031a33ad5ac789080",
+          "final_sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+        },
+        {
+          "file": "v2_process.py",
+          "native_matrix_sha256": "e1df8c178b3cc62ec3e3bf1c32c281b0911c530c2f48112d57325957723b9fe8",
+          "final_sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+        },
+        {
+          "file": "v2_verdict.py",
+          "native_matrix_sha256": null,
+          "final_sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+        }
+      ],
+      "solver_controller_observer_predicates_geometry_unchanged": true
+    },
+    {
+      "case_id": "08_excavator",
+      "only_post_matrix_changes": [
+        {
+          "file": "evaluate.py",
+          "native_matrix_sha256": "bc73f8f7d279f00b9c54a057e9173287659595c5a5605a3755cfc7aafb502568",
+          "final_sha256": "2d4f0748a57a31fbced236e6e65e94d1224ce7a4a78fdb36b5eba1c38e6e33de"
+        },
+        {
+          "file": "structural.py",
+          "native_matrix_sha256": "3fdee59ec74bb9ef3f83b5f1c7b3b98e936b204a8bccf242d2275e68c53839c4",
+          "final_sha256": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5"
+        },
+        {
+          "file": "v2_inputs.py",
+          "native_matrix_sha256": "0b82704dd19705aa610da542a1c53880766f6ef4fde89d4031a33ad5ac789080",
+          "final_sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+        },
+        {
+          "file": "v2_process.py",
+          "native_matrix_sha256": "e1df8c178b3cc62ec3e3bf1c32c281b0911c530c2f48112d57325957723b9fe8",
+          "final_sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+        },
+        {
+          "file": "v2_verdict.py",
+          "native_matrix_sha256": null,
+          "final_sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+        }
+      ],
+      "solver_controller_observer_predicates_geometry_unchanged": true
+    },
+    {
+      "case_id": "09_printer",
+      "only_post_matrix_changes": [
+        {
+          "file": "evaluate.py",
+          "native_matrix_sha256": "4dd4a5e3050afe316fa24952dcd8c322dfd9e3f581b81dcaa16c928d9139782e",
+          "final_sha256": "7c8372766f6891fe9fdcaffb22f0ddf21a49fc7e2f2732e65ab3ee8d6c0fe887"
+        },
+        {
+          "file": "structural.py",
+          "native_matrix_sha256": "9f8cda7408d71250ab524e2a5eeb851b41ae4354bef5db30580741db07063745",
+          "final_sha256": "5f29f487fd7f30200f1de755ab851ad5a441e81a223e6575f16cf6d3e69b61c3"
+        },
+        {
+          "file": "v2_inputs.py",
+          "native_matrix_sha256": "0b82704dd19705aa610da542a1c53880766f6ef4fde89d4031a33ad5ac789080",
+          "final_sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+        },
+        {
+          "file": "v2_process.py",
+          "native_matrix_sha256": "e1df8c178b3cc62ec3e3bf1c32c281b0911c530c2f48112d57325957723b9fe8",
+          "final_sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+        },
+        {
+          "file": "v2_verdict.py",
+          "native_matrix_sha256": null,
+          "final_sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+        }
+      ],
+      "solver_controller_observer_predicates_geometry_unchanged": true
+    },
+    {
+      "case_id": "10_complex",
+      "only_post_matrix_changes": [
+        {
+          "file": "evaluate.py",
+          "native_matrix_sha256": "bc73f8f7d279f00b9c54a057e9173287659595c5a5605a3755cfc7aafb502568",
+          "final_sha256": "2d4f0748a57a31fbced236e6e65e94d1224ce7a4a78fdb36b5eba1c38e6e33de"
+        },
+        {
+          "file": "structural.py",
+          "native_matrix_sha256": "3fdee59ec74bb9ef3f83b5f1c7b3b98e936b204a8bccf242d2275e68c53839c4",
+          "final_sha256": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5"
+        },
+        {
+          "file": "v2_inputs.py",
+          "native_matrix_sha256": "0b82704dd19705aa610da542a1c53880766f6ef4fde89d4031a33ad5ac789080",
+          "final_sha256": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528"
+        },
+        {
+          "file": "v2_process.py",
+          "native_matrix_sha256": "e1df8c178b3cc62ec3e3bf1c32c281b0911c530c2f48112d57325957723b9fe8",
+          "final_sha256": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794"
+        },
+        {
+          "file": "v2_verdict.py",
+          "native_matrix_sha256": null,
+          "final_sha256": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+        }
+      ],
+      "solver_controller_observer_predicates_geometry_unchanged": true
+    }
+  ]
+}

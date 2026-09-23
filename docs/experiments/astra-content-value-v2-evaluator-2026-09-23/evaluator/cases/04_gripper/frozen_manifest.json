@@ -1,0 +1,21 @@
+{
+  "code_sha256": {
+    "bindings.schema.json": "d3bf23628bc61c9d060b8c9d24c554c3cacf40ebba5ca57d77f745fed6be7ab0",
+    "case04_contract.json": "9158d495062f21db187549cf66a04200d8e236153d9e988bd4a0be1d36d69e07",
+    "case04_evaluate.py": "f7a15af1784495d4fbd9268dec48a377e55d846023e208d214c6f91009e580af",
+    "case04_solver.py": "47396bc0b3e6e015d916e97ebd17b41199ee9362fafc94519d1dd428c0671047",
+    "cases.json": "54f255250615a79b6824a3dfb0698570adb5ade3f54ee55cc83a05bb6be339d7",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "evaluate.py": "1d53389e6021279bef7360d4205cf2752767468018011d4043b4a96c5eed5bf0",
+    "geometry.py": "0ccc1517a5bedf798f2c136c26fce1efb387eb816e7505a8ce8f5ef7d9777ae3",
+    "solver.py": "8bf1bcd203747face921cbcebe3933402d4855298da26cdf72c735e801c6f0c3",
+    "structural.py": "74227cb17afcf029083528f4342186f273ca91b32e43dfaead490eea0dbd8d52",
+    "v2_control.py": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a",
+    "v2_geometry.py": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4",
+    "v2_inputs.py": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528",
+    "v2_policy.py": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20",
+    "v2_process.py": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794",
+    "v2_verdict.py": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+  },
+  "reference_inventory_sha256": "762a1f3315de9ed42fd1694328c8d2134239a03648f7e39a34415fb1d71ae36c"
+}

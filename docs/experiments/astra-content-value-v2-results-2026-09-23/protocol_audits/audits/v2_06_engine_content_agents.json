@@ -1,0 +1,688 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "content_agents",
+  "case_id": "06_engine",
+  "citations": [
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "original_tool_call",
+      "line": 270,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "7dd71d2b743e991745d83f43a7ecbee9b273655fdb2c97834fe07f17b42f9cf2",
+      "navigation_line": 270,
+      "observation": "Native Geometry source-preserving invocation."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000004_000.jsonl",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "original_tool_call",
+      "line": 120,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "30c5c3bc6a0fd8c39157a58191d72e7728d9de9c87990c3f80d95bb4c059aba5",
+      "navigation_line": 120,
+      "observation": "Native Articulation typed decision application."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000002_000.jsonl",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "original_tool_call",
+      "line": 741,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "cdad3fbf605a19de57ce7bf960020ddd25c708110beba0aac3179425874acacc",
+      "navigation_line": 741,
+      "observation": "Native Articulation finalization with retained reviewed evidence."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "original_tool_call",
+      "line": 808,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "7dd71d2b743e991745d83f43a7ecbee9b273655fdb2c97834fe07f17b42f9cf2",
+      "navigation_line": 808,
+      "observation": "Native Astra Ultra Physics application and bounded mounted runtime review."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "original_tool_call",
+      "line": 888,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "7dd71d2b743e991745d83f43a7ecbee9b273655fdb2c97834fe07f17b42f9cf2",
+      "navigation_line": 888,
+      "observation": "Native Validation coordinator attempt with stated limited scope."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "original_tool_call",
+      "line": 1032,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "7dd71d2b743e991745d83f43a7ecbee9b273655fdb2c97834fe07f17b42f9cf2",
+      "navigation_line": 1032,
+      "observation": "Explicit focused native static Validation after earlier failure; physical task acceptance not claimed."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "original_tool_call",
+      "line": 1042,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "7dd71d2b743e991745d83f43a7ecbee9b273655fdb2c97834fe07f17b42f9cf2",
+      "navigation_line": 1042,
+      "observation": "Focused native check and finalize entrypoints."
+    },
+    {
+      "archive_member": "workspace/native_conversion_original/workflow_run_manifest.json",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "retained_author_artifact",
+      "member_sha256": "caf41f2268021fe9da9c55aa12fcd2e076794df7aa2a5630c08043a557d99afe",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "blocked",
+        "workflow": "convert_to_usd"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/native_conversion_step/workflow_run_manifest.json",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "retained_author_artifact",
+      "member_sha256": "21db054210d9577499934839be323459252525f16f96ab45beba0f996edefcbe",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "pass",
+        "workflow": "convert_to_usd"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/native_articulation_01/final_summary.json",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "retained_author_artifact",
+      "member_sha256": "7fbeacb820d2b0a6a36945a4c11d56dd69372dc919f0737cc2acb3ad64a077d4",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.articulation-finalization-result.v5",
+        "status": "awaiting_decision",
+        "success": false
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/native_articulation_02/standalone_articulation_terminal_receipt.json",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "retained_author_artifact",
+      "member_sha256": "539caa4e5d388d33fb691b2d712964c276acb3058fd7fca94fc70320175f350c",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.standalone-articulation-terminal-receipt.v1",
+        "status": "completed"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/native_physics_01/workflow_run_manifest.json",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "retained_author_artifact",
+      "member_sha256": "c6a188e0b25d4796b760b3260db109de0b3db35afbc9d9eb03c175b484422173",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.run-manifest.v1",
+        "status": "pass",
+        "workflow": "physics.apply"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/native_validation_focused_02/final_summary.json",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "retained_author_artifact",
+      "member_sha256": "4d92a8c7892d594e24817dbc4299f28c004a476cd698847554415e8c486cbee6",
+      "observed_fields": {
+        "schema_version": "content-agent-workflows.validation-summary.v1",
+        "status": "completed",
+        "verdict": "pass"
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    },
+    {
+      "archive_member": "workspace/submission.json",
+      "archive_sha256": "f275879f2f292579b4224a63ed85c96b8da468afd02118869c1d2e781c30491f",
+      "kind": "retained_author_artifact",
+      "member_sha256": "2d5458ef323f29430521677347d5ab6d17816ae689cc7d19876303eaf378f30d",
+      "observed_fields": {
+        "claimed_accepted": false
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    }
+  ],
+  "completed_utc": "2026-09-23T04:41:18.355423+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "9f8108e70c34261074c659670d028b0014cfb6dcd8d9e68feb33d2f9abdae3b1",
+    "author_retention": "a1e00327b0af838114876abffb03d99a93d2e6385b8abe1905a8459ca2cf1f42",
+    "declaration": "0b6e86c53dd180d3b63bf9f4847835fb958ac703cdc27e03b349551b94765201",
+    "launch": "6fb991db98b46253f9e0169ac8e2beee7b4bc67f95f7fa7861a4a4c39c5d666f",
+    "reap": "c03e17db1cfbf47b3f9c3cb7f5a28f9b7df839318f6066456624c284b14c7253",
+    "timing": "9aafcda53c2bf1d53d66cf0e9a0746f5823e49bbc04d78680cfadb8b10788e40",
+    "ui_association": "6ba977d6ea48d7ea42308676043d30698ecb94ea32720aa347a4a44f305829d8",
+    "ui_metadata": "8387474e336e84ab043410f69340178eab3a397a7eaac0d59e3aebf7978f7d9d",
+    "usage": "8e9fb345059117f29e3f0df8002ca5a79e589146e53f0df03d4c7bbc8dbb3f98"
+  },
+  "input_sha256": "24c223db46bdc9ff04e1ad7f002f6bb7e03bd548d45e835b0eb9b86b861c0603",
+  "lane_id": "lane1",
+  "limitations": [
+    "Outcome-blinded protocol review only. No independent evaluator request, log, report, verdict or comparison was read; no authored script was executed.",
+    "Observed native receipts and author diagnostic claims do not establish independent task acceptance or numerical correctness.",
+    "This is automated reviewer work, not observed human review effort. Human review minutes remain unmeasured.",
+    "2 admitted request(s) lack terminal numerical billing. No admitted request starts after the trusted deadline and no recorded finish exceeds it; unrecorded finishes and cost upper bounds remain unknown. Frozen within_deadline=false is preserved, not converted to true."
+  ],
+  "mechanical_findings": {
+    "admitted_requests": 534,
+    "all_observed_ui_matches": true,
+    "allocation_released": true,
+    "billing_complete": false,
+    "budget_s": 2400,
+    "cgroup_empty": true,
+    "cpu_quota_millicores": 4000,
+    "exact_identity_prompt_and_lease_verified": true,
+    "fresh_context_verified": true,
+    "frozen_usage_within_deadline": false,
+    "late_admitted_requests": 0,
+    "memory_bytes": 34359738368,
+    "namespace_reaped": true,
+    "pids_max": 1024,
+    "recorded_late_finishes": 0,
+    "source_unchanged": true,
+    "swap_bytes": 0,
+    "terminal_billing_records": 532,
+    "ui_association_complete": true
+  },
+  "native_terminal_reference_integrity": {
+    "all_match": true,
+    "reference_count": 13,
+    "sha256": "aeec27cb8492ce95d145cea3c5632b757bd4134ccf9d6fc21b5a3de94f769bee"
+  },
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "d5c89bed3f715e7eea4d9cb6c7dd94670159692b6f311fe3ca920a374f0245c4",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "Observed original FCStd native-ingestion failure retained, source-derived STEP/native conversion, native Geometry, actual native Articulation typed authoring and bound final review, native Physics child/application/runtime review, and native Validation followed by an explicitly scoped focused static check. Source/group/collider preparations and separate diagnostic scripts are disclosed as preparation or author diagnostics; no substitute is labeled a complete native physical success. Final delivery remains unaccepted/in-progress. Own-thread Astra Ultra associations and other mechanical gates hold; two missing terminal billing records preserve unknown cost.",
+  "review_coverage": {
+    "all_original_archive_bytes_rehashed": true,
+    "all_original_capture_and_navigation_hashes_verified": true,
+    "capture_count": 10,
+    "copied_ancestor_context_not_counted_as_new_invocation": true,
+    "navigation_not_used_as_verdict": true,
+    "review_navigation_sha256": "6638d62c3e9bec1f32a6f9ccb8219dd9271c1f2a1aaa49defbda3c5490b4d8c3",
+    "script_inventory_count": 73,
+    "script_inventory_sha256": "43cb9a2fa085e2f1f1c6357972e0af46ac8b48287f3a5664dafff2717d333327",
+    "unique_navigation_tool_calls": 466
+  },
+  "run_id": "v2_06_engine_content_agents",
+  "schema_version": "outcome-blinded-protocol-adjudication.agent06.v1",
+  "script_review_inventory": [
+    {
+      "archive_member": "workspace/articulation_inspection_01/inspector.py",
+      "line_count": 227,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "da09676881a07f478543922072b37f76a55f394c0f6072d6c531c90c79e1ff6f"
+    },
+    {
+      "archive_member": "workspace/articulation_inspection_02/inspector.py",
+      "line_count": 227,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6f13b4ea00ddf5e321ca44049136eb599e4ddc8f28b00dbb22dec8ec0399ee9f"
+    },
+    {
+      "archive_member": "workspace/articulation_inspection_03/inspector.py",
+      "line_count": 227,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6f13b4ea00ddf5e321ca44049136eb599e4ddc8f28b00dbb22dec8ec0399ee9f"
+    },
+    {
+      "archive_member": "workspace/articulation_inspection_04/inspector.py",
+      "line_count": 227,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6f13b4ea00ddf5e321ca44049136eb599e4ddc8f28b00dbb22dec8ec0399ee9f"
+    },
+    {
+      "archive_member": "workspace/articulation_prep_tools/capability_probe.py",
+      "line_count": 104,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "4c1b0a21695fcc42671124db4589236fd5a891332517248366d10affbe747bb2"
+    },
+    {
+      "archive_member": "workspace/articulation_prep_tools/launch_articulation.py",
+      "line_count": 43,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "dc7c8f20792d1ae5f4ab4021192f6edbb42318bce5e73914859a239d61d49926"
+    },
+    {
+      "archive_member": "workspace/articulation_prep_tools/prepare.py",
+      "line_count": 227,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6f13b4ea00ddf5e321ca44049136eb599e4ddc8f28b00dbb22dec8ec0399ee9f"
+    },
+    {
+      "archive_member": "workspace/mechanism_design/analyze_proxy_contacts.py",
+      "line_count": 54,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "75324fdf1607f9d31d4d3b02ad16e8d453db762a9b4e3723fdd1c4c2018bd348"
+    },
+    {
+      "archive_member": "workspace/mechanism_design/kinematic_design.py",
+      "line_count": 18,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "b579456906d71ac68859772fc9d13f6548b14a53c2f9fc2fabf74570a79612bd"
+    },
+    {
+      "archive_member": "workspace/mechanism_design/prepare_force_diagnostic.py",
+      "line_count": 28,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "9b7b83982ceafd9e575798996c3aed100d28a7aae288668659a634a22e02437b"
+    },
+    {
+      "archive_member": "workspace/mechanism_design/probe_ring.py",
+      "line_count": 29,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "8007045bc9b4783f7071670b0282f79acbb6b34c2e013b5a64fb40eebc639395"
+    },
+    {
+      "archive_member": "workspace/mechanism_design/run_force_diagnostic.py",
+      "line_count": 84,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "53c43c16292ee2014767db8dc35031b6d043ce1f5513da9df286099951c1f53d"
+    },
+    {
+      "archive_member": "workspace/mechanism_design/run_force_diagnostic_v2_contacts.py",
+      "line_count": 96,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "c07c024f57191e672770120bd77c17b80e17466468bb456b6e86ffa4819afac0"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/apply_fragment_edits.py",
+      "line_count": 228,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "ee80696ee755bd52953fa12b387cb04710c8e1b438a10a14af78cb5c75160867"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/audit_selection_frontier.py",
+      "line_count": 244,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "b963f333a8dc3970bf8413d06bf3f9edc38a6b08cb316e9d3f6ff7fd1db4ae67"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/build_deterministic_fragment_union.py",
+      "line_count": 472,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "53152bf4cae46d62d0965fe301faeb259927181d9bd27644a81a5e54908ab930"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/build_revision_consistency_sheet.py",
+      "line_count": 433,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2a061fb5405f4b9500b74a79f3e89960c23bb1104f7650e69fa68f1661fee5c2"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/build_selected_only_stage.py",
+      "line_count": 69,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2cc1d0069751db6674fc034d846eee9b347af79772d780a42f797121ae525904"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/build_topology_component_evidence.py",
+      "line_count": 893,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "0dec27a87a3d97ffe875d44385c93cc30743fd96bcb5ca36a545434aa392334c"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/compare_face_labels.py",
+      "line_count": 155,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "8c32308d8c7931941433696c1d411acceb9dd61ad4118479a1a42ad91fb9144e"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/export_segmented_usd.py",
+      "line_count": 259,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "fe9259b9d9270279d82aa9eff20c7dde3671c992b5aff36a28e11d941b7e44ed"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/generate_semantic_overlays.py",
+      "line_count": 230,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "eba620fa39f48b43581b2d54d47006ea6889208affeca164a4e05931032443be"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/mesh_geometry.py",
+      "line_count": 475,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "7bf8e745b491a187c07309420e221b17444e6f0da41011ec396b79e97e00ce8e"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/oversegment_mesh.py",
+      "line_count": 561,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "db2422c95819bc2af3ad1f82ebb6535f008129b6c75a48aef50619134934ed0e"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/pick_face_evidence.py",
+      "line_count": 315,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "3aafac2632630e024e84c3328a4a9ca3650c4a59c9670795b95135d4ff883eb3"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/prepare_mesh.py",
+      "line_count": 67,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "00e9dda108575dcb9abc0a38de4d045d206ae1dd85d00a7ed004c2506c490ecd"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/regions_to_fragment_evidence.py",
+      "line_count": 157,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "c5ec971a05ebbd350a4d09199dd68d9ca20525a7937171017b95d067ec0081ef"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/register_semantic_overlays.py",
+      "line_count": 155,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "71d218b3d692fe1384efd967dcda46ea05ae32d3892ce860e7c29ecf5e819817"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/render_face_id_buffers.py",
+      "line_count": 283,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "393ee15db0d8911bb95699e70c9fa63f8fd7a270768059ff2aa62ef19a3b00ed"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/render_mesh_evidence.py",
+      "line_count": 852,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2dd7ac9e29e05fcc3bcfd786d22fcda8256888b55eed55d6e3b50e4bfb0fe646"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/semantic_overlay_registration.py",
+      "line_count": 314,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "aa13156c3a57b7c8cc017d0606861e34b532084520cd0800ff688ed2331f2bae"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/validate_component_assignment_review.py",
+      "line_count": 120,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "a5e5a7e52606f1e16b61e7ca4affca330af222427b72078db84a5f9e0d41b894"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/validate_falsification_review.py",
+      "line_count": 1652,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "bf12d54ccaecf27de64b9094e03e1cd3236edafcfb8aac645003bcede65da44a"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/validate_initializer_decision.py",
+      "line_count": 251,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2c409011ced53b83f54f544c6925e036621ef573167c6373e99f7d488da1cdfe"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/content-workflow-mesh-segmentation/scripts/warp_raycast.py",
+      "line_count": 38,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "db31b9d392dccf86a23f4c1d2dfd5aface0718bdeb9ce9c094b2520af3377107"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/image-generation/scripts/generate_image.py",
+      "line_count": 391,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2e041bb6aad855110e1c35580200d49750602d721614ea24f54638dc319a45a5"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.agents/skills/product-image-decomposer/scripts/split_product_image.py",
+      "line_count": 470,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "ce85451749938e1d0d28d7f8eee842f728e67ddba83434ba78734179f1fd5f59"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/apply_fragment_edits.py",
+      "line_count": 228,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "ee80696ee755bd52953fa12b387cb04710c8e1b438a10a14af78cb5c75160867"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/audit_selection_frontier.py",
+      "line_count": 244,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "b963f333a8dc3970bf8413d06bf3f9edc38a6b08cb316e9d3f6ff7fd1db4ae67"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/build_deterministic_fragment_union.py",
+      "line_count": 472,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "53152bf4cae46d62d0965fe301faeb259927181d9bd27644a81a5e54908ab930"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/build_revision_consistency_sheet.py",
+      "line_count": 433,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2a061fb5405f4b9500b74a79f3e89960c23bb1104f7650e69fa68f1661fee5c2"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/build_selected_only_stage.py",
+      "line_count": 69,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2cc1d0069751db6674fc034d846eee9b347af79772d780a42f797121ae525904"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/build_topology_component_evidence.py",
+      "line_count": 893,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "0dec27a87a3d97ffe875d44385c93cc30743fd96bcb5ca36a545434aa392334c"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/compare_face_labels.py",
+      "line_count": 155,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "8c32308d8c7931941433696c1d411acceb9dd61ad4118479a1a42ad91fb9144e"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/export_segmented_usd.py",
+      "line_count": 259,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "fe9259b9d9270279d82aa9eff20c7dde3671c992b5aff36a28e11d941b7e44ed"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/generate_semantic_overlays.py",
+      "line_count": 230,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "eba620fa39f48b43581b2d54d47006ea6889208affeca164a4e05931032443be"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/mesh_geometry.py",
+      "line_count": 475,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "7bf8e745b491a187c07309420e221b17444e6f0da41011ec396b79e97e00ce8e"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/oversegment_mesh.py",
+      "line_count": 561,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "db2422c95819bc2af3ad1f82ebb6535f008129b6c75a48aef50619134934ed0e"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/pick_face_evidence.py",
+      "line_count": 315,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "3aafac2632630e024e84c3328a4a9ca3650c4a59c9670795b95135d4ff883eb3"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/prepare_mesh.py",
+      "line_count": 67,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "00e9dda108575dcb9abc0a38de4d045d206ae1dd85d00a7ed004c2506c490ecd"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/regions_to_fragment_evidence.py",
+      "line_count": 157,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "c5ec971a05ebbd350a4d09199dd68d9ca20525a7937171017b95d067ec0081ef"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/register_semantic_overlays.py",
+      "line_count": 155,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "71d218b3d692fe1384efd967dcda46ea05ae32d3892ce860e7c29ecf5e819817"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/render_face_id_buffers.py",
+      "line_count": 283,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "393ee15db0d8911bb95699e70c9fa63f8fd7a270768059ff2aa62ef19a3b00ed"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/render_mesh_evidence.py",
+      "line_count": 852,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2dd7ac9e29e05fcc3bcfd786d22fcda8256888b55eed55d6e3b50e4bfb0fe646"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/semantic_overlay_registration.py",
+      "line_count": 314,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "aa13156c3a57b7c8cc017d0606861e34b532084520cd0800ff688ed2331f2bae"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/validate_component_assignment_review.py",
+      "line_count": 120,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "a5e5a7e52606f1e16b61e7ca4affca330af222427b72078db84a5f9e0d41b894"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/validate_falsification_review.py",
+      "line_count": 1652,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "bf12d54ccaecf27de64b9094e03e1cd3236edafcfb8aac645003bcede65da44a"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/validate_initializer_decision.py",
+      "line_count": 251,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2c409011ced53b83f54f544c6925e036621ef573167c6373e99f7d488da1cdfe"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/content-workflow-mesh-segmentation/scripts/warp_raycast.py",
+      "line_count": 38,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "db31b9d392dccf86a23f4c1d2dfd5aface0718bdeb9ce9c094b2520af3377107"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/image-generation/scripts/generate_image.py",
+      "line_count": 391,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "2e041bb6aad855110e1c35580200d49750602d721614ea24f54638dc319a45a5"
+    },
+    {
+      "archive_member": "workspace/native_physics_01/.claude/skills/product-image-decomposer/scripts/split_product_image.py",
+      "line_count": 470,
+      "review_scope": "Retained workflow-bundled skill source: presence is not counted as an invocation; actual child calls reviewed separately.",
+      "sha256": "ce85451749938e1d0d28d7f8eee842f728e67ddba83434ba78734179f1fd5f59"
+    },
+    {
+      "archive_member": "workspace/physics_preparation/prepare_colliders.py",
+      "line_count": 59,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "afb736b0fcf0584b055504239e21dcd3d2ec6a933dd60be08d2bb346a742487d"
+    },
+    {
+      "archive_member": "workspace/records/audit_submission.py",
+      "line_count": 58,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "9ca3ca980ee27c33ed59dfdd7ea22bb0e1ad83b2bb5a35655594ea2f7a69e1e8"
+    },
+    {
+      "archive_member": "workspace/source_inspection/check_native_fine_surface.py",
+      "line_count": 18,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "cd5fdcefe58d0e2065f8a48bcc922771979602fbc8820d4f0cdce50e4058de6f"
+    },
+    {
+      "archive_member": "workspace/source_inspection/check_native_surface.py",
+      "line_count": 18,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "f85cef69d5f1a7cdc84460821014a6ff073c8fb4539fc324cd80e08de65528d0"
+    },
+    {
+      "archive_member": "workspace/source_inspection/check_source_tessellation.py",
+      "line_count": 23,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "4cb5ed10cc793c45a1db78c3a0a519f951ae8480e900dd6616e065dd37ee1ca9"
+    },
+    {
+      "archive_member": "workspace/source_inspection/compute_apply_native_masses.py",
+      "line_count": 32,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6f11e3c7b1af535c3b24001eb66105b3e2f3fe667c503cc3bb1eacbb488a62a4"
+    },
+    {
+      "archive_member": "workspace/source_inspection/derive_step.py",
+      "line_count": 69,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "c2fadfb2ee6932c5343ab754026a9bf195d3c27d88b1949d5b74705785a2a086"
+    },
+    {
+      "archive_member": "workspace/source_inspection/face_features.py",
+      "line_count": 21,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "8c9177aa9a2fea6ee4fea0a4ea2de3603d480d35af1df31654610a8a6d920816"
+    },
+    {
+      "archive_member": "workspace/source_inspection/map_native_conversion.py",
+      "line_count": 19,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "6f3b5a0252faf6b1210b7c1ca0b4dce8148816d6d37b5b75f10592edcfbf0b5c"
+    },
+    {
+      "archive_member": "workspace/source_inspection/map_native_fine.py",
+      "line_count": 19,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "24b7f08cd4ee2de16ae5402803173394da3bdbe602708634fbf10caf4efc6057"
+    },
+    {
+      "archive_member": "workspace/source_inspection/prepare_native_metric.py",
+      "line_count": 50,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "2cafa9bc4d9791ce88622d148f1b946cb03c0e6a5f7aafc878349e687eb50eeb"
+    },
+    {
+      "archive_member": "workspace/source_inspection/prepare_native_metric_transforms.py",
+      "line_count": 56,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "64590eb863a0695cbc91d3a8f262cea01ddfe2b2ba5ee3f7d785b11129ed94ef"
+    }
+  ],
+  "source_sha256": "df12c86b6c66b7687b0b80ed18ffa7431351735c82efa2cfc6c1721adfac9d44",
+  "started_utc": "2026-09-23T04:27:45.346576+00:00",
+  "task_sha256": "bba256bcef4e8622537bd7f690159ab3ea5e416249de9d1786ed21af85126513",
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": {
+    "author_claimed_accepted": false,
+    "independent_physical_acceptance": "not_accessed",
+    "scope": "Reviewed execution operations, static script imports/calls and native contracts for phases reached. Failure/conditional receipts and missing later task success are not treatment violations.",
+    "status": "observed_compliance"
+  }
+}

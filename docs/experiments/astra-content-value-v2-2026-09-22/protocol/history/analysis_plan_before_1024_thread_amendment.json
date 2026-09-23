@@ -1,0 +1,37 @@
+{
+  "acceptance": "Independent PASS only; report PASS, FAIL and INCONCLUSIVE counts over all10 assigned cases per arm and eligible paired subset separately.",
+  "assets": [
+    "01_drawer",
+    "02_conveyor",
+    "03_hinge",
+    "04_gripper",
+    "05_vise",
+    "06_engine",
+    "07_robot_arm",
+    "08_excavator",
+    "09_printer",
+    "10_complex"
+  ],
+  "cost": "Use all parent/child/compaction requests once. Public Astra standard API-equivalent with pinned rates. Missing terminal usage implies observed lower bound and unknown upper. Actual ChatGPT invoice and Horde dollars remain unknown.",
+  "eligible_pair": "Both author attempts satisfy frozen environment, source, model/Ultra, budget and treatment audit. Eligibility is independent of acceptance and numeric cost completeness.",
+  "evaluation_budgets": {
+    "complete_source_and_structural_inspection_seconds": 1800,
+    "input_usd_load_seconds": 900,
+    "native_trial_limits": "Case02 300 seconds per native trial; cases03\u201310 900 seconds per native trial; drawer300 seconds per native trial. All limits bind both arms identically.",
+    "resource_budget": "4 CPU quota,32GiB,512process/thread cap; initial4 CPU affinity. No model network or credentials.",
+    "supervisor_seconds": 9000,
+    "unknown_runtime_policy": "Infrastructure, source inspection timeout, or missing physics calibration gives INCONCLUSIVE for dependent observations; retain concrete independent source/schema failures."
+  },
+  "false_pass": "Author claimed_accepted=true plus independent concrete FAIL. INCONCLUSIVE is unresolved and never counted as a false pass. Report false-pass count, author-positive count with resolved verdict, and unresolved author positives.",
+  "frozen": true,
+  "human_effort": "Record user/human interventions during scored authoring with timestamps and affectedcases. Autonomous preparation, candidate repairs and automated review are separate. Human review minutes are unmeasured absent direct observed timing; no inference of zero effort or savings.",
+  "no_selection": "Preserve all runs. Replacements only for documented harness invalidation: rerun both arms fresh and report excluded-attempt costs separately. Do not replace ordinary unsuccessful authors.",
+  "paired_effect": "Show per-case outcomes and discordance counts; difference in accepted counts divided by eligible pairs. Report an exploratory exact two-sided sign/binomial p value on discordant resolved PASS/FAIL pairs, without generalization from ten reused development assets. Five physical seeds are not five independent author replicates.",
+  "preparation_is_separate": "Unscored environment/evaluator qualification and original pilot repairs are excluded from author time and API-equivalent cost; retain and report separately. These are reused development assets, not held-out customer data.",
+  "publication": "Publish task/input/tool/hardware hashes, launch/audit/reap/usage metadata, submitted artifacts, independent per-seed observations and full unsuccessful results where license permits. Privateauth, rawaccountactivity, modelbaseinstructions and private modelcontent are not public benchmark artifacts.",
+  "repair_effort": "Author self-report, preserved candidate checkpoints and audit-derived chronology are distinct measurements. No repair-count cap; all authoring fits the common 2400-second wall budget.",
+  "resources": "Per-run GPU lane allocation and worker reservation are distinct. Report GPU hours without monetary conversion unless an authoritative rate exists. The hard four-CPU quota and 32 GiB include all descendants; workspace and home tmpfs share that memory. Initial four-CPU affinity controls native thread-pool sizing; it is not a hard cpuset boundary.",
+  "schema_version": "paired-analysis-plan.v2",
+  "time": "Per-arm elapsed authorwall and dispatch allocation from trusted reap/ledger. Time per accepted asset sums all eligible attempts, including rejected/inconclusive attempts, divided by independently accepted assets. Zero accepts has undefined cost/time per accepted.",
+  "unit": "One original asset, authored once per arm in independent fresh contexts; five physics seeds test that one output."
+}

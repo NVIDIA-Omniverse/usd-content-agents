@@ -1,0 +1,34 @@
+{
+  "files": [
+    {
+      "bytes": 8,
+      "path": ".gitattributes",
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+    },
+    {
+      "bytes": 5617,
+      "path": "README.md",
+      "sha256": "320f801afb21e32a88a02b57007db769b88d3a13da82bd3a50c05c759618d6e2"
+    },
+    {
+      "bytes": 11805,
+      "path": "audit_summary.json",
+      "sha256": "3b307eec5e40054be6a638508255ed316ca25eba73c5563f42807776094a67ae"
+    },
+    {
+      "bytes": 5488,
+      "path": "public_verification.json",
+      "sha256": "f5d3806d1d2d981993f539efe73f9a12bc4814e13882372f1dbc7b7d6f3ef68c"
+    },
+    {
+      "bytes": 6349,
+      "path": "verify_public_evidence.py",
+      "sha256": "b22a811e7fc78ed6295da1e82cdd8897b3a42bed55b2d365a1ab24d2194c93d5"
+    }
+  ],
+  "parent_publication_commit": "864dfcdb91c46cf4def78cf9a292ca83b5f40aff",
+  "parent_publication_manifest_sha256": "f42d029b483b07aa15743a69cadd431388a325651d2529f6f3ef388c2d41a348",
+  "schema_version": "capstone-chain-audit-public-derivative-manifest.v1",
+  "scope": "Public-safe derivative; original audit and original publication unchanged.",
+  "source_report_sha256_attestation": "4f435d73ffed37963826924055c7c861f20aadec859537e7404586aa264ceaf3"
+}

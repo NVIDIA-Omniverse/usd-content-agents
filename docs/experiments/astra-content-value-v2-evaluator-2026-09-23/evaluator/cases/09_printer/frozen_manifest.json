@@ -1,0 +1,21 @@
+{
+  "code_sha256": {
+    "bindings.schema.json": "d3bf23628bc61c9d060b8c9d24c554c3cacf40ebba5ca57d77f745fed6be7ab0",
+    "case09_payload.py": "2a6c20b761f7ad4aa0f6cabddebc73b20697bb03e7b7ae44bd39832821296d0d",
+    "case09_payload_contract.json": "cb843047b5f74cac6af037d8db04194b34ba3217e58d6d29b50ca5e0f0bc6096",
+    "case09_placement.json": "12a3a51078fbfbd812ff49ba70b2dded4f7e8b3a508ca4d0ec4d526a4086fa3b",
+    "cases.json": "f2d41de2ed85fc4ff7a03289a6b0c7b856343ff2320dd7e410f154392cf7eb05",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "evaluate.py": "7c8372766f6891fe9fdcaffb22f0ddf21a49fc7e2f2732e65ab3ee8d6c0fe887",
+    "geometry.py": "5948a3442a91ee9b69c1db415559e68c0d2bed3b5a3e581bc1277062aaae532b",
+    "solver.py": "8b0e9319435ee09bea5b885f6253c8431ee1f4d981bd90cb3bf3d5fc412f1cd4",
+    "structural.py": "5f29f487fd7f30200f1de755ab851ad5a441e81a223e6575f16cf6d3e69b61c3",
+    "v2_control.py": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a",
+    "v2_geometry.py": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4",
+    "v2_inputs.py": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528",
+    "v2_policy.py": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20",
+    "v2_process.py": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794",
+    "v2_verdict.py": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+  },
+  "reference_inventory_sha256": "92937c66acf4a6f70259b7f0f12b202fa77a45784f1d2995f025aedf7d38a962"
+}

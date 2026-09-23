@@ -1,0 +1,136 @@
+{
+  "arm": "content_agents",
+  "billing": {
+    "complete": false,
+    "completed_request_count": 377,
+    "recorded_terminal_usage_totals": {
+      "cached_input_tokens": 23987072,
+      "input_tokens": 41198517,
+      "output_tokens": 132990,
+      "reasoning_output_tokens": 34520,
+      "total_tokens": 41331507
+    },
+    "request_count": 378,
+    "totals_scope": "recorded_terminal_responses_only",
+    "unknown_terminal_request_count": 1,
+    "unknown_terminal_usage_treated_as_zero": false
+  },
+  "budget": {
+    "cpu_millicores": 4000,
+    "home_bytes": 2147483648,
+    "memory_bytes": 34359738368,
+    "process_thread_limit": 1024,
+    "storage_charged_within_memory_limit": true,
+    "swap_bytes": 0,
+    "wall_seconds": 2400,
+    "workspace_bytes": 8589934592
+  },
+  "case_id": "07_robot_arm",
+  "inputs": {
+    "instruction_sha256": "62a8f829029d9b07a33868826683f59f1a6cb02bc640c567b270987132d7eda8",
+    "public_input_inventory_sha256": "62a4151f85c31c253841d51bd4c19a74fb7ffe21464579019b1e07c3f7bdc146",
+    "source_bytes": 285750212,
+    "source_file_count": 236,
+    "source_inventory_sha256": "b6bb73d68ec3ced03ba7c2a507f2251ba99e12289c9857d506d1cd5b60c91c36",
+    "task_sha256": "1a411743f30f5bb1d81964ed7dfd8dbc076831c2b7f55de6deb16f6a415cc0ce"
+  },
+  "lane_id": "lane2",
+  "model_controls": {
+    "admission_identity_associations": 31,
+    "all_observed_ui_matches": true,
+    "associated_request_count": 378,
+    "capture_error_record_count": 0,
+    "capture_error_record_scope": "final_ui_metadata_entries_not_unique_incidents",
+    "identity_conflict_count": 0,
+    "model": "gpt-6-astra",
+    "model_catalog_sha256": "e612a56f9fef06041483ddd20cbea586f50d2fbf12e558e852dfa40bd332f976",
+    "reasoning_mapping_sha256": "156f5bdb76caa83e16f92f74a55f38cc361a870957966a32713c953556e46fb7",
+    "requested_ui_effort": "ultra",
+    "resolved_wire_effort": "xhigh",
+    "session_count": 6,
+    "terminal_response_id_associations": 347,
+    "timing_inference_used": false,
+    "ui_complete": true,
+    "unassociated_request_count": 0,
+    "uncovered_thread_count": 0,
+    "unledgered_response_count": 0
+  },
+  "original_records": {
+    "final_usage": {
+      "bytes": 19199748,
+      "sha256": "efd02dbb668d28d0965ce236705d62fb84233b8ca957aa542ddb48f37820ad17"
+    },
+    "launch": {
+      "bytes": 45775,
+      "sha256": "72499e89d84a9a4f2946b3504b6128e37be29f3855b64eec9084dde2f9755990"
+    },
+    "reap": {
+      "bytes": 795,
+      "sha256": "eb574b664e551ee58fcc779e251f3e41a8d96732dd696035563d8d105242d393"
+    },
+    "retention": {
+      "bytes": 397,
+      "sha256": "189c5b4839a14c8c6c6dd52fe95c2dd0bafca3ef3c8f33010117a0449f134609"
+    },
+    "review_index": {
+      "bytes": 10801,
+      "sha256": "22a379a4862550e82caf5ceec14f4cd1d9a0f85e6482e1503ebb90008faa910f"
+    },
+    "timing": {
+      "bytes": 723,
+      "sha256": "08492f5d0091bd8b382323f621ee943304d01a9c37254e8cd9d1a490ddc5aef7"
+    },
+    "ui_association": {
+      "bytes": 66611,
+      "sha256": "d3e850ada6ad9f779dc5beb1f338ae6706a55545f40c6d73bb1635e60ac2e67e"
+    },
+    "ui_metadata": {
+      "bytes": 158886,
+      "sha256": "1109030eeac57d073575796c41cbf7df0ee3c0ff7c7f151a11c987b942f8f603"
+    },
+    "verification": {
+      "bytes": 563,
+      "sha256": "19f8b13b0882a1f4ee768bd06119b26e8d56bf03773f5dfbe73c6372e360af8c"
+    }
+  },
+  "profile": {
+    "environment_sha256": "081df287b1710f11a3e3251071a9696b02d077fd6265db5ff7a19aa956221543",
+    "fresh_home": true,
+    "lane_qualification_sha256": "34c16a6773ff0f01d6607470df65843286e31b5f50db76c870b220094319378c",
+    "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7"
+  },
+  "reap": {
+    "cgroup_populated": 0,
+    "namespace_init_exited": true,
+    "output_inventory_sha256": "906c6e65fa7b48499845d08ac63b208f1a4800e6a43a1ee9ac40150b0b56ab62",
+    "output_snapshot_complete": true,
+    "returncode": -9,
+    "source_unchanged": true,
+    "timed_out": true
+  },
+  "retention": {
+    "archive_bytes": 602709645,
+    "archive_bytes_provided_here": false,
+    "archive_payload_read_by_projector": false,
+    "archive_sha256": "b72fdc7bac72e3d9b225997aa60f472b243d19dadf1c77b4f19d5eb2cdeb1a5e",
+    "member_manifest_sha256": "8dcb97b81ef8f1054b5a20df71b7be23ac9ff4733699c5f48e31b46d3f52c7ac",
+    "prior_export_complete": true,
+    "prior_local_member_verification": true,
+    "verified_member_count": 1649
+  },
+  "run_id": "v2_07_robot_arm_content_agents",
+  "schema_version": "author-control-evidence-projection.v1",
+  "timing": {
+    "allocated_lane_seconds": 2640.626209667,
+    "allocation_duration_clock": "controller_monotonic",
+    "author_duration_scope": "worker_reported_elapsed",
+    "author_elapsed_seconds": 2397.041928142309,
+    "budget_started_unix": 1790130471.478078,
+    "deadline_unix": 1790132871.478078,
+    "dispatch_started_unix": 1790130471.4781508,
+    "lease_acquired_unix": 1790130471.4769511,
+    "reaped_after_retention_unix": 1790133112.1132128,
+    "retention_started_unix": 1790132874.7038069,
+    "timestamp_clock": "controller_unix"
+  }
+}

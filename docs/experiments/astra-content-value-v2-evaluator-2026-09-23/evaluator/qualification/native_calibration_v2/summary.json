@@ -1,0 +1,30 @@
+{
+  "qualified": true,
+  "rows": [
+    {
+      "script": "case04_torque_units_probe.py",
+      "returncode": 0,
+      "qualified": true,
+      "evidence": "case04_torque_units_evidence.json"
+    },
+    {
+      "script": "case04_contact_units_probe.py",
+      "returncode": 0,
+      "qualified": true,
+      "evidence": "case04_contact_units_evidence.json"
+    },
+    {
+      "script": "drawer_force_units_probe.py",
+      "returncode": 0,
+      "qualified": true,
+      "evidence": "force_units_evidence.json"
+    },
+    {
+      "script": "gravity_witness_v2.py",
+      "returncode": 0,
+      "qualified": true,
+      "evidence": "gravity_v2/summary.json"
+    }
+  ],
+  "model_calls": 0
+}

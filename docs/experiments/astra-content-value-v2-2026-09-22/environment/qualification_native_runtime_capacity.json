@@ -1,0 +1,40 @@
+{
+  "artifacts": [
+    {
+      "path": "environment/probe_render_then_physics.py",
+      "sha256": "1812d136a899efef882be78e10e5897ec2919f45cdb68bcb37dda9eed3e44835"
+    },
+    {
+      "path": "environment/probe_render_then_physics_with_parent.py",
+      "sha256": "8769a6ae6c550accc9c01b9d0cb2449ea6d4b71e070f7de14a5f72e370929a71"
+    },
+    {
+      "path": "environment/retain_native_sequence.py",
+      "sha256": "8beeb2c0be72d2f860f09f5d1552c9f6cd2bed99bc544aaad140cb6893e3f920"
+    }
+  ],
+  "checks": {
+    "all_four_lanes_actual_cli_route_passed": true,
+    "all_owned_processes_reaped": true,
+    "no_new_pids_limit_events_at1024": true,
+    "normalized_namespace_arguments_identical": true,
+    "parent48_overhead_failed_at512": true,
+    "same_exact_probe_and_source": true,
+    "same_overhead_passed_at1024": true,
+    "successful_overhead_peak_exceeds_old_limit": true
+  },
+  "created_utc": "2026-09-23T00:53:03.942961+00:00",
+  "limitations": [
+    "The controlled synthetic failure reproduces q13's misleading missing-venv message under measured process exhaustion; it does not prove every historical q13 failure cause.",
+    "48 idle threads approximate parent overhead; they are not a replay of the model process. The paired512/1024 probes use fresh generated caches and identical scene/script/namespace settings apart from the cgroup limit and owned paths.",
+    "Only lane0 ran the48-thread paired-capacity test. The other three lanes independently passed the real renderer-to-CPU-physics route without artificial parent overhead; both hosts independently enforce the same new hard limit.",
+    "The readiness image is a64px blank probe used to initialize the actual renderer. The separately qualified four640x480 visible GPU images remain the rendering evidence.",
+    "Native cooking warnings are retained verbatim. Synthetic analytic-cube stepping does not qualify CAD cooking, workflow task acceptance, all registered validators, GPU PhysX or benchmark outcomes.",
+    "Resource/time measurements were not a performance benchmark and shared instantaneous machine load was not controlled."
+  ],
+  "model_calls": 0,
+  "schema_version": "native-render-physics-capacity-qualification.v1",
+  "scope": "Actual same-session OVRTX readiness then native explicit-CPU constructor and usd-cli physics simulation in the qualified author namespace. Synthetic fixtures only.",
+  "scored": false,
+  "status": "PASS"
+}

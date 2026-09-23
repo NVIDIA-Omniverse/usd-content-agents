@@ -1,0 +1,51 @@
+{
+  "files": [
+    {
+      "bytes": 2760,
+      "path": "README.md",
+      "sha256": "1059e19dbbcc2ad8744aaf1140a11b4bec38e633af541e875ff04b1dc3df2286"
+    },
+    {
+      "bytes": 9143,
+      "path": "comparison.json",
+      "sha256": "59682743896234ed78b6819e12e8ddb05de6084a4634fff6f510dae52f28fd3c"
+    },
+    {
+      "bytes": 3813,
+      "path": "controller/accounting.py",
+      "sha256": "ef1af0b82852ca6c7789031a7301453af09fac6b8ac1d4bc6c8f01d0032b391f"
+    },
+    {
+      "bytes": 5862,
+      "path": "controller/compare_results.py",
+      "sha256": "944ff010fd544d1e720e5136bddbfdaa842e3d71ff33c7850712b6a8e368af86"
+    },
+    {
+      "bytes": 2445004,
+      "path": "per_request_accounting.json",
+      "sha256": "debc152465f67a78063e01532a8eec70543e942797db831a9cdee99e38a8d654"
+    },
+    {
+      "bytes": 1392,
+      "path": "protocol/api_reference_rates.json",
+      "sha256": "5637a2f729c4764e93c60cf166f2273dd09fb6fa98e2f976b0560b12f3cc7e58"
+    },
+    {
+      "bytes": 1297,
+      "path": "provenance.json",
+      "sha256": "3b63cfe063e4b80331d8071e79c25e94eb9e83d7544503ede3f848adf42a5f1a"
+    },
+    {
+      "bytes": 3378727,
+      "path": "rows.json",
+      "sha256": "abaca51018e319045173b359275e4c47dd3910dfc5cc7a3ee085e3d826eead0b"
+    },
+    {
+      "bytes": 19977,
+      "path": "verify_results_metadata.py",
+      "sha256": "e3b8c4f80b145c220a5c18e755a486e24b32a29b312b8ffe12cea59f5c222ecb"
+    }
+  ],
+  "input_kind": "final_assembled_results",
+  "schema_version": "public-results-metadata.v1"
+}

@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "seeds": [
+    11,
+    23,
+    47,
+    83,
+    131
+  ],
+  "common": {
+    "dt_s": 0.004166666666666667,
+    "duration_s": 12.0,
+    "gravity_m_s2": 9.81,
+    "max_linear_speed_m_s": 5.0,
+    "max_angular_speed_rad_s": 30.0,
+    "max_joint_closure_m": 0.002,
+    "max_joint_axis_error_rad": 0.05,
+    "max_penetration_m": 0.003,
+    "max_fixed_base_motion_m": 0.002,
+    "position_tolerance_m": 0.002,
+    "angle_tolerance_rad": 0.08726646259971647,
+    "minimum_source_surface_coverage": 1.0,
+    "max_mesh_surface_error_fraction": 0.001,
+    "max_mesh_surface_error_m": 5e-05
+  },
+  "cases": {
+    "07_robot_arm": {
+      "observer": "arm",
+      "required_joint_roles": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6"
+      ],
+      "required_body_roles": [
+        "base",
+        "link1",
+        "link2",
+        "link3",
+        "link4",
+        "link5",
+        "end_effector"
+      ],
+      "joint_kinds": {
+        "joint1": "revolute",
+        "joint2": "revolute",
+        "joint3": "revolute",
+        "joint4": "revolute",
+        "joint5": "revolute",
+        "joint6": "revolute"
+      },
+      "minimum_each_motion_rad": 0.17453292519943295,
+      "target_offsets_rad": [
+        0.26,
+        -0.26,
+        0.26,
+        0.26,
+        -0.26,
+        0.26
+      ],
+      "minimum_end_effector_motion_m": 0.01,
+      "require_base_to_effector_chain": true,
+      "control_default": {
+        "kp": 36.0,
+        "kd": 2.0,
+        "max_effort": 60.0,
+        "gain_mode": "inertia_scaled",
+        "gravity_compensate": true
+      },
+      "acceptance": "All six source-grounded revolute joints reach frozen individual offset targets and return under bounded torque; end-effector moves, joint anchor closure is maintained, the six edges form a chain from base to end-effector, and a bounded limit load respects joint limits.",
+      "controller_scale_definition": "PD gains are multiplied by independently read downstream effective inertia (principal maximum plus parallel-axis mass terms at the initial pose). Opposing hold torque is min(1% of effort cap, effective inertia times 1 rad/s^2). This normalizes the unknown authored inertial scale; no certified hardware load rating is claimed. Gravity compensation is computed from native body masses/COM and actual joint world frames, inside the same effort cap. Upper-limit stress target ramps from initial to upper limit plus 0.3rad over10-12s.",
+      "joint_role_endpoints": {
+        "joint1": [
+          "base",
+          "link1"
+        ],
+        "joint2": [
+          "link1",
+          "link2"
+        ],
+        "joint3": [
+          "link2",
+          "link3"
+        ],
+        "joint4": [
+          "link3",
+          "link4"
+        ],
+        "joint5": [
+          "link4",
+          "link5"
+        ],
+        "joint6": [
+          "link5",
+          "end_effector"
+        ]
+      }
+    }
+  }
+}

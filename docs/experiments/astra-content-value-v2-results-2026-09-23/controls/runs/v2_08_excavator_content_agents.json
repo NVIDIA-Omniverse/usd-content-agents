@@ -1,0 +1,136 @@
+{
+  "arm": "content_agents",
+  "billing": {
+    "complete": false,
+    "completed_request_count": 307,
+    "recorded_terminal_usage_totals": {
+      "cached_input_tokens": 17830912,
+      "input_tokens": 32502689,
+      "output_tokens": 110994,
+      "reasoning_output_tokens": 32272,
+      "total_tokens": 32613683
+    },
+    "request_count": 309,
+    "totals_scope": "recorded_terminal_responses_only",
+    "unknown_terminal_request_count": 2,
+    "unknown_terminal_usage_treated_as_zero": false
+  },
+  "budget": {
+    "cpu_millicores": 4000,
+    "home_bytes": 2147483648,
+    "memory_bytes": 34359738368,
+    "process_thread_limit": 1024,
+    "storage_charged_within_memory_limit": true,
+    "swap_bytes": 0,
+    "wall_seconds": 2400,
+    "workspace_bytes": 8589934592
+  },
+  "case_id": "08_excavator",
+  "inputs": {
+    "instruction_sha256": "1e1e73fc133e7cff21f6e06beece97952f6fe42eeac2a83da62a7375fa0bdff5",
+    "public_input_inventory_sha256": "e2bdee0c7e8131ca7e1bf5f0ab48661d3bd453d4f14ceab4517e4a41c7d94010",
+    "source_bytes": 31024414,
+    "source_file_count": 72,
+    "source_inventory_sha256": "3be46f6303915f2681e71aeb12c9f67d6ba106a2d7d7b34b5c69af5c6e8e05f7",
+    "task_sha256": "5b370f08436e80e7d1983675e864a0087f66bfea63cb1c73db5f44ef830167cc"
+  },
+  "lane_id": "lane3",
+  "model_controls": {
+    "admission_identity_associations": 20,
+    "all_observed_ui_matches": true,
+    "associated_request_count": 309,
+    "capture_error_record_count": 0,
+    "capture_error_record_scope": "final_ui_metadata_entries_not_unique_incidents",
+    "identity_conflict_count": 0,
+    "model": "gpt-6-astra",
+    "model_catalog_sha256": "e612a56f9fef06041483ddd20cbea586f50d2fbf12e558e852dfa40bd332f976",
+    "reasoning_mapping_sha256": "156f5bdb76caa83e16f92f74a55f38cc361a870957966a32713c953556e46fb7",
+    "requested_ui_effort": "ultra",
+    "resolved_wire_effort": "xhigh",
+    "session_count": 6,
+    "terminal_response_id_associations": 289,
+    "timing_inference_used": false,
+    "ui_complete": true,
+    "unassociated_request_count": 0,
+    "uncovered_thread_count": 0,
+    "unledgered_response_count": 0
+  },
+  "original_records": {
+    "final_usage": {
+      "bytes": 13783992,
+      "sha256": "70b0901bc369d647809db9d65ab8e5d6758006974130abfc36c8bbb4b5a1498c"
+    },
+    "launch": {
+      "bytes": 21757,
+      "sha256": "5b106df0bda3dbf159d58b9178b5d4543e919e809629ea313400e243f8bcadf6"
+    },
+    "reap": {
+      "bytes": 795,
+      "sha256": "c72a7a60f25557e6f2d615610ece93353e60e489c1a79fca352243bdf7e7d00c"
+    },
+    "retention": {
+      "bytes": 397,
+      "sha256": "dd83e050fd2cf7ce8d797877cb0855d7e60100d967df38657e089abbe6d8f4c3"
+    },
+    "review_index": {
+      "bytes": 11973,
+      "sha256": "60925dd78b1afbecd16428ce8c8d478113794db710a91c4cf58fc7bf9cfdfb14"
+    },
+    "timing": {
+      "bytes": 719,
+      "sha256": "452a955d86bbedf680c5cd564570ed092aad51bd490d912adbe07e30242a4494"
+    },
+    "ui_association": {
+      "bytes": 54613,
+      "sha256": "1f1181c8b2b794c61c65ecc3e7bb0cb4e1f7b6043bcfe1d9279f5a51bf5362d5"
+    },
+    "ui_metadata": {
+      "bytes": 136414,
+      "sha256": "5c38ed7d38c33c446d56fd89b79916666f5fdee16bf92e0a40d8d378c408c36c"
+    },
+    "verification": {
+      "bytes": 562,
+      "sha256": "c4f4ea02073e838e915366331d6206c9fdd51e992432a133d3a90b33bc7cd194"
+    }
+  },
+  "profile": {
+    "environment_sha256": "081df287b1710f11a3e3251071a9696b02d077fd6265db5ff7a19aa956221543",
+    "fresh_home": true,
+    "lane_qualification_sha256": "1a001554baec86bc47fa58242ac9f329d0c3f6932eb3d0a98eb44e47f61a407c",
+    "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7"
+  },
+  "reap": {
+    "cgroup_populated": 0,
+    "namespace_init_exited": true,
+    "output_inventory_sha256": "8266d066cd660fbe605f57658250bb340ceacd6197c68a193c11829fa234e8f8",
+    "output_snapshot_complete": true,
+    "returncode": -9,
+    "source_unchanged": true,
+    "timed_out": true
+  },
+  "retention": {
+    "archive_bytes": 319527693,
+    "archive_bytes_provided_here": false,
+    "archive_payload_read_by_projector": false,
+    "archive_sha256": "b2716b7a3d63c3e653cc0a512ddedc2ac7f6f74f2d1a6e825db87a11a6cca293",
+    "member_manifest_sha256": "ddaa040569c879c8dd84610ba999e51c24ac4adb536d8a4f2c099b4cf2496c5a",
+    "prior_export_complete": true,
+    "prior_local_member_verification": true,
+    "verified_member_count": 704
+  },
+  "run_id": "v2_08_excavator_content_agents",
+  "schema_version": "author-control-evidence-projection.v1",
+  "timing": {
+    "allocated_lane_seconds": 2553.924934875,
+    "allocation_duration_clock": "controller_monotonic",
+    "author_duration_scope": "worker_reported_elapsed",
+    "author_elapsed_seconds": 2396.6679380461574,
+    "budget_started_unix": 1790128409.470438,
+    "deadline_unix": 1790130809.470438,
+    "dispatch_started_unix": 1790128409.4705431,
+    "lease_acquired_unix": 1790128409.469651,
+    "reaped_after_retention_unix": 1790130963.366524,
+    "retention_started_unix": 1790130811.00507,
+    "timestamp_clock": "controller_unix"
+  }
+}

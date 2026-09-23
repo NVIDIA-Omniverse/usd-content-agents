@@ -1,0 +1,40 @@
+{
+  "case_id": "01_drawer",
+  "components": [
+    "drawer_cabinet",
+    "drawer_cabinet_drawer_01",
+    "drawer_cabinet_drawer_02",
+    "drawer_cabinet_drawer_03",
+    "drawer_cabinet_drawer_04"
+  ],
+  "role_mapping": {
+    "anchored_lower_drawers": [
+      "drawer_cabinet_drawer_02",
+      "drawer_cabinet_drawer_03",
+      "drawer_cabinet_drawer_04"
+    ],
+    "cabinet": "drawer_cabinet",
+    "drawer": "drawer_cabinet_drawer_01"
+  },
+  "source_geometry_modified": false,
+  "source_primary_sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+  "structure": {
+    "hierarchy": "5 independent root mesh nodes",
+    "meshes": 5,
+    "node_names": [
+      "drawer_cabinet",
+      "drawer_cabinet_drawer_01",
+      "drawer_cabinet_drawer_02",
+      "drawer_cabinet_drawer_03",
+      "drawer_cabinet_drawer_04"
+    ],
+    "nodes": 5,
+    "triangles": 26406
+  },
+  "units": {
+    "authored_node_transforms": "identity; vertex positions baked into each mesh",
+    "evidence": "https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units",
+    "length": "metres",
+    "up_axis": "+Y"
+  }
+}

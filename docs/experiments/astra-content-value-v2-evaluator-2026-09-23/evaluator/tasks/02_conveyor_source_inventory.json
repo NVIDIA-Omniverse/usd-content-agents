@@ -1,0 +1,73 @@
+{
+  "case_id": "02_conveyor",
+  "parts": [
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0000:rail",
+      "frame": "source_assembly_world",
+      "bounds_m": [
+        [
+          -0.012,
+          -0.08698759054269477,
+          -0.007
+        ],
+        [
+          0.162,
+          0.08698759054269478,
+          0.0
+        ]
+      ],
+      "required": true
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0001:box",
+      "frame": "source_assembly_world",
+      "bounds_m": [
+        [
+          -0.00480040752056786,
+          -0.01507997306144,
+          0.0
+        ],
+        [
+          0.014319891560306702,
+          0.00892002729618785,
+          0.01
+        ]
+      ],
+      "required": true
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0002:support",
+      "frame": "source_assembly_world",
+      "bounds_m": [
+        [
+          -0.0147,
+          -0.0896999998219493,
+          -0.112
+        ],
+        [
+          0.16469999982194902,
+          0.0896999998219493,
+          -0.004
+        ]
+      ],
+      "required": true
+    },
+    {
+      "source_id": "source_repo/CAD models/conveyor_model/conveyor_model_v1.step#solid:0003:part",
+      "frame": "source_assembly_world",
+      "bounds_m": [
+        [
+          -0.0033,
+          -0.01358,
+          -0.001
+        ],
+        [
+          0.01282,
+          0.00742,
+          0.030500000223517402
+        ]
+      ],
+      "required": true
+    }
+  ]
+}

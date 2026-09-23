@@ -1,0 +1,169 @@
+{
+  "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "arm": "plain_astra",
+  "case_id": "01_drawer",
+  "citations": [
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "f7e2f24890d3ef2a36b2d660ac220321c586dee5c375415ed8f6d8c2db7cceea",
+      "kind": "original_tool_call",
+      "line": 93,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "be76fbc49c027d2ec1a4b6ca095393b0db78647d0c0c6d7d85f3e9d1ab1efcf4",
+      "navigation_line": 93,
+      "observation": "Direct source-to-USD authoring with NumPy/OpenUSD."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000000_000.jsonl",
+      "archive_sha256": "f7e2f24890d3ef2a36b2d660ac220321c586dee5c375415ed8f6d8c2db7cceea",
+      "kind": "original_tool_call",
+      "line": 32,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "be76fbc49c027d2ec1a4b6ca095393b0db78647d0c0c6d7d85f3e9d1ab1efcf4",
+      "navigation_line": 32,
+      "observation": "Shared documentation and low-level implementation inspection; no workflow invocation."
+    },
+    {
+      "archive_member": "private/session_captures/capture_000001_000.jsonl",
+      "archive_sha256": "f7e2f24890d3ef2a36b2d660ac220321c586dee5c375415ed8f6d8c2db7cceea",
+      "kind": "original_tool_call",
+      "line": 110,
+      "line_delimiter": "literal LF (0x0A)",
+      "member_sha256": "2dd9bafe690698e1121ac00ca0f7c8d5824397753e147d5102a115cad372358c",
+      "navigation_line": 110,
+      "observation": "Author-owned audit helper; the referenced workflow list is an empty explanatory report, not a workflow call."
+    },
+    {
+      "archive_member": "workspace/submission.json",
+      "archive_sha256": "f7e2f24890d3ef2a36b2d660ac220321c586dee5c375415ed8f6d8c2db7cceea",
+      "kind": "retained_author_artifact",
+      "member_sha256": "b9e32595669c6db88a8172ec0009fc13d5ec1517fde8905d7287db6f657d99ec",
+      "observed_fields": {
+        "claimed_accepted": true
+      },
+      "scope": "Native or author status within its declared scope; not independent physical acceptance."
+    }
+  ],
+  "completed_utc": "2026-09-23T04:41:17.495800+00:00",
+  "compliance_status": "observed_compliance",
+  "evidence_sha256": {
+    "author_manifest": "44a10165f15c6875090d8cccb56f026078cf2cf25e7369a526ce32cce95e7c73",
+    "author_retention": "9d0d16f585aaf483da2e05c68e43e95a77dbf7938c0e7e3b71145e6105d35775",
+    "declaration": "3b8073c2a0beb6cded98b454ee97348c2e45e0dff25515bf5756ddbc1ff94c58",
+    "launch": "fc4aa7dcc5cd5946d216db102b487bdbdd28d2317deb1c8254036c39ed0cb43d",
+    "reap": "3872b9264a3cdec72ff4cfc18ae3e43f6ac3ac2fbbc05640bda75190cf3d6c47",
+    "timing": "7a1ba7416a105e148bfa3dae3032e460da77d37096c692c3d9aa9322f48e69d5",
+    "ui_association": "b5cf38c49710a3a9fbc1dc50563825cd989fb92a28716b59df363b2b586f9153",
+    "ui_metadata": "a1b1310c37523a222631e448ddb5a0cd69544c50d50a9389d5a5f2f38fd15b08",
+    "usage": "93adc77393b6179f83e54e869c1f29ef6a2def259c6384dc1c50013c56cdfbb1"
+  },
+  "input_sha256": "b72cb05a79d548c416d274f0974fac09ef0fa5f71a771ec1f2cefa40471b1e93",
+  "lane_id": "lane0",
+  "limitations": [
+    "Outcome-blinded protocol review only. No independent evaluator request, log, report, verdict or comparison was read; no authored script was executed.",
+    "Observed native receipts and author diagnostic claims do not establish independent task acceptance or numerical correctness.",
+    "This is automated reviewer work, not observed human review effort. Human review minutes remain unmeasured."
+  ],
+  "mechanical_findings": {
+    "admitted_requests": 72,
+    "all_observed_ui_matches": true,
+    "allocation_released": true,
+    "billing_complete": true,
+    "budget_s": 2400,
+    "cgroup_empty": true,
+    "cpu_quota_millicores": 4000,
+    "exact_identity_prompt_and_lease_verified": true,
+    "fresh_context_verified": true,
+    "frozen_usage_within_deadline": true,
+    "late_admitted_requests": 0,
+    "memory_bytes": 34359738368,
+    "namespace_reaped": true,
+    "pids_max": 1024,
+    "recorded_late_finishes": 0,
+    "source_unchanged": true,
+    "swap_bytes": 0,
+    "terminal_billing_records": 72,
+    "ui_association_complete": true
+  },
+  "outcome_blinded": true,
+  "protocol_eligible": true,
+  "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "publication": {
+    "citation_status": "attestations_to_private_original_bytes_not_supplied_evidence",
+    "omitted_categories": [
+      "private filesystem paths",
+      "individual reviewer/model/session/request/call identities",
+      "call timestamps and tool labels",
+      "raw captures, scripts, tool/model content and credentials"
+    ],
+    "original_adjudication_sha256": "443dffa5abf2deabb1ec6203b0eb6709f6ae60fd25bb718d3b69a6cb883fc46c",
+    "original_seal_sha256": "ec9ceb5efc6e231df1bda550aa0386e0923a6f534a9a8634b96726535fe30d48",
+    "private_original_provided": false,
+    "projection": true,
+    "reviewer_role": "automated independent outcome-blinded protocol reviewer",
+    "schema_version": "sealed-adjudication-public-projection.v1",
+    "scope": "This is a privacy projection of sealed reviewer attestations. Private originals, captures, scripts, archives and native contracts are not supplied here. Their original digests and safe member locators identify retained private bytes; this bundle cannot reverify those bytes or independently establish treatment compliance or physical acceptance."
+  },
+  "reason": "Observed direct glTF/OpenUSD scene authoring and direct OvPhysX force diagnostics. The reviewer checked actual imports and subprocess targets in source, geometry-audit and runtime-probe scripts. Shared implementation/documentation inspection is distinct from invoking Content Agents; no prohibited workflow, decision-helper or workflow-skill invocation was observed. All frozen common mechanical gates are satisfied. Author claimed acceptance remains an author claim, not this review's physical verdict.",
+  "review_coverage": {
+    "all_original_archive_bytes_rehashed": true,
+    "all_original_capture_and_navigation_hashes_verified": true,
+    "capture_count": 3,
+    "copied_ancestor_context_not_counted_as_new_invocation": true,
+    "navigation_not_used_as_verdict": true,
+    "review_navigation_sha256": "407b94c8d7dc4f83981356342332c10a36e187d9fd84ec2c6bbf23dc9e4ea8f2",
+    "script_inventory_count": 6,
+    "script_inventory_sha256": "81743a26f3a50e6294a1d1222b9b71e1cb0f76dca6d196aadb3158491996dfe3",
+    "unique_navigation_tool_calls": 64
+  },
+  "run_id": "v2_01_drawer_plain_astra",
+  "schema_version": "outcome-blinded-protocol-adjudication.agent06.v1",
+  "script_review_inventory": [
+    {
+      "archive_member": "workspace/geometry_audit/audit_saved_scene.py",
+      "line_count": 85,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "b06c0758adb93a497a927e52c3ab11433fdbaf1c6231ba9ecd40bb9c321b4e7d"
+    },
+    {
+      "archive_member": "workspace/geometry_audit/mesh_audit.py",
+      "line_count": 23,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "0dfafe1f21f5bbb0dc3d28307f2f07a6951485bca808c3feff8b4895e0707fb6"
+    },
+    {
+      "archive_member": "workspace/runtime_probe/probe.py",
+      "line_count": 249,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "e62c6918917a4d50a3023d35b871dbf42d243eb7d472ddc43e9f6a75ddec730f"
+    },
+    {
+      "archive_member": "workspace/scripts/assess_author_diagnostics.py",
+      "line_count": 47,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "c5a8833812c5b181fc2aa66f8f68942c15673197d508c52ebe02a823f2856f5a"
+    },
+    {
+      "archive_member": "workspace/scripts/author_scene.py",
+      "line_count": 168,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "8806edd815105d2d9b7098151d9d025b4a0600c764f1c4a6d8d618bec8f408b9"
+    },
+    {
+      "archive_member": "workspace/scripts/checkpoint.py",
+      "line_count": 12,
+      "review_scope": "Static imports, low-level authoring operations, dynamic execution/subprocess targets and invocation context; never executed by reviewer.",
+      "sha256": "3e7801e7cdee9db1631b6e20b103720d7d6b1498019a93d902380c35235083a0"
+    }
+  ],
+  "source_sha256": "5dd75c019eacbbe34f8af86a635d1e0848d871a2015d836637e2162a8ec99ad1",
+  "started_utc": "2026-09-23T04:27:41.985012+00:00",
+  "task_sha256": "e70a4e69cf8db242ecd17b78771868d6a476ced458e36fed7e37e8856d13e5af",
+  "treatment_adjudication_sha256": "f34f9a3766b91293749a5b5aef5b221cbe44ce8f71116292ea8d2af4a0beb44e",
+  "treatment_findings": {
+    "author_claimed_accepted": true,
+    "independent_physical_acceptance": "not_accessed",
+    "scope": "Reviewed execution operations, static script imports/calls and native contracts for phases reached. Failure/conditional receipts and missing later task success are not treatment violations.",
+    "status": "observed_compliance"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "case_id": "09_printer",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 1410.5690734572709,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "0671a19fed669e10eb6b304d6a7e3f7ad8a555ed0454c3c7c5957dab3122e7db",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_09_printer_content_agents",
+  "status": "FAIL",
+  "timed_out": false
+}

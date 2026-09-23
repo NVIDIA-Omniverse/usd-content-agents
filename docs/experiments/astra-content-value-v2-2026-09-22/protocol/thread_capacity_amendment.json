@@ -1,0 +1,16 @@
+{
+  "amended_analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+  "created_utc": "2026-09-23T00:43:31.898539+00:00",
+  "evidence": "Isolated fresh renderer\u2192native constructor\u2192CLI Physics fixture with48 idle threads reached512 slots, incremented pids.events max by22, passed renderer readiness then failed native constructor and CLI Physics. Same fixture must pass at1024 before final freeze.",
+  "historical_limit": "This reproduces the misleading missing-venv diagnostic under resource exhaustion; it does not prove the exact historical cause of q13.",
+  "previous_analysis_plan": "protocol/history/analysis_plan_before_1024_thread_amendment.json",
+  "previous_analysis_plan_sha256": "e010b4ca1f51b9654c92788c064d536ed5fb5a96c006ccfe0b91a14ee5cf091b",
+  "qualification_before_authors_required": [
+    "Same48-thread fixture passes at1024 with source unchanged and all processes reaped",
+    "Both hosts enforce1024 via resource readbacks and dedicated EAGAIN/max-event negative check",
+    "Final four lane receipts bind the common updated limit"
+  ],
+  "schema_version": "preauthor-capacity-amendment.v2",
+  "scope": "Uniform per-lane process/thread cap increases512\u21921024 in author and evaluation environments. Both arms and all four lanes receive the same setting. CPU4, RAM32GiB, swap0,40-minute author wall budget, model, tool packages, task and acceptance criteria remain unchanged.",
+  "scored_authors_launched": 0
+}

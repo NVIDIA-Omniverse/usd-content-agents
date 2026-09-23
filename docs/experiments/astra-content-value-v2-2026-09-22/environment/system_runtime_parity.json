@@ -1,0 +1,5 @@
+{
+  "passed": true,
+  "schema_version": "system-runtime-parity.v2",
+  "scope": "Direct read-only binary hashes and version outputs; no model, auth, or GPU job. Does not assert complete system-root equivalence."
+}

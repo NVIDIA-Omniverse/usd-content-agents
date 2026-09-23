@@ -1,0 +1,136 @@
+{
+  "arm": "plain_astra",
+  "billing": {
+    "complete": true,
+    "completed_request_count": 288,
+    "recorded_terminal_usage_totals": {
+      "cached_input_tokens": 13464576,
+      "input_tokens": 22600632,
+      "output_tokens": 122154,
+      "reasoning_output_tokens": 48629,
+      "total_tokens": 22722786
+    },
+    "request_count": 288,
+    "totals_scope": "recorded_terminal_responses_only",
+    "unknown_terminal_request_count": 0,
+    "unknown_terminal_usage_treated_as_zero": false
+  },
+  "budget": {
+    "cpu_millicores": 4000,
+    "home_bytes": 2147483648,
+    "memory_bytes": 34359738368,
+    "process_thread_limit": 1024,
+    "storage_charged_within_memory_limit": true,
+    "swap_bytes": 0,
+    "wall_seconds": 2400,
+    "workspace_bytes": 8589934592
+  },
+  "case_id": "09_printer",
+  "inputs": {
+    "instruction_sha256": "5869fc7ca1dc9647c743b365d86b21da9582638f354134fc179c33725503d940",
+    "public_input_inventory_sha256": "aec5f11330c816ec936fd84d6822bd9e27d7140399c4cd28dca0988dcdd07c83",
+    "source_bytes": 179234641,
+    "source_file_count": 1,
+    "source_inventory_sha256": "52d4324033aecd057b28c5d60b2bda0945ce46c1e46764ea9d4b489dc47017c5",
+    "task_sha256": "19dc5bf786736697bb8da64bd70d66757b62fb187211f4762acf945bcccdf2fb"
+  },
+  "lane_id": "lane0",
+  "model_controls": {
+    "admission_identity_associations": 26,
+    "all_observed_ui_matches": true,
+    "associated_request_count": 288,
+    "capture_error_record_count": 22,
+    "capture_error_record_scope": "final_ui_metadata_entries_not_unique_incidents",
+    "identity_conflict_count": 0,
+    "model": "gpt-6-astra",
+    "model_catalog_sha256": "e612a56f9fef06041483ddd20cbea586f50d2fbf12e558e852dfa40bd332f976",
+    "reasoning_mapping_sha256": "156f5bdb76caa83e16f92f74a55f38cc361a870957966a32713c953556e46fb7",
+    "requested_ui_effort": "ultra",
+    "resolved_wire_effort": "xhigh",
+    "session_count": 4,
+    "terminal_response_id_associations": 262,
+    "timing_inference_used": false,
+    "ui_complete": false,
+    "unassociated_request_count": 0,
+    "uncovered_thread_count": 0,
+    "unledgered_response_count": 0
+  },
+  "original_records": {
+    "final_usage": {
+      "bytes": 14564298,
+      "sha256": "63e59a1e22ad2625b122de74c14f2a25e114d62b9721b306787b19418ab4e8b9"
+    },
+    "launch": {
+      "bytes": 4804,
+      "sha256": "6b2d52fcbb213041c8d9b19828d0a047926471f8477debed7719a22fd482ec2b"
+    },
+    "reap": {
+      "bytes": 790,
+      "sha256": "25b2a4d7e12497c81ca530a253605aa5cdce3f27ba45c19216952ba9f039dc50"
+    },
+    "retention": {
+      "bytes": 387,
+      "sha256": "037515986ef49eb203071c26eca5fefb15194e1f9992dedb2ebb15c76f29ebfe"
+    },
+    "review_index": {
+      "bytes": 727,
+      "sha256": "f7d81b828c0f8a3507d7c71fdef0e69c867f03a982d37c0fa8d487f71cd7377f"
+    },
+    "timing": {
+      "bytes": 722,
+      "sha256": "614322e0f2327e461642085a65624cc1845d472ced14d86a8fe41eaa56080712"
+    },
+    "ui_association": {
+      "bytes": 50896,
+      "sha256": "71ac9a07f6776635be88887e1f8ebf65d211f45351849dc165f276326c7bc1f6"
+    },
+    "ui_metadata": {
+      "bytes": 119905,
+      "sha256": "df8ab4debfe81a497fc30e5b4cd814770bb8e9c815dc3411158ee1108e205055"
+    },
+    "verification": {
+      "bytes": 552,
+      "sha256": "7a6f71dfa1a226dfbc594a88b6aac52eb48136cadb1655c75834a6868a9326e5"
+    }
+  },
+  "profile": {
+    "environment_sha256": "081df287b1710f11a3e3251071a9696b02d077fd6265db5ff7a19aa956221543",
+    "fresh_home": true,
+    "lane_qualification_sha256": "874755d21e6c86544fc03d51c2cb74fc57a2f315b91b7d987522328ed3c6f6b6",
+    "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7"
+  },
+  "reap": {
+    "cgroup_populated": 0,
+    "namespace_init_exited": true,
+    "output_inventory_sha256": "26f1d0dcbe218e4720eca2db9f7873214a43e5141062a984208ab5d7594e4336",
+    "output_snapshot_complete": true,
+    "returncode": 0,
+    "source_unchanged": true,
+    "timed_out": false
+  },
+  "retention": {
+    "archive_bytes": 280973574,
+    "archive_bytes_provided_here": false,
+    "archive_payload_read_by_projector": false,
+    "archive_sha256": "844726c75cd6c6ec429ff0b4be984ac45bde4272b986824f53098990c029a0d2",
+    "member_manifest_sha256": "580c9a50a941863444711b6592a7b39b1c069e4084d1c8b6f701bdb3069988a0",
+    "prior_export_complete": true,
+    "prior_local_member_verification": true,
+    "verified_member_count": 319
+  },
+  "run_id": "v2_09_printer_plain_astra",
+  "schema_version": "author-control-evidence-projection.v1",
+  "timing": {
+    "allocated_lane_seconds": 2259.9171933339994,
+    "allocation_duration_clock": "controller_monotonic",
+    "author_duration_scope": "worker_reported_elapsed",
+    "author_elapsed_seconds": 2151.103696566075,
+    "budget_started_unix": 1790132293.1456041,
+    "deadline_unix": 1790134693.1456041,
+    "dispatch_started_unix": 1790132293.145704,
+    "lease_acquired_unix": 1790132293.144574,
+    "reaped_after_retention_unix": 1790134553.0921211,
+    "retention_started_unix": 1790134449.853215,
+    "timestamp_clock": "controller_unix"
+  }
+}

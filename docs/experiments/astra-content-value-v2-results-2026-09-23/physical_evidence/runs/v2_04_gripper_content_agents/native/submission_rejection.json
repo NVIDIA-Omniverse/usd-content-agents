@@ -1,0 +1,20 @@
+{
+  "delivery": {
+    "artifact_closure_valid": false,
+    "budget_exhausted": false,
+    "claimed_accepted": false,
+    "declared_repairs_used": 4,
+    "errors": [
+      "ValueError: Scene and bindings must both be present or both null"
+    ],
+    "physical_acceptance": "NOT_ASSESSED",
+    "protocol_validity": "requires independent protocol audit",
+    "reap_sha256": "554038bb28610568e06d6b8a7d871596c57f9584e1268f77dd27282064ca001b",
+    "run_id": "v2_04_gripper_content_agents",
+    "schema_version": "author-delivery.v2",
+    "submission_sha256": "30d9f9df032b13875dd5d4e24b35a048438d3458e03dbfa6cf7cea0fe1a009ba",
+    "task_outcome": "invalid_or_missing_submission"
+  },
+  "reason": "Required immutable scene/bindings were not submitted.",
+  "status": "FAIL"
+}

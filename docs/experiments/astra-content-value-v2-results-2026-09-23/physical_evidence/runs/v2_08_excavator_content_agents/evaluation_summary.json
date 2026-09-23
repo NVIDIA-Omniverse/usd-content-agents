@@ -1,0 +1,11 @@
+{
+  "case_id": "08_excavator",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 112.36910934746265,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "b2fc9b37cc5e8172d5f216464618b2c782c4ae742f55b503c4ea675e4df71c88",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_08_excavator_content_agents",
+  "status": "FAIL",
+  "timed_out": false
+}

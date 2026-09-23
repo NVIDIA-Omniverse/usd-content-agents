@@ -1,0 +1,19 @@
+{
+  "boundary": "Only public assigned run identities and explicit quantitative/categorical allowlists. Request and intervention ordinals preserve counts/order, not private identity. Original input hashes attest separately retained private inputs; they do not imply public availability.",
+  "comparison_exactly_reproduced": true,
+  "input_kind": "final_assembled_results",
+  "input_manifest_sha256": "331d7c5c6007667b2bb99a7fe94025e0fcd9f357e0c4699f201e54455e25ff06",
+  "original_input_sha256": {
+    "comparison": "7d2bca04f6b1e022912ad02ccef3c2d7bf40b1a1b10514d18cf2c35025ee5c91",
+    "rates": "5637a2f729c4764e93c60cf166f2273dd09fb6fa98e2f976b0560b12f3cc7e58",
+    "rows": "933edd6a7c890b599d21d822c36dfa2ee40a5fe07fe74b03fdb4955469e8aed4"
+  },
+  "per_request_accounting_exactly_reproduced": true,
+  "pinned_calculation_files": {
+    "controller/accounting.py": "ef1af0b82852ca6c7789031a7301453af09fac6b8ac1d4bc6c8f01d0032b391f",
+    "controller/compare_results.py": "944ff010fd544d1e720e5136bddbfdaa842e3d71ff33c7850712b6a8e368af86",
+    "protocol/api_reference_rates.json": "5637a2f729c4764e93c60cf166f2273dd09fb6fa98e2f976b0560b12f3cc7e58"
+  },
+  "projector_sha256": "e3b8c4f80b145c220a5c18e755a486e24b32a29b312b8ffe12cea59f5c222ecb",
+  "schema_version": "results-projection-provenance.v1"
+}

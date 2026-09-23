@@ -1,0 +1,11 @@
+{
+  "case_id": "03_hinge",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 76.9144999627024,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "95a0b1974b70acae9c1748eb26e48aaafd551874354f8c141d18f3ab34db2601",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_03_hinge_plain_astra",
+  "status": "PASS",
+  "timed_out": false
+}

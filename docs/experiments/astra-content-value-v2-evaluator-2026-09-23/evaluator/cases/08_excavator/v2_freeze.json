@@ -1,0 +1,431 @@
+{
+  "case_id": "08_excavator",
+  "frozen_at": "2026-09-22T23:32:32.678112+00:00",
+  "runtime_manifest": "frozen_manifest.json",
+  "runtime_manifest_sha256": "83d51697892c76a24707f62a3e33c04fcea6c6217f8343763a794850f0e9f0a6",
+  "code_sha256": {
+    "bindings.schema.json": "d3bf23628bc61c9d060b8c9d24c554c3cacf40ebba5ca57d77f745fed6be7ab0",
+    "case_hooks.py": "bc73524830314e305c067e5b0aa9a2494c2e0c9fb3d3b0ca288c370aaca85611",
+    "cases.json": "1064f4027959c5e6b3ed6a3ec013b6b097b48122aa48e8401312307f44e9bfd3",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "evaluate.py": "2d4f0748a57a31fbced236e6e65e94d1224ce7a4a78fdb36b5eba1c38e6e33de",
+    "geometry.py": "a7e01e0af5ec964a941c707faf828767cc8dd17649fa86a07a8b029afe1cee14",
+    "solver.py": "20a511bd021febe8ccdd91836201b510f5c6b37182e11dfded9e802478dfb720",
+    "structural.py": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5",
+    "v2_control.py": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a",
+    "v2_geometry.py": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4",
+    "v2_inputs.py": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528",
+    "v2_policy.py": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20",
+    "v2_process.py": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794",
+    "v2_verdict.py": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+  },
+  "reference_files": [
+    {
+      "path": "cases/08_excavator/reference/geometry_0000.npz",
+      "bytes": 47689,
+      "sha256": "35c697f353bef973177623e1f4e60dddc92007528717c9dda261ccb4cb9374f2"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0001.npz",
+      "bytes": 30804,
+      "sha256": "84ad8cf61bc208a2e5add5831a667cee0137b5a25c4a49b1c1410e0f67f9e71d"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0002.npz",
+      "bytes": 31265,
+      "sha256": "5b73d02425b003516c253590d740070827249b43a18c6a55059a3329afccedf4"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0003.npz",
+      "bytes": 15560,
+      "sha256": "2a4250ecc99edf4d5f06f91b7fb1c6863e354c635103fa35f57d350c194057ef"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0004.npz",
+      "bytes": 15924,
+      "sha256": "3ced60c1bdab5ad2eb9c9745a4d75a0c7ee47225c525069d128bed5677e2ad8e"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0005.npz",
+      "bytes": 32426,
+      "sha256": "d540521f256dbcdeacf5e055623ab8208a4c718d6616dbcf07eed77900fb9b62"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0006.npz",
+      "bytes": 31314,
+      "sha256": "6ad68bbdb8843f12f09ce5041b02679213f92eef7a9ef13a2faeff2e06a1bac1"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0007.npz",
+      "bytes": 11096,
+      "sha256": "5ff7078b0ecca78c3c8f7f55061d3033173d0f0761b047545ce3b1725e5d217f"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0008.npz",
+      "bytes": 11093,
+      "sha256": "7f35ff192945c9a82d627c1634ed2a6529729f73278a428e8de7a591a1afcdb7"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0009.npz",
+      "bytes": 11092,
+      "sha256": "043fc3184936055d5011ab7f05d1dd437550250bfbc9dd642d93530a23523f3a"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0010.npz",
+      "bytes": 11082,
+      "sha256": "f317d3fc8109ede3f44fab2a4c6c045e2a6ea237433dcdca6bceeedb08439b9e"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0011.npz",
+      "bytes": 11334,
+      "sha256": "9e7ffea5d3ec1bb3a35ce7255046464feb56eb77545207397071b26e479b7388"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0012.npz",
+      "bytes": 11375,
+      "sha256": "0a87fe54e6b7bddfccfc015e4378d63e619714b633b6c6e460e172e931a99310"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0013.npz",
+      "bytes": 11402,
+      "sha256": "d13d0e7f07f2f595e2f81116322f63c45b7452224fc9511c5ca3a70b397cef11"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0014.npz",
+      "bytes": 11491,
+      "sha256": "b3aaf62cb41852066f426a8d1e81630bd0dfb994a9664b36fceddd09f9a26c2a"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0015.npz",
+      "bytes": 11438,
+      "sha256": "af738ad1bf8c8a4e3103310ff06e5764cd771f5274f5d405b819f96acdffb415"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0016.npz",
+      "bytes": 11496,
+      "sha256": "0bcf9e2be1a6cd88087468200b17edee3f4a0d8cf7c656631008146cc95af18d"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0017.npz",
+      "bytes": 12125,
+      "sha256": "5df6a9802c8a6a815a740e0b6fc970b669c51c527ce303f59abee1e39e9429c5"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0018.npz",
+      "bytes": 12055,
+      "sha256": "9ab4de02168a3baf727cf2bc355b7fe7d0f3b848cae30b53a5602fe27c39a74e"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0019.npz",
+      "bytes": 11924,
+      "sha256": "9eb8dfd3ee67b64599bdf0cb66118c08f3b2fe83008c7d51c89b0bb156c1fb8d"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0020.npz",
+      "bytes": 11876,
+      "sha256": "09ffec4e16f352edb54efee2a5bb20c7e3a2d500e977a5c6a42caa8aff522c05"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0021.npz",
+      "bytes": 12136,
+      "sha256": "773aca6d658ba21645c01902f15fa4d3e6075d9bdc5e9345be08874bfbffaf83"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0022.npz",
+      "bytes": 11541,
+      "sha256": "44c30e4c4d77591fe2ac39468c556f12ed150ca5b6be4ac6df784c75bbff9342"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0023.npz",
+      "bytes": 11534,
+      "sha256": "cd83a6ee38e69e910e361dd4949d7067ca3a5a8d72b04cf35acfcb31ff373cbe"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0024.npz",
+      "bytes": 11534,
+      "sha256": "bddfeb8e207236ad207ff09cc76661e0078877997e060b5330362354d60c704e"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0025.npz",
+      "bytes": 11520,
+      "sha256": "536de8af4eefb1d5f9f393573a9077325fcc0b11445d4ce49d09773620e55479"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0026.npz",
+      "bytes": 11537,
+      "sha256": "eab8bb18c6c7c026a9322c42b8d5566d6dbfb88d5c39c270a008d3f4925a6b8d"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0027.npz",
+      "bytes": 11419,
+      "sha256": "c0fa51555eb94861f89f2e2ba7ce042beed0bf62418c905bb4dadb98fab85b5c"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0028.npz",
+      "bytes": 11357,
+      "sha256": "1187867a752484d5554d1125908eb37a5f1ca5c2d5c9cd1cff0bc72217ee5c6d"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0029.npz",
+      "bytes": 11385,
+      "sha256": "f592dde1db124ed3d3d7b5320bc0a7a587115878a235fdaea8ed31926d2e92eb"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0030.npz",
+      "bytes": 11378,
+      "sha256": "9978f806e6c3ba3f577784158c8782c51d8ac929d92b13486f53a18696ae3521"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0031.npz",
+      "bytes": 11381,
+      "sha256": "bca01070ed5924ae700a855115b4cbbb9c4c3784d6965a53f3ee18e38d453edd"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0032.npz",
+      "bytes": 11388,
+      "sha256": "e9e2e9043da5d23e133cf059d930a1503d5af28427dc69b0287585eabfca9c5c"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0033.npz",
+      "bytes": 11366,
+      "sha256": "88110f4e7d734afc6c6cf4f0ac037a473018ed79c96f0d11d7b0e38a74a3e761"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0034.npz",
+      "bytes": 11362,
+      "sha256": "854c37049f28734f7496f80cab13a5dc480f2dfb3b6a0581eca5688924c66ff8"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0035.npz",
+      "bytes": 11366,
+      "sha256": "7692857a215669be0c0cb625ec4e664a236146182994f8b21748b5a5c5165590"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0036.npz",
+      "bytes": 11901,
+      "sha256": "e1ad78b3170a1eac4b5fb8044572f138666e1cc9e444830d4513cb7ec446cd92"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0037.npz",
+      "bytes": 11742,
+      "sha256": "08b665b3f33848ad5d344d29643b68f55c7e7c29ef27f8a3995dc93fd6c556c5"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0038.npz",
+      "bytes": 11799,
+      "sha256": "6580c31fb1e1b2ec4dbc5200f30aeb1699a6b54b2d8d43a46d495b1b9e381d9e"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0039.npz",
+      "bytes": 11785,
+      "sha256": "525dedd45d841e562e9ac182f8c2dc38bad95945eaee9b732bd5383c2b71854b"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0040.npz",
+      "bytes": 11925,
+      "sha256": "9ba79d9a3564b36219609258160cd8514cf68a046d6dd6cd4ddac2dfcb9b836d"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0041.npz",
+      "bytes": 11074,
+      "sha256": "db8cdcefa21c7784c7843d4856031fbc72e323fa60f7b641aa473c337ce0a5fc"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0042.npz",
+      "bytes": 11087,
+      "sha256": "85f22cdc08a1110fbd5d315388ad749064bfe46fd3b82e6b791d1dc32bc0c485"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0043.npz",
+      "bytes": 11103,
+      "sha256": "c959bf7d1da5a35a7207b664ccb857c3123976d0ed24b0a885737d260b250197"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0044.npz",
+      "bytes": 20385,
+      "sha256": "c2c3f5c5f18c6659c71ce4f1213600aa7b18a0d3324f13a9e37c2340fe58f430"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0045.npz",
+      "bytes": 43026,
+      "sha256": "2dcaaed5ae64c1da8a0495b5805c998e038a7d796ad4883a9b44851cf3cef6a0"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0046.npz",
+      "bytes": 49469,
+      "sha256": "a8eddb0bd86088bed4914267927eff1538ba194a986f4f4d61b97a2bee225254"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0047.npz",
+      "bytes": 36112,
+      "sha256": "95415e99a85637a07a0e02b394b7a64edbcf2dae390da2010e8061e8c5218f82"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0048.npz",
+      "bytes": 7622,
+      "sha256": "031b26b814a892d3796ffccc7e079de1b4193e4dd7e0cbdd438c748a75040952"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0049.npz",
+      "bytes": 23099,
+      "sha256": "330114eeb8c1ad40d531a0b30d1532fbe86ca476bc8f02b7c505591760ee4685"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0050.npz",
+      "bytes": 26496,
+      "sha256": "b7cf5e88485caf75b5d0936e40824b24f1f7110b082a9185110a3212c346bb4d"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0051.npz",
+      "bytes": 6464,
+      "sha256": "6ef336fc11f181c05d9dbc6892895a0304ff8589d5eb5362c2d857a69edcfb3f"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0052.npz",
+      "bytes": 6292,
+      "sha256": "e85778aae1461e051f51ea9cbe0ed30e77f630a4350feee7a05caac40b5f4740"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0053.npz",
+      "bytes": 6293,
+      "sha256": "d8975f5fc7b69f82dd3b0461a28070e92524f2934319c219c4a0fc6245b0c547"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0054.npz",
+      "bytes": 11759,
+      "sha256": "a27f5e272a3a8a421d33037bb5d60e010c622af0448e6889b25eb32453baeeda"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0055.npz",
+      "bytes": 66052,
+      "sha256": "e030ce0f99dbec06ac300461fff739ece5c69d14cffe8b7ab7cf8b0b81f0d932"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0056.npz",
+      "bytes": 13518,
+      "sha256": "fec1b0371ce82126c9ecf77561f78a5dc09e456137a70decdc54635c375145f9"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0057.npz",
+      "bytes": 13471,
+      "sha256": "0d445c918eb1d0cb53a7387d86c4945a1b4d2f23c75b6407905a4bf517286a21"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0058.npz",
+      "bytes": 19976,
+      "sha256": "33cb9b8fe2f4a211f89de5e4c189422ca1ad8d4a9982c245cf1a5f15f0f0dbdf"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0059.npz",
+      "bytes": 16521,
+      "sha256": "90947d2f0315c8ff7793e9b0351375aeb6f392d44c7fa54e546de8bbb65b4952"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0060.npz",
+      "bytes": 10810,
+      "sha256": "7c209a6225b3d73f0bd354d183e9aa72d08d231cfa1d4eecb0876aaaed14b378"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0061.npz",
+      "bytes": 10758,
+      "sha256": "e8127d08571e89dc83bd2e2afe394fff9acc20a641d341b3cb45f1d7d1b33a8e"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0062.npz",
+      "bytes": 3459,
+      "sha256": "eb2a049d23f609543e1b8dd8b2e145ef498ff461a7223a97e353b85f675d9124"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0063.npz",
+      "bytes": 6863,
+      "sha256": "af5b5325792b0cfa3d91ef9289e519e430d985c54edbbd6c711cac3afd7caad1"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0064.npz",
+      "bytes": 4954,
+      "sha256": "9a36ca0017888cbb2354685c50aa0b609bb785616ae3ae252abd5dfb1317054b"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0065.npz",
+      "bytes": 23080,
+      "sha256": "9586f34a948b203650ae6ca500be66cd9f97ec250bef08b03e087bd53643702f"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0066.npz",
+      "bytes": 26369,
+      "sha256": "df174b04a698089d01f1681e9b221c8e66f472498378810d6a4c84673badf416"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0067.npz",
+      "bytes": 6451,
+      "sha256": "91153d153e750173f0ab92742ad28f17e70babd5369c0d1144d2d929592003da"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0068.npz",
+      "bytes": 6292,
+      "sha256": "ac7c96ee6ef00b9ad4027b1227033b903ec33b8d9408170f54e94aa5b61dd6ab"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0069.npz",
+      "bytes": 6268,
+      "sha256": "5888661fd9964cad7f47ab5099b140be94ef647e957d7e776899b97d0eee83e8"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0070.npz",
+      "bytes": 11918,
+      "sha256": "85112a50238c6f40cf07338fc2752d4e43ecf6cb1f83eddaf8221f2dd3a30c68"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0071.npz",
+      "bytes": 17888,
+      "sha256": "99be6de6942815ba8f047e2c7498a8aa65a7c06bbf62b5474a840f39a3e3c9cb"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0072.npz",
+      "bytes": 15196,
+      "sha256": "cca37b130d16bddd29eead205b7bf8b5e4bcc5f6b46554ad11f6a9147c3f7f8a"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0073.npz",
+      "bytes": 10845,
+      "sha256": "9fab79506142eedb5797226d05c889f7051cd8938acda924a3895539abea9984"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0074.npz",
+      "bytes": 22460,
+      "sha256": "74a4abe6d05b11418a548abce8e1b3cd3c4f88f11c7de54543d3fafad3d02605"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0075.npz",
+      "bytes": 25718,
+      "sha256": "fe2779d8eb4d8e8846c0220dd4974e9538d7a458663c823ab13314e4eac6838b"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0076.npz",
+      "bytes": 6307,
+      "sha256": "0ca973268abb94006232a1bc9dd8a46fadb569e9c0f7bebf76d372c83f3fa1eb"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0077.npz",
+      "bytes": 6176,
+      "sha256": "d2400195da30809459c24b37ca0ebfe6d931ba0b95c5f444407f7e2f780e133c"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0078.npz",
+      "bytes": 6184,
+      "sha256": "601ac60914c7a6c9f031483b061c5cc2be5105c8399ff697d66edad2580f026f"
+    },
+    {
+      "path": "cases/08_excavator/reference/geometry_0079.npz",
+      "bytes": 11867,
+      "sha256": "625d47bb329d94f23b8a7ab708d68dcd79a7ff1293c16e4243b9ef41a002f6f8"
+    },
+    {
+      "path": "cases/08_excavator/reference/source_inventory.json",
+      "bytes": 120686,
+      "sha256": "581fd12722d13c5ad5ce5cc09c572b9c6ec789ab53c441a32e5febd325e19c87"
+    }
+  ],
+  "qualification_receipt_sha256": "fada28adae6999f7dd0cfda7362d629ba8ef85f78eafcce29587b2363ea1bf4e",
+  "qualification_manifest_sha256": "4a87c5ab34bedda9cfe75db907beccb45c9c566dc53c577e3cb05a5d5b98b3c2"
+}

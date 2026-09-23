@@ -1,0 +1,136 @@
+{
+  "arm": "plain_astra",
+  "billing": {
+    "complete": true,
+    "completed_request_count": 133,
+    "recorded_terminal_usage_totals": {
+      "cached_input_tokens": 4645120,
+      "input_tokens": 7928380,
+      "output_tokens": 71153,
+      "reasoning_output_tokens": 21533,
+      "total_tokens": 7999533
+    },
+    "request_count": 133,
+    "totals_scope": "recorded_terminal_responses_only",
+    "unknown_terminal_request_count": 0,
+    "unknown_terminal_usage_treated_as_zero": false
+  },
+  "budget": {
+    "cpu_millicores": 4000,
+    "home_bytes": 2147483648,
+    "memory_bytes": 34359738368,
+    "process_thread_limit": 1024,
+    "storage_charged_within_memory_limit": true,
+    "swap_bytes": 0,
+    "wall_seconds": 2400,
+    "workspace_bytes": 8589934592
+  },
+  "case_id": "03_hinge",
+  "inputs": {
+    "instruction_sha256": "c4a294770c8fd119078062409cc9e189bf1949202e2d90214dece027a3f58ca7",
+    "public_input_inventory_sha256": "d551b59bb6cb0f9ebc57c99ec92720cfb0498c4766c60b50efc30d9a4c3fd24f",
+    "source_bytes": 10486020,
+    "source_file_count": 3,
+    "source_inventory_sha256": "ce53f19d7355d748b01d183bac32e4381f01c8dce24a1ed404139312d477de0c",
+    "task_sha256": "30d46a2d4d804be41e1a471dcc8f811b80186cbf89cff8e11ff939cb12c29a11"
+  },
+  "lane_id": "lane2",
+  "model_controls": {
+    "admission_identity_associations": 9,
+    "all_observed_ui_matches": true,
+    "associated_request_count": 133,
+    "capture_error_record_count": 0,
+    "capture_error_record_scope": "final_ui_metadata_entries_not_unique_incidents",
+    "identity_conflict_count": 0,
+    "model": "gpt-6-astra",
+    "model_catalog_sha256": "e612a56f9fef06041483ddd20cbea586f50d2fbf12e558e852dfa40bd332f976",
+    "reasoning_mapping_sha256": "156f5bdb76caa83e16f92f74a55f38cc361a870957966a32713c953556e46fb7",
+    "requested_ui_effort": "ultra",
+    "resolved_wire_effort": "xhigh",
+    "session_count": 3,
+    "terminal_response_id_associations": 124,
+    "timing_inference_used": false,
+    "ui_complete": true,
+    "unassociated_request_count": 0,
+    "uncovered_thread_count": 0,
+    "unledgered_response_count": 0
+  },
+  "original_records": {
+    "final_usage": {
+      "bytes": 4608601,
+      "sha256": "c7f989baed53c734422eab10e745eaa965354861560454c26ed4fbb99b002af8"
+    },
+    "launch": {
+      "bytes": 5082,
+      "sha256": "bf23b07d1db8307612eb4e9d6b2b0c08c399363e53b92b76b83791cc722f931c"
+    },
+    "reap": {
+      "bytes": 789,
+      "sha256": "efbeb89ca8b1e2a7f32456143ae5db6d6b03287917b191fc403120e2718e7c5b"
+    },
+    "retention": {
+      "bytes": 382,
+      "sha256": "5f2c5476372e7b3d18c7ae4c58522c9d5a230a4103a692d8db1de7ab7d5d2b2f"
+    },
+    "review_index": {
+      "bytes": 918,
+      "sha256": "bfc9514ea8d01964e7a95747c20bcfa76d73a3c788d6d745a4ce8e696c822004"
+    },
+    "timing": {
+      "bytes": 718,
+      "sha256": "c724efa7664e92fd6b38676be57f1b784c63efd281447cb1632ceda3e14aaadf"
+    },
+    "ui_association": {
+      "bytes": 23888,
+      "sha256": "4b02df7fd00fb3f2192633b42f8a2a3dff55cd4fc619925e78fcd9dcd58e7ee1"
+    },
+    "ui_metadata": {
+      "bytes": 58700,
+      "sha256": "8ffaa3c70a688cde2f3cd626b66aad31b92f6944da9b37005ad2642d40c70713"
+    },
+    "verification": {
+      "bytes": 547,
+      "sha256": "36bd1f6a8e58ebca739bd13294963c69b1ba7c04ff15c7af38f139d063c06b94"
+    }
+  },
+  "profile": {
+    "environment_sha256": "081df287b1710f11a3e3251071a9696b02d077fd6265db5ff7a19aa956221543",
+    "fresh_home": true,
+    "lane_qualification_sha256": "34c16a6773ff0f01d6607470df65843286e31b5f50db76c870b220094319378c",
+    "protocol_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7"
+  },
+  "reap": {
+    "cgroup_populated": 0,
+    "namespace_init_exited": true,
+    "output_inventory_sha256": "1769061b014284a67a8d2ce428d97f14c85d4833bc170927a86e6d84c8958667",
+    "output_snapshot_complete": true,
+    "returncode": 0,
+    "source_unchanged": true,
+    "timed_out": false
+  },
+  "retention": {
+    "archive_bytes": 23855009,
+    "archive_bytes_provided_here": false,
+    "archive_payload_read_by_projector": false,
+    "archive_sha256": "84f7f8a742888657ba08b770f8295d996e98eab0b972b74cb0f0cd6de2cb03c0",
+    "member_manifest_sha256": "4188e5440d297482d387f068cf01fe93b5d39f2696e87f1808a0060290cab186",
+    "prior_export_complete": true,
+    "prior_local_member_verification": true,
+    "verified_member_count": 348
+  },
+  "run_id": "v2_03_hinge_plain_astra",
+  "schema_version": "author-control-evidence-projection.v1",
+  "timing": {
+    "allocated_lane_seconds": 1302.1418724999999,
+    "allocation_duration_clock": "controller_monotonic",
+    "author_duration_scope": "worker_reported_elapsed",
+    "author_elapsed_seconds": 1275.8087073806673,
+    "budget_started_unix": 1790125399.225634,
+    "deadline_unix": 1790127799.225634,
+    "dispatch_started_unix": 1790125399.2257862,
+    "lease_acquired_unix": 1790125399.213001,
+    "reaped_after_retention_unix": 1790126701.3917131,
+    "retention_started_unix": 1790126680.53526,
+    "timestamp_clock": "controller_unix"
+  }
+}

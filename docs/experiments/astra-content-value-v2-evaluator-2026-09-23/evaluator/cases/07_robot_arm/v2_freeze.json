@@ -1,0 +1,2860 @@
+{
+  "case_id": "07_robot_arm",
+  "frozen_at": "2026-09-22T23:32:32.678112+00:00",
+  "runtime_manifest": "frozen_manifest.json",
+  "runtime_manifest_sha256": "435a43571c8e15cae2b8625454a45cf85be76b6c832619dde1cdf32262ac7b2c",
+  "code_sha256": {
+    "bindings.schema.json": "d3bf23628bc61c9d060b8c9d24c554c3cacf40ebba5ca57d77f745fed6be7ab0",
+    "cases.json": "34bca971648ca8a9d665f9aa4ab0349398d612ace801df38c7fe0712392b6b2b",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "evaluate.py": "1d53389e6021279bef7360d4205cf2752767468018011d4043b4a96c5eed5bf0",
+    "geometry.py": "5948a3442a91ee9b69c1db415559e68c0d2bed3b5a3e581bc1277062aaae532b",
+    "solver.py": "8b0e9319435ee09bea5b885f6253c8431ee1f4d981bd90cb3bf3d5fc412f1cd4",
+    "structural.py": "5f29f487fd7f30200f1de755ab851ad5a441e81a223e6575f16cf6d3e69b61c3",
+    "v2_control.py": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a",
+    "v2_geometry.py": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4",
+    "v2_inputs.py": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528",
+    "v2_policy.py": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20",
+    "v2_process.py": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794",
+    "v2_verdict.py": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+  },
+  "reference_files": [
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0000.npz",
+      "bytes": 965270,
+      "sha256": "e29d3badf2afe1baeaf7d2bbdcc5d326d55123ec5c04412bd6d720f0f7a0f0e2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0001.npz",
+      "bytes": 48806,
+      "sha256": "ff7145ec61c89b51026f9a7415235b6c2471856ba8ad052f734121d973f235ef"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0002.npz",
+      "bytes": 42170,
+      "sha256": "cd53a6cf11f26e3703913e3d631dda76d894d56f0380001564bed2715d9f1595"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0003.npz",
+      "bytes": 472373,
+      "sha256": "f95ff79f02e769d924f55bffdad878c12d01ce59d31f4e4f37aea2670bb36f19"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0004.npz",
+      "bytes": 50652,
+      "sha256": "21c6bb06b508dc8ba2f8f1ccf78c77993c55c9615c0f22d2e500650f64ff65a3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0005.npz",
+      "bytes": 48840,
+      "sha256": "1dc4cd009b165107e9b56f21f5d7599d52f905a58c00c0d353bed2eb59faebd1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0006.npz",
+      "bytes": 179445,
+      "sha256": "75f06eb475b0d5498a937ed302d864d0ce90a65f564da2c3928ba2d3d38696a8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0007.npz",
+      "bytes": 33719,
+      "sha256": "b23f48854118f4d0bf47e17c7a93df1241f54d893c9a155e8e781c351491993e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0008.npz",
+      "bytes": 104727,
+      "sha256": "d08b232b1b2b5514982fcad28c524fe37ca0f1bcd14ce98bea943a601d7b4842"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0009.npz",
+      "bytes": 6680,
+      "sha256": "75ff438e464d75e896a40d1a5d3ba5554207cc1c7d0413749d07ffa21575ee4a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0010.npz",
+      "bytes": 5073591,
+      "sha256": "7d1c3b96224b8f5d1da070b380d3e2994e838e3ff3022b18c6aa1713f731c6b5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0011.npz",
+      "bytes": 7105,
+      "sha256": "15e28e0be8d6664f70ab20cea60685f0f938fd1d8a7dfb03cf152021f79ce864"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0012.npz",
+      "bytes": 7153,
+      "sha256": "9444886e7d2709b9b3f06f79a2a7add3ebdfc15eb7fb9f3cf7cf81cae61721ce"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0013.npz",
+      "bytes": 7210,
+      "sha256": "12db073f8ec375c6b76eb1f31f09f891a068ee35a494700b7f3a6024b513c3ea"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0014.npz",
+      "bytes": 6876,
+      "sha256": "eeb30ed99654cca93af4f9daffa71f05928a88d0a20d639406551e87b6864644"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0015.npz",
+      "bytes": 5102841,
+      "sha256": "cbce07f162efb142d2fa9d409ec9014ffb8d20c1c165fd50740fa7d712289626"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0016.npz",
+      "bytes": 215314,
+      "sha256": "20752a04a6e1d83f465759dfecc0d19f5a77e66d64c0c13ea5ed5f38732fe18f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0017.npz",
+      "bytes": 159013,
+      "sha256": "b8863252bafe59647899b1940f016ae0221016002662957793cacc2c9fab49ec"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0018.npz",
+      "bytes": 374547,
+      "sha256": "71b0d88d09c9b9b3106fdaf0e3a14985b76d49a99e0fe5be3477b0adf786ea04"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0019.npz",
+      "bytes": 160919,
+      "sha256": "b9567872d0bd33bf97d3c0c23e9e6d391a83c25e251a5e4240d18bc6cf0587e5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0020.npz",
+      "bytes": 160919,
+      "sha256": "b9567872d0bd33bf97d3c0c23e9e6d391a83c25e251a5e4240d18bc6cf0587e5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0021.npz",
+      "bytes": 160919,
+      "sha256": "b9567872d0bd33bf97d3c0c23e9e6d391a83c25e251a5e4240d18bc6cf0587e5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0022.npz",
+      "bytes": 160919,
+      "sha256": "b9567872d0bd33bf97d3c0c23e9e6d391a83c25e251a5e4240d18bc6cf0587e5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0023.npz",
+      "bytes": 760918,
+      "sha256": "6cf8f1f858d6b0e647cde36caba70e2df849bf9b9635c67c96f1c67317bcbac3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0024.npz",
+      "bytes": 106246,
+      "sha256": "d4f462ee5cc4f7b7552028f6dfacfb296f20e3655006aba5d57a2a64b4237233"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0025.npz",
+      "bytes": 12805,
+      "sha256": "01d232a5ead4ca6060bc85fa9ab0dc3a4d0492f2e8537af65ce46101bff568ef"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0026.npz",
+      "bytes": 12805,
+      "sha256": "01d232a5ead4ca6060bc85fa9ab0dc3a4d0492f2e8537af65ce46101bff568ef"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0027.npz",
+      "bytes": 7952,
+      "sha256": "ae65074541937a36505aaffadbfe8002dacae1a5258a4aa5c78a388dd9d00b4c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0028.npz",
+      "bytes": 9399,
+      "sha256": "5bff9c5892827caa592eb5ce03546212fd0bca7d3730b2a83a27418f7a457d16"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0029.npz",
+      "bytes": 79353,
+      "sha256": "537521eb26c98a342261cddec96639849e52501e3ed4874d847d09990bf39e9c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0030.npz",
+      "bytes": 1832546,
+      "sha256": "3f8724d70cd446e9eb9726036cfffe3fdf7e08b312817c51571b518bda5b5778"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0031.npz",
+      "bytes": 1849461,
+      "sha256": "81129fcb48a8ca810f9f1a9d79d3d2f7fa0e61b8a15c850aa30fdea5248446cd"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0032.npz",
+      "bytes": 97472,
+      "sha256": "9da0872fed29c63077db84c3c84e518be2adad1cb208978a43443aa627c71f05"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0033.npz",
+      "bytes": 101428,
+      "sha256": "adf36c7bdde4a6b755b1e592c2eb4334b5625101e318d37abd128d4ee9f62109"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0034.npz",
+      "bytes": 21044,
+      "sha256": "717eccad7b7080ddb8a05b048e7585902778b5d60a22f98d4af718b670d655e3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0035.npz",
+      "bytes": 117989,
+      "sha256": "86e506f41922f6f759d0ed9507f3c38e9dfe0c6856fa7562e9b9639d9efeb678"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0036.npz",
+      "bytes": 19654,
+      "sha256": "b1513e6df7c18628d4b464f25447e42d290baa1e7890385937ebdb1411b91537"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0037.npz",
+      "bytes": 21224,
+      "sha256": "19e5a9128642ee71b5160c923da1c01b677174d07123eeeefe07ae1c8cd73b1d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0038.npz",
+      "bytes": 97144,
+      "sha256": "c8333965b14c747fe70fddb6556f4684117b76ff511417a89c27f42dadc0f8c6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0039.npz",
+      "bytes": 118118,
+      "sha256": "f8920294f2164c853ae0e90cef83dbae5986062d75891e4fba16e1f5f02a1759"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0040.npz",
+      "bytes": 158973,
+      "sha256": "d9cd19513a0584d473097ced8bf3a2528e105bbc473941062b121b189accb0e3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0041.npz",
+      "bytes": 20142,
+      "sha256": "1f12c389b76a53fef3ad2a3d30c7c91d9d374c887a4b4291a72ebe8b53ef96e9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0042.npz",
+      "bytes": 20463,
+      "sha256": "2806b5c8d011b82f837415e79fd406bea6b398c77c180c2227ab4c62157080bd"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0043.npz",
+      "bytes": 19638,
+      "sha256": "d28e85589ce7f1423125da744ed133f8502ca9884690ce966018b7a85133599e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0044.npz",
+      "bytes": 102380,
+      "sha256": "0d79c5c4bc91a337e3ff899955dd4a8d6a04bf7e0453b997df460594331d69ab"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0045.npz",
+      "bytes": 97450,
+      "sha256": "b15ab8957bef7f98f078dfde5653b5c085d466ed20ae533c04596062edc40306"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0046.npz",
+      "bytes": 95417,
+      "sha256": "70daff1460c53c34305b435702f01f96250e0669b996e6ee4f66166824906463"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0047.npz",
+      "bytes": 21397,
+      "sha256": "77e75f2abb405c239460c011eac4cc6bcd62a67d491a4cfadce429312de98252"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0048.npz",
+      "bytes": 21157,
+      "sha256": "263af9dbe5e52e96cb914a6a7e57b281a848ce634ca410ee7ac76071a936c86c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0049.npz",
+      "bytes": 21369,
+      "sha256": "7a372cbe19113dd57405a401be7164ed95d15377f76e81d01779e44b2690cd06"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0050.npz",
+      "bytes": 101758,
+      "sha256": "a368b107eb98a2e76a6a8a512032732bbb30fefc764e5832138b7cceaf229c26"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0051.npz",
+      "bytes": 21213,
+      "sha256": "646a1bffd4e7701c62a19afca4be2c3fc822366d23800c2b3c95ca5326e5f02c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0052.npz",
+      "bytes": 21133,
+      "sha256": "80e45651ea5b7405aba6f4cdaa54c6184e363e9f5a4ef2270511e4608a40da49"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0053.npz",
+      "bytes": 21124,
+      "sha256": "bc8d9e92da549b6e44db63f8336a58bf6be40258bb85e4ef4b13ea6f827e27a0"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0054.npz",
+      "bytes": 21069,
+      "sha256": "573b8d9c9d092f6e48680b81cf79d44147e2a7e2fb77af08d75ba7baaddfab57"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0055.npz",
+      "bytes": 102035,
+      "sha256": "3740c15943e9c7020752c1dd43d40f3154f26c08b93ee350893888b3cbfa07e1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0056.npz",
+      "bytes": 21221,
+      "sha256": "80de218b7b3699b6ddf3de891124588433fd87bc6b27f9f22f559d965b20e97b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0057.npz",
+      "bytes": 97371,
+      "sha256": "f2b83b421f2d3952945d43a208e06b00a74e58413dc83b93121107e65a98d988"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0058.npz",
+      "bytes": 21541,
+      "sha256": "7c3f4140d33cf473b6f961d09ea4e7d1793a8d175a3a6740fb88e5d5af024ac5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0059.npz",
+      "bytes": 98423,
+      "sha256": "7da1a497d2dd36d0c9ab5372fd29e7dee720bc91e48e8f5138c8d131711c18e8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0060.npz",
+      "bytes": 98932,
+      "sha256": "bec71f5cabb4f8e9c7b125eb994ae5d066f3978ceabbe17c5d7758cd35eb10a7"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0061.npz",
+      "bytes": 101244,
+      "sha256": "a0b52e9e9f7830763602e72563c32103a51bbf37ab4435009fdd3d57e547fd29"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0062.npz",
+      "bytes": 21629,
+      "sha256": "00b0d7ec87ada1a9e4d073c77ce62ff32b0beb3c76f5ce2fabcb5022393e5d48"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0063.npz",
+      "bytes": 158274,
+      "sha256": "3ce0dd0442a432ec06d24ff3e2524bbdc3d1877e75cfc8fc252ab621f8bdaad4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0064.npz",
+      "bytes": 100562,
+      "sha256": "2ea4bd4076b885896848367b322df7e71c87a8423812a8af078b142319742afc"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0065.npz",
+      "bytes": 97346,
+      "sha256": "e93190f8dacef71937ad44b3515773b7c861caf36a0a786fece4014e630e9494"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0066.npz",
+      "bytes": 98486,
+      "sha256": "e55bb7889d9689cb3c5f0ea4e71120399cad7282dcd425817c4af1b144f6b750"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0067.npz",
+      "bytes": 20717,
+      "sha256": "b852c169b016a8bd6c3dbc75d2c8f72ac0dd2fb730d308d5bd0b4414a7c281eb"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0068.npz",
+      "bytes": 20503,
+      "sha256": "d9b89491bbe284fd7ef3b4b07e97356320de94a630615fcc5253205a0465521a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0069.npz",
+      "bytes": 20738,
+      "sha256": "f3c4d1ca09e03c81aafb69b126b068b2b3717f3c1f43cc5dde31ca5b6d31b5e9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0070.npz",
+      "bytes": 20849,
+      "sha256": "e89e9ffee6a6255163b271de7c15fde0fa17d78f5e16e0269ca12027fb8c2e22"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0071.npz",
+      "bytes": 96764,
+      "sha256": "e726f8642c309d0cce4e5b9ed4aebf3cf8a659f1bac040101c4c0c283f055118"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0072.npz",
+      "bytes": 20294,
+      "sha256": "ce77c5cc37f1260205f56ea14ef4c27a7e11226d5f7c3bb6fa46c3a46374970b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0073.npz",
+      "bytes": 21741,
+      "sha256": "bb768eb4a24f2d105f56b62ba2cbaff899276beb799bf22322f4a5d508ba03f4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0074.npz",
+      "bytes": 21857,
+      "sha256": "3c531db7a6d262d2b43681e5568d849ce78fd40a018bedc323635a2943228486"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0075.npz",
+      "bytes": 21095,
+      "sha256": "1ad5ebedf69558e07785e3c5b360f15684c0c0454aba82da4c258b696826470e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0076.npz",
+      "bytes": 97111,
+      "sha256": "99031cd3bcdfe48737958f3993836f1547cfe48675c1006db7f2120d86c510a6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0077.npz",
+      "bytes": 101357,
+      "sha256": "d6e37729fbb99ee58799eee88869de36ad7b0a3320910abf79c833a51e474eaf"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0078.npz",
+      "bytes": 103545,
+      "sha256": "0c19b9189596b028d861818212b72fefbeb4233fa32c24ec817cb7149a75975a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0079.npz",
+      "bytes": 104227,
+      "sha256": "cbb10d7b1dd3f931802997fe17022680f6f4104a6d97049fd15d590b09f45e4d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0080.npz",
+      "bytes": 104163,
+      "sha256": "b9afead05ce4bb597f1084232861cc596d4c8763927fa750f22b76f6c8fc771f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0081.npz",
+      "bytes": 20317,
+      "sha256": "1cf9d8aa5b313c180aa8539b5db7182af0048a3fd3ed968bfee8336282d2bd80"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0082.npz",
+      "bytes": 100716,
+      "sha256": "b5634c5fa089c2bf8f02632d4aa15e2c4dbd82dab2cc813150e161c948f144a9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0083.npz",
+      "bytes": 103948,
+      "sha256": "c27ca58622bf4cae3194f2e20d00980f3f3cb09ba04d8e32ad340e714e26ce0c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0084.npz",
+      "bytes": 103490,
+      "sha256": "306153611a41ccbea893aa06d9a96ba75cbb22fef7b443d0e2e8aeaac7d54a43"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0085.npz",
+      "bytes": 100990,
+      "sha256": "5a33a46053fc729a6669bacc15278b41b93e427e61d908e0e03c1893a38fa1a5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0086.npz",
+      "bytes": 96785,
+      "sha256": "46e205b50af5927723d95465c83181579f3afce562155aa186bc4df3f24228e2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0087.npz",
+      "bytes": 19582,
+      "sha256": "847cb61ad50db18ed2c928a2752c3d9c31d20e8d679d48781d1de26278429b0f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0088.npz",
+      "bytes": 118721,
+      "sha256": "c82f14ce6811aa34808714574883082ea44fbad433c0a533ff30a9b84333abdf"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0089.npz",
+      "bytes": 118682,
+      "sha256": "5daa8750e080ddee2916365ad6bdf5450828b96e6a11aeafde74b6885b518a0f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0090.npz",
+      "bytes": 19574,
+      "sha256": "91c34317e56e7e6081c095709bf933e97b10c17cbc02bfba229f143ebf89f179"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0091.npz",
+      "bytes": 19519,
+      "sha256": "f3b3e577bfbdb1ca678ed36718ef4ca0b9a30bf5f05ac203b2803dd26f2e0e4d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0092.npz",
+      "bytes": 19641,
+      "sha256": "9158b08beb1102232f79aed92d46631082827ce093c7aa97e9e13e7ce800fdbd"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0093.npz",
+      "bytes": 19660,
+      "sha256": "d51fdfcb6745e91c807146248f25934b86806729a60d1327f13e134348369815"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0094.npz",
+      "bytes": 95421,
+      "sha256": "fe15f981f163c7a4b83c166ca32678f80cb450c9e00e5320708cb0a87f0571b7"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0095.npz",
+      "bytes": 19890,
+      "sha256": "228eef8c68a0d405b155f94847a3b2b0f7681be1dda715eb8cd69f5b205efeb3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0096.npz",
+      "bytes": 118474,
+      "sha256": "17ce65f77467186c75aea7d708711534644aab255cb874360fcb9002cccd8580"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0097.npz",
+      "bytes": 118035,
+      "sha256": "72985d317c467821931c6eab34a64b483aecb4176cc110cf934bd14bb96c1bc4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0098.npz",
+      "bytes": 19818,
+      "sha256": "8df1b8f81e8a02e0158dcae28caccb07410843f2f8a015d09daee01e03080c95"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0099.npz",
+      "bytes": 158862,
+      "sha256": "e6ac2a95475c13487635c519975a51f400549079b701636a0379445c9f1a4955"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0100.npz",
+      "bytes": 20372,
+      "sha256": "b3c96c91e21d750ecbe94bd30d93ffb995c0186dbee25e29bb5ea3a3d60faf57"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0101.npz",
+      "bytes": 98988,
+      "sha256": "3fca4743913c5c6228219c635b8c792cd90ca6baedebfbbe00399b89d993f08e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0102.npz",
+      "bytes": 98196,
+      "sha256": "55a1807456783604048c010acd1763d83840799b0c7380bde7535fbcd2adbca8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0103.npz",
+      "bytes": 98170,
+      "sha256": "3a571a7d34bc7318a3efa29b5adc3e51dc7b760d44a4c3888e051bd8d34f67bf"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0104.npz",
+      "bytes": 21486,
+      "sha256": "94e9b787cebb9eb488286be8266e43459298ca6fa3226319c8e55034d2e63c54"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0105.npz",
+      "bytes": 98517,
+      "sha256": "067c2f714edd4a7676e88ed13716adfc64d1de573cc09ecacba524244e9acf7a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0106.npz",
+      "bytes": 98515,
+      "sha256": "06afacd085479f36043fd0efee91fc687c7e130a41ae57fb6d27c0ff3a04c55a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0107.npz",
+      "bytes": 19579,
+      "sha256": "d2bcd1889e96235163cae64a3e61fbafe10dcfff5bd66a5eccd0a90987105194"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0108.npz",
+      "bytes": 19524,
+      "sha256": "b0b24d4d18666cb3fef10d1af857a88a5df45d683da366b3f776bef22dbe52e3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0109.npz",
+      "bytes": 158238,
+      "sha256": "15735ca37abcce3bf94cb2276a7f3f48c730bd0f729c6349930121d3353d7226"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0110.npz",
+      "bytes": 19876,
+      "sha256": "03128c42bd18ef4d6f6d54702759c59ae9fc2c053c58853a62072a648c75c0be"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0111.npz",
+      "bytes": 98080,
+      "sha256": "ea2bca24d3630fdd24d1fc604964e49e036c6bc95b53a88df2eaa2ce4415972e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0112.npz",
+      "bytes": 19789,
+      "sha256": "3da24006c6a7930cf526843c564be121e17f103d9302486874f4c07c9bc9c48d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0113.npz",
+      "bytes": 98038,
+      "sha256": "386d9b793eef4dc1aed598cce22c5e8fe27c676a03cbbbcc5e5d8dccdb5c4553"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0114.npz",
+      "bytes": 237464,
+      "sha256": "d59d3d9035ef0ea57f0d6ea853d2f32762e963c70f098d36780d852c9464f03e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0115.npz",
+      "bytes": 140307,
+      "sha256": "6bcada060cdf781b7956b06bfecd9f95a3d9894c03299f7d22885c4099fa2540"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0116.npz",
+      "bytes": 37007,
+      "sha256": "06e9a093d17763de5485bd7eccafee59904b376f2ebc79b82139df7afb1e4097"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0117.npz",
+      "bytes": 37007,
+      "sha256": "06e9a093d17763de5485bd7eccafee59904b376f2ebc79b82139df7afb1e4097"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0118.npz",
+      "bytes": 1322023,
+      "sha256": "725608cebc9603eef480b8c52f0356b30389ec3867e28c3b29656139be4ee12d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0119.npz",
+      "bytes": 22004,
+      "sha256": "2599a34e0a62afda6d65ac5d982e04e9b4565851b05055f9128d86fedfc222b9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0120.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0121.npz",
+      "bytes": 23389,
+      "sha256": "c512742152685e2ae35b41407674e33d9960022af8e19b92e43115a2684608be"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0122.npz",
+      "bytes": 112673,
+      "sha256": "d5e876c157debe24540961fbefee422d9df6e54b2548cc5f88d24e41b11fb113"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0123.npz",
+      "bytes": 112673,
+      "sha256": "d5e876c157debe24540961fbefee422d9df6e54b2548cc5f88d24e41b11fb113"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0124.npz",
+      "bytes": 112673,
+      "sha256": "d5e876c157debe24540961fbefee422d9df6e54b2548cc5f88d24e41b11fb113"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0125.npz",
+      "bytes": 196398,
+      "sha256": "0fa9d0062c06a66014b488f4efaa0571f5910ed5939982800e2d01636ef715ad"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0126.npz",
+      "bytes": 196398,
+      "sha256": "0fa9d0062c06a66014b488f4efaa0571f5910ed5939982800e2d01636ef715ad"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0127.npz",
+      "bytes": 104727,
+      "sha256": "d08b232b1b2b5514982fcad28c524fe37ca0f1bcd14ce98bea943a601d7b4842"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0128.npz",
+      "bytes": 104727,
+      "sha256": "d08b232b1b2b5514982fcad28c524fe37ca0f1bcd14ce98bea943a601d7b4842"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0129.npz",
+      "bytes": 118816,
+      "sha256": "935449efac8009883a8f0f350ccd84fe31e7b457ba17c90c277c20a3c9cbf40f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0130.npz",
+      "bytes": 84085,
+      "sha256": "b44ed799ae4e52ef37a0226d0d23b6eae7cf579a478ea90e0490c93c8aa424fe"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0131.npz",
+      "bytes": 13468,
+      "sha256": "c12d1467b6d518be85abb124b3fb25b79fffcfa12d8a41cdf0242f1c838955e0"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0132.npz",
+      "bytes": 4145,
+      "sha256": "801c46fec4b44ce1e2e83ffc05106ae9ac8a73ffd4805ce5ba06cd4e1bce7dd3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0133.npz",
+      "bytes": 4138,
+      "sha256": "405ffcd0482f4464adea1ef1eec9b7be3ee968288df28bfc844e081c9934c83b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0134.npz",
+      "bytes": 145280,
+      "sha256": "900449e18b5b9b95e34e07fbcf6947c746a009ae47320cc66e62c387566a4326"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0135.npz",
+      "bytes": 24767,
+      "sha256": "458081f077e37a7deb209c5c55cd40d2e36942100d954b66cedfbbb97f03e48a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0136.npz",
+      "bytes": 122803,
+      "sha256": "485f7a9617be67489a507fd5c4555d857bcce4dc3137434053231019b8ab2455"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0137.npz",
+      "bytes": 122997,
+      "sha256": "a65998fcb7b2e337b1f64cd894a1a94d3e0f2f9d32118b18e6b804c865a484b9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0138.npz",
+      "bytes": 32127,
+      "sha256": "a62e0abb74dd206f4e25f098e99fa0a4cbab5e14c13985dbb0faa94cb274da07"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0139.npz",
+      "bytes": 124188,
+      "sha256": "838281f54a8e05b743e01bdd8db4e045abbcd5cfeb909c783b427a740112fd6c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0140.npz",
+      "bytes": 32236,
+      "sha256": "7ce736d5c411e63f33bcd905a3256243cb2353375c4583a663bd4d14ef2221a5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0141.npz",
+      "bytes": 32085,
+      "sha256": "3572593faf3417bed1ec4e550d5d593c29fbd686002bfb3843eb077006deab2e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0142.npz",
+      "bytes": 32793,
+      "sha256": "771a98fbe4aeacc9967efdf8d68fc91bb05aa2f5c5b0645e4d44248ea20d38c8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0143.npz",
+      "bytes": 32745,
+      "sha256": "1688c4f6480012e20a0de3af9446da6fa087e93ba84797786e2bde3fcd7ef9a8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0144.npz",
+      "bytes": 32686,
+      "sha256": "f462b8d7e53ffe4da09dbb025f2ed821da81c9433c28f09301a20abf0302bc8a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0145.npz",
+      "bytes": 32879,
+      "sha256": "5a118003bcfd15f10c7289867c80eb1958e2f8422bae42582c2917ca65450a30"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0146.npz",
+      "bytes": 32595,
+      "sha256": "e1b76ca338b6768e912fa5ce078fdaa6ba5958752c69aab7c572cc1247590c74"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0147.npz",
+      "bytes": 32770,
+      "sha256": "122497e92d8d557282a85f668b7f00b50a466c7cd85ed1f2eb372a526c76a840"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0148.npz",
+      "bytes": 32894,
+      "sha256": "bf466a9b08aca15d1ad9c30db8b0d8f594d8dbdd5e1e299db56825ee18705b01"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0149.npz",
+      "bytes": 144572,
+      "sha256": "d604ebcb4b8b9e16071008a64182c96a8fe44af6e3ade8cce8765cb4d8902125"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0150.npz",
+      "bytes": 32892,
+      "sha256": "f8979b156d57f09a73bb261a14b580930e74622e566e863e21b10b53921e10b7"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0151.npz",
+      "bytes": 145443,
+      "sha256": "74480027f56fffe0b136565f52ec4deab20e90f9bb92da1c6fc9c9958c544091"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0152.npz",
+      "bytes": 144396,
+      "sha256": "a06e715196f8a48706e2afceb377512be9ec8dc9b16058e23b461daffb262204"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0153.npz",
+      "bytes": 119254,
+      "sha256": "e66b3ab921d9c35eacf79630ef35f12c6f56dc4d633be3b97f0fcc0115d908ae"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0154.npz",
+      "bytes": 119265,
+      "sha256": "1cbea33dc548a51781cec97da3ecb07edaba6b98ae961866cb9fe4463bff220a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0155.npz",
+      "bytes": 144737,
+      "sha256": "6940b94c8b8d387a0bc59b2e98bfcb6a4fa2048e8c5e2b537286a4cbd9b77c15"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0156.npz",
+      "bytes": 114027,
+      "sha256": "62c35e0aad268aed0fd177b2fded0495fa9bff9b38cdd9c40d1dcf0594abc299"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0157.npz",
+      "bytes": 143771,
+      "sha256": "bbbfb9b2c02e481c12f24f4dbad153f2d9f1a622456687ce19e4c266ebb86f3c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0158.npz",
+      "bytes": 144647,
+      "sha256": "44f2403ee08838dcf3dda486a0cbe78c78e26962ed10e26332963ae473a6de8e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0159.npz",
+      "bytes": 143630,
+      "sha256": "bc92381ef55a93eaed8fea7fc0fd7955de9ef7faff19ea81e217c81cdb7f2db9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0160.npz",
+      "bytes": 32799,
+      "sha256": "2ebd0a4af9eb0ccf7982881443f500dae5bcb4de581e441b26161ad2322d7946"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0161.npz",
+      "bytes": 25339,
+      "sha256": "2684cbeb4d825612e4ccae7a9f2fb8d9537083a271c80fb1a2aa7a085c4099b8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0162.npz",
+      "bytes": 32733,
+      "sha256": "9fa2f67b513ba99e6d62838900ada3820a2c1725be1327707a249d3d5612d80f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0163.npz",
+      "bytes": 32692,
+      "sha256": "d37a570d61406d0101dafe8bbd0c57de76a1e85984463ac7f6c6d04392a03f3f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0164.npz",
+      "bytes": 25306,
+      "sha256": "3e7bb25cf55a63439d4c7f46b4c34028815967edc25dd4abe7c24b0bc7085253"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0165.npz",
+      "bytes": 145430,
+      "sha256": "c2e018a08582e6e42b920518bde71586c7f2578752e71aa6b64ef0e849f8e439"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0166.npz",
+      "bytes": 25234,
+      "sha256": "8098668779cdae504cfbbfa1dc77a8befd6ac693f9bd3053818aa81c67f93a41"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0167.npz",
+      "bytes": 144961,
+      "sha256": "ae62dc9a97064d8eed2bf9e8f450824557301e17817b33dc853eaac5f775b9e3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0168.npz",
+      "bytes": 144630,
+      "sha256": "5de3647154f8fcdcaa081d189b73090d20147268b47d3a13ed4365a46a06333f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0169.npz",
+      "bytes": 32766,
+      "sha256": "20898e20ac8af3b02d10530fbfe4832ce142eb214bf6fffcfdff752241248fc8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0170.npz",
+      "bytes": 25311,
+      "sha256": "a6df201d06262571b81ca51fe47481ea1d18cfbbd3cc72c45119993015a80091"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0171.npz",
+      "bytes": 119884,
+      "sha256": "1b081ff94f11c1a0df4a4850f62517feae431c058a58223e8f8124bffed57d9a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0172.npz",
+      "bytes": 119769,
+      "sha256": "3d551e16e11f98b804945eaee930e49b8bb15a2a34e9a469fc3b4a551fbc4f4d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0173.npz",
+      "bytes": 124441,
+      "sha256": "1f19dee4d3ead5944f256e90a7b6db94df92f283cd95405d3af2cb561917e40f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0174.npz",
+      "bytes": 118135,
+      "sha256": "d870ddf613d4d419347844ca129ff9c946c4ecf1e9a81e7a5a60926e63f7ddcd"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0175.npz",
+      "bytes": 119671,
+      "sha256": "b1c6487873ae495fe13c2493d0bfe771ed4b7799d356d3d009440e74a8437d14"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0176.npz",
+      "bytes": 120286,
+      "sha256": "077e1ad7d3b0b0f4d1c0a4c0a5f4add6c03bf91e810f259c0540599a38382b1a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0177.npz",
+      "bytes": 117441,
+      "sha256": "08cfa3fe22de9bdf0409e83659005c3c1a1110426c53f04dc5e6a83d6a75bd06"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0178.npz",
+      "bytes": 118937,
+      "sha256": "681c519945933ad6d625d329d9fbdda20231c4937eb4cce0032c049c89519817"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0179.npz",
+      "bytes": 115996,
+      "sha256": "f6b5ac3211f5ce4ebb6b510861be4bbc7698935a41223a5c991f802b03f507bf"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0180.npz",
+      "bytes": 113965,
+      "sha256": "409e761b6275c79016b53c96b41553a6ea068da57216fd0f570dde839cccd884"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0181.npz",
+      "bytes": 140628,
+      "sha256": "1124cacafa7a52df799719443d78bb5e0bfaee108740cf17bb3bd0cb28fb4d4f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0182.npz",
+      "bytes": 116013,
+      "sha256": "aee79a8139b652755289594939b6833f3a7cac28ea9e2192b953ce892652ac03"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0183.npz",
+      "bytes": 140421,
+      "sha256": "1a5a3ec0af78f6d1bbc8f71e50031358c44e73400ae4c1eaad3c867ac0215984"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0184.npz",
+      "bytes": 114198,
+      "sha256": "374621b388b8f0a2ac257254b931b650bf2888b788335d37dbf839f609eb8ac6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0185.npz",
+      "bytes": 121203,
+      "sha256": "65953fc4910a06d717fcb747a41b1ab0cb56a4afa3545d02e69a277fdae851e0"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0186.npz",
+      "bytes": 115840,
+      "sha256": "0486937c467cd1566e6e7a044d5d50e0b07854ada19b0ce269408a66891f09a2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0187.npz",
+      "bytes": 122025,
+      "sha256": "ad7a437c8f57e7d64aed0db04633163608eab13996d983b2c734aa1878760ac0"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0188.npz",
+      "bytes": 114986,
+      "sha256": "0d0edac499882a6752e27ff7d356e7a0b39a4c0e3c939dd67403667b0b623ba9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0189.npz",
+      "bytes": 112369,
+      "sha256": "c1906d09cc3cbb56a265783ca93abb2a309b610199642141d4d4ced31f6500e7"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0190.npz",
+      "bytes": 112157,
+      "sha256": "a3aba0afc424c636a46ff39ac3ca98553e492e1468a92f8ad14f6ce1afee8f19"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0191.npz",
+      "bytes": 116940,
+      "sha256": "be04d3566985ff1daeb31b5b33fe4512616c283b0340cc94380a275d837e3507"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0192.npz",
+      "bytes": 24217,
+      "sha256": "2bb292af6387a82fd4bad8e0fefdf41a076a279273ae3227f4793affa33337b2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0193.npz",
+      "bytes": 24198,
+      "sha256": "657aa678bd5190292c00b7e9105c8b5ad1e51b58f6623dfbf9ab30f7ccd03a4a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0194.npz",
+      "bytes": 114842,
+      "sha256": "f9303ad098a85bd729cafee1d53bb945ecfea7975f40e0671b7930d1385f070a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0195.npz",
+      "bytes": 34910,
+      "sha256": "4101eb2e268990f6dcb524c3b79bea5ad31fe32b38bd028372f9649fa5d841e4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0196.npz",
+      "bytes": 143069,
+      "sha256": "7919f797f4da811355bee677aa46b7d176685758f8c64d86f3754368edf4581c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0197.npz",
+      "bytes": 32470,
+      "sha256": "9aaaf117884523ff1f41fe7dd623435ff2bc8d6b464822a562dc8bf6be1544c5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0198.npz",
+      "bytes": 24823,
+      "sha256": "b17788bbe100493249a2dcd8f47a37dfe8eefc49fbb45810ba4ab3965221173b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0199.npz",
+      "bytes": 122278,
+      "sha256": "e39ff76dafcb66bb1e2212bd3571be0a3600ae553305ff02f7820967e979acca"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0200.npz",
+      "bytes": 142406,
+      "sha256": "af3d3ede326c091b0d04f7fd45eae3e614a6e89ebd6c5b229717c7850625979d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0201.npz",
+      "bytes": 143728,
+      "sha256": "153b3a59b0d2072780cf8d6e6008bc10287ce0d5143ea94736d4132395f64649"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0202.npz",
+      "bytes": 697360,
+      "sha256": "1cac26217c71a19f20c5906d42f418110877e3480b42d74625c76d73de682d2b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0203.npz",
+      "bytes": 73704,
+      "sha256": "60d1cc4e8204521e8189fcc0376581e2ad38f16d7d8ee643333e880415f54e36"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0204.npz",
+      "bytes": 39969,
+      "sha256": "764e1ab01868665e5e5af207fc989ad2d41ec22e5f1d1088346fe4395c89515b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0205.npz",
+      "bytes": 68578,
+      "sha256": "efb4d651531aedc0bf23607a2088920022044a1a0b9603f9359ced2fc9266aa7"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0206.npz",
+      "bytes": 65315,
+      "sha256": "dc3e47b9debcd0b52f7b2e2883a0187a4e19dfaeb7bd3fc70953842774d4f625"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0207.npz",
+      "bytes": 605824,
+      "sha256": "863e403c087200c91432712dc6bd6ae7221319ca801999fbf9f34fe989b5b03f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0208.npz",
+      "bytes": 18536,
+      "sha256": "f797770855ec050bf10bb5fa3f162d4c468312a7e6978385622859a90b7c6b99"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0209.npz",
+      "bytes": 18536,
+      "sha256": "f797770855ec050bf10bb5fa3f162d4c468312a7e6978385622859a90b7c6b99"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0210.npz",
+      "bytes": 18536,
+      "sha256": "f797770855ec050bf10bb5fa3f162d4c468312a7e6978385622859a90b7c6b99"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0211.npz",
+      "bytes": 18536,
+      "sha256": "f797770855ec050bf10bb5fa3f162d4c468312a7e6978385622859a90b7c6b99"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0212.npz",
+      "bytes": 20694,
+      "sha256": "6d9a93da858350351e21b7cf96de0a9a002d60311601ff248db82dac58705acb"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0213.npz",
+      "bytes": 20694,
+      "sha256": "6d9a93da858350351e21b7cf96de0a9a002d60311601ff248db82dac58705acb"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0214.npz",
+      "bytes": 13231,
+      "sha256": "8e8201fbdfcdf8e2d1099e5b06ca28c3874fb199695ead87102e38d992e5f0e6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0215.npz",
+      "bytes": 13231,
+      "sha256": "8e8201fbdfcdf8e2d1099e5b06ca28c3874fb199695ead87102e38d992e5f0e6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0216.npz",
+      "bytes": 22501,
+      "sha256": "c96fa98da875f0d1f8846596d9ae3e5683f052145dcb066d206c10024701e941"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0217.npz",
+      "bytes": 22501,
+      "sha256": "c96fa98da875f0d1f8846596d9ae3e5683f052145dcb066d206c10024701e941"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0218.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0219.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0220.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0221.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0222.npz",
+      "bytes": 33719,
+      "sha256": "b23f48854118f4d0bf47e17c7a93df1241f54d893c9a155e8e781c351491993e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0223.npz",
+      "bytes": 33719,
+      "sha256": "b23f48854118f4d0bf47e17c7a93df1241f54d893c9a155e8e781c351491993e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0224.npz",
+      "bytes": 4145,
+      "sha256": "bc76f3fca6814b64ce9ac6322ded9f0dfe884a3bf70e5495ebdf567660025895"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0225.npz",
+      "bytes": 4145,
+      "sha256": "bc76f3fca6814b64ce9ac6322ded9f0dfe884a3bf70e5495ebdf567660025895"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0226.npz",
+      "bytes": 43722,
+      "sha256": "93914beb0091a06526d44bb8e58d8c7628864589848549f3e1e4fa5f0f699d8a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0227.npz",
+      "bytes": 43722,
+      "sha256": "93914beb0091a06526d44bb8e58d8c7628864589848549f3e1e4fa5f0f699d8a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0228.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0229.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0230.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0231.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0232.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0233.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0234.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0235.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0236.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0237.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0238.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0239.npz",
+      "bytes": 4137,
+      "sha256": "be4fc95d1e6488238c7bd33d108784b34025ca543b292cbcb091e08a7b88fd68"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0240.npz",
+      "bytes": 4137,
+      "sha256": "a973f1c6b702eb79279cfe2827bdff5f38386f418cf640bbf6b85116fe6c5128"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0241.npz",
+      "bytes": 12788,
+      "sha256": "212cabcb9288fa8d9adba8151224c2e9b41506e62f4fefac1831d23002eeb0c8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0242.npz",
+      "bytes": 20427,
+      "sha256": "15a604ce7a7c59293568413810c576c8c50ca347beb475a68202581d62801f40"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0243.npz",
+      "bytes": 99838,
+      "sha256": "2bb304ca5185b2fd81f3c37161b2a5d03e3b1bb5d5c0b2e30341527dec22608e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0244.npz",
+      "bytes": 102608,
+      "sha256": "3af1bfe226013c770cb3c1aa670d70dd1f913e9a81e4eaebd6af5106ea11e083"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0245.npz",
+      "bytes": 103365,
+      "sha256": "b59a1d1cbc1981ce5c010e6fb5026f120b8b2d3f022d617d37f74db3dac122f6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0246.npz",
+      "bytes": 100051,
+      "sha256": "7b1de15c51b5e48b53ce4ec3dcd9835c50936a10b2fb06d5592889bee41c8fbe"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0247.npz",
+      "bytes": 20101,
+      "sha256": "8df63481d7a9b63596db4ed9b607768b2f469a5e6f40637914bf04363faf1d58"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0248.npz",
+      "bytes": 20340,
+      "sha256": "520bd52113fe3eba1fada661072f7b9bd19f0ff321b68b77f502d10cf0f68200"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0249.npz",
+      "bytes": 102170,
+      "sha256": "e7668485d48f480a591d55a94bd89d20cfde896d997ed686c411f184e1b376a6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0250.npz",
+      "bytes": 20123,
+      "sha256": "38c2d31edef9d09af9b196335b0d194fd475abb1a55a9236404f115d11214abb"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0251.npz",
+      "bytes": 102300,
+      "sha256": "2e51fdecd8f8f11c86dbda07212d92a746f651e891982d7b1b1657c8fe177f99"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0252.npz",
+      "bytes": 102687,
+      "sha256": "ffb01b0070825087555200073c8aad77a53300c4c387b8829bb72898d0bcd774"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0253.npz",
+      "bytes": 106794,
+      "sha256": "243f9ede490c125dc96070fd08e0052b7fc74c10686633062d8408e4ce8fbb55"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0254.npz",
+      "bytes": 20399,
+      "sha256": "0b18d1b46273e07e8e8fad6013e5197578be61033fd2c3439b1ec24d58f9a5a2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0255.npz",
+      "bytes": 107771,
+      "sha256": "3b9d339c6cb73a45bf3b612f2e05e9d013df8752ab597cf267928b57a6b4002d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0256.npz",
+      "bytes": 104638,
+      "sha256": "a849c2a267e32ad1c1f6abf8276b0bd2b06828b2c030435b4bf64ce55debc6f1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0257.npz",
+      "bytes": 19682,
+      "sha256": "40905635aa845466c7ab4392aa2e72601704669358e07cc6d0e359e63f00c883"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0258.npz",
+      "bytes": 19143,
+      "sha256": "c1dc5ef9bc6daadaa9107d36fdb59714996b0b38787feb670b0f6f86ccb2777f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0259.npz",
+      "bytes": 19157,
+      "sha256": "94a95a91ad63659ca624eab409c55fc42db801106408a49f6e87050990a3e1be"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0260.npz",
+      "bytes": 20403,
+      "sha256": "0fc71b940d5d77593fd373c4701c37de2ac03ba5ff6f5401c607c94d885dcee0"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0261.npz",
+      "bytes": 21530,
+      "sha256": "74402f9fffe16bb2d1b6f497d7f179ae20e5ec32982e3e20182297cc7859f9a1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0262.npz",
+      "bytes": 20977,
+      "sha256": "b545dde8719fb8270f39a768f52e70d835c24c14958f2a0c956a00d31604fba6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0263.npz",
+      "bytes": 100601,
+      "sha256": "499632f46b9a7775fa59697c88f143b5a030c50247814870cc133088baef7568"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0264.npz",
+      "bytes": 100603,
+      "sha256": "10f31f3387d58315a19d9f512e2f906921d423e44a42feb510dfc917857998b7"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0265.npz",
+      "bytes": 19528,
+      "sha256": "2eb9d0a3ae0a895045d65b35a8d3522065603c0febdb213f49a2aec60b79f023"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0266.npz",
+      "bytes": 101781,
+      "sha256": "c152abe528e8b75d1f3ee9f70756cf7b407401983ffed61724b72ad1c9e45d60"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0267.npz",
+      "bytes": 20232,
+      "sha256": "ddd42823523e6b5533678746faf73d35fe4ea0eed3c9114416711dfe9a265944"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0268.npz",
+      "bytes": 19809,
+      "sha256": "cdc5b2b1c555f988015c4d2d0e032d05452f788faf1139c53a53eae581bfc4b5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0269.npz",
+      "bytes": 100527,
+      "sha256": "17ae263a794d962456bc5ce2586220f3e6758f267a05244ca74958e90df4af79"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0270.npz",
+      "bytes": 101830,
+      "sha256": "de706883f8b2dcbf98cae92d5ff59bc82c11ebea9011612dfae9a9e2bc3b1c3a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0271.npz",
+      "bytes": 19529,
+      "sha256": "336183477732f7e3e4c7003f05477f7d7a712ef843b941aa8168db7ec536a42a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0272.npz",
+      "bytes": 19530,
+      "sha256": "4b2d3d6b7bf792b4ef4fef8923db5868dd5f85815234ad55bbafaf079d6f4535"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0273.npz",
+      "bytes": 19553,
+      "sha256": "e108d8e9a2867f9c8465ab7b787a32cc36a3d65b8b873cba84c720e24ffdb628"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0274.npz",
+      "bytes": 19544,
+      "sha256": "fd8bc061de4cc80a441934965e840b69527acbd293058989f50c3d5f48fd60e8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0275.npz",
+      "bytes": 101821,
+      "sha256": "ae56920aa447c021c27bea0348ee9cf472f6547a2021541f8ae2e9e0ed059d59"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0276.npz",
+      "bytes": 100537,
+      "sha256": "43fcba2adbc1f2625231a0269be3b22bff1bbf960c4a36eda7a85cacfc2995aa"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0277.npz",
+      "bytes": 98796,
+      "sha256": "78dc4056614fc1518f1d77386b1480ecf3a46ff1ec3604a1bd8dc3db054f95dd"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0278.npz",
+      "bytes": 100569,
+      "sha256": "ca3fae13dfbf5595368715a85f75e48584c552f07d6651f2df81571eb7a79c66"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0279.npz",
+      "bytes": 98027,
+      "sha256": "66d303448ee6e8d9bbd1b94b6eb462be35641167f59c1e0f8a68a8410022ff48"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0280.npz",
+      "bytes": 101797,
+      "sha256": "58e8d973928c1ceb22e3d31c8d7ceb9d3ff7af31608e83b39c592d976d041187"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0281.npz",
+      "bytes": 101821,
+      "sha256": "c4f08e7802a1ff4e6ebeccec718991eb8923d70437445297bd666ee574055e0c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0282.npz",
+      "bytes": 101764,
+      "sha256": "8d83eea9d36682379018639c3bcd6a0c4c1f4ba5c9ef3220780422a393224ea9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0283.npz",
+      "bytes": 19539,
+      "sha256": "fe4935afa2162034a012729b671c557f28e8e7181feec7baf2286dba1b4f38e0"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0284.npz",
+      "bytes": 19551,
+      "sha256": "e0855c5a4b7b176b133b0b0984ff40d77dc84834e9c629d33542f12b0583ea74"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0285.npz",
+      "bytes": 100565,
+      "sha256": "47ca63c50db88263e8f371670663cf46a487561e6df89bf13d7b8334a4dd5a20"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0286.npz",
+      "bytes": 19559,
+      "sha256": "3981a6e746850c22bbac0d169a0588617c301fb711ae051e122a31525389ed51"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0287.npz",
+      "bytes": 20379,
+      "sha256": "5939cb7351141aaa00b04aa452b9f1a01d27f3f0c4cef416f2b74ce6843cb6cb"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0288.npz",
+      "bytes": 20392,
+      "sha256": "6dd45abaceb02e30de07dba1628e8508af2304eab9f4d909417ba959e0cbe94a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0289.npz",
+      "bytes": 20496,
+      "sha256": "3fff65e32831c0aabbf284a6170ceff8a8c1c088085dcf92eacff1a9e6740f97"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0290.npz",
+      "bytes": 19476,
+      "sha256": "10c4ad4da7c9cdc9d35f8eed45cf2ea5bc9f992cb1b13d4694857bd885d49b06"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0291.npz",
+      "bytes": 20244,
+      "sha256": "c468f95d71340da50444da4f9dfa45334aa80680867630cfd45eb860e5de9981"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0292.npz",
+      "bytes": 19966,
+      "sha256": "40c0b98afc9959e42616f2e29898a3920ef9b280a05827266c5337d7365ac64e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0293.npz",
+      "bytes": 19961,
+      "sha256": "e7c735b1e81f4a659f046ea2a946e94d6baeb42031f2c9d8fa4003621b5e797d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0294.npz",
+      "bytes": 103991,
+      "sha256": "15bb9e44ca71f08e8176b564c86495fc48af64e8c69ad5d7437574bc31d43c41"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0295.npz",
+      "bytes": 99584,
+      "sha256": "faa70ea34dad8a1f1469e4922701da59d343e79e9ee3b0d7bf5ae37bb5aae1a3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0296.npz",
+      "bytes": 99546,
+      "sha256": "35f6934aead752ba6a750a5b722de07b571c85063ba4fefabd91434bd2bf6fb7"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0297.npz",
+      "bytes": 97940,
+      "sha256": "df071ddd018665aad4374cd61a1f8b33adb76445e0a4f753a5ec510190fd5c29"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0298.npz",
+      "bytes": 676401,
+      "sha256": "4c41639dfce6d36d0ac0d54b96c1b3b4cd6446425dbe3c2b180315b05559f90b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0299.npz",
+      "bytes": 22004,
+      "sha256": "2599a34e0a62afda6d65ac5d982e04e9b4565851b05055f9128d86fedfc222b9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0300.npz",
+      "bytes": 121467,
+      "sha256": "f6648d315ac60466ec36e95f6e56f57181d635e5ae06295ba44e01b925572e2d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0301.npz",
+      "bytes": 37840,
+      "sha256": "7c4dccd44a601ec7257b6e2e0f9808d3eb9194799a0aebddf0f8fe49db6ed6c1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0302.npz",
+      "bytes": 52926,
+      "sha256": "128f8bf3e3f751e450f92ed30f9a00e67370807b0307884579aaffd4606e6c50"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0303.npz",
+      "bytes": 190325,
+      "sha256": "e54f7904ba923d8068dc58b6bd6e3204440868b498f83a3b070f3cdda52fb7d9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0304.npz",
+      "bytes": 104727,
+      "sha256": "d08b232b1b2b5514982fcad28c524fe37ca0f1bcd14ce98bea943a601d7b4842"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0305.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0306.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0307.npz",
+      "bytes": 23389,
+      "sha256": "c512742152685e2ae35b41407674e33d9960022af8e19b92e43115a2684608be"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0308.npz",
+      "bytes": 23389,
+      "sha256": "c512742152685e2ae35b41407674e33d9960022af8e19b92e43115a2684608be"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0309.npz",
+      "bytes": 15327,
+      "sha256": "4927282cbf361c18964e3cb35c1db7038974f2d8617faff687aa9cddeaba56c1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0310.npz",
+      "bytes": 256938,
+      "sha256": "b293867632ff712a7f1eae35e7e4564eec9942c41d4158a070b01cc9e38569bc"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0311.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0312.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0313.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0314.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0315.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0316.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0317.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0318.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0319.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0320.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0321.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0322.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0323.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0324.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0325.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0326.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0327.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0328.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0329.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0330.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0331.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0332.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0333.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0334.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0335.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0336.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0337.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0338.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0339.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0340.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0341.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0342.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0343.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0344.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0345.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0346.npz",
+      "bytes": 78966,
+      "sha256": "2ccf20f910a2cb3643ba435404a0690afee677badc896435ea78bc1dbf32df2c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0347.npz",
+      "bytes": 19694,
+      "sha256": "96b3dc3ebae25f760411cc3ee234cc3c3ff907f2b5f62bc66b2915c3082fe81a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0348.npz",
+      "bytes": 20646,
+      "sha256": "264c7f6fc4c7c919a3d95d58ec3dcaebfb53a331c72469ad28b6d9938ff74ea9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0349.npz",
+      "bytes": 20378,
+      "sha256": "80dc0039fbb7799776e6e1bfe38cfce7f9ccfdc4caaa911d4d6d24e6fe638acc"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0350.npz",
+      "bytes": 20687,
+      "sha256": "6dde94592a7d198eb55d394807495df99ba8278e9b5533119675bd941d55f455"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0351.npz",
+      "bytes": 19822,
+      "sha256": "70c03ca64b5bd11c4fe77dc3310787a8b8512dff5792f2c76642ef3a6f44876a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0352.npz",
+      "bytes": 19692,
+      "sha256": "611ab4343a8a99776ef9c7de539bece3ae95b8537d84066b11961e8c683761b2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0353.npz",
+      "bytes": 19777,
+      "sha256": "40121b7833aa956e9e170cf4e86c4f76a460c9af19a1a9f3bbc717ef40cecdda"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0354.npz",
+      "bytes": 19848,
+      "sha256": "789ac8470629ac2b7247acad90c01501b517450528666183f8c625b171d1b1f4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0355.npz",
+      "bytes": 19776,
+      "sha256": "6516cc254612a98693b7accca1544fa5e7fbfd96bd105d15acb5050a7dc63ca4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0356.npz",
+      "bytes": 19867,
+      "sha256": "47fd0475d755e86197ac3c6f574596705c200273229addbf9b81494beb1ce3cf"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0357.npz",
+      "bytes": 19840,
+      "sha256": "eb467f5b35171f2e956f314b0155d3ce8c48ea9ece9063221e257adcc09d9e04"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0358.npz",
+      "bytes": 20030,
+      "sha256": "c580792fec662c306feebe137358db4aa3a64c5d1ef02856ab9841b7e8449249"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0359.npz",
+      "bytes": 20534,
+      "sha256": "4c0febb6bd573ebda1b85f84d35dc52a59874425befee73cf05ef65cfa81cf18"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0360.npz",
+      "bytes": 20527,
+      "sha256": "7047925c9be14b568ffbfa26409da43e8e8c75e41fe1b3af691a48edc1ef5c57"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0361.npz",
+      "bytes": 19818,
+      "sha256": "9bfa265e94a61e74ad2bd8bfaceee368f99e8ae1e8a1f14c7eb4330c531486c3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0362.npz",
+      "bytes": 20068,
+      "sha256": "c1875c0a4cd585a1379ac26ecfbb39a606520d1a828bb14d264d2b7aa34ea4d9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0363.npz",
+      "bytes": 19700,
+      "sha256": "af38281acd9f597194c160f7a79c6e284fff2f358bf7da8c725f3d496ddabe31"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0364.npz",
+      "bytes": 19693,
+      "sha256": "06ae8182917ad4ac395153afc5f1b858730a76684a21abfc5ec1a0ffa6db7b93"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0365.npz",
+      "bytes": 20018,
+      "sha256": "131293792fa3fa3b85006438b08e5119fec7fd08c4a859148d22a5560f7a1ea7"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0366.npz",
+      "bytes": 19776,
+      "sha256": "0c56e21658eb41c65b990a5bdb8685a7838414a53b8ec75923d57b5b2678d16c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0367.npz",
+      "bytes": 20394,
+      "sha256": "b0997e0c8a0e528834a3145b42e26d98e00dd7831cb52c147b750d3d00a156ef"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0368.npz",
+      "bytes": 20544,
+      "sha256": "7339a65d58fa5a6db0c68ae04cb4e14f6a509a6d0beca852a58e64adf166803e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0369.npz",
+      "bytes": 101530,
+      "sha256": "a66a6daa370cddecdb8422640933df49d414acae315eba6407d1d5b49094d46b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0370.npz",
+      "bytes": 98465,
+      "sha256": "facee6892dbb419f65463dffad57a60e757068f4c0a8174bb79029179b0fd904"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0371.npz",
+      "bytes": 103981,
+      "sha256": "e47d5a557035267050b343b62b624637dd5b9df4382838eaefd2dbed42e5cf4c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0372.npz",
+      "bytes": 102765,
+      "sha256": "b7eaceeaf2225b9af0e04978ed880793396e4bb53b9f8e0795b4bd6e8ee4d0d6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0373.npz",
+      "bytes": 98531,
+      "sha256": "54f3830b168a0347a449aa114c8a0ae08becda3b3cfffac2ef9eddfa942cb277"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0374.npz",
+      "bytes": 101873,
+      "sha256": "9a51e797ffb84541fb2a94d51c138529498e5f9adda1e00f26d0045ef35baf7c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0375.npz",
+      "bytes": 102831,
+      "sha256": "17faf5b39a94b855c9e91b34af57c8933699b8c3a8b7396a583b44b0c4dd99a1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0376.npz",
+      "bytes": 98930,
+      "sha256": "6f0ef6359c124d12aca35d86408544696c21659abfd271cf5056189470f81053"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0377.npz",
+      "bytes": 104197,
+      "sha256": "ba63bba58eaf0d4bc108ec6529a51b9786ec9d6d288f6bd74060302dd861060d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0378.npz",
+      "bytes": 104034,
+      "sha256": "710a22f0ec2ac7b37b76ed03991626dda66d8c02611bd031a25a3b0d4cfd0136"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0379.npz",
+      "bytes": 98818,
+      "sha256": "1e77546f9d79d886553f01500e54c40c6c4d77e0762aff0b69adceed29ff30c1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0380.npz",
+      "bytes": 98778,
+      "sha256": "690a6d372f1cc73d9f80fcb7969386a46c79adb6ff482dc27c0f42f708d68b5a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0381.npz",
+      "bytes": 99811,
+      "sha256": "f1c015205a19c7eab7b2282d8d741f411b1d866f297d986b0934fe0fd777dbf5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0382.npz",
+      "bytes": 99740,
+      "sha256": "9d36dbd5aac814c7f25ab23efbbf8b3ae98e45d37c0dc0457fc339920a27c1e3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0383.npz",
+      "bytes": 98852,
+      "sha256": "371dac88701d4e0f986b113a3f7aad577c9f051c00b55ed373d715fba9ab3eb4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0384.npz",
+      "bytes": 99807,
+      "sha256": "b046cccc5bc70cd285db87b09689bb6c111805fa358c0933bd155e5b714bf18f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0385.npz",
+      "bytes": 98759,
+      "sha256": "93c9d02178c581565305039c00793d7bf81fa6d7756a500932b8d1cea8dcf598"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0386.npz",
+      "bytes": 100158,
+      "sha256": "00a7ca04295cfb9ec1c96bb588bfdb7da18dce6a06bf49bf61905b3b1717b3f2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0387.npz",
+      "bytes": 101359,
+      "sha256": "91edb221ffe3f389be271be9493c6a43e992128d665754531fcde1d050ddcf7d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0388.npz",
+      "bytes": 101202,
+      "sha256": "1f5111dedca986548502c78962437ffcf8bec9daff4fd608e936b40b7c8d25b3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0389.npz",
+      "bytes": 99456,
+      "sha256": "092c27d7e43dbd0d5c2c9c5f7cebe2354d8bda6c4ffce9855fdeedc9b3f406f2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0390.npz",
+      "bytes": 100361,
+      "sha256": "f3620a68a620bbc519631a654e1c8226d8deeb9dd191e3a34cdd12bcccdc77f1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0391.npz",
+      "bytes": 99462,
+      "sha256": "efed21a6f15d592713c948109203b02740cb24af231a9276bb24593c67b06e03"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0392.npz",
+      "bytes": 100786,
+      "sha256": "2f761fa8e3af9de444eae2a6701b5cffdacc3785087cde755d026e75bba493db"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0393.npz",
+      "bytes": 99485,
+      "sha256": "8c6a500ffb7da7608fd473ae73bd893cc8169b1e38ae4412771a9fce16130c40"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0394.npz",
+      "bytes": 99455,
+      "sha256": "03feac30d6614f8795258bd3018e0bb11727b7611748260be213774df33572b5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0395.npz",
+      "bytes": 592933,
+      "sha256": "e81f0e543009960a9f3cfe8652e955f5e1516b3f7c35ca47f4388b71357f0e23"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0396.npz",
+      "bytes": 153987,
+      "sha256": "fac4713f142d8dcdf1b93dbd2a18cdd3f491c7e56b235aeb51fdfaf2962d1f44"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0397.npz",
+      "bytes": 517564,
+      "sha256": "24e2ca4a365ec224ed5dbfae28ba4297893038835a6be4bef0d06b3637715fde"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0398.npz",
+      "bytes": 40009,
+      "sha256": "96292efbc5f65ec8f397f3b216b1f19604bce7c3e56b7c0e45eccf19146e80ba"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0399.npz",
+      "bytes": 40009,
+      "sha256": "96292efbc5f65ec8f397f3b216b1f19604bce7c3e56b7c0e45eccf19146e80ba"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0400.npz",
+      "bytes": 55299,
+      "sha256": "0a59c0507c82cb4ebc408effaa79ee98c16f32b3422e5ca105ef53bcc4040355"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0401.npz",
+      "bytes": 55299,
+      "sha256": "0a59c0507c82cb4ebc408effaa79ee98c16f32b3422e5ca105ef53bcc4040355"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0402.npz",
+      "bytes": 52926,
+      "sha256": "128f8bf3e3f751e450f92ed30f9a00e67370807b0307884579aaffd4606e6c50"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0403.npz",
+      "bytes": 52926,
+      "sha256": "128f8bf3e3f751e450f92ed30f9a00e67370807b0307884579aaffd4606e6c50"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0404.npz",
+      "bytes": 49363,
+      "sha256": "ffa16a6f687290c13b6030fc51d5501951a64b0a58ed2cf99a6d5b93ec263993"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0405.npz",
+      "bytes": 49363,
+      "sha256": "ffa16a6f687290c13b6030fc51d5501951a64b0a58ed2cf99a6d5b93ec263993"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0406.npz",
+      "bytes": 80607,
+      "sha256": "cfc88953ed2527adfe3bf508fc88e0d78ead140a7d1236ce0d520e20f32be96d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0407.npz",
+      "bytes": 13466,
+      "sha256": "35338c94738e13294cb594e6cc76bb0678dd9105f7b91cfe869fff8cbd9d2579"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0408.npz",
+      "bytes": 80607,
+      "sha256": "cfc88953ed2527adfe3bf508fc88e0d78ead140a7d1236ce0d520e20f32be96d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0409.npz",
+      "bytes": 13466,
+      "sha256": "35338c94738e13294cb594e6cc76bb0678dd9105f7b91cfe869fff8cbd9d2579"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0410.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0411.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0412.npz",
+      "bytes": 104727,
+      "sha256": "d08b232b1b2b5514982fcad28c524fe37ca0f1bcd14ce98bea943a601d7b4842"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0413.npz",
+      "bytes": 104727,
+      "sha256": "d08b232b1b2b5514982fcad28c524fe37ca0f1bcd14ce98bea943a601d7b4842"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0414.npz",
+      "bytes": 29829,
+      "sha256": "e42090a9a8e345dffa337f18a887b5b4a17bac6328601751c85dca0fcd779543"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0415.npz",
+      "bytes": 29829,
+      "sha256": "e42090a9a8e345dffa337f18a887b5b4a17bac6328601751c85dca0fcd779543"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0416.npz",
+      "bytes": 9752,
+      "sha256": "db0cefef8e06d3b268c9786c41a122613f00d228ef8d62cfb01880884847cc1e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0417.npz",
+      "bytes": 9752,
+      "sha256": "db0cefef8e06d3b268c9786c41a122613f00d228ef8d62cfb01880884847cc1e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0418.npz",
+      "bytes": 4137,
+      "sha256": "4557ec0c8d4a7f212d0254258c50f01540ed1a73e3ddacb281b1ea8bb7aed5e9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0419.npz",
+      "bytes": 58042,
+      "sha256": "2393c919769ab4b874e7fb9fe4fcf610a9b2ab059e7fff9c7b1314d33c0d0d85"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0420.npz",
+      "bytes": 28967,
+      "sha256": "ca0d63239489c0fdfb7ce7c5efb804d5939badd11d031b9abd3ca638ab74b937"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0421.npz",
+      "bytes": 21869,
+      "sha256": "10208041a43c81fa0c08ada81e884c3474b6faf7c6c115eb31946818eb7049e2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0422.npz",
+      "bytes": 20178,
+      "sha256": "859b87d3014fa09dd0630b8e8e66b2e42221865f0bf57cb0ba6fc168b51933f9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0423.npz",
+      "bytes": 22265,
+      "sha256": "fa373a054ca64d5479a05911d65c490f11cb3b8a70ce729b650f281f55e52aa8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0424.npz",
+      "bytes": 23019,
+      "sha256": "fa2731fc908ca260be7d238dbd4b45f2b18ce8cb77ece134e73a0775f180e1f1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0425.npz",
+      "bytes": 20608,
+      "sha256": "2d33ef2b0cd78700bf091ff584ba36a7dc924ea6ec2eed151b226275e87f93ec"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0426.npz",
+      "bytes": 22285,
+      "sha256": "e86e91031e4b781b73474bc7d1679e9e76deda82279e48ebb3daf5bc899a1e19"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0427.npz",
+      "bytes": 25787,
+      "sha256": "39c47d2e1779b66393c4fe0b3124fb37bee8ae2a239b8c29e21fd4ba5645e4bb"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0428.npz",
+      "bytes": 20160,
+      "sha256": "6d6806dccf863cf800d55b9ce3d3bb8d2621a1c846fbacbd64bf967295836d94"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0429.npz",
+      "bytes": 20065,
+      "sha256": "e170a8ecda752187ea83bc9b8176a59e8e50ada7389687c5790edf9cd4cd3cbe"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0430.npz",
+      "bytes": 19940,
+      "sha256": "e9d25d9ca18be6713f6175ede095d1e11fde127388eb9de83516a854426161de"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0431.npz",
+      "bytes": 20594,
+      "sha256": "46f5e893a460fc0b87a8e5887005c79ed64b29416524a280e8631b7f2831d90c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0432.npz",
+      "bytes": 20561,
+      "sha256": "0ba1c8b5f0bf86fffe349eaee4fc5c35932fa1527b5e6c8f198f6293140ba9c1"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0433.npz",
+      "bytes": 20610,
+      "sha256": "e3f1591ddeb446b023e2c959abbc4a963af5157b51b3d684675312cf6edb27ee"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0434.npz",
+      "bytes": 28517,
+      "sha256": "70739849f4572dcfb3b0e058592e1da74a4f6cff0165d8c48a1d997711f8362c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0435.npz",
+      "bytes": 19912,
+      "sha256": "cda543c9608360208e5664028f41a8cce0fc1d2bb0f0a3a1ecbc970bd10fa465"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0436.npz",
+      "bytes": 20136,
+      "sha256": "03d5ba2af119609f528d084c91623922072043a0590bb00eeab68035edd107b6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0437.npz",
+      "bytes": 20073,
+      "sha256": "48de0f039c0562e2458be48b075a4c6af8131a22cdad4a00b17f65e0b1f9f641"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0438.npz",
+      "bytes": 28644,
+      "sha256": "62593dd4bdd8adcbbb3af18d63aa9026ebf8b0276a5f75fd3d6081d81af80383"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0439.npz",
+      "bytes": 25790,
+      "sha256": "668c129801cac001ef22167642607a5e9e9a3971e5fd89f714e6668be5348a50"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0440.npz",
+      "bytes": 19841,
+      "sha256": "ee8ca1f2537e4fb88c40fd4766e2c788d9e3574ec4a55deaa488368eaf91afc9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0441.npz",
+      "bytes": 19885,
+      "sha256": "d20755a9e9db89d019eafe3f3540590d79ead8f87caf55285b2d9c574d1a9e5e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0442.npz",
+      "bytes": 20158,
+      "sha256": "e433d621ad04e59038e088a2484a5da13fefaa56e8c88da22cee79a4a7cd886d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0443.npz",
+      "bytes": 19837,
+      "sha256": "c38f0869f1b424c715c48279c92842702e47ed09066cf1d224f6a6e38b01f475"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0444.npz",
+      "bytes": 19896,
+      "sha256": "c432510e1c2309832bfbc6c3e6d08cf8c0f984b09dd421d38af5f67a25e7b184"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0445.npz",
+      "bytes": 21937,
+      "sha256": "8b99273e8e39d82bff0056217c90faf4d5875631c6120b07f8f03d18f6825ca3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0446.npz",
+      "bytes": 20606,
+      "sha256": "f03608dcde6082107e88a88bfbf6add13fa77c2ff45e684e3a6a898fc83d5f93"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0447.npz",
+      "bytes": 21513,
+      "sha256": "c2bb0d73a0bf4128d5bb8d849e3edd2bd0ef9b492e7c6ffa0678732cff8482df"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0448.npz",
+      "bytes": 21287,
+      "sha256": "42f0739115e5fc8208f817da6b818c7c974c8636c91686f36a716c41fb380549"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0449.npz",
+      "bytes": 20566,
+      "sha256": "1b1de3cefc62b706dc6e6f235a69321df93037aa8d181b6416d33e3d9fcbbe2f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0450.npz",
+      "bytes": 106734,
+      "sha256": "b27c7a9dc608d65b25312e45c3681f4f7f5aedc897c03fa1349369a9a31a5f98"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0451.npz",
+      "bytes": 23150,
+      "sha256": "71c68f1e79c2bfbc2d56eaaceee5812617c51e92477ea056541f4374447ac0f8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0452.npz",
+      "bytes": 107380,
+      "sha256": "e5e55c1a152b84356d64c676705e65c5b1380f438acd11efba69e0e3dd3051ba"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0453.npz",
+      "bytes": 104068,
+      "sha256": "9581c2983ade25b6ff41fd59da665c6815f3ceb749d869a5c870c27efbd83557"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0454.npz",
+      "bytes": 103925,
+      "sha256": "31710f9f1bbed8b5c629bacc7b381230a0f817c725dd0a4ded63bb3e76f856a6"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0455.npz",
+      "bytes": 102729,
+      "sha256": "3321492352f816257b0d398b76fe41c7a363a949940d1c901df665d8ed16c4a9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0456.npz",
+      "bytes": 103942,
+      "sha256": "e4641874c055c919cf1f1ab352a961e1df22c851770f94173c224c1ef38284a9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0457.npz",
+      "bytes": 102714,
+      "sha256": "5c43d979b4e41b7aba1cf02b5d7770a5d9b241d70895952bd4e46c7363e26463"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0458.npz",
+      "bytes": 102232,
+      "sha256": "74baeeca3c017596b0ad335d246c0639d2d7beab1ca2c3cb838bcbca5ad71599"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0459.npz",
+      "bytes": 107737,
+      "sha256": "6f7f6e17ab7a6759b0e120e00a33fe52c062786fb54974a61641e65ecc04e3d3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0460.npz",
+      "bytes": 107362,
+      "sha256": "d8ec99843ba891d7f8e0717d4c9137c88e0a10f6574ce9b28c19935a0b49fea0"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0461.npz",
+      "bytes": 103874,
+      "sha256": "4e9e29d27e7593b00742738fbbdc2f73dd96deaec1d3a7914ff18a4f0dd0a2f7"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0462.npz",
+      "bytes": 107880,
+      "sha256": "7f114a469edba1c6df85cf5ceff83b08adc191a02b903255ffb7baaadda7c4f8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0463.npz",
+      "bytes": 124226,
+      "sha256": "f6fb00a381abef7f20b691607d65e9acf4d7609e67bd74c0263c552aa2b50e48"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0464.npz",
+      "bytes": 107235,
+      "sha256": "334ccc2edd2a2bc8f095ba0b1b93efe2af00e435060fb9a19f457a8f53848c00"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0465.npz",
+      "bytes": 122833,
+      "sha256": "6e0c0b26e9b068355adb2f2f37eb9c1e5c4d9d0fbb07ca6f2a364774e60437ab"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0466.npz",
+      "bytes": 112948,
+      "sha256": "39117deaac5f4f9f8c8244f5ed89e49fe8bbb3ea9455c563ec6b52b3906cb7a0"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0467.npz",
+      "bytes": 99967,
+      "sha256": "310e701bbc09cfd505cf402365e0891f72b70e75fe208e2b1f153c3a04a55321"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0468.npz",
+      "bytes": 99908,
+      "sha256": "65271fcf93aad831c86ed93541ed719db8bae20a9100a796f2db0e7024950347"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0469.npz",
+      "bytes": 115820,
+      "sha256": "c60a7bf89cfc566157cb1d9b2edc8dfac3e3f05400630d44be0267acd805a5da"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0470.npz",
+      "bytes": 101455,
+      "sha256": "17fab6cf6dfed6d23039cc96cc1e4ffae249674da9843f69f1d1f1307b725928"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0471.npz",
+      "bytes": 100946,
+      "sha256": "67e02d51d335e9c3c180e241c071962d2d5aea1fc1d9eb01d4c4c83100bfcf39"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0472.npz",
+      "bytes": 102884,
+      "sha256": "cd108bca28d7fd2dd1dd672293e6c84a3554d61a35766d975a2370096533033d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0473.npz",
+      "bytes": 100295,
+      "sha256": "0e15e9943059e70b99fc006584ee08abfd23b85ccf838463a68270ff83d92d75"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0474.npz",
+      "bytes": 98787,
+      "sha256": "7c0d19864befa62ea12ca32d803d62316ef9d5c7d0e71bb1c1c5722cfb491647"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0475.npz",
+      "bytes": 98609,
+      "sha256": "539bc7850da693e21aeb1c421a34fd08b36d77e8312935accdd318610507653a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0476.npz",
+      "bytes": 109314,
+      "sha256": "322713baadab1fc460c0de59c58ddfdebb34291d0475d38725e9ece196c24640"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0477.npz",
+      "bytes": 99841,
+      "sha256": "bbd3c724d62089bc041aaf233c0b7e857903be0dce56f3e483234a6c7e4af053"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0478.npz",
+      "bytes": 99279,
+      "sha256": "d7b03e8626909f38a219a2b8b559c49d8de243ad5fcdabe032883d5e9445d5ad"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0479.npz",
+      "bytes": 100295,
+      "sha256": "4bdfb5382eb9f2d75ceab86948fbec81eeb46ccc79a2266e84fc55be1ee8ef57"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0480.npz",
+      "bytes": 102241,
+      "sha256": "11363d986d4c4dcd7fc3a2f70a3963e5fc9dc7c02990ff498e12b393e6a37d8c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0481.npz",
+      "bytes": 99233,
+      "sha256": "333d967e849e3cdd7dcad07ec36f3184735a7cb105bc9bb9c332e542e47ec5e5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0482.npz",
+      "bytes": 102720,
+      "sha256": "17576869c67c3d462b76a5dac8fff38969437029be838daf8f434b2dba50daa9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0483.npz",
+      "bytes": 101980,
+      "sha256": "952744f1c1e5c0cb5ac07a58d1bc1974f58e855f746507c93e330f04ee9f3b13"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0484.npz",
+      "bytes": 101091,
+      "sha256": "4fc62ffe2f2a23e58b4a39d302c76647f20c25f1a3919a4efab54a4dd20bbef4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0485.npz",
+      "bytes": 100764,
+      "sha256": "307abe8ff5c54d26cc0ec0c27cc63dc9f4c9f547f38413c40c0959f901846906"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0486.npz",
+      "bytes": 102437,
+      "sha256": "5999f8509be30a09d112a6a24ab0d24016f6ca387b8ec096352b83f40fc2829d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0487.npz",
+      "bytes": 100818,
+      "sha256": "6e50f33109562b9ab2ca67117e924f4d94898e9f3f689fd575ae50a6c8d52d63"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0488.npz",
+      "bytes": 102271,
+      "sha256": "1dd42155f7bceb8a79274f4cd7de5fc20ec4cbca36fc50eed2cd772a6c627e42"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0489.npz",
+      "bytes": 101697,
+      "sha256": "551cd3d1188af401e9dbca39ef0e327119715619d3491e6acc959bddfaa29167"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0490.npz",
+      "bytes": 102862,
+      "sha256": "0ff57695c479852005f95b173ab73fb4558dd1f8f79a3b8d039a31acc28ef870"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0491.npz",
+      "bytes": 99906,
+      "sha256": "4b063e8f1a2b5a0fa71a13f5886231a453af06cad0fcae77ea80dd9ddcb3b8ef"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0492.npz",
+      "bytes": 98833,
+      "sha256": "9b788dc3c5a880d6066dc1ef53765a343ad55ab898d4fd85df3ef734d4d2007d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0493.npz",
+      "bytes": 102487,
+      "sha256": "35ca1e6c0861171ee1063888d4b866e7c6efd255ee932ed3fd3785a7eb18cd58"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0494.npz",
+      "bytes": 102855,
+      "sha256": "1bb6a89a3890d1537406aab53958e0c83b9e561fa2a74cd72ad2cf5cd8abb1fa"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0495.npz",
+      "bytes": 109509,
+      "sha256": "ad066b1753d3cf7016e892299bff44952883d669d31350eca2498ab40e244800"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0496.npz",
+      "bytes": 102478,
+      "sha256": "7e7da71fcde043b2887ba175dbdb57e4df63092643876d5df3839fd7b266b00e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0497.npz",
+      "bytes": 339113,
+      "sha256": "d9eabf07581baece011c1845654456fd2336eb879aa13af54085656e7a1655ac"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0498.npz",
+      "bytes": 28271,
+      "sha256": "992a7e7ec714197a5e57a708dd2acc1210b6169f066768feb7ceee3717188c57"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0499.npz",
+      "bytes": 48813,
+      "sha256": "2c38d2bf515c527c5399b7bf8a2def99fca58668113bf172b30cbc5f24579d0d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0500.npz",
+      "bytes": 23389,
+      "sha256": "c512742152685e2ae35b41407674e33d9960022af8e19b92e43115a2684608be"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0501.npz",
+      "bytes": 406309,
+      "sha256": "03b509c2623e643f72ff4f76ae54d45b8d7701216c494c738823b3a5f28c8330"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0502.npz",
+      "bytes": 292486,
+      "sha256": "71d8ae1ddfc697c0da77cb334eb63cabe22ad918a7ca08766386fce0fa3d32d2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0503.npz",
+      "bytes": 292486,
+      "sha256": "71d8ae1ddfc697c0da77cb334eb63cabe22ad918a7ca08766386fce0fa3d32d2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0504.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0505.npz",
+      "bytes": 43236,
+      "sha256": "36ad320eb8fcfce6de9c83ed670f043bd75c0358398bb38bcbbc41c9aa94a504"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0506.npz",
+      "bytes": 258343,
+      "sha256": "e9771b302627440439e1f667d87b69c634c1a0d7f6c6783bd4e7b2ab24b372d5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0507.npz",
+      "bytes": 288286,
+      "sha256": "a49a44ab719a2581adf9e600e9613c7e4253e762496ba35d6b4523dd9b1f7a39"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0508.npz",
+      "bytes": 624597,
+      "sha256": "9e60f28dfbf1819bd1725af42f23e6ed9986db1663bdb4d77389e4360fdb6cb5"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0509.npz",
+      "bytes": 78682,
+      "sha256": "e9a3d435efe52878333884a7649fdbdf36fc7358814def57e6d0a527a0aa8c3d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0510.npz",
+      "bytes": 424827,
+      "sha256": "000f24524814cd93af76c93824255bca5504d78ef0a0a0da5a2f4ebe29f4863a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0511.npz",
+      "bytes": 407572,
+      "sha256": "dfbcb48d9f3489e35df8801eb18f47360ffaab26a80b834cbfa781c1f4049ffe"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0512.npz",
+      "bytes": 632943,
+      "sha256": "7ad25fe0cd1e0322e4c1730fc55269ab87ee12d4a08c62316c41eefcd3b7559b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0513.npz",
+      "bytes": 632943,
+      "sha256": "7ad25fe0cd1e0322e4c1730fc55269ab87ee12d4a08c62316c41eefcd3b7559b"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0514.npz",
+      "bytes": 89381,
+      "sha256": "a8f15bfeb3ab6d20f79112372ac4d627fab67dcbd7d75618d6c0e3afed04fcd2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0515.npz",
+      "bytes": 89381,
+      "sha256": "a8f15bfeb3ab6d20f79112372ac4d627fab67dcbd7d75618d6c0e3afed04fcd2"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0516.npz",
+      "bytes": 88866,
+      "sha256": "4754b8e95230b9934933b1acb14a33c76e8e02ea8d1f6740bfeab924c0e11215"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0517.npz",
+      "bytes": 28328,
+      "sha256": "8188c6f951ba28ec9f2181a15b65f310c240929bff02c80b48801e0cb72b9767"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0518.npz",
+      "bytes": 144649,
+      "sha256": "963efed9ec3257e5b8ac64c89752c9962f52e28b7e2ded573d4fdd99495a2c8d"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0519.npz",
+      "bytes": 125261,
+      "sha256": "56148a0304b0a80946457abcd78a9832085c4f3fa66023107208154b9c698003"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0520.npz",
+      "bytes": 142250,
+      "sha256": "14eb2ef20aa43fad2248dff9c0eeda65a127bfe5c79d94269195e929d8cb65d4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0521.npz",
+      "bytes": 117897,
+      "sha256": "4a943f446862a94e9b86ae68e474366ebfcae6e2036870a31c2d22bc724cd8e3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0522.npz",
+      "bytes": 152571,
+      "sha256": "a8d37a3fee832d189491162dc2951f918ae83772176a318f56c3742499c7dab9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0523.npz",
+      "bytes": 120620,
+      "sha256": "acca8b4ab40b963c1aa78859cf9de6140fb2fcc0552bb0546ae0d3d35d16f655"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0524.npz",
+      "bytes": 99760,
+      "sha256": "740914295957d4d3838b0d6fedb8a6056e7eefc10cee22623d12359360578c56"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0525.npz",
+      "bytes": 116779,
+      "sha256": "a304e75442cd922c733571bbec77c544e4c2a7a35c6a41a3082a1762eb1c5dfa"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0526.npz",
+      "bytes": 25420,
+      "sha256": "3a9d8f87cd400415f54ae6a6d53a4c4fb3b212be134259d856baf06d2d31338a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0527.npz",
+      "bytes": 121007,
+      "sha256": "6b44c391907792201fb92d0fdb429793acdb047b800ccf67f31650376ca40880"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0528.npz",
+      "bytes": 25445,
+      "sha256": "d19ae555b876ed224a0a31b029ab5f5260f179dc2883cb19f51918d3a0ce8f50"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0529.npz",
+      "bytes": 25499,
+      "sha256": "48f90587037758d9dfecd7b790761fe3cb411a4b606168c3256bc49fb261faec"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0530.npz",
+      "bytes": 143441,
+      "sha256": "0798d28190d8915ba93b655555bcebe2196f09333e5ccdbcfba7fb57c2a52f63"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0531.npz",
+      "bytes": 119620,
+      "sha256": "aaca88bb76b859014d6d08125638b91b2204e3ee74c3bd5351e6819e2ba4a2b9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0532.npz",
+      "bytes": 145267,
+      "sha256": "6de9297224f9e33d542bf8e6f2fcdd53dbc355f740141eaa3fdd168c170d55d0"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0533.npz",
+      "bytes": 25419,
+      "sha256": "ba7f1135c3506359cdebd3e6699c41287c87bccf3c1d8e7abf6689efeba62596"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0534.npz",
+      "bytes": 119340,
+      "sha256": "31b01a7796409e29c5d22e202a08a4c172f752ba502ffa7e23950433cfafcac3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0535.npz",
+      "bytes": 152357,
+      "sha256": "741fbda9fabbb1ff208e30e9ec89f5b90d85e84725df39d60deae26bed982c66"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0536.npz",
+      "bytes": 143542,
+      "sha256": "a4a46fc8f81e128c90a17f20941e0e71cf186d5683563838cba2dc485fccd157"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0537.npz",
+      "bytes": 116620,
+      "sha256": "3f48379b6531fa6ada4f4a1f06a7d26bddbbdab617085ef8213c07a31dd3ceef"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0538.npz",
+      "bytes": 28113,
+      "sha256": "e3618301a4b1552ec0cfacc40173f633bc6a9087e585d39844ff5611ae4b6d71"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0539.npz",
+      "bytes": 28129,
+      "sha256": "19a1759a0b8c5b3ccade303da69107487a5bf18631e36fadf81a2023a8c3940e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0540.npz",
+      "bytes": 152743,
+      "sha256": "6d0c0c679da40cfc2cee0434987ffddefcce576fd77d3e179f50116423087eed"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0541.npz",
+      "bytes": 152560,
+      "sha256": "4de73eb41e0673cc8a756336a8799171b443ce0c1beaeb74d8402f4fe9dd494f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0542.npz",
+      "bytes": 124981,
+      "sha256": "cdbeb828d82eddad3b9b68e664152f92309aa42dc8f14b854de364d1813e2cf3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0543.npz",
+      "bytes": 20237,
+      "sha256": "7a1abe122a52c9e7f19bdfa8dd757754497a526d76f752be28dddbf9e392e45e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0544.npz",
+      "bytes": 20214,
+      "sha256": "73f02583b1ad0283ebf36d8e0a3c94dffa422071a8821f4aa889d55d7084ce09"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0545.npz",
+      "bytes": 28603,
+      "sha256": "f097eed064c58de479f16a9edb552a5dcec9133b3ced1f6c4e31ab78437b69d9"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0546.npz",
+      "bytes": 105005,
+      "sha256": "b333f345da64d1254653ceaf174732b066ac302669d9ac327ecae4b96847c1e4"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0547.npz",
+      "bytes": 21105,
+      "sha256": "1efacca9b9c26438c5861cba12f913d0af6dc71ee3f941fecbf8c30bc8e2b68e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0548.npz",
+      "bytes": 124957,
+      "sha256": "500566f5e1397ab48b5567654e0f3c4eddfd5e83810b84080c9352fb15c2a5e3"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0549.npz",
+      "bytes": 154041,
+      "sha256": "db57682bee6897c2f2069e3b09a07e269fad3c7cdac88f945344119841a7b280"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0550.npz",
+      "bytes": 104890,
+      "sha256": "a0c102599e12e2549313fe85c1a9c87f1f2a5c2b7cc1b03efe559979f107219f"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0551.npz",
+      "bytes": 126401,
+      "sha256": "191e3ca9a37ca51892c36992b771d3baed6e15e0255eadf1b746b4ac93cea839"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0552.npz",
+      "bytes": 111851,
+      "sha256": "2e88c85de8f3ead4eb488dca1a136112e0268ebd836e67afd199effa57c3645e"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0553.npz",
+      "bytes": 126100,
+      "sha256": "c1d4109913c7566ab074b0dca71f8091fad72f22fcef013d50f902eb18d90f67"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0554.npz",
+      "bytes": 99598,
+      "sha256": "47421c4ed57d76903e0c8520c1684fc33740dbe333836941f2be866d767be8ea"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0555.npz",
+      "bytes": 122703,
+      "sha256": "aeffcb0c0a5578b6353e548e6a689f60cdcf8e86bb0dc8b8a064dabd876d7cff"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0556.npz",
+      "bytes": 122843,
+      "sha256": "2c3ecef871bbaa55c6d250564276d02c857abfc006c3be854ded99c8ab8fab76"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0557.npz",
+      "bytes": 144313,
+      "sha256": "0709150fb6710c4b039f1cf20c57769880045576d53b3d93ab09da99c42e4a86"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0558.npz",
+      "bytes": 138469,
+      "sha256": "9bc7efa9411a129141d36f8d52ab816d6508d4b96afc2535945daa7dc50a0ec8"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0559.npz",
+      "bytes": 99747,
+      "sha256": "00271ca1c71c57742947db3fcf7109e5f87c347879d268370d298b565ba9b1ae"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0560.npz",
+      "bytes": 179830,
+      "sha256": "61e5f81364d6d8c3f9961b550e2c8b204fa583d47000010037b447e1846d7063"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0561.npz",
+      "bytes": 22091,
+      "sha256": "fc823e552596c90cf2686b53401058ec2cb93887293058c4b9b2953da94f125c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0562.npz",
+      "bytes": 179830,
+      "sha256": "61e5f81364d6d8c3f9961b550e2c8b204fa583d47000010037b447e1846d7063"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0563.npz",
+      "bytes": 22091,
+      "sha256": "fc823e552596c90cf2686b53401058ec2cb93887293058c4b9b2953da94f125c"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0564.npz",
+      "bytes": 190244,
+      "sha256": "469bedfe8c739b41a0370977f0f12b891f2522bfaf720c64b5da7964d437cf0a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/geometry_0565.npz",
+      "bytes": 190244,
+      "sha256": "469bedfe8c739b41a0370977f0f12b891f2522bfaf720c64b5da7964d437cf0a"
+    },
+    {
+      "path": "cases/07_robot_arm/reference/source_inventory.json",
+      "bytes": 616367,
+      "sha256": "3826423c14926c83d6ed318f9e12134f0bfb8a4a0adecc97e409035c842470ab"
+    }
+  ],
+  "qualification_receipt_sha256": "fada28adae6999f7dd0cfda7362d629ba8ef85f78eafcce29587b2363ea1bf4e",
+  "qualification_manifest_sha256": "4a87c5ab34bedda9cfe75db907beccb45c9c566dc53c577e3cb05a5d5b98b3c2"
+}

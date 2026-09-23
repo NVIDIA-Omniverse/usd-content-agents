@@ -1,0 +1,26 @@
+{
+  "codex_version": "0.154.0",
+  "freeze_original_sha256": "5b64456b3aaa06754d38bbea6345c2347a2039af3bdd8f71db9b15c1496af097",
+  "fresh_context": true,
+  "implementation_commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+  "model": "gpt-6-astra",
+  "protocol_original_sha256": "3c1de5cf66126c1afa56d5845221fa61a48a87caef8605891bbbae8e5e75d6a7",
+  "reasoning_effort": "ultra",
+  "resource_rule": "four_exclusive_gpu_lanes",
+  "schema_version": "frozen-control-profile-projection.v1",
+  "scope": "Shared hashes retain their frozen scoped definitions. Root filesystem hash does not claim whole-system equality.",
+  "shared_hashes": {
+    "analysis_plan_sha256": "d5d388536a64d9b793b01b6191204c84448a60ac6b628825d9ce2dfefc9003b3",
+    "common_environment_sha256": "081df287b1710f11a3e3251071a9696b02d077fd6265db5ff7a19aa956221543",
+    "common_rootfs_sha256": "579c82d02a33a7b695d386b114240063eb61133075bdf9b5678d0875f743e16b",
+    "common_tools_sha256": "10b7e933df6a1d6bee6d1a92874b122f2837b861c2287228dff888e728b6e151",
+    "model_catalog_sha256": "e612a56f9fef06041483ddd20cbea586f50d2fbf12e558e852dfa40bd332f976",
+    "model_gateway_policy_sha256": "00105eeff74fe8ba2ba4bd5da99f7068219fd0937c894cf739c3cdf0bf6bdb8a",
+    "public_inputs_manifest_sha256": "eb4f3d6345358848fcc49c6d5be7d04fede49ec6f60e3ea02b70ac8990e866bd",
+    "reasoning_mapping_sha256": "156f5bdb76caa83e16f92f74a55f38cc361a870957966a32713c953556e46fb7",
+    "source_closures_sha256": "8f67e1d05d72a270d8953c08d499f09521c87645923771287c4c8643f45bb9ff",
+    "workflow_sha256": "eabd9c0c4987bca122db5c6f68c9e02c7baf840ae2a0bc303b16aa5edd0a63f5"
+  },
+  "wall_seconds": 2400,
+  "wire_reasoning_effort": "xhigh"
+}

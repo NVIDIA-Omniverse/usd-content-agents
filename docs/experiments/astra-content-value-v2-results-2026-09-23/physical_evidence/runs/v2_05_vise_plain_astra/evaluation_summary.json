@@ -1,0 +1,11 @@
+{
+  "case_id": "05_vise",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 81.37920146435499,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "47930a5060c1319ca64a6209a3aa6e9f1d8c2f4d80a76d1c42f73942088b0cb4",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_05_vise_plain_astra",
+  "status": "PASS",
+  "timed_out": false
+}

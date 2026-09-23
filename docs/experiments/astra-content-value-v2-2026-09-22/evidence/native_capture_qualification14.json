@@ -1,0 +1,20 @@
+{
+  "automatic_capture_qualified": true,
+  "created_utc": "2026-09-23T00:32:56.971939+00:00",
+  "limitations": [
+    "The intentionally unconfigured cube failed physics checks; this is runtime/capture qualification, not accepted asset evidence.",
+    "Native Physics runtime capacity is qualified separately. Interrupted-request admission-only association is independently scoped in q13_manual_interruption_01."
+  ],
+  "model": "gpt-6-astra",
+  "native_task_verdict": "fail",
+  "native_workflow": "Validation decision planner and native validation execution",
+  "reasoning_effort": "ultra",
+  "requests": 15,
+  "schema_version": "native-capture-qualification.v2",
+  "scope": "Automatic capture of parent and native child histories with common private TMPDIR in fresh retained home; exact admitted identity and captured own-turn Ultra association. Synthetic cube only.",
+  "scored": false,
+  "sessions": 2,
+  "status": "PASS",
+  "terminal_billing_complete": true,
+  "ui_gateway_response_ids_reconciled": true
+}

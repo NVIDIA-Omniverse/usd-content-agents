@@ -1,0 +1,14 @@
+{
+  "schema_version": "evaluation-batch-qualification.agent06.v1",
+  "scope": "Full trusted worker lifecycle qualified on one synthetic fixture. Twenty-author batch barrier and failure cases qualified with local fixtures; no actual scored batch dispatched.",
+  "status": "PASS",
+  "tests": {
+    "gpu_jobs": 0,
+    "local_controller_restore_retention": 26,
+    "models": 0,
+    "native_gravity_controls": 2,
+    "render_jobs": 0,
+    "scored_author_runs": 0,
+    "steps_each": 48
+  }
+}

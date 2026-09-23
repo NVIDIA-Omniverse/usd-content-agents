@@ -1,0 +1,111 @@
+{
+  "asset_id": "01_drawer",
+  "title": "Drawer Cabinet",
+  "source_provider": "Poly Haven",
+  "source_author": "Ulan Cabanilla",
+  "source_page": "https://polyhaven.com/a/drawer_cabinet",
+  "source_file_index": "https://api.polyhaven.com/files/drawer_cabinet",
+  "retrieved_at_utc": "2026-09-21T21:22:52.848925+00:00",
+  "license": {
+    "spdx": "CC0-1.0",
+    "name": "Creative Commons CC0 1.0 Universal",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "publisher_evidence": "https://polyhaven.com/license",
+    "redistribution_permitted": true,
+    "attribution_required": false
+  },
+  "primary_input": "source/drawer_cabinet_1k.gltf",
+  "primary_input_sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+  "files": [
+    {
+      "path": "source/drawer_cabinet_1k.gltf",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/drawer_cabinet/drawer_cabinet_1k.gltf",
+      "bytes": 8031,
+      "sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+      "md5": "4ee75e02d0a2c383c61950c614d78cf8"
+    },
+    {
+      "path": "source/textures/drawer_cabinet_arm_1k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/drawer_cabinet/drawer_cabinet_arm_1k.jpg",
+      "bytes": 124942,
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "md5": "ce7a177bd99d4aa87a95f84dab5eb7a6"
+    },
+    {
+      "path": "source/textures/drawer_cabinet_nor_gl_1k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/drawer_cabinet/drawer_cabinet_nor_gl_1k.jpg",
+      "bytes": 61593,
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "md5": "151891cdd9db147046f951525f849f7f"
+    },
+    {
+      "path": "source/textures/drawer_cabinet_diff_1k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/drawer_cabinet/drawer_cabinet_diff_1k.jpg",
+      "bytes": 150011,
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "md5": "bb0311ae77d1779bc5b37396a029f6f3"
+    },
+    {
+      "path": "source/drawer_cabinet.bin",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/drawer_cabinet/drawer_cabinet.bin",
+      "bytes": 798852,
+      "sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+      "md5": "1f0d93118e12628d0b79c7dd8d11b80e"
+    }
+  ],
+  "source_payload_bytes": 1143429,
+  "source_geometry_modified": false,
+  "source_metadata_removed": false,
+  "download_method": "Unauthenticated HTTPS from exact publisher URLs; each file checked against publisher API MD5 then independently SHA256 hashed.",
+  "format": "glTF 2.0 with external binary and 1k JPEG PBR textures",
+  "structure": {
+    "nodes": 5,
+    "meshes": 5,
+    "triangles": 26406,
+    "hierarchy": "5 independent root mesh nodes",
+    "node_names": [
+      "drawer_cabinet",
+      "drawer_cabinet_drawer_01",
+      "drawer_cabinet_drawer_02",
+      "drawer_cabinet_drawer_03",
+      "drawer_cabinet_drawer_04"
+    ]
+  },
+  "units": {
+    "length": "metres",
+    "up_axis": "+Y",
+    "evidence": "https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units",
+    "authored_node_transforms": "identity; vertex positions baked into each mesh"
+  },
+  "intended_task": {
+    "description": "Pull the uppermost drawer out and close it while the cabinet is anchored. Other drawers remain closed.",
+    "target_source_node": "drawer_cabinet_drawer_01",
+    "expected_active_dof": 1,
+    "source_potential_drawers": 4,
+    "thresholds": "Reserved for parent frozen protocol; no evaluation thresholds selected by acquisition agent."
+  },
+  "not_simulation_ready": {
+    "verified_for": "Original publisher-distributed glTF package",
+    "missing": [
+      "rigid body definitions",
+      "mass and inertia",
+      "collision definitions",
+      "physical materials",
+      "prismatic joint definitions",
+      "joint limits",
+      "actuation",
+      "task validation"
+    ],
+    "animations": 0,
+    "skins": 0,
+    "extensions": 0,
+    "extras": 0,
+    "audit": "evidence/source_structure.json",
+    "no_readiness_data_stripped": true,
+    "limits": "Does not claim every alternate publisher format was audited. No physics or geometric-clearance simulation has been run."
+  },
+  "acquisition_status": "complete",
+  "conversion_or_simulation_status": "not_started",
+  "task_spec": "task_spec.md",
+  "inspection_script": "inspect_source.py"
+}

@@ -1,0 +1,11 @@
+{
+  "case_id": "08_excavator",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 80.6776143219322,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "c5bd55446b351990c979eeb9737362ee5d29792e9c53c9a0668e61667c8907bf",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_08_excavator_plain_astra",
+  "status": "PASS",
+  "timed_out": false
+}

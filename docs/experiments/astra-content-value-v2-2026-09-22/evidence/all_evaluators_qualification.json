@@ -1,0 +1,5 @@
+{
+  "schema_version": "combined-evaluator-qualification.v2",
+  "scope": "All ten independent task evaluators qualified before scored authors; operational namespace wrapper qualification is a separate global gate.",
+  "status": "PASS"
+}

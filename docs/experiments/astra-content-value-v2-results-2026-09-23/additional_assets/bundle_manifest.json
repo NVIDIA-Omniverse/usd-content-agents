@@ -1,0 +1,485 @@
+{
+  "attempt_records": 10,
+  "cases": [
+    "03_hinge",
+    "04_gripper",
+    "07_robot_arm",
+    "08_excavator",
+    "10_complex"
+  ],
+  "explicitly_withheld_geometry_cases": [
+    "05_vise",
+    "06_engine",
+    "09_printer"
+  ],
+  "file_membership_excludes_only_this_manifest": true,
+  "files": [
+    {
+      "bytes": 3658,
+      "path": "outputs/03_hinge/plain_astra/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "6a4dee3dea7db3bc05baccf66bbcd45666c7b34bbbd90fe32f1775caf8ea5e6d",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/final.usd",
+        "original_bytes": 3658,
+        "original_sha256": "6a4dee3dea7db3bc05baccf66bbcd45666c7b34bbbd90fe32f1775caf8ea5e6d"
+      }
+    },
+    {
+      "bytes": 5200,
+      "path": "outputs/03_hinge/plain_astra/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "0b07e859de7851dfd56210ddea310d73b2a5e9a97d8bd6920179a34f2f9020ec",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/bindings.json",
+        "original_bytes": 5200,
+        "original_sha256": "0b07e859de7851dfd56210ddea310d73b2a5e9a97d8bd6920179a34f2f9020ec"
+      }
+    },
+    {
+      "bytes": 4434739,
+      "path": "outputs/03_hinge/plain_astra/assets/geometry.usdc",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "21c915f313ac6fed1f590a0f55c304c80edaaab13ae130fb4fe7ecc10465a74e",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/assets/geometry.usdc",
+        "original_bytes": 4434739,
+        "original_sha256": "21c915f313ac6fed1f590a0f55c304c80edaaab13ae130fb4fe7ecc10465a74e"
+      }
+    },
+    {
+      "bytes": 121211,
+      "path": "outputs/03_hinge/plain_astra/assets/textures/image_09.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "55b774cb254b6b1e4c5c83ffb11043f668147cb01a968bff8a1bccddddbe526a",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/assets/textures/image_09.jpg",
+        "original_bytes": 121211,
+        "original_sha256": "55b774cb254b6b1e4c5c83ffb11043f668147cb01a968bff8a1bccddddbe526a"
+      }
+    },
+    {
+      "bytes": 95760,
+      "path": "outputs/03_hinge/plain_astra/assets/textures/image_04.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "c9671cb9a1fb95d7b7b353413a3203a568087bac9e3f5faa4f8c8dfcea5adbec",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/assets/textures/image_04.jpg",
+        "original_bytes": 95760,
+        "original_sha256": "c9671cb9a1fb95d7b7b353413a3203a568087bac9e3f5faa4f8c8dfcea5adbec"
+      }
+    },
+    {
+      "bytes": 312533,
+      "path": "outputs/03_hinge/plain_astra/assets/textures/image_06.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "fef4afd88ed5d7181c0eb22efc931a2d69b227128696e4fea1829c0fb2501d55",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/assets/textures/image_06.jpg",
+        "original_bytes": 312533,
+        "original_sha256": "fef4afd88ed5d7181c0eb22efc931a2d69b227128696e4fea1829c0fb2501d55"
+      }
+    },
+    {
+      "bytes": 108125,
+      "path": "outputs/03_hinge/plain_astra/assets/textures/image_08.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "369e549907b9ab7e69e89f01dfe8af0c184e6bc5df88c7bdb10db6c651a0a264",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/assets/textures/image_08.jpg",
+        "original_bytes": 108125,
+        "original_sha256": "369e549907b9ab7e69e89f01dfe8af0c184e6bc5df88c7bdb10db6c651a0a264"
+      }
+    },
+    {
+      "bytes": 277609,
+      "path": "outputs/03_hinge/plain_astra/assets/textures/image_07.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "e664d2b81300f6dba944fcf3f11bcf4867ff318ba0ab88d8745cd43dc7db81c0",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/assets/textures/image_07.jpg",
+        "original_bytes": 277609,
+        "original_sha256": "e664d2b81300f6dba944fcf3f11bcf4867ff318ba0ab88d8745cd43dc7db81c0"
+      }
+    },
+    {
+      "bytes": 176417,
+      "path": "outputs/03_hinge/plain_astra/assets/textures/image_05.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "f2f6b70ee8cd14b8ea8123c84610371ee989ef83aa455f3ee7f542939fa9b356",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/assets/textures/image_05.jpg",
+        "original_bytes": 176417,
+        "original_sha256": "f2f6b70ee8cd14b8ea8123c84610371ee989ef83aa455f3ee7f542939fa9b356"
+      }
+    },
+    {
+      "bytes": 17325,
+      "path": "outputs/03_hinge/plain_astra/assets/textures/image_00.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "1925737348cd459d8303921e6be9e9b16635aaf5fce8125e7db06117c71bd8eb",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/assets/textures/image_00.jpg",
+        "original_bytes": 17325,
+        "original_sha256": "1925737348cd459d8303921e6be9e9b16635aaf5fce8125e7db06117c71bd8eb"
+      }
+    },
+    {
+      "bytes": 7964,
+      "path": "outputs/03_hinge/plain_astra/assets/textures/image_02.jpg",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "b2793e05626878830de62fd3d4097f87ffab69803c7ab5f87213411eca70feab",
+      "source_identity": {
+        "archive_member": "v2_03_hinge_plain_astra/workspace/assets/textures/image_02.jpg",
+        "original_bytes": 7964,
+        "original_sha256": "b2793e05626878830de62fd3d4097f87ffab69803c7ab5f87213411eca70feab"
+      }
+    },
+    {
+      "bytes": 3885815,
+      "path": "outputs/04_gripper/content_agents/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "732547f888e4537007315906088b870fb5f9887598da7e4c0f6fd57eca4e1f62",
+      "source_identity": {
+        "archive_member": "v2_04_gripper_content_agents/workspace/final.usd",
+        "original_bytes": 3885815,
+        "original_sha256": "732547f888e4537007315906088b870fb5f9887598da7e4c0f6fd57eca4e1f62"
+      }
+    },
+    {
+      "bytes": 2520317,
+      "path": "outputs/04_gripper/plain_astra/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "9630d0885923f642ea937e01b846761fe7e7167e45acdae6c748de1da9206914",
+      "source_identity": {
+        "archive_member": "v2_04_gripper_plain_astra/workspace/final.usd",
+        "original_bytes": 2520317,
+        "original_sha256": "9630d0885923f642ea937e01b846761fe7e7167e45acdae6c748de1da9206914"
+      }
+    },
+    {
+      "bytes": 17231,
+      "path": "outputs/04_gripper/plain_astra/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "df49a626e678089d536b852664d6be362912526c368b2413993946f24a463617",
+      "source_identity": {
+        "archive_member": "v2_04_gripper_plain_astra/workspace/bindings.json",
+        "original_bytes": 17231,
+        "original_sha256": "df49a626e678089d536b852664d6be362912526c368b2413993946f24a463617"
+      }
+    },
+    {
+      "bytes": 51807509,
+      "path": "outputs/07_robot_arm/content_agents/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "78df65384a81c582b79481538742c8c780d015714fc0f1c4e8a56b96bf9d2fa2",
+      "source_identity": {
+        "archive_member": "v2_07_robot_arm_content_agents/workspace/final.usd",
+        "original_bytes": 51807509,
+        "original_sha256": "78df65384a81c582b79481538742c8c780d015714fc0f1c4e8a56b96bf9d2fa2"
+      }
+    },
+    {
+      "bytes": 410318,
+      "path": "outputs/07_robot_arm/content_agents/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "38890484801c45de68b4fe201ba0ffd913aa0132864419ad3e76feccacfc2cbb",
+      "source_identity": {
+        "archive_member": "v2_07_robot_arm_content_agents/workspace/bindings.json",
+        "original_bytes": 410318,
+        "original_sha256": "38890484801c45de68b4fe201ba0ffd913aa0132864419ad3e76feccacfc2cbb"
+      }
+    },
+    {
+      "bytes": 51752702,
+      "path": "outputs/07_robot_arm/plain_astra/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "b14166e39ef8ecf84429965ffb19a8809c61fc81797d2653b5cc50915136e527",
+      "source_identity": {
+        "archive_member": "v2_07_robot_arm_plain_astra/workspace/final.usd",
+        "original_bytes": 51752702,
+        "original_sha256": "b14166e39ef8ecf84429965ffb19a8809c61fc81797d2653b5cc50915136e527"
+      }
+    },
+    {
+      "bytes": 414318,
+      "path": "outputs/07_robot_arm/plain_astra/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "6e0345ff98eddc5b35d05a76d3a43647f01513c78a543e2fe0641cbe8be17d55",
+      "source_identity": {
+        "archive_member": "v2_07_robot_arm_plain_astra/workspace/bindings.json",
+        "original_bytes": 414318,
+        "original_sha256": "6e0345ff98eddc5b35d05a76d3a43647f01513c78a543e2fe0641cbe8be17d55"
+      }
+    },
+    {
+      "bytes": 626530,
+      "path": "outputs/08_excavator/content_agents/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "cf427009949e4532587810276cfc042797d5c7baea6774905ce738283014aeb7",
+      "source_identity": {
+        "archive_member": "v2_08_excavator_content_agents/workspace/final.usd",
+        "original_bytes": 626530,
+        "original_sha256": "cf427009949e4532587810276cfc042797d5c7baea6774905ce738283014aeb7"
+      }
+    },
+    {
+      "bytes": 60566,
+      "path": "outputs/08_excavator/content_agents/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "ba05ca72550f45652ec324a553735224afd9fc1aaac309d950e4a3e7f7c73260",
+      "source_identity": {
+        "archive_member": "v2_08_excavator_content_agents/workspace/bindings.json",
+        "original_bytes": 60566,
+        "original_sha256": "ba05ca72550f45652ec324a553735224afd9fc1aaac309d950e4a3e7f7c73260"
+      }
+    },
+    {
+      "bytes": 2719678,
+      "path": "outputs/08_excavator/plain_astra/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "d113a78451e477a6d51548723c0f7055feb86656bc336b75e409d614115fb54a",
+      "source_identity": {
+        "archive_member": "v2_08_excavator_plain_astra/workspace/final.usd",
+        "original_bytes": 2719678,
+        "original_sha256": "d113a78451e477a6d51548723c0f7055feb86656bc336b75e409d614115fb54a"
+      }
+    },
+    {
+      "bytes": 55761,
+      "path": "outputs/08_excavator/plain_astra/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "4e6aef838ef7da81770600a6ea2e8456a65add522089b26ad0010d79fb87e96b",
+      "source_identity": {
+        "archive_member": "v2_08_excavator_plain_astra/workspace/bindings.json",
+        "original_bytes": 55761,
+        "original_sha256": "4e6aef838ef7da81770600a6ea2e8456a65add522089b26ad0010d79fb87e96b"
+      }
+    },
+    {
+      "bytes": 72509402,
+      "path": "outputs/10_complex/content_agents/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "5b34eb989d188fcda1b19c6c28a6fa6978a1c2ee3c14672a4de6538aece5cd4b",
+      "source_identity": {
+        "archive_member": "v2_10_complex_content_agents/workspace/final.usd",
+        "original_bytes": 72509402,
+        "original_sha256": "5b34eb989d188fcda1b19c6c28a6fa6978a1c2ee3c14672a4de6538aece5cd4b"
+      }
+    },
+    {
+      "bytes": 47091,
+      "path": "outputs/10_complex/content_agents/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "c27d17c076cb543d9709860a988e35a702ea3f46ef2e401b374c9d5c7797028a",
+      "source_identity": {
+        "archive_member": "v2_10_complex_content_agents/workspace/bindings.json",
+        "original_bytes": 47091,
+        "original_sha256": "c27d17c076cb543d9709860a988e35a702ea3f46ef2e401b374c9d5c7797028a"
+      }
+    },
+    {
+      "bytes": 19740135,
+      "path": "outputs/10_complex/plain_astra/final.usd",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "49bd2c7b266d01b802818eaa0d9736aaa70febfd5a590af69643dad51f53a0c1",
+      "source_identity": {
+        "archive_member": "v2_10_complex_plain_astra/workspace/final.usd",
+        "original_bytes": 19740135,
+        "original_sha256": "49bd2c7b266d01b802818eaa0d9736aaa70febfd5a590af69643dad51f53a0c1"
+      }
+    },
+    {
+      "bytes": 49841,
+      "path": "outputs/10_complex/plain_astra/bindings.json",
+      "role": "exact_submitted_asset_or_dependency",
+      "sha256": "c1a22ba221c19509010aa7618a3960838cc4b0e631b18f68c635f183c02c0186",
+      "source_identity": {
+        "archive_member": "v2_10_complex_plain_astra/workspace/bindings.json",
+        "original_bytes": 49841,
+        "original_sha256": "c1a22ba221c19509010aa7618a3960838cc4b0e631b18f68c635f183c02c0186"
+      }
+    },
+    {
+      "bytes": 17594,
+      "path": "notices/03_hinge/upstream_README.md",
+      "role": "exact_upstream_notice",
+      "sha256": "d4ea5fa49f6cfabe1bed7a00cf2594573cd04e3eb739abe474f2900dee4baaaf",
+      "source_identity": {
+        "original_bytes": 17594,
+        "original_sha256": "d4ea5fa49f6cfabe1bed7a00cf2594573cd04e3eb739abe474f2900dee4baaaf",
+        "source_bundle_path": "assets/03_hinge/source/README.upstream.md"
+      }
+    },
+    {
+      "bytes": 1071,
+      "path": "notices/04_gripper/upstream_LICENSE",
+      "role": "exact_upstream_notice",
+      "sha256": "d8bf1552c6c9c4cee13b973b284c80becc12bef4f28e6539eae343e6fd8d0577",
+      "source_identity": {
+        "original_bytes": 1071,
+        "original_sha256": "d8bf1552c6c9c4cee13b973b284c80becc12bef4f28e6539eae343e6fd8d0577",
+        "source_bundle_path": "assets/04_gripper/source_repo/LICENSE"
+      }
+    },
+    {
+      "bytes": 10885,
+      "path": "notices/04_gripper/upstream_README.md",
+      "role": "exact_upstream_notice",
+      "sha256": "f462fdf9be54979c2dff99dee46e26804559ec051571f63ce60a50f628793c16",
+      "source_identity": {
+        "original_bytes": 10885,
+        "original_sha256": "f462fdf9be54979c2dff99dee46e26804559ec051571f63ce60a50f628793c16",
+        "source_bundle_path": "assets/04_gripper/source_repo/ReadMe.md"
+      }
+    },
+    {
+      "bytes": 20131,
+      "path": "notices/07_robot_arm/upstream_LICENSE",
+      "role": "exact_upstream_notice",
+      "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297",
+      "source_identity": {
+        "original_bytes": 20131,
+        "original_sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297",
+        "source_bundle_path": "assets/07_robot_arm/source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/LICENSE"
+      }
+    },
+    {
+      "bytes": 5327,
+      "path": "notices/07_robot_arm/upstream_README.md",
+      "role": "exact_upstream_notice",
+      "sha256": "2b76dc893ddde51883e6f8622eab3497901771df388c16ae9af133f1e1ef0f19",
+      "source_identity": {
+        "original_bytes": 5327,
+        "original_sha256": "2b76dc893ddde51883e6f8622eab3497901771df388c16ae9af133f1e1ef0f19",
+        "source_bundle_path": "assets/07_robot_arm/source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159/README.md"
+      }
+    },
+    {
+      "bytes": 1062,
+      "path": "notices/08_excavator/upstream_LICENSE",
+      "role": "exact_upstream_notice",
+      "sha256": "100bae405e2c4fc75cacd30d1a25454c26c383dc9065894d28b4c76afb893a9d",
+      "source_identity": {
+        "original_bytes": 1062,
+        "original_sha256": "100bae405e2c4fc75cacd30d1a25454c26c383dc9065894d28b4c76afb893a9d",
+        "source_bundle_path": "assets/08_excavator/source/LICENSE"
+      }
+    },
+    {
+      "bytes": 1747,
+      "path": "notices/08_excavator/upstream_README.md",
+      "role": "exact_upstream_notice",
+      "sha256": "73db130932d513c58689f72a85c308104089d96dc7a2fd4c1dc9bd796ff61a4a",
+      "source_identity": {
+        "original_bytes": 1747,
+        "original_sha256": "73db130932d513c58689f72a85c308104089d96dc7a2fd4c1dc9bd796ff61a4a",
+        "source_bundle_path": "assets/08_excavator/source/README.md"
+      }
+    },
+    {
+      "bytes": 3816,
+      "path": "notices/10_complex/upstream_README.md",
+      "role": "exact_upstream_notice",
+      "sha256": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83",
+      "source_identity": {
+        "original_bytes": 3816,
+        "original_sha256": "bdb25ce30aa6b77b4bc25bf0759fbe3658e01744543e843511dc818650533c83",
+        "source_bundle_path": "assets/10_complex/source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733/README.md"
+      }
+    },
+    {
+      "bytes": 18375,
+      "path": "notices/10_complex/upstream_CC-BY-SA-4.0.txt",
+      "role": "exact_upstream_notice",
+      "sha256": "cde7883b9050a1104f4ac19a1572aafd6e5d7323b68351aaf51fbf4beba54966",
+      "source_identity": {
+        "original_bytes": 18375,
+        "original_sha256": "cde7883b9050a1104f4ac19a1572aafd6e5d7323b68351aaf51fbf4beba54966",
+        "source_bundle_path": "assets/10_complex/provenance/CC-BY-SA-4.0.txt"
+      }
+    },
+    {
+      "bytes": 1011,
+      "path": "notices/10_complex/dependency_revision_README.md",
+      "role": "exact_upstream_notice",
+      "sha256": "9806972e48573e6f6b1028ee803263c689d659c2cd3379a8ec683ab4ec0095b9",
+      "source_identity": {
+        "original_bytes": 1011,
+        "original_sha256": "9806972e48573e6f6b1028ee803263c689d659c2cd3379a8ec683ab4ec0095b9",
+        "source_bundle_path": "assets/10_complex/dependencies/Dextra-3c6fbe3933ea13577e9d69149199c423f717edfd/README.md"
+      }
+    },
+    {
+      "bytes": 11630,
+      "path": "records/attempts.json",
+      "role": "public_declaration_projection",
+      "sha256": "080230946a4c9ba8243dd028bd42cad1bc0d87b054504bc4860cbbf11bc59a30"
+    },
+    {
+      "bytes": 390559,
+      "path": "reviews/metadata_privacy.json",
+      "role": "public_review_projection",
+      "sha256": "5a7056af66255d56ba8cd7dc44e874c2dc1155804cdd531f461c2c3a41e05192"
+    },
+    {
+      "bytes": 8454,
+      "path": "reviews/dependency_closure.json",
+      "role": "public_review_projection",
+      "sha256": "744f3f7b70b0de5a1b632161fb9c21142691285ddd9252096627f584f30315b6"
+    },
+    {
+      "bytes": 12352,
+      "path": "notices/recorded_source_grants.json",
+      "role": "public_source_notice_projection",
+      "sha256": "fc9e402ad75e5b022357506e7769342b2f613b2f18cad4d8071859580fff6fd8"
+    },
+    {
+      "bytes": 1811,
+      "path": "README.md",
+      "role": "new_publication_notice_or_wrapper",
+      "sha256": "04bf542d01ca618f2ff375d1c443e09d65c482ad081ee31601722f2f68086ffc"
+    },
+    {
+      "bytes": 1744,
+      "path": "notices/MODIFICATIONS.md",
+      "role": "new_publication_notice_or_wrapper",
+      "sha256": "eb2fdd2287b729a32e0969cfc36522796530a9901a389d33d5275ebcd906d997"
+    },
+    {
+      "bytes": 3659,
+      "path": "notices/SOURCE_NOTICES.md",
+      "role": "new_publication_notice_or_wrapper",
+      "sha256": "a3a23b0403be9036419c259db2a40c10cc76556d6732f03390d06111a0038869"
+    },
+    {
+      "bytes": 4878,
+      "path": "verify.py",
+      "role": "new_publication_verifier",
+      "sha256": "e742bae51b87327463bddd496fe2ee16d7ae186793512b2f8b910e2618bcbc5f"
+    }
+  ],
+  "input_bindings": {
+    "private_candidate_manifest_sha256": "0cbb676fee9159750ddc51918ffc9f06b07c0437ac2cc19e64130cabac691713",
+    "private_completion_receipt_sha256": "e31f6995b3f7619ab995c5d5bab0eab7e42d33dc8ca4ce3c24bb81cdd1251e44",
+    "private_publication_decisions_sha256": "0a0eebc6a7140a887dea7c5e5effb49ed14d124dd2380a1cce7300550111f71f",
+    "source_notice_plan_sha256": "6c71e2a35e4c555061b8cd9b9ef0b96dc18ff6104fbd750ceb040a561413abdc"
+  },
+  "largest_payload_bytes": 72509402,
+  "manifest_integrity": "The parent delivery receipt publishes this manifest SHA256 separately.",
+  "original_submitted_bytes_changed": false,
+  "payload_bytes": 212177755,
+  "payload_files": 26,
+  "payload_notices_reviews_unchanged_from_v1": true,
+  "present_packages": 9,
+  "previous_manifest_sha256": "ad087ef39604279f903e9d7f2d431d8f2ee164b2c5714b66fb58e6597dc95e6b",
+  "private_archive_locator_or_model_record_copied": false,
+  "schema_version": "additional-submitted-output-companion.v2",
+  "scope": "Exact selected additional submitted outputs; no replay or acceptance claim.",
+  "status": "PUBLICATION_READY_PRIVATE_STAGING_NOT_YET_PUBLISHED",
+  "v2_changes": [
+    "Verifier explicitly refuses optimized Python before any assert checks.",
+    "Verifier rejects duplicate JSON object keys in every selected JSON file.",
+    "Verifier requires the exact ten run/case/arm identity tuples."
+  ]
+}

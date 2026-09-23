@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mechanism evaluation bindings; identifiers only, never acceptance evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "bodies",
+    "joints",
+    "source_map",
+    "assembly_from_source"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "assembly_from_source": {
+      "$ref": "#/$defs/matrix"
+    },
+    "bodies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "role",
+          "moving"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "role": {
+            "type": "string"
+          },
+          "moving": {
+            "type": "boolean"
+          },
+          "auxiliary": {
+            "const": "passive_constraint"
+          }
+        }
+      }
+    },
+    "joints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "role"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "source_map": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "mesh_paths",
+          "body_path",
+          "source_to_body"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string"
+          },
+          "body_path": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "mesh_paths": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^/"
+            }
+          },
+          "source_to_body": {
+            "$ref": "#/$defs/matrix"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "matrix": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "array",
+        "minItems": 4,
+        "maxItems": 4,
+        "items": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

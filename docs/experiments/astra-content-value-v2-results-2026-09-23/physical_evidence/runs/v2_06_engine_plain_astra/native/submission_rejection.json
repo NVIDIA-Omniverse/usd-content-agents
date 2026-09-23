@@ -1,0 +1,18 @@
+{
+  "delivery": {
+    "artifact_closure_valid": true,
+    "budget_exhausted": false,
+    "claimed_accepted": false,
+    "declared_repairs_used": 0,
+    "errors": [],
+    "physical_acceptance": "NOT_ASSESSED",
+    "protocol_validity": "requires independent protocol audit",
+    "reap_sha256": "2a9b52990be0c938e2573609985f3477a20a62b0e4acbeae96ab3429fc4a85c0",
+    "run_id": "v2_06_engine_plain_astra",
+    "schema_version": "author-delivery.v2",
+    "submission_sha256": "e2defce43f39c69bee072af2795d2989c51d3fed14f59d3873caec38ace663b5",
+    "task_outcome": "not_submitted"
+  },
+  "reason": "Required immutable scene/bindings were not submitted.",
+  "status": "FAIL"
+}

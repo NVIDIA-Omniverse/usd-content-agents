@@ -1,0 +1,57 @@
+{
+  "bytes_modes_paths_unchanged_both_hosts": true,
+  "canonical_repository": "/tools/repo",
+  "changed_metadata_paths": [
+    "repo",
+    "repo/.git"
+  ],
+  "created_utc": "2026-09-22T23:54:44.101376+00:00",
+  "cross_host_repository_equal_except_git_admin": true,
+  "hosts": [
+    {
+      "after_receipt": "environment/native_source_retained/node0/environment/evidence/native_source_route_complete/evidence/receipt.json",
+      "after_sha256": "dbd5eeb5510b084bc0e7a4b7221ef75c19398aa2bec3fbabb7fc6bfa19745b75",
+      "alias_negative": "PASS_EXPECTED_REJECTION",
+      "archive_sha256": "1902c7fa73c2de89bd397c9e2e12caa902b612ef7b651b2d22f76e6f18107519",
+      "before_receipt": "environment/native_source_retained/node0/environment/evidence/native_source_verifier_before/evidence/receipt.json",
+      "before_sha256": "71de2c36fa8bbca40a6dce5f9432384b254b8883ca5110e1dad0e2ab7dc28f93",
+      "canonical_route": "PASS",
+      "node": "node0",
+      "ownership_receipt": "environment/native_source_retained/node0/environment/evidence/native_git_ownership.json",
+      "ownership_sha256": "e01a86614b1156b0f82fcaf6eb387e1cb202c381c65078b56411f83341459aea",
+      "read_only_owner_write_denied": true,
+      "retained_files_verified": 21,
+      "supervisor_sha256": "409d6090abdc72dba6730628d48b60914d486d7b71001b16fbe3909659cc0d1c"
+    },
+    {
+      "after_receipt": "environment/native_source_retained/node1/environment/evidence/native_source_route_complete/evidence/receipt.json",
+      "after_sha256": "f734db85d31f56f32fb261b0729f284cd4ff93bfbf19f54a7251cdcb3f5e61bb",
+      "alias_negative": "PASS_EXPECTED_REJECTION",
+      "archive_sha256": "7c49407426fedf60134a2bdc121f32637c4a5f71879a7ca96b0dabe0dcad7ac9",
+      "before_receipt": "environment/native_source_retained/node1/environment/evidence/native_source_verifier_before/evidence/receipt.json",
+      "before_sha256": "6a32fa43ae0c560c4fc29d459d6b9c831429328c2428c74ec6bc6e679fa00df8",
+      "canonical_route": "PASS",
+      "node": "node1",
+      "ownership_receipt": "environment/native_source_retained/node1/environment/evidence/native_git_ownership.json",
+      "ownership_sha256": "61b7c6e66aad62817d2a5a051515cd7be7838b07e2d860c64d3b3976d4ad8bd2",
+      "read_only_owner_write_denied": true,
+      "retained_files_verified": 21,
+      "supervisor_sha256": "409d6090abdc72dba6730628d48b60914d486d7b71001b16fbe3909659cc0d1c"
+    }
+  ],
+  "limitations": [
+    "Qualifies actual committed-source/installed-package authentication and usd-cli-tel --version only. Live native Physics child tool execution remains a separate gate.",
+    "Read-only bind alias /workflows is suitable for documentation, not native repo_root package identity.",
+    "Git administrative bytes differ across hosts and remain excluded from code parity, as in prior qualified export comparison."
+  ],
+  "matched_lane_uid_gid": 20000,
+  "model_calls": 0,
+  "rejected_alias": "/workflows",
+  "repository_entries_verified_per_host": 13411,
+  "repository_semantic_sha256": "af5adfbe3e43ca65e0de545f2a1dd410ac001a5a280e8ea52bb578dffa7a603a",
+  "required_subtree_identity": "c3f7c8cb0fd44bfbc79441a35f2f1acd62a46a06",
+  "schema_version": "native-source-route-qualification.v2",
+  "scored": false,
+  "status": "PASS",
+  "verifier_sha256": "8e2049d7cead76191773ab727e4774869091f40e183fdce1a74747c4f4cd2c60"
+}

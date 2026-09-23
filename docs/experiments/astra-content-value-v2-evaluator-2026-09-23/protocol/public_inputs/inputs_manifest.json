@@ -1,0 +1,195 @@
+{
+  "cases": [
+    {
+      "case_id": "01_drawer",
+      "files": [
+        {
+          "path": "01_drawer_source_inventory.json",
+          "sha256": "29abbf2ccd91e20d6179b7ccd505dd02a2a572c95e87c7e2a7e466b56a763250",
+          "size": 1136
+        },
+        {
+          "path": "task.json",
+          "sha256": "e70a4e69cf8db242ecd17b78771868d6a476ced458e36fed7e37e8856d13e5af",
+          "size": 9227
+        }
+      ],
+      "input_sha256": "b72cb05a79d548c416d274f0974fac09ef0fa5f71a771ec1f2cefa40471b1e93",
+      "source_manifest_sha256": "a3a02f6f430babf4d177baad725d90b8ec1488eda7ffdeabcb8b68c235a3edc4",
+      "source_root": "assets/01_drawer/source",
+      "task_sha256": "e70a4e69cf8db242ecd17b78771868d6a476ced458e36fed7e37e8856d13e5af"
+    },
+    {
+      "case_id": "02_conveyor",
+      "files": [
+        {
+          "path": "02_conveyor_source_inventory.json",
+          "sha256": "bb9b02fb7ea057f2507879234ee87545b72ced15cdafce8e2d5ba8d407d280e3",
+          "size": 1582
+        },
+        {
+          "path": "task.json",
+          "sha256": "7811c716b454d1ffeb5d354b08cbdc405b14d9a4c99990c20fdc9a902b8bfceb",
+          "size": 9234
+        }
+      ],
+      "input_sha256": "212e665b4eeca07b1e28200be09654849e052148da046e364a68559b48e0069d",
+      "source_manifest_sha256": "ab8fba42f2f0c16ce9f01e732d1689b6301829a00eeadd44b36991171767ab9b",
+      "source_root": "assets/02_conveyor/source_repo/CAD models/conveyor_model",
+      "task_sha256": "7811c716b454d1ffeb5d354b08cbdc405b14d9a4c99990c20fdc9a902b8bfceb"
+    },
+    {
+      "case_id": "03_hinge",
+      "files": [
+        {
+          "path": "03_hinge_source_inventory.json",
+          "sha256": "aa9ffb9001f544c02e6118fe83f38e294262bbe24ccd34a6bdfff34f7a2df9dd",
+          "size": 5874
+        },
+        {
+          "path": "task.json",
+          "sha256": "30d46a2d4d804be41e1a471dcc8f811b80186cbf89cff8e11ff939cb12c29a11",
+          "size": 9385
+        }
+      ],
+      "input_sha256": "d551b59bb6cb0f9ebc57c99ec92720cfb0498c4766c60b50efc30d9a4c3fd24f",
+      "source_manifest_sha256": "3e53fd898c39ec0b135cf706532fee9ab0347449e3d6fb7f304f56988aec2a28",
+      "source_root": "assets/03_hinge/source",
+      "task_sha256": "30d46a2d4d804be41e1a471dcc8f811b80186cbf89cff8e11ff939cb12c29a11"
+    },
+    {
+      "case_id": "04_gripper",
+      "files": [
+        {
+          "path": "04_gripper_source_inventory.json",
+          "sha256": "5a13a75472fe4f13fa713fa9db364d0b5191b21c738b73e10f7c4befdb9c9715",
+          "size": 25948
+        },
+        {
+          "path": "task.json",
+          "sha256": "8535c0d01c74372a537af4ff3d32fa0f8b127892662421501a2ddeba6a48b2dc",
+          "size": 13632
+        }
+      ],
+      "input_sha256": "5c088d37d6558722a41f16078342ae10ad41293d9edf31b42b62eb7836360031",
+      "source_manifest_sha256": "0388e50f2e8c177a63daac3bc2c78c6b22d61f6431b3e7b74bec967d1f719afb",
+      "source_root": "assets/04_gripper/source_repo",
+      "task_sha256": "8535c0d01c74372a537af4ff3d32fa0f8b127892662421501a2ddeba6a48b2dc"
+    },
+    {
+      "case_id": "05_vise",
+      "files": [
+        {
+          "path": "05_vise_source_inventory.json",
+          "sha256": "ffbc3f371126f01e7ca3419d2cbb085122ac6349f791e1fe0dec5234ee700fc4",
+          "size": 11842
+        },
+        {
+          "path": "task.json",
+          "sha256": "7e35a775a0ce5d03a3495eac42657bc9590c066594be0186072f77b0212b8187",
+          "size": 9768
+        }
+      ],
+      "input_sha256": "5b19f187b95b2b6aaad77ae3fb9a2e6746802a382b3f2b8e726880bb11a91a29",
+      "source_manifest_sha256": "afca3031a21c46e7df4fce1105c9dd1b8e2c0e1c4aa065c2a36823742d0e177d",
+      "source_root": "assets/05_vise/source",
+      "task_sha256": "7e35a775a0ce5d03a3495eac42657bc9590c066594be0186072f77b0212b8187"
+    },
+    {
+      "case_id": "06_engine",
+      "files": [
+        {
+          "path": "06_engine_source_inventory.json",
+          "sha256": "c9998d35871fd1e8d3f58f7a04f25eedbe0cd4dd53419d061414b3017bc2f852",
+          "size": 17210
+        },
+        {
+          "path": "task.json",
+          "sha256": "bba256bcef4e8622537bd7f690159ab3ea5e416249de9d1786ed21af85126513",
+          "size": 11463
+        }
+      ],
+      "input_sha256": "24c223db46bdc9ff04e1ad7f002f6bb7e03bd548d45e835b0eb9b86b861c0603",
+      "source_manifest_sha256": "3e4fbd977ce0b6974b8d21de675fb17f4aa47328ac1f1f99b35bcae0415358a6",
+      "source_root": "assets/06_engine/original",
+      "task_sha256": "bba256bcef4e8622537bd7f690159ab3ea5e416249de9d1786ed21af85126513"
+    },
+    {
+      "case_id": "07_robot_arm",
+      "files": [
+        {
+          "path": "07_robot_arm_source_inventory.json",
+          "sha256": "869f053fa11a5fc15056d891cf52868d72101a095b1586fc48969c14d7ab9221",
+          "size": 458585
+        },
+        {
+          "path": "task.json",
+          "sha256": "1a411743f30f5bb1d81964ed7dfd8dbc076831c2b7f55de6deb16f6a415cc0ce",
+          "size": 11505
+        }
+      ],
+      "input_sha256": "62a4151f85c31c253841d51bd4c19a74fb7ffe21464579019b1e07c3f7bdc146",
+      "source_manifest_sha256": "318b70445aad1bb712c3c3535be9bbd7e1f93519ef6828b93cbd200e2c4e53bc",
+      "source_root": "assets/07_robot_arm/source/Thor-286b081fe6f056d87c379b884781ef77ff6a0159",
+      "task_sha256": "1a411743f30f5bb1d81964ed7dfd8dbc076831c2b7f55de6deb16f6a415cc0ce"
+    },
+    {
+      "case_id": "08_excavator",
+      "files": [
+        {
+          "path": "08_excavator_source_inventory.json",
+          "sha256": "ea1c0f2e1cd183343087602a75a79673e219ce6cdd2c9b287b474fa4d207fcf2",
+          "size": 80305
+        },
+        {
+          "path": "task.json",
+          "sha256": "5b370f08436e80e7d1983675e864a0087f66bfea63cb1c73db5f44ef830167cc",
+          "size": 12147
+        }
+      ],
+      "input_sha256": "e2bdee0c7e8131ca7e1bf5f0ab48661d3bd453d4f14ceab4517e4a41c7d94010",
+      "source_manifest_sha256": "86cf493c50826fdf4413c70606b69365587cb40ab0c830a8af4961d2d73b0258",
+      "source_root": "assets/08_excavator/source/\u673a\u68b0\u90e8\u5206",
+      "task_sha256": "5b370f08436e80e7d1983675e864a0087f66bfea63cb1c73db5f44ef830167cc"
+    },
+    {
+      "case_id": "09_printer",
+      "files": [
+        {
+          "path": "09_printer_source_inventory.json",
+          "sha256": "a3b6223ee9e5c4bf2100a9681caaa44c3e03335a12cdfa137c6e7042c500bbd1",
+          "size": 2117814
+        },
+        {
+          "path": "task.json",
+          "sha256": "19dc5bf786736697bb8da64bd70d66757b62fb187211f4762acf945bcccdf2fb",
+          "size": 16258
+        }
+      ],
+      "input_sha256": "aec5f11330c816ec936fd84d6822bd9e27d7140399c4cd28dca0988dcdd07c83",
+      "source_manifest_sha256": "47d0c3aa66f26335d60ae4a5ef82e1fb5a9ce9dd8b5269bb17d15069b321c386",
+      "source_root": "assets/09_printer/extracted",
+      "task_sha256": "19dc5bf786736697bb8da64bd70d66757b62fb187211f4762acf945bcccdf2fb"
+    },
+    {
+      "case_id": "10_complex",
+      "files": [
+        {
+          "path": "10_complex_source_inventory.json",
+          "sha256": "c88461c9ff495d8229850da2db25255c10adbee93aca17461fa1b57d58cd962e",
+          "size": 65242
+        },
+        {
+          "path": "task.json",
+          "sha256": "c8a93332e7f10e2930e1b733008fd9221ef267310a7c829a6a9ecbb21fa27eb7",
+          "size": 14657
+        }
+      ],
+      "input_sha256": "75adfd61b7025c6867b4897fd17add806ae1002df8474d140430929fbb05532b",
+      "source_manifest_sha256": "3357cc4f1a036a9feb69101e76bd8a2b1c5449ae5ddf7b0942d32867d07c05a1",
+      "source_root": "assets/10_complex/source/Dextra-33203e128c3d3c4292f41d32275cb336cd211733",
+      "task_sha256": "c8a93332e7f10e2930e1b733008fd9221ef267310a7c829a6a9ecbb21fa27eb7"
+    }
+  ],
+  "frozen": true
+}

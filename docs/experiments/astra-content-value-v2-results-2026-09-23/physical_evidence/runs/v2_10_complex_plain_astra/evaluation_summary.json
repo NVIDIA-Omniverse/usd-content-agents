@@ -1,0 +1,11 @@
+{
+  "case_id": "10_complex",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 159.22457434795797,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "e9dee1b5635607e92130ae488db60574a34adf878b51d0a26788224df5bc9f36",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_10_complex_plain_astra",
+  "status": "PASS",
+  "timed_out": false
+}

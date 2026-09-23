@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-22T23:38:31.998980+00:00",
+  "scope": "Separate publication/reproduction supplement, prepared after evaluator freeze. No scoring code/reference/task changes and no new conversion/model/native runs.",
+  "frozen_evaluator_manifest_sha256": "0a39970a03360f540eba431b5e88c8ce95128ad6961d01d9cdbfb8aa3a237cb7",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 10724,
+      "sha256": "e11acf7a2d47d38bf3c57a4b0aad61ee41294e59aef588190248a89f467f9f8c"
+    },
+    {
+      "path": "builders/align_reference_rebuild_by_hash.py",
+      "bytes": 3638,
+      "sha256": "f31255ff371c23aa7341ff591dcfbe9ee5dbfd292e252c91cf6bd7efaab252b3"
+    },
+    {
+      "path": "builders/case08_10/case_source_freeze.py",
+      "bytes": 6821,
+      "sha256": "7a0a66479ff40f9054310cb38f982adb2e4c6f92ef62897c72790c3aea2f75e7"
+    },
+    {
+      "path": "builders/general/case09_payload_contract.json",
+      "bytes": 1279,
+      "sha256": "cb843047b5f74cac6af037d8db04194b34ba3217e58d6d29b50ca5e0f0bc6096"
+    },
+    {
+      "path": "builders/general/case09_placement.py",
+      "bytes": 6653,
+      "sha256": "503a23cf86a78e28de1d41e10d9aade373adb17d5497904bd08995c44a998223"
+    },
+    {
+      "path": "builders/general/common.py",
+      "bytes": 3505,
+      "sha256": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9"
+    },
+    {
+      "path": "builders/general/finalize_roles.py",
+      "bytes": 2592,
+      "sha256": "13f399c241e38e05ccbeafefa0b15f20c9cdc2954ea97e3866ecfb3b37f9eb38"
+    },
+    {
+      "path": "builders/general/freeze_dataset.py",
+      "bytes": 5621,
+      "sha256": "51c17653fef11a1dac627749af458de9cf0c188ec7843d30ea148852c0b242ef"
+    },
+    {
+      "path": "builders/general/geometry.py",
+      "bytes": 14407,
+      "sha256": "8ed38f600d338cca30a3d4d6bcbe7a511922e41598b1189f4dde823ef6e464f1"
+    },
+    {
+      "path": "evidence/reference_regeneration_v1.md",
+      "bytes": 6124,
+      "sha256": "30d1ca046c2125f95d93d91ee845c8bd7b25b77da2e7ae68a7072c39193e40fc"
+    },
+    {
+      "path": "intermediates/08_excavator/original_native_coverage_inventory.json",
+      "bytes": 101943,
+      "sha256": "99d5387fa95832d3e24710f39931b6b00163f546f2952aa28314fe74bef0566b"
+    },
+    {
+      "path": "intermediates/08_excavator/reference.usdc",
+      "bytes": 1267190,
+      "sha256": "526380cbae3b02a57713212a2114507a68a906e58df741bd8bc4ab1b5460f8c4"
+    },
+    {
+      "path": "original_source_dataset.json",
+      "bytes": 100725,
+      "sha256": "34c8293ab1be49cd0bbdb8f8fe25278b60ba21c35d52b8009a5065278d25c87f"
+    },
+    {
+      "path": "retained_builders.json",
+      "bytes": 3519,
+      "sha256": "c81a692c4dbad3beba3f54ccd210adc5c9d3827b79ab094a2bcf3a4fb2c4115f"
+    },
+    {
+      "path": "source_catalog.json",
+      "bytes": 157279,
+      "sha256": "22eca3849ee7e3a761f4d3540d67aae7ba82af2b739a74e4adaec2cd8f53c295"
+    }
+  ],
+  "fresh_regeneration_qualified_cases": [
+    "03_hinge",
+    "05_vise"
+  ],
+  "unqualified_regeneration_cases": [
+    "02_conveyor",
+    "04_gripper",
+    "06_engine",
+    "07_robot_arm",
+    "08_excavator",
+    "09_printer",
+    "10_complex"
+  ]
+}

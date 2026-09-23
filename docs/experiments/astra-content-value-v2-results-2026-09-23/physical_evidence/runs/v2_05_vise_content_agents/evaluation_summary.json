@@ -1,0 +1,20 @@
+{
+  "cgroup_populated": 0,
+  "delivery": {
+    "artifact_closure_valid": true,
+    "budget_exhausted": true,
+    "claimed_accepted": false,
+    "declared_repairs_used": 0,
+    "errors": [],
+    "physical_acceptance": "NOT_ASSESSED",
+    "protocol_validity": "requires independent protocol audit",
+    "reap_sha256": "9bb96c499ddedb2d537b9277b3fa39977ec76d4bf1909f677b0012404309c249",
+    "run_id": "v2_05_vise_content_agents",
+    "schema_version": "author-delivery.v2",
+    "submission_sha256": "610a030411f1fc532c78691ddedd413fc7ea5c8aae2108c8490844652e86bea3",
+    "task_outcome": "not_submitted"
+  },
+  "reason": "Required immutable scene/bindings were not submitted.",
+  "run_id": "eval_measured-v2_v2_05_vise_content_agents",
+  "status": "FAIL"
+}

@@ -1,0 +1,70 @@
+{
+  "case_id": "03_hinge",
+  "frozen_at": "2026-09-22T23:32:32.678112+00:00",
+  "runtime_manifest": "frozen_manifest.json",
+  "runtime_manifest_sha256": "7d46b63e168040812db11994459b897b9f208e6693d5dfec4c51e686446a0343",
+  "code_sha256": {
+    "bindings.schema.json": "d3bf23628bc61c9d060b8c9d24c554c3cacf40ebba5ca57d77f745fed6be7ab0",
+    "cases.json": "5e6fb947ed79d453e4d20d8c4b16b39c7840db9957784a78d3a510e94c80f90e",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "evaluate.py": "c31dc022ccc5fab5a5d391e6aedbd3c95b836fc8a8f1730ec18a700cef6120c1",
+    "geometry.py": "a7e01e0af5ec964a941c707faf828767cc8dd17649fa86a07a8b029afe1cee14",
+    "solver.py": "79e43d69d81e56d9ee2c791004bf64bfd3d747fc3de55dc330666b00daee7eff",
+    "structural.py": "b86436cdfcc98fa52b55dfc911cbece9125af88899ccda13423c0c1bca7e99e5",
+    "v2_control.py": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a",
+    "v2_geometry.py": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4",
+    "v2_inputs.py": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528",
+    "v2_policy.py": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20",
+    "v2_process.py": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794",
+    "v2_verdict.py": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+  },
+  "reference_files": [
+    {
+      "path": "cases/03_hinge/reference/geometry_0000.npz",
+      "bytes": 1379352,
+      "sha256": "ed9a608b55eba20e6f1c2b59fb5b38cdb75d06c9af02ddecc3e0c7ef099773ec"
+    },
+    {
+      "path": "cases/03_hinge/reference/geometry_0001.npz",
+      "bytes": 1576542,
+      "sha256": "a10e05675b6fb0d4555a97a3eda7ae3f78bf7b39bbf0bdc275598e79da88d0ad"
+    },
+    {
+      "path": "cases/03_hinge/reference/geometry_0002.npz",
+      "bytes": 88178,
+      "sha256": "213a265c67f0279a0f7f35c42bd90755d618eeafefa544a53cd5f652a3cb33e9"
+    },
+    {
+      "path": "cases/03_hinge/reference/geometry_0003.npz",
+      "bytes": 5300,
+      "sha256": "7c7185d5a25bb2dd9c43a5b4d52606c1a8385e4ca46593378e286af080ee099d"
+    },
+    {
+      "path": "cases/03_hinge/reference/geometry_0004.npz",
+      "bytes": 4646,
+      "sha256": "7ff49feca3b409f00baad8b131cfd6adb143cba41dbc2f9dcd886d3a3c8fe2c5"
+    },
+    {
+      "path": "cases/03_hinge/reference/geometry_0005.npz",
+      "bytes": 735,
+      "sha256": "74f4f242aff2a9d24ede8bb10656308dfbdf454e99b1391b4ae47016b7eaf851"
+    },
+    {
+      "path": "cases/03_hinge/reference/geometry_0006.npz",
+      "bytes": 453,
+      "sha256": "14e84efcdea9503d0534fe1fc99d7224339f1f11f9ae6f4c66f24f530f7b6b64"
+    },
+    {
+      "path": "cases/03_hinge/reference/geometry_0007.npz",
+      "bytes": 19206,
+      "sha256": "4c52a6bcd3578beafea52a46465866651460f8cecfcea810224bc0b4d1ddea77"
+    },
+    {
+      "path": "cases/03_hinge/reference/source_inventory.json",
+      "bytes": 8577,
+      "sha256": "c4fcc67778174cc387d847063096de1a8ca071eaea05fe12e627e31f5b1f55b3"
+    }
+  ],
+  "qualification_receipt_sha256": "fada28adae6999f7dd0cfda7362d629ba8ef85f78eafcce29587b2363ea1bf4e",
+  "qualification_manifest_sha256": "4a87c5ab34bedda9cfe75db907beccb45c9c566dc53c577e3cb05a5d5b98b3c2"
+}

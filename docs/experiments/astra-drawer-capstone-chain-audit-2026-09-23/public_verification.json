@@ -1,0 +1,117 @@
+{
+  "checks": {
+    "cross_stage_still_not_evaluated": true,
+    "five_existing_task_verdicts_pass": true,
+    "four_required_validation_gates_pass": true,
+    "geometry_still_conditional": true,
+    "joint_completed_accepted": true,
+    "native_physics_assessment_pass": true,
+    "native_validation_completed_accepted_pass": true,
+    "same_final_asset_and_task_digest": true
+  },
+  "full_original_terminal_closure_verified": false,
+  "limits": [
+    "No original private receipt is reconstructed from a privacy projection.",
+    "No simulation, model, renderer, metric recomputation or USD decoding is performed.",
+    "Recorded outcomes and byte continuity do not establish universal SimReady, automatic cross-stage validation or hardware fidelity."
+  ],
+  "new_task_or_native_acceptance": false,
+  "publication_manifest_sha256": "f42d029b483b07aa15743a69cadd431388a325651d2529f6f3ef388c2d41a348",
+  "published_files_verified": 544,
+  "schema_version": "capstone-public-byte-audit.v1",
+  "status": "PUBLIC_BYTES_AND_DECLARED_OUTCOMES_VERIFIED",
+  "terminal_bindings": [
+    {
+      "binding": "accepted_coordinator_plan",
+      "original_sha256_attestation": "1022b2d062a65f8cb8fc0e203951dba1ec14494c241c02fc4a550994631dcefe",
+      "public_path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_accepted_plan.json",
+      "published_sha256": "ee4abc6d867dd7a4678fb1193579f549039f2f6e75f3418225520c92663cc9d3",
+      "status": "ORIGINAL_UNAVAILABLE_PUBLISHED_PROJECTION_VERIFIED"
+    },
+    {
+      "binding": "canonical_assessment",
+      "original_sha256_attestation": "ce2dac89c4b3c24b8962ce94b453418ac7e0de6b328a858da0d66f79f13589c0",
+      "public_path": "runs/drawer_validation_01_prepared/native_run/canonical_validation_assessment.json",
+      "published_sha256": "ce2dac89c4b3c24b8962ce94b453418ac7e0de6b328a858da0d66f79f13589c0",
+      "status": "EXACT_ORIGINAL_BYTES_VERIFIED"
+    },
+    {
+      "binding": "coordinator_execution",
+      "original_sha256_attestation": "c9e99df49c55c560616aa29f3520dcafbd880a0ec86225cb903dff630ae6c845",
+      "public_path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_execution_receipt.json",
+      "published_sha256": "c9e99df49c55c560616aa29f3520dcafbd880a0ec86225cb903dff630ae6c845",
+      "status": "EXACT_ORIGINAL_BYTES_VERIFIED"
+    },
+    {
+      "binding": "coordinator_plan_patch",
+      "original_sha256_attestation": "a8215ea3a60a366c26ccfdef02c8969f533fc0a798ee96d135272a01dea5e114",
+      "public_path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_plan_patch.json",
+      "published_sha256": "fcaaebe7c2fc86e9e8d5945ff3761275f52ad47c5876ea16bcc82ec08a6b8c9a",
+      "status": "ORIGINAL_UNAVAILABLE_PUBLISHED_PROJECTION_VERIFIED"
+    },
+    {
+      "binding": "coordinator_preparation",
+      "original_sha256_attestation": "555e6b0e03c53b07a01b1da621daae8094a0e843bb608b9868e10cc0e79fd860",
+      "public_path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_preparation.json",
+      "published_sha256": "555e6b0e03c53b07a01b1da621daae8094a0e843bb608b9868e10cc0e79fd860",
+      "status": "EXACT_ORIGINAL_BYTES_VERIFIED"
+    },
+    {
+      "binding": "coordinator_review",
+      "original_sha256_attestation": "bed21b80ae430dcad671a17f28b52d90b239766eb472c6c79037b3ac3c609c8c",
+      "public_path": "runs/drawer_validation_01_prepared/independent_review.json",
+      "published_sha256": "bed21b80ae430dcad671a17f28b52d90b239766eb472c6c79037b3ac3c609c8c",
+      "status": "EXACT_ORIGINAL_BYTES_VERIFIED"
+    },
+    {
+      "binding": "evidence_index",
+      "original_sha256_attestation": "dcd959fee52bb8f2f3c929ff7cda917edd79c8451f5c1884fc5e4a173a86c019",
+      "public_path": "runs/drawer_validation_01_prepared/native_run/standalone_validation_evidence.json",
+      "published_sha256": "dcd959fee52bb8f2f3c929ff7cda917edd79c8451f5c1884fc5e4a173a86c019",
+      "status": "EXACT_ORIGINAL_BYTES_VERIFIED"
+    },
+    {
+      "binding": "operation_index",
+      "original_sha256_attestation": "3766e8b0ee07597e9f2274bc8889c8219d5f6373c9f3aa9192d6dbb7469bf509",
+      "public_path": "runs/drawer_validation_01_prepared/native_run/validation_operation_index.json",
+      "published_sha256": "3766e8b0ee07597e9f2274bc8889c8219d5f6373c9f3aa9192d6dbb7469bf509",
+      "status": "EXACT_ORIGINAL_BYTES_VERIFIED"
+    }
+  ],
+  "traces": [
+    {
+      "complete_published_trace_verified": true,
+      "samples": 2460,
+      "seed": 11,
+      "uncompressed_sha256": "54cb5ee3f009b16bd24a1dee454394940f31ef0ab6b3efc5550ce80877554378"
+    },
+    {
+      "complete_published_trace_verified": true,
+      "samples": 2460,
+      "seed": 23,
+      "uncompressed_sha256": "2efce65b8f44d50f094520906545475112006ca7b3883d7c355779b18964ece3"
+    },
+    {
+      "complete_published_trace_verified": true,
+      "samples": 2460,
+      "seed": 47,
+      "uncompressed_sha256": "ddf9ac532319b73b7629198e931fc947736f1a3c223452a345a9c73f7ee652cd"
+    },
+    {
+      "complete_published_trace_verified": true,
+      "samples": 2460,
+      "seed": 83,
+      "uncompressed_sha256": "6a5a2e2db04331a91597ca9a34d815601f150bfdf1de75b4dcad88c99fc998cd"
+    },
+    {
+      "complete_published_trace_verified": true,
+      "samples": 2460,
+      "seed": 131,
+      "uncompressed_sha256": "962f6e9d1381933fd6e6e9c763ec8557ba89e14971c84701769715d57ca0511f"
+    }
+  ],
+  "unavailable_original_checks": [
+    "accepted_coordinator_plan",
+    "coordinator_plan_patch"
+  ]
+}

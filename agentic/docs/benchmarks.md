@@ -12,6 +12,18 @@ The repository's benchmark implementation and curated evaluation assets are
 internal quality-assurance infrastructure. This document describes the
 methodology, not the internal execution software.
 
+The separate [public Astra Ultra development experiment](../../docs/experiments/astra-content-value-v2-results-2026-09-23/README.md)
+publishes a frozen comparison, independent physical evidence and measured
+outcomes on ten online source assets. Direct Astra accepted 7/9 assets in the
+eligible paired subset, versus 2/9 with Content Agents workflows. All twenty
+attempts are retained, including the protocol-excluded printer pair. The report
+includes false acceptance claims, time, API-reference cost bounds and explicit
+unmeasured human effort. It does not establish benefit on held-out assets or
+claim a complete ten-case executable replay. The separately repaired
+[drawer capstone](../../docs/experiments/astra-drawer-capstone-chain-audit-2026-09-23/README.md)
+documents a bounded physical task through the native workflow stages and five
+independent loaded trials, with conditional Geometry and other limits preserved.
+
 ## Principles
 
 Each benchmark separates two questions:

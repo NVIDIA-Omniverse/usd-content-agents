@@ -1,0 +1,14 @@
+{
+  "a_semantic_sha256": "10b7e933df6a1d6bee6d1a92874b122f2837b861c2287228dff888e728b6e151",
+  "b_semantic_sha256": "10b7e933df6a1d6bee6d1a92874b122f2837b861c2287228dff888e728b6e151",
+  "bundled_shader_cache_equal": true,
+  "compared_file_count": 60809,
+  "different_file_paths": [],
+  "directory_boundary": "One exact empty0755 generated MDL target added on both hosts. Installed file/symlink equality unchanged; private runtime cache overlays require separate GPU qualification.",
+  "end_to_end_workflow_qualified": false,
+  "excluded": "repo/.git administrative bytes only; clean tracked source and identical parentless commit remain mandatory",
+  "generated_cache_mount_targets_equal": true,
+  "passed": true,
+  "schema_version": "namespace-tools-parity.v2",
+  "source_identity_equal": true
+}

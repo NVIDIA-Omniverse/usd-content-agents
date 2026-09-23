@@ -1,0 +1,156 @@
+{
+  "conclusion": "Existing evidence supports the bounded Geometry-derived Joint/Physics/Validation drawer demonstration and five loaded-task passes on the same final asset.",
+  "created_utc": "2026-09-23T01:17:31.532583+00:00",
+  "evidence": {
+    "canonical_assessment": {
+      "artifact_path": "runs/drawer_validation_01_prepared/native_run/canonical_validation_assessment.json",
+      "mode": "exact",
+      "original_sha256_attestation": "ce2dac89c4b3c24b8962ce94b453418ac7e0de6b328a858da0d66f79f13589c0",
+      "published_sha256": "ce2dac89c4b3c24b8962ce94b453418ac7e0de6b328a858da0d66f79f13589c0",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/runs/drawer_validation_01_prepared/native_run/canonical_validation_assessment.json"
+    },
+    "conjunction": {
+      "artifact_path": "evidence/final_capstone_conjunction.json",
+      "mode": "exact",
+      "original_sha256_attestation": "44fc44580c58ca68a489cdf9f818508b5704fe6052223399cdb42b821c92fa0c",
+      "published_sha256": "44fc44580c58ca68a489cdf9f818508b5704fe6052223399cdb42b821c92fa0c",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/evidence/final_capstone_conjunction.json"
+    },
+    "endpoint_repair": {
+      "artifact_path": "evidence/static_endpoint_repair_protocol_v1.json",
+      "mode": "exact",
+      "original_sha256_attestation": "31d92f3543296bccb8eeecfe453fae0c1b699d773a15ada8b4fba8790f08089e",
+      "published_sha256": "31d92f3543296bccb8eeecfe453fae0c1b699d773a15ada8b4fba8790f08089e",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/evidence/static_endpoint_repair_protocol_v1.json"
+    },
+    "evidence_notes": {
+      "artifact_path": "EVIDENCE_NOTES.md",
+      "mode": "generated",
+      "original_sha256_attestation": null,
+      "published_sha256": "853904ff5623045823e6fc0f72f027c2290883c2ba67fc6abc768408850fb42e",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/EVIDENCE_NOTES.md"
+    },
+    "final_asset": {
+      "artifact_path": "runs/drawer_physics_10/physics.usda",
+      "mode": "exact",
+      "original_sha256_attestation": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+      "published_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/runs/drawer_physics_10/physics.usda"
+    },
+    "fixture": {
+      "artifact_path": "SOURCE_CLEAR_FIXTURE.md",
+      "mode": "exact",
+      "original_sha256_attestation": "43b3ab174ee9e11bcff0e1a2b64021f164788916d533fbc83854151032da811e",
+      "published_sha256": "43b3ab174ee9e11bcff0e1a2b64021f164788916d533fbc83854151032da811e",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/SOURCE_CLEAR_FIXTURE.md"
+    },
+    "geometry": {
+      "artifact_path": "runs/drawer_geometry_04/geometry_workflow_result.json",
+      "mode": "field_projection",
+      "original_sha256_attestation": "a96cf0a46766c4bc645a09880a01560b23304cd780e94df0a406409f07b3dabf",
+      "published_sha256": "e2e7c71d41263a6fee821105f41af5617c985a8076efed4b3d12c4fc156b1247",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/runs/drawer_geometry_04/geometry_workflow_result.json"
+    },
+    "geometry_evidence": {
+      "artifact_path": "runs/drawer_geometry_04/geometry_validation_evidence.json",
+      "mode": "field_projection",
+      "original_sha256_attestation": "596bc8078131d3b807187114f233f059783a159656c3b6c440be997ff888575d",
+      "published_sha256": "569f0925c8705f2f8175663189d3e4a397654cd6e207a50087e82e6baec7a322",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/runs/drawer_geometry_04/geometry_validation_evidence.json"
+    },
+    "joint": {
+      "artifact_path": "runs/drawer_joint_03/standalone_articulation_terminal_receipt.json",
+      "mode": "exact",
+      "original_sha256_attestation": "e2bad7172efdd48dc5bcabf62f073176813af03177c85351e8795cec6af7a23e",
+      "published_sha256": "e2bad7172efdd48dc5bcabf62f073176813af03177c85351e8795cec6af7a23e",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/runs/drawer_joint_03/standalone_articulation_terminal_receipt.json"
+    },
+    "loaded_task": {
+      "artifact_path": "evaluations/native10_source_clear_v1/report.json",
+      "mode": "exact",
+      "original_sha256_attestation": "35954e143077af36b7ee34981eb370a897858f07ae2edc6b6864791b3e0f147c",
+      "published_sha256": "35954e143077af36b7ee34981eb370a897858f07ae2edc6b6864791b3e0f147c",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/evaluations/native10_source_clear_v1/report.json"
+    },
+    "physics": {
+      "artifact_path": "runs/drawer_physics_10/physics_behavior_assessment.json",
+      "mode": "exact",
+      "original_sha256_attestation": "bcbe27e62da57e9c62de9d05faa16a19ab3b99ab06e68d530b0b4b787b19275d",
+      "published_sha256": "bcbe27e62da57e9c62de9d05faa16a19ab3b99ab06e68d530b0b4b787b19275d",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/runs/drawer_physics_10/physics_behavior_assessment.json"
+    },
+    "preparation": {
+      "artifact_path": "runs/articulation_preparation_03/articulation_preparation_publication.json",
+      "mode": "exact",
+      "original_sha256_attestation": "67e575343b09292a6eeaf3cc4b5624083aed7e8167a11bc2ac5276e55bc0fb49",
+      "published_sha256": "67e575343b09292a6eeaf3cc4b5624083aed7e8167a11bc2ac5276e55bc0fb49",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/runs/articulation_preparation_03/articulation_preparation_publication.json"
+    },
+    "trace_audit": {
+      "artifact_path": "task_evidence_audit_v1/native10/audit.json",
+      "mode": "exact",
+      "original_sha256_attestation": "fe57652db03858ff741effca47cfd4695a8fb93613b807b83ded523b7747fea3",
+      "published_sha256": "fe57652db03858ff741effca47cfd4695a8fb93613b807b83ded523b7747fea3",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/task_evidence_audit_v1/native10/audit.json"
+    },
+    "validation": {
+      "artifact_path": "runs/drawer_validation_01_prepared/native_run/validation_terminal_receipt.json",
+      "mode": "exact",
+      "original_sha256_attestation": "c027c329f87e0eeb3f381e45a6c20ed44189a79d66245ce07c799d740a0457eb",
+      "published_sha256": "c027c329f87e0eeb3f381e45a6c20ed44189a79d66245ce07c799d740a0457eb",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/runs/drawer_validation_01_prepared/native_run/validation_terminal_receipt.json"
+    },
+    "visual_task_plot": {
+      "artifact_path": "task_plots/native10_source_clear_v1/drawer_task.png",
+      "mode": "exact",
+      "original_sha256_attestation": "0c01e3859964aac547ef0743d4013a4926bb0605b764351119739ba84fceb3bb",
+      "published_sha256": "0c01e3859964aac547ef0743d4013a4926bb0605b764351119739ba84fceb3bb",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/task_plots/native10_source_clear_v1/drawer_task.png"
+    }
+  },
+  "final_asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+  "limits": [
+    "Geometry preserves source non-manifold/zero-area topology diagnostics; optimization, repair and formal/runtime SimReady were skipped.",
+    "Native standalone Validation does not provide a passed automatic cross-stage integrity gate.",
+    "The successful path includes explicit packaging, owner preparation, upper-drawer topology promotion, endpoint correction, code/adapter repairs and earlier failed Physics attempts; it is an unscored repaired follow-up.",
+    "CPU ideal-prismatic task excludes cabinet-to-upper connected-actor contact, uses estimated properties, a free0.5kg payload and bounded external force; no furniture hardware, rail-friction or actuator realism follows.",
+    "Five fixed source-clear trials are distinct from original-fixture and historical failed attempts.",
+    "Trace initial native XY/quaternion and per-contact actor IDs are absent; full metrics were audited previously with those limits, not recomputed here.",
+    "Projected accepted-plan records verify only against their published digests. Their original digests remain attestations and cannot be re-created from the projections.",
+    "No comparison, causal workflow-value claim, universal SimReady claim or controlled-rerun outcome is included."
+  ],
+  "model_solver_renderer_execution": false,
+  "new_acceptance_authored": false,
+  "public_byte_checks": {
+    "complete_gzip_traces_verified": 5,
+    "full_original_native_validation_closure_verified": false,
+    "published_files_verified": 544,
+    "samples_per_trace": 2460,
+    "source_of_results": "Actual execution of included verifier against published bytes; no simulation or metric recomputation.",
+    "unavailable_original_checks": [
+      "accepted_coordinator_plan",
+      "coordinator_plan_patch"
+    ]
+  },
+  "public_commit": "864dfcdb91c46cf4def78cf9a292ca83b5f40aff",
+  "public_repository": "https://github.com/NVIDIA-Omniverse/usd-content-agents",
+  "publication_manifest_sha256": "f42d029b483b07aa15743a69cadd431388a325651d2529f6f3ef388c2d41a348",
+  "publication_manifest_url": "https://github.com/NVIDIA-Omniverse/usd-content-agents/blob/864dfcdb91c46cf4def78cf9a292ca83b5f40aff/docs/experiments/astra-drawer-capstone-2026-09-21/publication_manifest.json",
+  "retained_private_audit_attestation": {
+    "audit_code_sha256": "9fddcf60558306285225f1aa8dd2bae6a6837a876441b546ba6a1cb996b01fdd",
+    "boundary": "These are attestations to retained original audit artifacts; those full original bytes are not supplied by this derivative.",
+    "checks_passed": 111,
+    "markdown_sha256": "56995e974647bb1721d6d6504bb8d06240920577aa03efbed5bade54d4c4de16",
+    "report_sha256": "4f435d73ffed37963826924055c7c861f20aadec859537e7404586aa264ceaf3",
+    "unique_files_rehashed": 641
+  },
+  "schema_version": "capstone-chain-audit-public-summary.v1",
+  "stage_outcomes": {
+    "geometry": "conditional; formal SimReady not_evaluated",
+    "independent_loaded_task": "five of five prescribed seeds pass on the identical final asset",
+    "joint03": "completed; accept",
+    "native_cross_stage_integrity": "not_evaluated; optional unsupported record",
+    "native_validation01": "completed; pass; review accept; four required gates pass without waivers",
+    "physics10": "pass; three-second constrained mounted rest"
+  }
+}

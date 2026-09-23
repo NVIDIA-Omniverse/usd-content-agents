@@ -1,0 +1,574 @@
+{
+  "case_id": "06_engine",
+  "source_files": [
+    {
+      "path": "original/LICENSE",
+      "sha256": "e02f83350902ca094b580f9dc3202fe9513593130b5515c4027aa4911de430e3"
+    },
+    {
+      "path": "original/README.md",
+      "sha256": "026bf42a12b6383badd1c14e8f3fbcaf37f32fc23dc5db05604097c925964a38"
+    },
+    {
+      "path": "original/steam_engine_mechanism.FCStd",
+      "sha256": "f035c5d2380310654b9ec82a2c13e342f9773a03543f8729a06eb34c7ec487f9"
+    },
+    {
+      "path": "original/steam_engine_overview.png",
+      "sha256": "6a8aa40206c0516b7ee04eae30eb056a99b31fcbe84db956694f402458fca75b"
+    }
+  ],
+  "source_coverage_complete": true,
+  "coverage_note": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+  "source_body_role_requirements": {
+    "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body007": "base",
+    "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005": "base",
+    "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001": "base",
+    "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body": "base",
+    "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010": "base",
+    "original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003": "piston",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Torus": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder": "crank",
+    "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012": "connecting_rod",
+    "original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013": "beam"
+  },
+  "parts": [
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/valve_001/valve_/Body004",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 2042,
+      "triangles": 2020,
+      "bounds_m": [
+        [
+          -0.004,
+          -0.010499999999999999,
+          0.006001243271996731
+        ],
+        [
+          0.004,
+          -0.008999999999999994,
+          0.013998756728003265
+        ]
+      ],
+      "area_m2": 0.0001570321547215838,
+      "abs_volume_m3": 6.751617138874689e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body007",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 24,
+      "triangles": 12,
+      "bounds_m": [
+        [
+          -0.008079765124746188,
+          -0.013614574184457488,
+          -0.001
+        ],
+        [
+          0.041920234875253815,
+          0.007385425815542511,
+          0.0
+        ]
+      ],
+      "area_m2": 0.0022419999999999996,
+      "abs_volume_m3": 1.05e-06
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body005",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 33965,
+      "triangles": 62116,
+      "bounds_m": [
+        [
+          0.0105,
+          -0.004498601319003673,
+          -9.896922901808083e-19
+        ],
+        [
+          0.0195,
+          0.004498601319003674,
+          0.03390205139111959
+        ]
+      ],
+      "area_m2": 0.0006941042166047222,
+      "abs_volume_m3": 6.864526846219212e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body001",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 2926,
+      "triangles": 2912,
+      "bounds_m": [
+        [
+          -0.004,
+          -0.005,
+          0.0
+        ],
+        [
+          0.004,
+          0.003998756728003265,
+          0.022
+        ]
+      ],
+      "area_m2": 0.001144588762791907,
+      "abs_volume_m3": 7.623292679457626e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 6110,
+      "triangles": 6056,
+      "bounds_m": [
+        [
+          -0.009000000000000001,
+          -0.009000000000000001,
+          0.0
+        ],
+        [
+          0.009000000000000001,
+          -0.004999999999999999,
+          0.019
+        ]
+      ],
+      "area_m2": 0.0006659365318484555,
+      "abs_volume_m3": 5.940135637047035e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/machine_base_/machine_base/Body010",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 3770,
+      "triangles": 5062,
+      "bounds_m": [
+        [
+          0.0275,
+          -0.01249922295500204,
+          0.0
+        ],
+        [
+          0.0325,
+          -0.007500777044997959,
+          0.0175
+        ]
+      ],
+      "area_m2": 0.0002539512279274213,
+      "abs_volume_m3": 1.8236362161110185e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/piston001/piston/Body003",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 1012,
+      "triangles": 1004,
+      "bounds_m": [
+        [
+          -0.003,
+          -0.002999067546002453,
+          0.01428206385237395
+        ],
+        [
+          0.003,
+          0.0029990675460024457,
+          0.03428206385237395
+        ]
+      ],
+      "area_m2": 0.00020730605797109536,
+      "abs_volume_m3": 1.130504686784612e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 1012,
+      "triangles": 1008,
+      "bounds_m": [
+        [
+          -0.0035,
+          -0.0034989121370028577,
+          -0.001
+        ],
+        [
+          0.0035,
+          0.003498912137002857,
+          0.007
+        ]
+      ],
+      "area_m2": 0.00028701046418289257,
+      "abs_volume_m3": 2.9361718948433664e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Torus",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 16129,
+      "triangles": 31752,
+      "bounds_m": [
+        [
+          -0.012750000000000001,
+          -0.01274603707051041,
+          0.0022502331134993873
+        ],
+        [
+          0.012750000000000001,
+          0.012746037070510408,
+          0.003749766886500613
+        ]
+      ],
+      "area_m2": 0.00035517693298516223,
+      "abs_volume_m3": 1.3312925487937218e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Tube001",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 1012,
+      "triangles": 1008,
+      "bounds_m": [
+        [
+          -0.014,
+          -0.01399564854801143,
+          0.0
+        ],
+        [
+          0.014,
+          0.013995648548011427,
+          0.0055
+        ]
+      ],
+      "area_m2": 0.0012249926503220818,
+      "abs_volume_m3": 8.981231678344407e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[0]/Cylinder",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0,
+          -0.0007497668865006124,
+          -0.00075
+        ],
+        [
+          0.013000000000000001,
+          0.0007497668865006122,
+          0.00075
+        ]
+      ],
+      "area_m2": 6.478753674664697e-05,
+      "abs_volume_m3": 2.296337645031243e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[1]/Cylinder",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0,
+          -0.0007497668865006124,
+          -0.00075
+        ],
+        [
+          0.013000000000000001,
+          0.0007497668865006122,
+          0.00075
+        ]
+      ],
+      "area_m2": 6.478753674664697e-05,
+      "abs_volume_m3": 2.296337645031243e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[2]/Cylinder",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0,
+          -0.0007497668865006124,
+          -0.00075
+        ],
+        [
+          0.013000000000000001,
+          0.0007497668865006122,
+          0.00075
+        ]
+      ],
+      "area_m2": 6.478753674664697e-05,
+      "abs_volume_m3": 2.296337645031243e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[3]/Cylinder",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0,
+          -0.0007497668865006124,
+          -0.00075
+        ],
+        [
+          0.013000000000000001,
+          0.0007497668865006122,
+          0.00075
+        ]
+      ],
+      "area_m2": 6.478753674664697e-05,
+      "abs_volume_m3": 2.296337645031243e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[4]/Cylinder",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0,
+          -0.0007497668865006124,
+          -0.00075
+        ],
+        [
+          0.013000000000000001,
+          0.0007497668865006122,
+          0.00075
+        ]
+      ],
+      "area_m2": 6.478753674664697e-05,
+      "abs_volume_m3": 2.296337645031243e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[5]/Cylinder",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0,
+          -0.0007497668865006124,
+          -0.00075
+        ],
+        [
+          0.013000000000000001,
+          0.0007497668865006122,
+          0.00075
+        ]
+      ],
+      "area_m2": 6.478753674664697e-05,
+      "abs_volume_m3": 2.296337645031243e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[6]/Cylinder",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0,
+          -0.0007497668865006124,
+          -0.00075
+        ],
+        [
+          0.013000000000000001,
+          0.0007497668865006122,
+          0.00075
+        ]
+      ],
+      "area_m2": 6.478753674664697e-05,
+      "abs_volume_m3": 2.296337645031243e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_001/spoke_wheel_/Array[7]/Cylinder",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0,
+          -0.0007497668865006124,
+          -0.00075
+        ],
+        [
+          0.013000000000000001,
+          0.0007497668865006122,
+          0.00075
+        ]
+      ],
+      "area_m2": 6.478753674664697e-05,
+      "abs_volume_m3": 2.296337645031243e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/small_wheel_001/small_wheel_/Body011",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 1012,
+      "triangles": 1004,
+      "bounds_m": [
+        [
+          -0.004998445910004085,
+          -0.005000000000000001,
+          -3.471726576862239e-18
+        ],
+        [
+          0.004998445910004082,
+          0.005000000000000002,
+          0.0060000000000000045
+        ]
+      ],
+      "area_m2": 0.00029837156198606946,
+      "abs_volume_m3": 2.9440226218349284e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/spoke_wheel_rod_/spoke_wheel_rod/Body012",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          -0.00075,
+          -0.0007497668865006124,
+          0.0
+        ],
+        [
+          0.00075,
+          0.0007497668865006122,
+          0.0185
+        ]
+      ],
+      "area_m2": 9.070299080837371e-05,
+      "abs_volume_m3": 3.267865110236768e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/beam_003/beam_002/Body013",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 2210,
+      "triangles": 2180,
+      "bounds_m": [
+        [
+          -0.0165,
+          -0.002,
+          -0.002
+        ],
+        [
+          0.016249825638370363,
+          0.002,
+          0.002
+        ]
+      ],
+      "area_m2": 0.0002459655880652044,
+      "abs_volume_m3": 5.327289016385247e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/piston_mount_001/piston_mount_/Body014",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 1312,
+      "triangles": 1292,
+      "bounds_m": [
+        [
+          0.0,
+          0.0,
+          -0.0005
+        ],
+        [
+          0.004,
+          0.006500000000000001,
+          0.004
+        ]
+      ],
+      "area_m2": 0.00016071238891968243,
+      "abs_volume_m3": 8.157014539831197e-08
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/small_beam_001/small_beam_/Body015",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 2612,
+      "triangles": 2576,
+      "bounds_m": [
+        [
+          -0.002000000000000006,
+          0.0,
+          -0.0005
+        ],
+        [
+          0.002,
+          0.020000000000000004,
+          0.004
+        ]
+      ],
+      "area_m2": 0.00031598018113189366,
+      "abs_volume_m3": 1.6794471732425747e-07
+    },
+    {
+      "source_id": "original/steam_engine_mechanism.FCStd#/Assembly/middle_beam_001/middle_beam_/Body016",
+      "source_file": "original/steam_engine_mechanism.FCStd",
+      "frame": "part_local_only",
+      "required": true,
+      "vertices": 1784,
+      "triangles": 1756,
+      "bounds_m": [
+        [
+          -0.0012496131438408328,
+          -0.0012499928922550096,
+          -0.011
+        ],
+        [
+          0.03124961314384082,
+          0.0012499928922550096,
+          0.001
+        ]
+      ],
+      "area_m2": 0.00026726214080611855,
+      "abs_volume_m3": 8.388399716381952e-08
+    }
+  ]
+}

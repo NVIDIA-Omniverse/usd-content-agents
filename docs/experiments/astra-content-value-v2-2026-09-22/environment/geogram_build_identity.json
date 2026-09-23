@@ -1,0 +1,20 @@
+{
+  "checks": {
+    "disabled_GRAPHICS": true,
+    "disabled_HLBFGS": true,
+    "disabled_LEGACY_NUMERICS": true,
+    "disabled_LUA": true,
+    "disabled_TBB": true,
+    "disabled_TETGEN": true,
+    "disabled_TRIANGLE": true,
+    "license_retained": true,
+    "only_reviewed_source_file_changed": true,
+    "patch_exactly_reversible": true,
+    "source_commit": true,
+    "submodules_at_recorded_gitlinks": true,
+    "version_exact": true
+  },
+  "passed": true,
+  "schema_version": "geogram-build-identity-review-input.v2",
+  "scope": "Mechanically verifies pinned source/gitlinks/build switches/binary/version. Separate reviewer approval required before production registry exposure."
+}

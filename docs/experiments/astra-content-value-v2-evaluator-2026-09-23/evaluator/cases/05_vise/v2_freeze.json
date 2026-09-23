@@ -1,0 +1,95 @@
+{
+  "case_id": "05_vise",
+  "frozen_at": "2026-09-22T23:32:32.678112+00:00",
+  "runtime_manifest": "frozen_manifest.json",
+  "runtime_manifest_sha256": "a41608008d14acdb8828ba0415212bc849a074a47fabbf78695f18d0d06e5fe0",
+  "code_sha256": {
+    "bindings.schema.json": "d3bf23628bc61c9d060b8c9d24c554c3cacf40ebba5ca57d77f745fed6be7ab0",
+    "cases.json": "66affde6c3d1270f1b79e9b4a41d55c80fd25dacf35568bd6040def24b92cddb",
+    "common.py": "bb837c995405a529e37e28102847676ffce758ea94b867581605db890fb791c9",
+    "evaluate.py": "48a846daff018389bdb28aca85677908cf5216c228b4962dc3874f90357b5f66",
+    "geometry.py": "5f2acc5d3ff01582698a288de51996716fd39d634e3dff355a03e7d7795350c4",
+    "solver.py": "19f052b8837fa0bbe5f9d177d65e0d15ddc90f987ef2cce2d67d514ac1e3656c",
+    "structural.py": "7789a0fc53007f7359a3d06d1e0d9cd90509f064885efb7c4c3924d9cf4cb1b0",
+    "v2_control.py": "4a36e3362a7bcd5c4a7c19b8b90d4b5af10ae4799466e34d9c630baefdc7369a",
+    "v2_geometry.py": "bfc13322944c936a3907ce02e18ceee916218ba23871028d838070a4fbd226b4",
+    "v2_inputs.py": "6b6bb06d4c554df6a7bf464ee3e41a276252cfe4addca2a03d6020407fa46528",
+    "v2_policy.py": "3a58f8faa41e7bb643a5adb31179c82a226aed9c6fb22c5bc13d4c83e5c08c20",
+    "v2_process.py": "d58aff6048b5d8d31793cd54c3f880c7d8974b3d0af3fc0d32a99a0a3bff5794",
+    "v2_verdict.py": "b2132725f859230637919013e8ac79e52ce59f71b7be9e0b2db42e6445d069ab"
+  },
+  "reference_files": [
+    {
+      "path": "cases/05_vise/reference/geometry_0000.npz",
+      "bytes": 37119,
+      "sha256": "855fd61bbff72d8f9b0e525287392bd73e09f20a5190f64337456ecd9ca71a2b"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0001.npz",
+      "bytes": 407363,
+      "sha256": "6adaec0312fcfe9ba343c75e60a13a1ddff625623b1ab563591c7146ec383ab4"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0002.npz",
+      "bytes": 1546878,
+      "sha256": "9bcb5cfcc365c70e387cc87535f3baad3bcbfa1a92d2b7739abae53ff00f23da"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0003.npz",
+      "bytes": 20275,
+      "sha256": "266ddd4a02ac16cd60522f1a58388c400604b1e73beff5055204d93452bbcf56"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0004.npz",
+      "bytes": 406509,
+      "sha256": "004f06ffc320e016cfac407884b178d0a0fd229300c845660529a5551eed2c40"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0005.npz",
+      "bytes": 405319,
+      "sha256": "c104c0dc089dc74f2324ca6f8e801e9f3e505e6872130a78c2dd7b5437643be9"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0006.npz",
+      "bytes": 19626,
+      "sha256": "4c4fcf6a70fa8808959261feadadd0e4049f1ffa29905a3c008bcdcbfaa012fe"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0007.npz",
+      "bytes": 404247,
+      "sha256": "075353b25215a151bd2e59ce5de1ad99c6f735c8ddf17857698759fb4e3ff097"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0008.npz",
+      "bytes": 408054,
+      "sha256": "bd77fd300bd1ff6ecac7205a43a77eb107d2d97be083779b24b3f39fd3dcb697"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0009.npz",
+      "bytes": 28291,
+      "sha256": "139fcc0ba75b8d96bb69797f63f19b3693749f865226975e6445b1ec35e73af8"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0010.npz",
+      "bytes": 115502,
+      "sha256": "b517defa189fe6a5bbd753ef0d2165b7c635c4dcd30548519130a3c7f73823cb"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0011.npz",
+      "bytes": 10539,
+      "sha256": "d57ff8cbc9b32d32b95896234140d4a694a963585fb389db088b176b3c9998c5"
+    },
+    {
+      "path": "cases/05_vise/reference/geometry_0012.npz",
+      "bytes": 12731,
+      "sha256": "5e023dc348648f47440766626fb4ddca7531be63822b5a6c87be2738a0207157"
+    },
+    {
+      "path": "cases/05_vise/reference/source_inventory.json",
+      "bytes": 15934,
+      "sha256": "76c100c81816bce57e16b65f3c5dd37cc71f79f94bb152a9be17f34421bb662f"
+    }
+  ],
+  "qualification_receipt_sha256": "fada28adae6999f7dd0cfda7362d629ba8ef85f78eafcce29587b2363ea1bf4e",
+  "qualification_manifest_sha256": "4a87c5ab34bedda9cfe75db907beccb45c9c566dc53c577e3cb05a5d5b98b3c2"
+}

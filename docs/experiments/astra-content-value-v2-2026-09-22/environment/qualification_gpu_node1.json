@@ -1,0 +1,83 @@
+{
+  "created_utc": "2026-09-22T23:13:30.817839+00:00",
+  "lanes": [
+    {
+      "attempt": "gpu0_06",
+      "cgroup_populated": 0,
+      "cli_backend": "ovrtx",
+      "cuda_only_assigned_accessible": true,
+      "cuda_visible_devices_removed": true,
+      "elapsed_seconds": 300.3206077273935,
+      "image": {
+        "direct_visual_review": "Visible cyan cube with three distinct faces on light gray background; not a blank frame.",
+        "path": "environment/gpu_node1_retained/final_evidence/harness/qualification/gpu0_06/workspace/render/World_Camera__640x480__f0000.png",
+        "sha256": "e83be250de82f56e0a84195e93fb0892fbf3c433f575a1ed08537d39079ad87c",
+        "size": [
+          640,
+          480
+        ]
+      },
+      "lane": "node1_gpu0",
+      "launch_sha256": "72db0e460a3bec5766e6fc947efabc70f8f2e5a5a897886aa1881074d04e79cd",
+      "per_frame_renderer_identity": [
+        null
+      ],
+      "probe_receipt": {
+        "path": "environment/gpu_node1_retained/final_evidence/harness/qualification/gpu0_06/workspace/gpu_receipt.json",
+        "sha256": "10baf85fe2e3e739b31693e3f4ba3c594aacf46e7a3ab44b7846bd38ef54fe2d"
+      },
+      "source_unchanged": true,
+      "status": "PASS",
+      "supervisor_receipt": {
+        "path": "environment/gpu_node1_retained/final_evidence/harness/qualification/gpu0_06/receipt.json",
+        "sha256": "c45f1e00ee6aca80b19e20ea67be73086eb64e95e4da99a7c8b65675216f9d05"
+      },
+      "vulkan_only_assigned_accessible": true
+    },
+    {
+      "attempt": "gpu1_01",
+      "cgroup_populated": 0,
+      "cli_backend": "ovrtx",
+      "cuda_only_assigned_accessible": true,
+      "cuda_visible_devices_removed": true,
+      "elapsed_seconds": 297.3124271892011,
+      "image": {
+        "direct_visual_review": "Visible cyan cube with three distinct faces on light gray background; not a blank frame.",
+        "path": "environment/gpu_node1_retained/final_evidence/harness/qualification/gpu1_01/workspace/render/World_Camera__640x480__f0000.png",
+        "sha256": "e83be250de82f56e0a84195e93fb0892fbf3c433f575a1ed08537d39079ad87c",
+        "size": [
+          640,
+          480
+        ]
+      },
+      "lane": "node1_gpu1",
+      "launch_sha256": "db594f4838143de314d6ccb45b02c6f8b71ab980678274029e75b9a7a9d713be",
+      "per_frame_renderer_identity": [
+        null
+      ],
+      "probe_receipt": {
+        "path": "environment/gpu_node1_retained/final_evidence/harness/qualification/gpu1_01/workspace/gpu_receipt.json",
+        "sha256": "b8e362f1bdc63034958a0a01829ecd49f013e57d9a5f499498700c9230a30adb"
+      },
+      "source_unchanged": true,
+      "status": "PASS",
+      "supervisor_receipt": {
+        "path": "environment/gpu_node1_retained/final_evidence/harness/qualification/gpu1_01/receipt.json",
+        "sha256": "9d1bdf3ec95ed9538147fb68f5551c7aa20f171eaade96677b143f8c64f1d36d"
+      },
+      "vulkan_only_assigned_accessible": true
+    }
+  ],
+  "limitations": [
+    "This synthetic renderer/device-access qualification is not physical task acceptance or an end-to-end Content Agents workflow run.",
+    "Per-frame renderer_identities are null; backend attribution uses actual CLI backend=ovrtx, native logs, pinned installed bytes and the exact launch.",
+    "Read-only vendor shader-cache write warnings are retained. Generated sibling caches are private and writable; observed cold rendering takes about5minutes within4CPU quota.",
+    "Initial four-CPU affinity is inherited, not an immutable cpuset. Hard4CPU/32GiB/512PID cgroup quotas remain enforced.",
+    "Failed cache initialization, thread-limit, client-timeout and cpuset attempts remain retained; no failure was relabeled a pass."
+  ],
+  "model_calls": 0,
+  "schema_version": "independent-node-gpu-qualification.v2",
+  "status": "PASS",
+  "tool_parity_sha256": "930e96551e2459e4256375743123de5412016531b01883a20c42e0c4a866cc3a",
+  "tool_semantic_sha256": "10b7e933df6a1d6bee6d1a92874b122f2837b861c2287228dff888e728b6e151"
+}

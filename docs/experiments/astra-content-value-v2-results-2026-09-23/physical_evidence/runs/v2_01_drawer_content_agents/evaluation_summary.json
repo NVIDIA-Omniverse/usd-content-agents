@@ -1,0 +1,11 @@
+{
+  "case_id": "01_drawer",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 88.4794747903943,
+  "report": "home/evidence/result/report.json",
+  "report_sha256": "e85199dba4c315bd8bbcea9bd8b073afe42a4d2663084cb5429f56a304c2ac1c",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_01_drawer_content_agents",
+  "status": "PASS",
+  "timed_out": false
+}

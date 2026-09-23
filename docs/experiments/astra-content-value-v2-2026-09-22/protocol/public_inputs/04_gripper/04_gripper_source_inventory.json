@@ -1,0 +1,879 @@
+{
+  "case_id": "04_gripper",
+  "source_files": [
+    {
+      "path": "source_repo/.gitignore",
+      "sha256": "7046aab99b07ba3efb5f8620ad1252d5a7c6b256d36c95cf739c14002eac1313"
+    },
+    {
+      "path": "source_repo/Assembly/DIN Rail Holder.jpeg",
+      "sha256": "b31b2c95a4330c528e12e0b244ca5e321933775f9f8cc5c7f38241c17be1f8df"
+    },
+    {
+      "path": "source_repo/Assembly/Final.JPG",
+      "sha256": "f25348fddced1e8add0528ab5287aeb6d05877d07ebfab5b06a888f554cbaca7"
+    },
+    {
+      "path": "source_repo/Assembly/IMG_3885.JPG",
+      "sha256": "86868297afd4dca75efc4b7281dcc7bebab2f4be77a6895072d6ca94b4961ac1"
+    },
+    {
+      "path": "source_repo/Assembly/Overview.JPG",
+      "sha256": "7de8d61475e8ed53f8ad69ee7df82aa43e2253f5dcf34baff42d82e7f07d7a70"
+    },
+    {
+      "path": "source_repo/Assembly/Readme.md",
+      "sha256": "e11d01b7f26e76999c185a3f599502559a2c2ce2fac3a3a14aaa67ce5e09fa4a"
+    },
+    {
+      "path": "source_repo/Assembly/SO-Arm-101.jpeg",
+      "sha256": "74d88857b0eaa9c61a8aa15941a1cae4ce974efddea4465ceb6a75d444aab327"
+    },
+    {
+      "path": "source_repo/Assembly/Step 01.JPG",
+      "sha256": "2bbbb84b70d9055ee8151c3d4aa67cb6f83969d4b4d461b14753e79704d6b4bb"
+    },
+    {
+      "path": "source_repo/Assembly/Step 02.JPG",
+      "sha256": "4497d472ee4563ef8b11171a13ee206c666d641a0afc7c16fcd5371b0d0a6f37"
+    },
+    {
+      "path": "source_repo/Assembly/Step 03.JPG",
+      "sha256": "022158b9a6cac1ba80dba8f3c211c9aa8e5180dac3d275f396444540336f84ce"
+    },
+    {
+      "path": "source_repo/Assembly/Step 04.JPG",
+      "sha256": "db3f77196a59c83236f303d0cabd29a07e582ea3bdcf757a421c682e98a3b18e"
+    },
+    {
+      "path": "source_repo/Assembly/Step 05.JPG",
+      "sha256": "c5ee376cfd4035c56db4dd670a3453fd8f1740a51ff6710ea5983a1fa74b74a0"
+    },
+    {
+      "path": "source_repo/Assembly/Step 06.JPG",
+      "sha256": "864374a41be1e910e21a4b0134094f07c1430a0a6df23a57f3918e301e97bf27"
+    },
+    {
+      "path": "source_repo/Assembly/Step 07.JPG",
+      "sha256": "48f248c0903cf53d071cd0b47bf23d1d1116921007e2763725f915ef80787840"
+    },
+    {
+      "path": "source_repo/Assembly/Step 08.JPG",
+      "sha256": "3389d7eab71c630fb613240d3e0d01f75ae967d927a5bfab08bf756dfc8716df"
+    },
+    {
+      "path": "source_repo/Assembly/Step 09.JPG",
+      "sha256": "7a55a4df2aa892bdc326a3f4c611e990c699153f042c010aca6f19c5f6fc2762"
+    },
+    {
+      "path": "source_repo/Assembly/Step 10.JPG",
+      "sha256": "4cca6bcc83530081e2faa16c1cbbdc691bd26f32b0c84b5237129489931a4174"
+    },
+    {
+      "path": "source_repo/Assembly/Step 11.JPG",
+      "sha256": "0731d252e40f6c7e076e7fa4157aa82c74d29fa2339598c2e89b32d74d29aef9"
+    },
+    {
+      "path": "source_repo/Assembly/Step 12.JPG",
+      "sha256": "2b914e6249f36fc0827416f9480f310a56319bb147fcff3faa88634c17e4a5f4"
+    },
+    {
+      "path": "source_repo/Assembly/Step 13.JPG",
+      "sha256": "a84604b24eb247e7931ac2e9dcaae1fc6c047e3ffa4e3bbc2a2e30781abbf757"
+    },
+    {
+      "path": "source_repo/Assembly/Step 14.JPG",
+      "sha256": "02905071b8b546bee40169ebd958f9ec29f838563ea85f9b38c9c8c235bf495a"
+    },
+    {
+      "path": "source_repo/Assembly/Step 15.JPG",
+      "sha256": "2686fe372288b4762ba61c03b87945c0ff434fdc71c90dde17f307c88d8e148d"
+    },
+    {
+      "path": "source_repo/Assembly/Step 16.JPG",
+      "sha256": "a8fa09122d7480790b7a2c12b49a181304d45914ca5412b2c650b716807a18b0"
+    },
+    {
+      "path": "source_repo/Assembly/Step 17.JPG",
+      "sha256": "7297bc1b35e9b1c25205205baed8f88ddafda88fd7c1417e1febc33805f075da"
+    },
+    {
+      "path": "source_repo/Assembly/Step 18.JPG",
+      "sha256": "eaf8c12b68f6ff3af11776b5ae118dc89997501806cfb758a9a28af9998b3f1d"
+    },
+    {
+      "path": "source_repo/Assembly/Step 19.JPG",
+      "sha256": "fd5871cd23360e390c031e1efd6045b55fc94cb79428eb6e7dd27fb53516eca0"
+    },
+    {
+      "path": "source_repo/Assembly/Step 20.JPG",
+      "sha256": "3a02f043d65a0d4319912aad99f1e3d13f2a47824ac2738b42d35562a9c092bc"
+    },
+    {
+      "path": "source_repo/Assembly/Step 21.JPG",
+      "sha256": "219c85ade8f6c5bfe68341fe5aaf04a322e6637caf4b7f71634d51ce134054f1"
+    },
+    {
+      "path": "source_repo/Assembly/Step 22.JPG",
+      "sha256": "ce6007e77ae2fb0a01fa41518ff5c8811243d03cf503a6af2db5aee4af3b950b"
+    },
+    {
+      "path": "source_repo/Assembly/Step 23.JPG",
+      "sha256": "55ef375d884e1b9c8810bbd981bb6cf45f5022b5b503c7cb6e7e3e7bdedbd933"
+    },
+    {
+      "path": "source_repo/Assembly/Step 24.JPG",
+      "sha256": "673154cf5109e01a43a1bc4513cfedaa66283156b1fc7e53e7532997ebd34ee1"
+    },
+    {
+      "path": "source_repo/Assembly/Step 25.JPG",
+      "sha256": "afc1626e6ca56c3414893ef7ed576df5c967305ddf7f984074ca6c69bb7eb3b1"
+    },
+    {
+      "path": "source_repo/Assembly/Tools.JPG",
+      "sha256": "b9da4baeb856d2c6180e8d5e3c8b702ab1117997f47278d343666d826811292b"
+    },
+    {
+      "path": "source_repo/CHANGELOG.md",
+      "sha256": "08341df6159ce408db84fc6f2726ee59c3487a8bfb15a33b1b1db5cd5a6737da"
+    },
+    {
+      "path": "source_repo/LICENSE",
+      "sha256": "d8bf1552c6c9c4cee13b973b284c80becc12bef4f28e6539eae343e6fd8d0577"
+    },
+    {
+      "path": "source_repo/Material/Readme.md",
+      "sha256": "4575b4d0b6ee7c4c88338b2a693a2499c604fba20487aa10177ee179c0a03117"
+    },
+    {
+      "path": "source_repo/ReadMe.md",
+      "sha256": "f462fdf9be54979c2dff99dee46e26804559ec051571f63ce60a50f628793c16"
+    },
+    {
+      "path": "source_repo/STL/Baseplate.stl",
+      "sha256": "b4cf5bb2887bde4420445763cfc08eb2982ffc6e4be3a422d3d5a4bd5b1be702"
+    },
+    {
+      "path": "source_repo/STL/Baseplate_Multi.stl",
+      "sha256": "ba7a82e53b7db22a13d7687c4f718dd0809d0cf31c9daa035549c56656ba7bbf"
+    },
+    {
+      "path": "source_repo/STL/Cam Holder.stl",
+      "sha256": "b2dd09373b6414b2c2ac0f7a28632c32cfd3e13be1e4e5dd48ad820ef86f6b42"
+    },
+    {
+      "path": "source_repo/STL/DIN Rail Holder ESP32 Adapter.stl",
+      "sha256": "e14ca411f5961bc439d5fbd6e75dbb8a4fe459b5f86396dd0a21c3d83e526519"
+    },
+    {
+      "path": "source_repo/STL/DIN Rail Holder Serial Board.stl",
+      "sha256": "4c258aa2586c18e29f15ac00dc4ee4924e1f596b9ef6fa9140ee6a6db2892131"
+    },
+    {
+      "path": "source_repo/STL/Finger_1.stl",
+      "sha256": "ba08769c01dea1528fe178d7c8a4e2c9c8a1aa66fbd365c5db55ea2b45bc84f3"
+    },
+    {
+      "path": "source_repo/STL/Finger_2.stl",
+      "sha256": "70dfe09dcfa4c5ff6ed6457b9a00a51bce407d40cab0570e2b22a21a899e0eaa"
+    },
+    {
+      "path": "source_repo/STL/Motorhousing Cover with Handle.stl",
+      "sha256": "a0e8a7d6de8a390fd203ae712841f8420839de2074b771fdad60b80be59c0ad8"
+    },
+    {
+      "path": "source_repo/STL/Motorhousing Cover.stl",
+      "sha256": "cadae8a553d9b5cd96b47aa5813c4a32eb9be283df7dff952c5f8ae29c22b812"
+    },
+    {
+      "path": "source_repo/STL/Motorhousing SO-ARM-101.stl",
+      "sha256": "03e1614fdca058f211dafc7f233b2fa08d720a48b9493dee40b771237b44bc63"
+    },
+    {
+      "path": "source_repo/STL/Motorhousing.stl",
+      "sha256": "87803550308b4191b886f21c0395880eb8043d420cd9fdb26f5d956a9517b96d"
+    },
+    {
+      "path": "source_repo/STL/Schwing Arm 1.stl",
+      "sha256": "70f23093492674b1b451322970eaaa19e3b98db1cc631c63157538c2cc5a503c"
+    },
+    {
+      "path": "source_repo/STL/Schwing Arm 2.stl",
+      "sha256": "70f23093492674b1b451322970eaaa19e3b98db1cc631c63157538c2cc5a503c"
+    },
+    {
+      "path": "source_repo/STL/Turnhead.stl",
+      "sha256": "b17df1d16e4714041ee7d83e6defe4386ac62d2058253c928793a3688bdd15a6"
+    },
+    {
+      "path": "source_repo/STL/Waveshare Serial Board DIN Rail Holder.stl",
+      "sha256": "54e232bfc28bd829166880216cf458b793bb0fc7a589c061edc03a2c80c890ac"
+    },
+    {
+      "path": "source_repo/Software/.gitignore",
+      "sha256": "c4f09d81a14bd67366b73ca2a89f964f56fb02f224eef36e8795e22c4b3f1475"
+    },
+    {
+      "path": "source_repo/Software/ESP32/Readme.md",
+      "sha256": "e59d2e444cfcb07ce195526df3814ffe0fca65fd5c555b024fcfeac0a22ea247"
+    },
+    {
+      "path": "source_repo/Software/ESP32/TcpIp_Server/BOARD_DEV.h",
+      "sha256": "051316fc12654cb8964db004eabfb203840206460ba079fad9cdbf151c3e5e96"
+    },
+    {
+      "path": "source_repo/Software/ESP32/TcpIp_Server/CONNECT.h",
+      "sha256": "bb04c74dcfdf47b3c64efa7ccd994519ab6eb41359f30f8869ea3b4cafc8b500"
+    },
+    {
+      "path": "source_repo/Software/ESP32/TcpIp_Server/PreferencesConfig.h",
+      "sha256": "def6058e51890809af0ea673952ee1461e48bb47f94faadf03fecc01037184f9"
+    },
+    {
+      "path": "source_repo/Software/ESP32/TcpIp_Server/RGB_CTRL.h",
+      "sha256": "41398c66be4c89a5cd23957a28adba4b18be38f624b108ab989135eceb3094c4"
+    },
+    {
+      "path": "source_repo/Software/ESP32/TcpIp_Server/STSCTRL.h",
+      "sha256": "c2058965cea3ef3b3a10966182632d42ce76dad74a4f80bfabd2249e6456fde9"
+    },
+    {
+      "path": "source_repo/Software/ESP32/TcpIp_Server/TcpIp_Server.ino",
+      "sha256": "b6c1e5946688dfa5aa896026fe63a908f21694e822749602d6b778eff72be7ed"
+    },
+    {
+      "path": "source_repo/Software/ESP32/TcpIp_Server/WEBPAGE.h",
+      "sha256": "bc3298f134ec0d3d85ee7c0bef7bba7fcb2e9925ee27845e9357e53992f14118"
+    },
+    {
+      "path": "source_repo/Software/Python TcpIp Bridge/PythonExample/TcpIp_Bridge_CmdClient.py",
+      "sha256": "f3990708dfe161df61121be9c33aed34a19e8a771b6a884dd673d5b684746049"
+    },
+    {
+      "path": "source_repo/Software/Python TcpIp Bridge/PythonExample/TcpIp_Bridge_CmdServer.py",
+      "sha256": "2bb1e72d715e9e5f0295902d61c0de9f4508f6b2bfbdca4df977d54db11c1fe1"
+    },
+    {
+      "path": "source_repo/Software/Python TcpIp Bridge/README.md",
+      "sha256": "edfba21f5e61ce643780fac37fdbf362b34e7780a5d209ed8d6f7ce2c837f531"
+    },
+    {
+      "path": "source_repo/Software/Python TcpIp Bridge/requirements.txt",
+      "sha256": "5038a108e0ccac52ca22b4095928debd8cf1fe6e56c084953dd2d2abd7b95994"
+    },
+    {
+      "path": "source_repo/Software/Python TcpIp Bridge/typings/rustypot/__init__.pyi",
+      "sha256": "a20f112e5cc73481a288041997153e55080a3be359ecfe6caf555e7f8814ddfe"
+    },
+    {
+      "path": "source_repo/Software/Readme.md",
+      "sha256": "04f333f001a8de0407cbc9d860d4e70cf0cf22489ee826366dfd940761179105"
+    },
+    {
+      "path": "source_repo/Step/DIN Rail Holder Serial Board.step",
+      "sha256": "ac1f960c9d73c431093a728558a69833ced8f683ccec3f15ae36297306190a88"
+    },
+    {
+      "path": "source_repo/Step/Gripper.step",
+      "sha256": "ca60203cde2481b9485bcd5afe89d6fadc9789ba607bc8195ed3a07a1a8cba77"
+    }
+  ],
+  "source_coverage_complete": true,
+  "coverage_note": "All selected source meshes/solids or saved Assembly4 terminal shape instances retained. Selection must be frozen by evaluator owner before arms. Part-local sources preserve shape and instance coverage; original assembly placements are not certified for STL/FCStd.",
+  "parts": [
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0000:Carrier 1",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 4222,
+      "triangles": 5318,
+      "bounds_m": [
+        [
+          0.0036770078650000004,
+          0.125602022251,
+          0.019
+        ],
+        [
+          0.034177007865,
+          0.142602022251,
+          0.025500000000000002
+        ]
+      ],
+      "area_m2": 0.0017353322990023453,
+      "abs_volume_m3": 3.332935931641498e-06
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0001:Carrier 2",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 4222,
+      "triangles": 5318,
+      "bounds_m": [
+        [
+          -0.034177007865,
+          0.125602022251,
+          0.019
+        ],
+        [
+          -0.0036770078650000004,
+          0.142602022251,
+          0.025500000000000002
+        ]
+      ],
+      "area_m2": 0.001735332299002345,
+      "abs_volume_m3": 3.3329359316414973e-06
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0002:SOLID",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 12756,
+      "triangles": 12700,
+      "bounds_m": [
+        [
+          -0.075,
+          0.13060202225099998,
+          0.0175
+        ],
+        [
+          0.075,
+          0.137602022251,
+          0.0223
+        ]
+      ],
+      "area_m2": 0.004301246629214515,
+      "abs_volume_m3": 4.2860523196348206e-06
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0003:Finger 1",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 11599,
+      "triangles": 17677,
+      "bounds_m": [
+        [
+          -0.028927007865,
+          0.106102022251,
+          0.0225
+        ],
+        [
+          -0.003427007865,
+          0.162102022251,
+          0.09550000000100001
+        ]
+      ],
+      "area_m2": 0.009849757839689312,
+      "abs_volume_m3": 2.927004250901159e-05
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0004:Finger 2",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 11639,
+      "triangles": 17755,
+      "bounds_m": [
+        [
+          0.003427007865,
+          0.106102022251,
+          0.0225
+        ],
+        [
+          0.028927007865,
+          0.162102022251,
+          0.09550000000100001
+        ]
+      ],
+      "area_m2": 0.009847700705400472,
+      "abs_volume_m3": 2.923322348553296e-05
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0005:Servo horn2",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 3862,
+      "triangles": 3764,
+      "bounds_m": [
+        [
+          -0.009598687727927702,
+          0.12450131227207228,
+          -0.0077903830200000005
+        ],
+        [
+          0.0096,
+          0.1437,
+          -0.0036653830200000003
+        ]
+      ],
+      "area_m2": 0.0008724233972862961,
+      "abs_volume_m3": 6.981966388521085e-07
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0006:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 13549,
+      "triangles": 17448,
+      "bounds_m": [
+        [
+          -0.01236,
+          0.12399,
+          -0.04241538302
+        ],
+        [
+          0.01236,
+          0.16921,
+          -0.0067903830200000004
+        ]
+      ],
+      "area_m2": 0.007050730317282291,
+      "abs_volume_m3": 3.4168092934994656e-05
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0007:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1370,
+      "triangles": 1080,
+      "bounds_m": [
+        [
+          -0.0029,
+          0.13119999999999998,
+          -0.009290383020000001
+        ],
+        [
+          0.0029,
+          0.137,
+          -0.00516538302
+        ]
+      ],
+      "area_m2": 0.0002064932858430582,
+      "abs_volume_m3": 9.202870249803113e-08
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0008:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 60,
+      "triangles": 36,
+      "bounds_m": [
+        [
+          0.0,
+          0.14521,
+          -0.03979038302
+        ],
+        [
+          0.01036,
+          0.14871,
+          -0.03829038302
+        ]
+      ],
+      "area_m2": 0.00014584698269520712,
+      "abs_volume_m3": 2.1375101012659275e-08
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0009:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 60,
+      "triangles": 36,
+      "bounds_m": [
+        [
+          -0.010369999999999999,
+          0.14521,
+          -0.03979038302
+        ],
+        [
+          -1e-05,
+          0.14871,
+          -0.03829038302
+        ]
+      ],
+      "area_m2": 0.0001458469826952071,
+      "abs_volume_m3": 2.1375101012659265e-08
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0010:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.008206064208599836,
+          0.146779911423,
+          -0.03979038302
+        ],
+        [
+          0.008605939881400163,
+          0.147179911423,
+          -0.03839038302
+        ]
+      ],
+      "area_m2": 2.0103328727683384e-06,
+      "abs_volume_m3": 1.7585628461093877e-10
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0011:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0053366188845998365,
+          0.146779911423,
+          -0.03979038302
+        ],
+        [
+          0.005736494557400164,
+          0.147179911423,
+          -0.03839038302
+        ]
+      ],
+      "area_m2": 2.0103328727683384e-06,
+      "abs_volume_m3": 1.7585628461093934e-10
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0012:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          0.0025162238915998367,
+          0.146779911423,
+          -0.03979038302
+        ],
+        [
+          0.002916099564400163,
+          0.147179911423,
+          -0.03839038302
+        ]
+      ],
+      "area_m2": 2.010332872768338e-06,
+      "abs_volume_m3": 1.7585628461094017e-10
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0013:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          -0.008605939881400163,
+          0.146779911423,
+          -0.03979038302
+        ],
+        [
+          -0.008206064208599836,
+          0.147179911423,
+          -0.03839038302
+        ]
+      ],
+      "area_m2": 2.0103328727683384e-06,
+      "abs_volume_m3": 1.75856284610941e-10
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0014:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          -0.005736494557400164,
+          0.146779911423,
+          -0.03979038302
+        ],
+        [
+          -0.0053366188845998365,
+          0.147179911423,
+          -0.03839038302
+        ]
+      ],
+      "area_m2": 2.0103328727683384e-06,
+      "abs_volume_m3": 1.7585628461094043e-10
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0015:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 506,
+      "triangles": 500,
+      "bounds_m": [
+        [
+          -0.002916099564400163,
+          0.146779911423,
+          -0.03979038302
+        ],
+        [
+          -0.0025162238915998367,
+          0.147179911423,
+          -0.03839038302
+        ]
+      ],
+      "area_m2": 2.010332872768338e-06,
+      "abs_volume_m3": 1.7585628461094017e-10
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0016:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 4352,
+      "triangles": 5076,
+      "bounds_m": [
+        [
+          -0.0176072,
+          0.170349081075,
+          -0.04726538302
+        ],
+        [
+          0.0176072,
+          0.174349081075,
+          -0.0025
+        ]
+      ],
+      "area_m2": 0.0038448872646645333,
+      "abs_volume_m3": 6.1038992358530435e-06
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0017:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2530,
+      "triangles": 2504,
+      "bounds_m": [
+        [
+          -0.02,
+          0.11410496340832593,
+          -0.05926538302
+        ],
+        [
+          0.02,
+          0.151749081075,
+          -0.04509038302
+        ]
+      ],
+      "area_m2": 0.004856991519875391,
+      "abs_volume_m3": 1.602502245953926e-05
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0018:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 18894,
+      "triangles": 18574,
+      "bounds_m": [
+        [
+          -0.03,
+          0.10411024292765317,
+          -0.047225383020000004
+        ],
+        [
+          0.03,
+          0.170349081075,
+          0.00095
+        ]
+      ],
+      "area_m2": 0.021019308719908866,
+      "abs_volume_m3": 5.272536282842214e-05
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0019:Baseplate",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 43691,
+      "triangles": 61532,
+      "bounds_m": [
+        [
+          -0.082,
+          0.101102022251,
+          0.001
+        ],
+        [
+          0.082,
+          0.176102022251,
+          0.0225
+        ]
+      ],
+      "area_m2": 0.019758301164245,
+      "abs_volume_m3": 5.427655602703801e-05
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0020:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1996,
+      "triangles": 2162,
+      "bounds_m": [
+        [
+          -0.024890965673,
+          0.15161573901740846,
+          0.012
+        ],
+        [
+          -0.018891058920243488,
+          0.1576148268269776,
+          0.024
+        ]
+      ],
+      "area_m2": 0.00021145719356672988,
+      "abs_volume_m3": 1.473392227288092e-07
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0021:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1996,
+      "triangles": 2162,
+      "bounds_m": [
+        [
+          0.014709034327,
+          0.1457153372550224,
+          0.014
+        ],
+        [
+          0.020708941079756515,
+          0.15171442506459154,
+          0.026000000000000002
+        ]
+      ],
+      "area_m2": 0.00021145719356672988,
+      "abs_volume_m3": 1.473392227288091e-07
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0022:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1996,
+      "triangles": 2162,
+      "bounds_m": [
+        [
+          0.018890965673000002,
+          0.11058927765721978,
+          0.012
+        ],
+        [
+          0.024890909646107885,
+          0.11658864726678718,
+          0.024
+        ]
+      ],
+      "area_m2": 0.00021145720178010165,
+      "abs_volume_m3": 1.4733889653849899e-07
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0023:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 1996,
+      "triangles": 2162,
+      "bounds_m": [
+        [
+          -0.020676951838107888,
+          0.11645233744621979,
+          0.0135
+        ],
+        [
+          -0.014677007865000001,
+          0.12245170705578719,
+          0.025500000000000002
+        ]
+      ],
+      "area_m2": 0.00021145720178010165,
+      "abs_volume_m3": 1.473388965384988e-07
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0024:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2302,
+      "triangles": 2284,
+      "bounds_m": [
+        [
+          -0.026890965612422945,
+          0.1437520377905742,
+          0.016
+        ],
+        [
+          0.02267574902062034,
+          0.15961508198042282,
+          0.0219
+        ]
+      ],
+      "area_m2": 0.001665783373997724,
+      "abs_volume_m3": 2.3369628853182626e-06
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0025:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 2302,
+      "triangles": 2284,
+      "bounds_m": [
+        [
+          -0.022690965612422946,
+          0.10875203779057417,
+          0.016
+        ],
+        [
+          0.02687574902062034,
+          0.12461508198042283,
+          0.0219
+        ]
+      ],
+      "area_m2": 0.001665783373997724,
+      "abs_volume_m3": 2.336962885318262e-06
+    },
+    {
+      "source_id": "source_repo/Step/Gripper.step#solid:0026:unnamed",
+      "source_file": "source_repo/Step/Gripper.step",
+      "frame": "source_assembly_world",
+      "required": true,
+      "vertices": 9267,
+      "triangles": 11022,
+      "bounds_m": [
+        [
+          -0.02688996404296621,
+          0.10858965168815275,
+          -0.00366
+        ],
+        [
+          0.026890276446844667,
+          0.15961502160757168,
+          0.01544
+        ]
+      ],
+      "area_m2": 0.005594958116423711,
+      "abs_volume_m3": 1.2216899190719172e-05
+    }
+  ]
+}

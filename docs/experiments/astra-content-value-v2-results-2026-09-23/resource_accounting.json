@@ -1,0 +1,45 @@
+{
+  "all_four_gpus_released": true,
+  "horde_usd": null,
+  "human_review_minutes": null,
+  "invoice_usd": null,
+  "original_record_boundary": "Private stop/retention originals are separately retained. Their hashes are attestations; this public projection omits private worker identity.",
+  "physics_backend": "CPU PhysX through OvPhysX0.4.13; reservation does not imply GPU physics execution.",
+  "preparation_gpu_hours": 19.115586356666665,
+  "reservation_start_original_record_sha256": "8276b99ce32f7b20ecf36f927f78e75ab31b5ec49977eaf487eaeb426e2c49f6",
+  "schema_version": "observed-rerun-resource-accounting.v1",
+  "scope": "Observed rerun reservation, including preparation, idle time, authoring, evaluation and evidence retention. Excludes earlier pilot/capstone reservations. Not per-author GPU allocation or measured GPU utilization.",
+  "total_reserved_gpu_hours": 35.62139119388889,
+  "workers": [
+    {
+      "elapsed_reservation_seconds": 33726.927822,
+      "evaluation_archives_retained": 12,
+      "gpu_count": 2,
+      "gpu_model": "NVIDIA L40",
+      "original_retention_gate_sha256": "5f60808585f759fb521b121fc81d50752e0d0084eec69e03d7c03dba41910b12",
+      "original_stop_receipt_sha256": "8b8fe9976c12f5aab20a5059355cfc14cf39431725f77b144edd50027674e218",
+      "persistent_workspace_preserved": true,
+      "reservation_start_observed_utc": "2026-09-22T20:16:35+00:00",
+      "reserved_gpu_hours": 18.737182123333334,
+      "status": "stopped",
+      "stop_verified_at_utc": "2026-09-23T05:38:42.409819+00:00",
+      "stopped_at_utc": "2026-09-23T05:38:41.927822+00:00",
+      "worker": "node0"
+    },
+    {
+      "elapsed_reservation_seconds": 30391.576327,
+      "evaluation_archives_retained": 8,
+      "gpu_count": 2,
+      "gpu_model": "NVIDIA L40",
+      "original_retention_gate_sha256": "316db63b5adf15ff69647fa4a3098d8511aa27c3307b1e5162bfba22aeb0ba66",
+      "original_stop_receipt_sha256": "d30ea557def589355dc5899ac61729cd5b857e99558013c5804ab6aa32c4975a",
+      "persistent_workspace_preserved": true,
+      "reservation_start_observed_utc": "2026-09-22T20:16:35+00:00",
+      "reserved_gpu_hours": 16.884209070555556,
+      "status": "stopped",
+      "stop_verified_at_utc": "2026-09-23T04:43:25.229740+00:00",
+      "stopped_at_utc": "2026-09-23T04:43:06.576327+00:00",
+      "worker": "node1"
+    }
+  ]
+}

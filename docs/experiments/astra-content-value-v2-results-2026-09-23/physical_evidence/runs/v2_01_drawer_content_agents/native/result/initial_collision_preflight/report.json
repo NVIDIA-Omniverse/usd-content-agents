@@ -1,0 +1,104 @@
+{
+  "status": "PASS",
+  "pass": true,
+  "simulation_steps": 0,
+  "initial_drawer_pose": [
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "positive_control_hits": [
+    {
+      "collision": 22785,
+      "rigid_body": 22785,
+      "proto_index": 4294967295,
+      "normal": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "distance": 0.0,
+      "face_index": 0,
+      "material": 0
+    }
+  ],
+  "payload_envelope": {
+    "center": [
+      0.0,
+      1.0529997730255127,
+      0.0
+    ],
+    "half_extent": [
+      0.09633823722716553,
+      0.03,
+      0.08133823722716554
+    ],
+    "hits": []
+  },
+  "interior_queries": [
+    {
+      "position": [
+        -0.32,
+        1.03,
+        -0.08
+      ],
+      "hits": []
+    },
+    {
+      "position": [
+        -0.32,
+        1.03,
+        0.04
+      ],
+      "hits": []
+    },
+    {
+      "position": [
+        -0.32,
+        1.03,
+        0.12
+      ],
+      "hits": []
+    },
+    {
+      "position": [
+        0.32,
+        1.03,
+        -0.08
+      ],
+      "hits": []
+    },
+    {
+      "position": [
+        0.32,
+        1.03,
+        0.04
+      ],
+      "hits": []
+    },
+    {
+      "position": [
+        0.32,
+        1.03,
+        0.12
+      ],
+      "hits": []
+    }
+  ],
+  "checks": {
+    "query_positive_control": true,
+    "initial_payload_envelope_clear": true,
+    "interior_clear": true
+  }
+}

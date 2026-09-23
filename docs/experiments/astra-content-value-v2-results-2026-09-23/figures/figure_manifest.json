@@ -1,0 +1,24 @@
+{
+  "schema_version": "comparison-figure.v1",
+  "synthetic": false,
+  "comparison_sha256": "59682743896234ed78b6819e12e8ddb05de6084a4634fff6f510dae52f28fd3c",
+  "plotter_sha256": "17c8bb10b692ce197391f98d673feca515e8a6c0b3d4cc6be2d80b8cd17cdd6f",
+  "matplotlib_version": "3.10.7",
+  "files": [
+    {
+      "path": "acceptance_matrix.pdf",
+      "sha256": "bbedd9668597588bedbe7f1cfe7d63a63134bc425b8714f053dd561a2e9c02ea",
+      "bytes": 29070
+    },
+    {
+      "path": "acceptance_matrix.png",
+      "sha256": "f5196489ffb3a7b1ce2b4172c244176d866dcaab63bea2644637cc62a853388c",
+      "bytes": 172541
+    },
+    {
+      "path": "acceptance_matrix.svg",
+      "sha256": "5e7a1021193442ab68b471f58e5b225c691a6c7f7c3a4f9895d81fdf17b2e5bc",
+      "bytes": 108649
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "passed": true,
+  "input_sha256": "0539c0b4618f794d2927423df84d4d5690cc0cff8e2f7b4eab02b710bc9783a6",
+  "witness_check": {
+    "name": "paired_seed11:independent_freefall_witness",
+    "passed": true,
+    "evidence": {
+      "initial_pose": [
+        1.0,
+        1.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "at_point_one_s": {
+        "t": 0.1,
+        "pose": [
+          1.0,
+          1.0,
+          0.9489059448242188,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "velocity": [
+          0.0,
+          0.0,
+          -0.9810003042221069,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "failure_class": null
+  },
+  "native_rerun": false,
+  "scope": "Read-only replay of actual retained synthetic engine unloaded calibration"
+}

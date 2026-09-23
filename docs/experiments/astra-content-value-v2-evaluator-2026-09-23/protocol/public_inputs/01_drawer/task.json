@@ -1,0 +1,159 @@
+{
+  "acceptance_sha256": "da384a1e3e69457f2b45700d0eb1f44a668fd3a3623399eeb05034e62e8e0cf8",
+  "case_id": "01_drawer",
+  "frozen": true,
+  "mounted_inputs": "Only this original source closure and public task inventory are mounted. Preserve original bytes; save all derivatives under /work.",
+  "primary_input": "/source/drawer_cabinet_1k.gltf",
+  "protocol_id": "astra-drawer-controlled-v2",
+  "public_acceptance": {
+    "asset_id": "01_drawer",
+    "axis_alignment_cos_min": 0.999,
+    "backend": "ovphysx 0.4.13 direct USD import; CPU PhysX on the assigned Horde node",
+    "closure_tolerance_m": 0.02,
+    "controller": {
+      "authored_drives_disabled": true,
+      "force_jitter_n": 0.25,
+      "force_limit_n": 40.0,
+      "kd_ns_m": 45.0,
+      "kind": "bounded external world-force PD with smooth half-cosine target ramps",
+      "kp_n_m": 150.0
+    },
+    "drawer_mass_range_kg": [
+      0.5,
+      10.0
+    ],
+    "dt_s": 0.004166666666666667,
+    "evaluator_interventions": [
+      "flatten submitted USD into an immutable evaluation copy",
+      "reject time-sampled physics/geometry rather than play animation",
+      "remove authored joint drives and reject extra dynamic controllers",
+      "set gravity and solver iteration counts consistently",
+      "enable contact reporting without changing submitted collider geometry or collision filtering",
+      "add independently authored 0.5kg payload; never attach it to drawer",
+      "apply only bounded external drawer force; never write body poses or velocities during stepping"
+    ],
+    "gravity_m_s2": [
+      0.0,
+      -9.81,
+      0.0
+    ],
+    "initial_collider_clearance": {
+      "require_declared_interior_points_clear": true,
+      "require_initialized_positive_query_control": true,
+      "require_swept_payload_envelope_clear": true
+    },
+    "initial_pose_tolerance": {
+      "rotation_deg": 0.1,
+      "translation_m": 0.001
+    },
+    "interior_queries": {
+      "sphere_radius_m": 0.008,
+      "x_m": [
+        -0.32,
+        0.32
+      ],
+      "y_m": 1.03,
+      "z_m": [
+        -0.08,
+        0.04,
+        0.12
+      ]
+    },
+    "joint_lower_range_m": [
+      -0.002,
+      0.002
+    ],
+    "joint_upper_range_m": [
+      0.22,
+      0.45
+    ],
+    "limits": {
+      "max_angular_speed_rad_s": 10.0,
+      "max_contact_penetration_m": 0.005,
+      "max_drawer_off_axis_m": 0.01,
+      "max_drawer_position_m": 0.47,
+      "max_drawer_rotation_deg": 2.0,
+      "max_final_speed_m_s": 0.05,
+      "max_initial_drawer_drift_m": 0.01,
+      "max_linear_speed_m_s": 2.0,
+      "min_drawer_position_m": -0.01,
+      "min_payload_contact_impulse_ns": 0.01,
+      "min_payload_contact_samples": 24
+    },
+    "opening_command_m": 0.24,
+    "opening_required_m": 0.2,
+    "outward_axis_world": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "pass_rule": "All structural/source checks and all five independently simulated seeds pass; no averaging across failed seeds.",
+    "payload": {
+      "initial_center_m": [
+        0.0,
+        1.0529997730255127,
+        0.0
+      ],
+      "initial_x_jitter_m": 0.05,
+      "initial_yaw_jitter_deg": 10.0,
+      "initial_z_jitter_m": 0.035,
+      "mass_kg": 0.5,
+      "restitution": 0.0,
+      "retained_center_max_relative_to_drawer_translation_m": [
+        0.45,
+        1.1,
+        0.155
+      ],
+      "retained_center_min_relative_to_drawer_translation_m": [
+        -0.45,
+        0.96,
+        -0.135
+      ],
+      "retention_frame": "Payload center transformed back through current drawer rotation/translation into its initial world frame.",
+      "size_m": [
+        0.08,
+        0.06,
+        0.08
+      ],
+      "surface_friction": 0.6
+    },
+    "phase_durations_s": {
+      "close": 4.0,
+      "hold_closed": 0.75,
+      "hold_open": 0.75,
+      "open": 4.0,
+      "settle": 0.75
+    },
+    "protocol_id": "astra-drawer-controlled-v2",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "source_bin_sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+    "source_fidelity": {
+      "bounds_tolerance_m": 0.0001,
+      "relative_area_tolerance": 0.0005,
+      "same_triangle_count_per_component": true,
+      "topology_weld_tolerance_m": 1e-06,
+      "triangle_centroid_hausdorff_tolerance_m": 0.0001,
+      "vertex_hausdorff_tolerance_m": 0.0001
+    },
+    "source_gltf_sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+    "trace_units": {
+      "payload_drawer_contact_force_n": "Impulse divided by dt, in N",
+      "payload_drawer_contact_impulse_ns": "Native contact tensor impulse in N*s"
+    },
+    "uncertainty": "Mass, inertia, friction and force actuation are documented simulation abstractions. Passing does not validate physical furniture or robot manipulation."
+  },
+  "qualification_receipt_sha256": "c264c6d585c87326b95a6d402a3cb688f2cee8906b0266b43ebc82cb93c4a9b2",
+  "schema_version": "astra-content-value-task.v2",
+  "source_inventory_file": "/input/01_drawer_source_inventory.json",
+  "source_inventory_sha256": "29abbf2ccd91e20d6179b7ccd505dd02a2a572c95e87c7e2a7e466b56a763250",
+  "source_root": "/source",
+  "submission_contract": "{\n  \"files\": [\n    \"final.usd with all local dependencies\",\n    \"bindings.json\",\n    \"submission.json as required by the runner\",\n    \"Candidate checkpoints and repair history retained within the common 2400-second wall budget; no count cap.\"\n  ],\n  \"bindings_json\": {\n    \"asset_id\": \"01_drawer\",\n    \"final_usd\": \"final.usd\",\n    \"drawer_body\": \"absolute USD prim path to upper drawer nonkinematic rigid body\",\n    \"cabinet_body\": \"absolute USD prim path to anchored static cabinet root\",\n    \"drawer_joint\": \"absolute USD prim path to the standalone prismatic joint\",\n    \"source_components\": {\n      \"drawer_cabinet\": [\n        \"absolute USD Mesh path(s)\"\n      ],\n      \"drawer_cabinet_drawer_01\": [\n        \"absolute USD Mesh path(s) under drawer_body\"\n      ],\n      \"drawer_cabinet_drawer_02\": [\n        \"absolute USD Mesh path(s)\"\n      ],\n      \"drawer_cabinet_drawer_03\": [\n        \"absolute USD Mesh path(s)\"\n      ],\n      \"drawer_cabinet_drawer_04\": [\n        \"absolute USD Mesh path(s)\"\n      ]\n    }\n  },\n  \"source_geometry\": \"Preserve all five original source component surfaces as visible render meshes, with original closed world geometry in metres and Y up. Reindexing/splitting and changed local body origins are allowed if composed world geometry matches. Primitive proxies cannot replace source visuals. Other three drawers remain static/anchored.\",\n  \"physics\": \"Target drawer has PhysicsRigidBodyAPI with kinematicEnabled=false, explicit mass 0.5 to 10kg, explicit finite centerOfMass, and positive physically valid diagonal inertia. Cabinet is anchored static collision geometry, not an enabled rigid body. Enabled drawer and cabinet colliders are required. Collision approximation is allowed but interiors/openings must remain clear. No articulation root: use a standalone PhysicsPrismaticJoint with target drawer as body1 and world/cabinet as body0. Local axis and frame rotation must yield positive world Z; limits match public_acceptance.\",\n  \"prohibited\": \"No physics/geometry time samples, preauthored motion, hidden source visuals, authored force callbacks, attached payload, replaced source visuals or fake success trajectories. Evaluator adds a free payload, removes authored joint drives, resets initial rest state, and applies the same bounded external force independently.\",\n  \"evaluation\": \"Public thresholds below apply equally to both arms. Do not read or run evaluator implementation or hidden evidence. Declare your own claimed_accepted before independent evaluation.\"\n}",
+  "synthetic_evaluator_tests_are_scored": false,
+  "task": "Prepare the untouched Poly Haven Drawer Cabinet glTF for physics, retaining its actual five source meshes. Anchor the cabinet and keep the lower three drawers closed. Make the uppermost component drawer_cabinet_drawer_01 a physically constrained drawer that opens along positive world Z at least 0.20m, returns within0.02m of its original closed pose, and retains a free 0.5kg payload under gravity. The motion must result from force-limited dynamics, not pose animation. Independent evaluation imports your actual saved USD. Preserve source geometry, provide valid mass/inertia and traversable collision approximations, and report limitations honestly. The original five node names are drawer_cabinet, drawer_cabinet_drawer_01, drawer_cabinet_drawer_02, drawer_cabinet_drawer_03, drawer_cabinet_drawer_04. Initial payload placement uses the corrected source-clear center at Y=1.0529997730255127m. Native cooked colliders must leave the entire declared jitter/yaw payload envelope and six declared interior points initially clear; these checks run with a known positive query witness. Joint-connected collision filtering is permitted as an ideal rail abstraction and must be disclosed. Contact samples use an impulse threshold of 0.01N*s; recorded force is impulse/dt. Payload retention is checked in the current drawer frame transformed to its initial world orientation."
+}

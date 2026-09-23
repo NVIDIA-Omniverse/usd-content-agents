@@ -1,0 +1,35 @@
+{
+  "all_stage_chain_qualified": false,
+  "author_snapshot_commit": "949935a62e2b05e1107e3f1c7edd8262b688c261",
+  "created_utc": "2026-09-22T21:14:54.548992+00:00",
+  "environment_and_native_cpu_ready": true,
+  "exact_tools_parity": {
+    "a_semantic_sha256": "10b7e933df6a1d6bee6d1a92874b122f2837b861c2287228dff888e728b6e151",
+    "b_semantic_sha256": "10b7e933df6a1d6bee6d1a92874b122f2837b861c2287228dff888e728b6e151",
+    "compared_file_count": 60809,
+    "different_file_paths": [],
+    "end_to_end_workflow_qualified": false,
+    "excluded": "repo/.git administrative bytes only; clean tracked source and identical parentless commit remain mandatory",
+    "passed": true,
+    "schema_version": "namespace-tools-parity.v2",
+    "source_identity_equal": true
+  },
+  "limitations": [
+    "usd-exchange2.3.0 omits pxr.UsdValidation; extension-dependent rules skipped equally. Supported NVIDIA rules execute.",
+    "Installer metadata normalized only in exported tools; original records and failed qualification attempts retained.",
+    "No benchmark source was used in environment smoke."
+  ],
+  "local_tests": {
+    "log_sha256": "c64d6ff6539e43836e6aa643d08ee73b94c852d08fad4a8b228fb5621242f8e2",
+    "passed": 14
+  },
+  "no_scored_author_runs": true,
+  "original_implementation_commit": "e640b8d6aa667745830db5e9bf87fd1b4cd763cb",
+  "pending": [
+    "Actual four-GPU render/device-denial harness gates",
+    "Actual Astra Ultra gateway/native-child model gate",
+    "Final protocol and evaluator freeze"
+  ],
+  "schema_version": "matched-environment-qualification.v2",
+  "system_runtime_parity_sha256": "0c6422719e23dcd48a74bec664fd377d2e833b219cd492fe6435f02091f67a4f"
+}

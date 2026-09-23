@@ -1,0 +1,11 @@
+{
+  "case_id": "10_complex",
+  "cgroup_populated": 0,
+  "elapsed_seconds": 123.0280771329999,
+  "report": "home/evidence/result/acceptance.json",
+  "report_sha256": "eefc25d8aeb544bc260e1d99d2cc477cfd08536ef270f74cce61c053a7ae15c0",
+  "returncode": 0,
+  "run_id": "eval_measured-v2_v2_10_complex_content_agents",
+  "status": "FAIL",
+  "timed_out": false
+}

@@ -1,0 +1,372 @@
+{
+  "cases": [
+    "01_drawer",
+    "02_conveyor"
+  ],
+  "files": [
+    {
+      "bytes": 1610,
+      "generated_notice": true,
+      "path": "README.md",
+      "sha256": "4fac99ba3432afe78ba17caf98ccd927db4766fc2a75652f143c8a3bd5f8fc9f"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/01_drawer/source/drawer_cabinet.bin",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 798852,
+      "case_id": "01_drawer",
+      "exact_retained_bytes": true,
+      "path": "assets/01_drawer/source/drawer_cabinet.bin",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/01_drawer/source/drawer_cabinet_1k.gltf",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 8031,
+      "case_id": "01_drawer",
+      "exact_retained_bytes": true,
+      "path": "assets/01_drawer/source/drawer_cabinet_1k.gltf",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/01_drawer/source/textures/drawer_cabinet_arm_1k.jpg",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 124942,
+      "case_id": "01_drawer",
+      "exact_retained_bytes": true,
+      "path": "assets/01_drawer/source/textures/drawer_cabinet_arm_1k.jpg",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/01_drawer/source/textures/drawer_cabinet_diff_1k.jpg",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 150011,
+      "case_id": "01_drawer",
+      "exact_retained_bytes": true,
+      "path": "assets/01_drawer/source/textures/drawer_cabinet_diff_1k.jpg",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/01_drawer/source/textures/drawer_cabinet_nor_gl_1k.jpg",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 61593,
+      "case_id": "01_drawer",
+      "exact_retained_bytes": true,
+      "path": "assets/01_drawer/source/textures/drawer_cabinet_nor_gl_1k.jpg",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor individual components in step format/base_and_support v3.step",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 81111,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor individual components in step format/base_and_support v3.step",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "2b03446f045574681860127ec6a44f4d9e9c69b11edabeee1df59e860ed88a01"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor individual components in step format/box v2.step",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 16503,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor individual components in step format/box v2.step",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "c6050776b8b6b3fda5c480e27257aa73176b967902b8203f0102c87bd435da37"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor individual components in step format/pick v2.step",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 39713,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor individual components in step format/pick v2.step",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "deb16f424479f104647ee5cee59d439014aecb0039031f400117c0fec18ca07b"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor individual components in step format/rail v2.step",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 380817,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor individual components in step format/rail v2.step",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "e4a0d2c5f2d3d26bdc0098cd0c58890a7dc4f8c5ebb1a682d669a4038289423e"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1.f3d",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 696203,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1.f3d",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "9032c584d5f4a5d4455abf81f95ade6358c71b7da0eb0045a4bb435a2b51e675"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 516720,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1.step",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "b906c521cba00b8d69d677281a32d07428634bacea4d5e5e466ce78385a600ef"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/box.ipt",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 75264,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/box.ipt",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "59829490a42a4391027f42ef8b0ba321ba8fa023a011b06c646fdedee41f1965"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/conveyor_model.iam",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 66048,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/conveyor_model.iam",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "a2db0b7a6cda924b1e01ec182b663071242003576cdd3d2085779f8ab768f2a3"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/part.ipt",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 92160,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/part.ipt",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "72aee9aa6f6f40f926ef4b043ffabd38767a5f14e48cb20fea57f2a20d4aa427"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/rail.ipt",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 238592,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/rail.ipt",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "83cc80e7be6475e0ea25dead62e184234e03e1b1793c02400deb1c6b033b2a46"
+    },
+    {
+      "binding": {
+        "entry_path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/support.ipt",
+        "manifest": "protocol/original_sources_manifest.json"
+      },
+      "bytes": 144384,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/CAD models/conveyor_model/conveyor_model_v1/support.ipt",
+      "roles": [
+        "unchanged_original_author_input"
+      ],
+      "sha256": "586f196475c215347b4002106c11a790bfd8ebc352f7525746217aadb9b3cdf7"
+    },
+    {
+      "binding": {
+        "entry_path": "source_repo/LICENSE",
+        "manifest": "provenance/source_manifests/02_conveyor.json"
+      },
+      "bytes": 1065,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/LICENSE",
+      "roles": [
+        "license_or_attribution_notice"
+      ],
+      "sha256": "6144fd8afc4d2c905690a82f0ab5d0e9a98104f5b357c07fd7907865ed224e65"
+    },
+    {
+      "binding": {
+        "entry_path": "source_repo/README.md",
+        "manifest": "provenance/source_manifests/02_conveyor.json"
+      },
+      "bytes": 9685,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "assets/02_conveyor/source_repo/README.md",
+      "roles": [
+        "license_or_attribution_notice"
+      ],
+      "sha256": "48ab5a758f54b4e0fa9bdc935a40d7330d05073658a0438d7d48d7b70ae2e8d1"
+    },
+    {
+      "binding": {
+        "entry_path": "evaluator/cases/02_conveyor/reference/geometry_0000.npz",
+        "manifest": "protocol/freeze.json"
+      },
+      "bytes": 482753,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "evaluator/cases/02_conveyor/reference/geometry_0000.npz",
+      "roles": [
+        "derived_reference_geometry"
+      ],
+      "sha256": "a595755d9903e97f31af05ce41bdde1d85a5c23563638e0294d0d72e58d8a772"
+    },
+    {
+      "binding": {
+        "entry_path": "evaluator/cases/02_conveyor/reference/geometry_0001.npz",
+        "manifest": "protocol/freeze.json"
+      },
+      "bytes": 738,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "evaluator/cases/02_conveyor/reference/geometry_0001.npz",
+      "roles": [
+        "derived_reference_geometry"
+      ],
+      "sha256": "603cbadd89853ba116c7d445184f5e46b84c3f290673a5524aa3aad86f356546"
+    },
+    {
+      "binding": {
+        "entry_path": "evaluator/cases/02_conveyor/reference/geometry_0002.npz",
+        "manifest": "protocol/freeze.json"
+      },
+      "bytes": 40296,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "evaluator/cases/02_conveyor/reference/geometry_0002.npz",
+      "roles": [
+        "derived_reference_geometry"
+      ],
+      "sha256": "086c7c056118b7bd7e35179a859cd6e541a66f6fc26f8dcd5b4ef0568e36909d"
+    },
+    {
+      "binding": {
+        "entry_path": "evaluator/cases/02_conveyor/reference/geometry_0003.npz",
+        "manifest": "protocol/freeze.json"
+      },
+      "bytes": 5686,
+      "case_id": "02_conveyor",
+      "exact_retained_bytes": true,
+      "path": "evaluator/cases/02_conveyor/reference/geometry_0003.npz",
+      "roles": [
+        "derived_reference_geometry"
+      ],
+      "sha256": "33fa56ba73d14aeab6cf36a566e44ae4db79ca4eed4f0043ea787c726d350ee1"
+    },
+    {
+      "binding": {
+        "entry_path": "evaluator/drawer/reference/drawer_cabinet.bin",
+        "manifest": "protocol/freeze.json"
+      },
+      "bytes": 798852,
+      "case_id": "01_drawer",
+      "exact_retained_bytes": true,
+      "path": "evaluator/drawer/reference/drawer_cabinet.bin",
+      "roles": [
+        "derived_reference_geometry"
+      ],
+      "sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9"
+    },
+    {
+      "binding": {
+        "entry_path": "evaluator/drawer/reference/drawer_cabinet_1k.gltf",
+        "manifest": "protocol/freeze.json"
+      },
+      "bytes": 8031,
+      "case_id": "01_drawer",
+      "exact_retained_bytes": true,
+      "path": "evaluator/drawer/reference/drawer_cabinet_1k.gltf",
+      "roles": [
+        "derived_reference_geometry"
+      ],
+      "sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617"
+    },
+    {
+      "bytes": 987,
+      "generated_notice": true,
+      "path": "notices/01_drawer.md",
+      "sha256": "9062a0f93f1907a8afdd9f14a8b833631f2f33c759525c10dbb69d42d3a965ed"
+    },
+    {
+      "bytes": 1091,
+      "generated_notice": true,
+      "path": "notices/02_conveyor.md",
+      "sha256": "ac5baf738f3bc377ca4271ffbc75afd2ab36259e53be86a11e21588d752f2ef9"
+    }
+  ],
+  "licenses_by_case": {
+    "01_drawer": "CC0-1.0",
+    "02_conveyor": "MIT"
+  },
+  "original_source_and_reference_bytes": 4838050,
+  "original_source_and_reference_files": 24,
+  "required_core_manifest_sha256": "c0248f6734b0513a3eb1fb0cb7933c5218e88836355d4dc7e56d85b5e045131f",
+  "schema_version": "priority-replay-inputs-publication.v1",
+  "scope": "Exact retained originals and references for two cases only; original opaque CAD and its upstream metadata are unchanged.",
+  "source_candidate_manifest_sha256": "6c71e2a35e4c555061b8cd9b9ef0b96dc18ff6104fbd750ceb040a561413abdc"
+}

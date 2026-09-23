@@ -1,0 +1,101 @@
+{
+  "checks": {
+    "all_four_lanes_actual_cli_route_passed": true,
+    "all_owned_processes_reaped": true,
+    "no_new_pids_limit_events_at1024": true,
+    "normalized_namespace_arguments_identical": true,
+    "parent48_overhead_failed_at512": true,
+    "same_exact_probe_and_source": true,
+    "same_overhead_passed_at1024": true,
+    "successful_overhead_peak_exceeds_old_limit": true
+  },
+  "limitations": [
+    "The controlled synthetic failure reproduces q13's misleading missing-venv message under measured process exhaustion; it does not prove every historical q13 failure cause.",
+    "48 idle threads approximate parent overhead; they are not a replay of the model process. The paired512/1024 probes use fresh generated caches and identical scene/script/namespace settings apart from the cgroup limit and owned paths.",
+    "Only lane0 ran the48-thread paired-capacity test. The other three lanes independently passed the real renderer-to-CPU-physics route without artificial parent overhead; both hosts independently enforce the same new hard limit.",
+    "The readiness image is a64px blank probe used to initialize the actual renderer. The separately qualified four640x480 visible GPU images remain the rendering evidence.",
+    "Native cooking warnings are retained verbatim. Synthetic analytic-cube stepping does not qualify CAD cooking, workflow task acceptance, all registered validators, GPU PhysX or benchmark outcomes.",
+    "Resource/time measurements were not a performance benchmark and shared instantaneous machine load was not controlled."
+  ],
+  "receipt_sha256": "c7b9a62c5cba75b584a8afc997ef72efd28306c97411b3653917c29336b4a711",
+  "results": [
+    {
+      "cgroup_populated": 0,
+      "constructor_returncode": 0,
+      "final_z": 0.7997125387191772,
+      "lane": 1,
+      "parent_idle_threads": 0,
+      "passed": true,
+      "peak_pids": 467,
+      "physics_cli_returncode": 0,
+      "physics_steps": 48,
+      "pids_events_delta": 0,
+      "pids_max": 512,
+      "renderer_ready": true,
+      "source_unchanged": true
+    },
+    {
+      "cgroup_populated": 0,
+      "constructor_returncode": 0,
+      "final_z": 0.7997125387191772,
+      "lane": 2,
+      "parent_idle_threads": 0,
+      "passed": true,
+      "peak_pids": 478,
+      "physics_cli_returncode": 0,
+      "physics_steps": 48,
+      "pids_events_delta": 0,
+      "pids_max": 512,
+      "renderer_ready": true,
+      "source_unchanged": true
+    },
+    {
+      "cgroup_populated": 0,
+      "constructor_returncode": 0,
+      "final_z": 0.7997125387191772,
+      "lane": 3,
+      "parent_idle_threads": 0,
+      "passed": true,
+      "peak_pids": 470,
+      "physics_cli_returncode": 0,
+      "physics_steps": 48,
+      "pids_events_delta": 0,
+      "pids_max": 512,
+      "renderer_ready": true,
+      "source_unchanged": true
+    },
+    {
+      "cgroup_populated": 0,
+      "constructor_returncode": -11,
+      "final_z": null,
+      "lane": 0,
+      "parent_idle_threads": 48,
+      "passed": false,
+      "peak_pids": 512,
+      "physics_cli_returncode": 1,
+      "physics_steps": null,
+      "pids_events_delta": 22,
+      "pids_max": 512,
+      "renderer_ready": true,
+      "source_unchanged": true
+    },
+    {
+      "cgroup_populated": 0,
+      "constructor_returncode": 0,
+      "final_z": 0.7997125387191772,
+      "lane": 0,
+      "parent_idle_threads": 48,
+      "passed": true,
+      "peak_pids": 515,
+      "physics_cli_returncode": 0,
+      "physics_steps": 48,
+      "pids_events_delta": 0,
+      "pids_max": 1024,
+      "renderer_ready": true,
+      "source_unchanged": true
+    }
+  ],
+  "schema_version": "native-capacity-public-summary.v2",
+  "scope": "Actual same-session OVRTX readiness then native explicit-CPU constructor and usd-cli physics simulation in the qualified author namespace. Synthetic fixtures only.",
+  "status": "PASS"
+}

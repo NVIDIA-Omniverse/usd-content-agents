@@ -1,0 +1,176 @@
+{
+  "asset_id": "03_hinge",
+  "title": "Commercial Refrigerator with separate hinged door",
+  "task_class": "simple_revolute_articulation",
+  "curation_status": "downloaded_and_inspected; proposed acceptance only; no conversion, physics, repairs, or experiment arms run",
+  "source": {
+    "repository": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+    "commit": "c6a6bd13ab2b3c685c7903d03561b8a9392f38b8",
+    "asset_page": "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/c6a6bd13ab2b3c685c7903d03561b8a9392f38b8/Models/CommercialRefrigerator",
+    "original_artist_page": "https://sketchfab.com/3d-models/commercial-fridge-2174e1e4f1f24f1a95aa110ee060f473",
+    "source_kind": "artist-authored e-commerce visualization model, distributed in Khronos sample assets",
+    "retrieved_at_utc": "2026-09-21T21:23:03.725685+00:00",
+    "all_original_source_bytes_preserved": true
+  },
+  "license": {
+    "spdx": "CC-BY-4.0",
+    "url": "https://creativecommons.org/licenses/by/4.0/",
+    "copyright_and_attribution": "2025, Eric Chadwick of Darmstadt Graphics Group GmbH. Based on Commercial Fridge by Sean Thomas (foon).",
+    "evidence": [
+      "source/README.upstream.md#legal",
+      "GLB JSON asset.copyright"
+    ],
+    "source_license_note": "Upstream README Legal explicitly licenses model and textures and all README images CC-BY-4.0; GLB copyright repeats attribution."
+  },
+  "files": [
+    {
+      "path": "source/CommercialRefrigerator.glb",
+      "source_url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/c6a6bd13ab2b3c685c7903d03561b8a9392f38b8/Models/CommercialRefrigerator/glTF-Binary/CommercialRefrigerator.glb",
+      "bytes": 10131180,
+      "sha256": "ef8da8b144e650c277ac953e6d9e50ac1689ff1ee88c2c5bd9551ae8bccb6065",
+      "role": "immutable authored geometry, textures, hierarchy and animation"
+    },
+    {
+      "path": "source/README.upstream.md",
+      "source_url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/c6a6bd13ab2b3c685c7903d03561b8a9392f38b8/Models/CommercialRefrigerator/README.md",
+      "bytes": 17594,
+      "sha256": "d4ea5fa49f6cfabe1bed7a00cf2594573cd04e3eb739abe474f2900dee4baaaf",
+      "role": "source description, workflow and attribution license evidence"
+    },
+    {
+      "path": "source/screenshot_Large.jpg",
+      "source_url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/c6a6bd13ab2b3c685c7903d03561b8a9392f38b8/Models/CommercialRefrigerator/screenshot/screenshot_Large.jpg",
+      "bytes": 337246,
+      "sha256": "d8a5964d9f0b19fb53e07e3382156b2426042dc74ab0f2a23041cd921238bc59",
+      "role": "upstream screenshot provenance; visually inspected"
+    }
+  ],
+  "inspection": {
+    "format": "glTF 2.0 binary",
+    "node_count": 6,
+    "mesh_count": 6,
+    "skin_count": 0,
+    "animation_count": 1,
+    "physics_extensions": [],
+    "extensions_used": [
+      "KHR_materials_clearcoat",
+      "KHR_materials_transmission"
+    ],
+    "joint_or_collision_or_mass_metadata_found": false,
+    "authored_source_has_physics": false,
+    "parts": [
+      {
+        "node": 0,
+        "name": "FridgeCase",
+        "role": "fixed cabinet root; mesh 0"
+      },
+      {
+        "node": 1,
+        "name": "FridgeDoor",
+        "role": "movable rigid door parent; mesh 1; child of case"
+      },
+      {
+        "node": 2,
+        "name": "FridgeDoorInner",
+        "role": "door child; mesh 2"
+      },
+      {
+        "node": 3,
+        "name": "FridgeGlass",
+        "role": "door child; mesh 3"
+      },
+      {
+        "node": 4,
+        "name": "FridgeInterior",
+        "role": "case child; mesh 4"
+      },
+      {
+        "node": 5,
+        "name": "ChampagneBottles",
+        "role": "interior child; mesh 5, three material primitives"
+      }
+    ],
+    "units": {
+      "linear": "meters",
+      "basis": "glTF 2.0 convention; case dimensions plausible for commercial refrigerator",
+      "world_up_axis": "+Y",
+      "case_local_up_axis": "+Z",
+      "case_world_dimensions_m": [
+        0.8543784618377686,
+        2.184040367603302,
+        0.9205801486968994
+      ]
+    },
+    "authored_motion": {
+      "type": "visual transform animation only; no physical constraint",
+      "target_node": 1,
+      "target_path": "rotation",
+      "keyframes": 17,
+      "duration_s": 4.666666507720947,
+      "approx_open_angle_degrees": 59.80444781867799,
+      "source_door_pivot_world_m": [
+        0.3763740956783294,
+        0.3573247194290161,
+        0.4285686016082764
+      ],
+      "source_rotation_axis_world": [
+        0,
+        1,
+        0
+      ]
+    },
+    "visual_review": "Upstream screenshot shows glass-front commercial refrigerator with a separate door frame and left-side handle. Metadata confirms distinct door subtree. No new render was produced during curation.",
+    "difficulty_caveat": "Named door subtree, authored pivot, and rotation animation already expose articulation cues. Suitable for adding physical collision, mass, revolute constraint and dynamics, but not a clean test of hinge inference from unlabeled static geometry. All original cues remain intact."
+  },
+  "intended_joint_task": {
+    "description": "Turn the preserved refrigerator visualization into a physically constrained one-DOF door assembly without changing source mesh topology or deleting source data. Use the case as fixed rigid body and the complete FridgeDoor subtree as the moving rigid body.",
+    "missing_physical_fields": [
+      "collision geometry",
+      "rigid bodies",
+      "mass and inertia",
+      "revolute joint/axis/anchors",
+      "joint limits",
+      "joint friction or damping"
+    ],
+    "task_goal": "A force or torque pulse opens the door while the hinge holds its anchor, the cabinet remains fixed, and a limit stops the door. This must be physics motion rather than source animation playback."
+  },
+  "proposed_acceptance_observables": {
+    "status": "proposal_for_root_protocol_freeze; not acceptance criteria already applied",
+    "observables": [
+      {
+        "name": "source_identity",
+        "measurement": "Record original GLB SHA256 and compare mesh topology/positions and source subtree membership across both experiment arms."
+      },
+      {
+        "name": "physical_joint_presence",
+        "measurement": "Simulator reports exactly one revolute constraint between case and the complete door rigid body, with mass and collision metadata."
+      },
+      {
+        "name": "impulse_response",
+        "measurement": "With source animation playback off, controlled torque impulse changes hinge angle and measured angular velocity while no nonhinge relative DOF drifts."
+      },
+      {
+        "name": "anchor_error",
+        "measurement": "Log separation of parent and child hinge anchors over a fixed simulation interval; freeze numerical tolerance before arms run."
+      },
+      {
+        "name": "travel_limit",
+        "measurement": "Apply sustained opening torque; measured joint angle remains within the predeclared interval without passing through the cabinet."
+      },
+      {
+        "name": "assembly_coherence",
+        "measurement": "Door frame, inner panel and glass retain their relative transforms; cabinet pose remains fixed."
+      }
+    ],
+    "protocol_caveats": [
+      "No physical properties have been authored during curation.",
+      "Do not count the existing 4.67-second keyframe animation as physical success.",
+      "Angle limits, inertial assumptions, impulse magnitude, time step and tolerances must be frozen by root before paired arms.",
+      "Collision approximations should preserve the visible source geometry and should be reported separately from source meshes."
+    ]
+  },
+  "derived_inspection_file": {
+    "path": "source_inspection.json",
+    "description": "JSON chunk extracted read-only from original GLB for auditing, not a modified asset."
+  }
+}

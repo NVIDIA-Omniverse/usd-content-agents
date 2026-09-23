@@ -1,0 +1,20 @@
+{
+  "mass_kg": 0.05,
+  "size_m": [0.015, 0.015, 0.015],
+  "initial_surface_clearance_m": 0.001,
+  "source_patch_edge_margin_m": 0.002,
+  "source_patch_grid_points_per_axis": 5,
+  "source_planarity_tolerance_m": 0.00005,
+  "friction": 0.6,
+  "restitution": 0.0,
+  "contact_offset_m": 0.0002,
+  "rest_offset_m": 0.0,
+  "observation_start_s": 1.0,
+  "minimum_contact_force_N": 0.01,
+  "minimum_contact_frame_fraction": 0.9,
+  "maximum_payload_drift_relative_to_bed_m": 0.003,
+  "minimum_bed_world_Z_rise_m": 0.02,
+  "payload_force_policy": "The block is a free nonkinematic rigid body with no joints, pose writes, or external support forces. Only the printer mechanism receives the generic bounded controller efforts; known block weight may be included in bed-actuator gravity compensation.",
+  "placement_policy": "Freeze one clear source-bed top patch from independently tessellated original CAD before either arm runs. Transform that fixed point only by the declared source assembly alignment; its source top normal must map to world+Z. Do not select placement from submitted colliders, meshes or suggested author locations.",
+  "contact_unit_policy": "Pinned ovphysx0.4.13 step_sync contact matrix is empirically impulse in Ns; divide each step by its actual dt to obtain N."
+}

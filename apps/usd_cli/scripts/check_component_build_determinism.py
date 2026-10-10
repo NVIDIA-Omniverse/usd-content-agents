@@ -15,10 +15,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
-LFS_FIXTURE_RELATIVE = Path(
-    "sample_assets/A5E52945329_P5Z00052019_no_material_bindings.usd"
-)
-LFS_FIXTURE = ROOT / LFS_FIXTURE_RELATIVE
+LFS_FIXTURE_RELATIVE = Path("sample_assets/build_determinism_fixture.usd")
 SOURCE_FILES = (
     Path(".gitignore"),
     Path("LICENSE"),
@@ -26,7 +23,6 @@ SOURCE_FILES = (
     Path("pyproject.toml"),
     Path("requirements/constraints.txt"),
     Path("scripts/check_component_artifacts.py"),
-    LFS_FIXTURE_RELATIVE,
 )
 SOURCE_DIRECTORIES = (Path("src"), Path("apps/ovrtx_rendering_api"))
 
@@ -197,14 +193,10 @@ def main() -> int:
             f"representative fixture is no longer Git LFS-owned: {attribute}"
         )
 
-    original = LFS_FIXTURE.read_bytes()
-    original_digest = _digest(original)
-    original_stat = LFS_FIXTURE.stat()
     original_status = _git_status()
-    if original.startswith(b"version https://git-lfs.github.com/spec/v1\n"):
-        materialized = b"excluded-materialized-lfs-payload\n" * 256
-    else:
-        materialized = original
+    # Exercise pointer and hydrated content without shipping a real asset or
+    # modifying the checkout. Both fixtures exist only in temporary build trees.
+    materialized = b"excluded-materialized-lfs-payload\n" * 256
     pointer = (
         b"version https://git-lfs.github.com/spec/v1\n"
         + f"oid sha256:{_digest(materialized)}\nsize {len(materialized)}\n".encode()
@@ -216,6 +208,8 @@ def main() -> int:
         hydrated_source = temporary_root / "hydrated-source"
         _copy_source(pointer_source)
         _copy_source(hydrated_source)
+        (pointer_source / LFS_FIXTURE_RELATIVE).parent.mkdir(parents=True)
+        (hydrated_source / LFS_FIXTURE_RELATIVE).parent.mkdir(parents=True)
         (pointer_source / LFS_FIXTURE_RELATIVE).write_bytes(pointer)
         (hydrated_source / LFS_FIXTURE_RELATIVE).write_bytes(materialized)
 
@@ -241,19 +235,6 @@ def main() -> int:
                 )
             print(f"{label}: deterministic members={len(pointer_inventory)}")
 
-    final_stat = LFS_FIXTURE.stat()
-    assert _digest(LFS_FIXTURE.read_bytes()) == original_digest
-    assert (
-        final_stat.st_mode,
-        final_stat.st_size,
-        final_stat.st_mtime_ns,
-        final_stat.st_ino,
-    ) == (
-        original_stat.st_mode,
-        original_stat.st_size,
-        original_stat.st_mtime_ns,
-        original_stat.st_ino,
-    )
     assert _git_status() == original_status
     return 0
 

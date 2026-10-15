@@ -16,7 +16,7 @@ import json
 import logging
 import os
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, NoReturn
@@ -61,6 +61,10 @@ from world_understanding.utils.model_timeout import (
 from world_understanding.utils.object_store import ObjectStore
 
 logger = logging.getLogger(__name__)
+
+# Context key: (step, section) pairs whose optional model the preflight found
+# unavailable; steps drop those sections and take their fallback.
+UNAVAILABLE_OPTIONAL_MODELS_KEY = "_unavailable_optional_models"
 
 
 class _SafePipelineRuntimeError(RuntimeError):
@@ -1214,6 +1218,106 @@ class BasePipelineExecutor(Task):
         except BaseException:
             del pipeline_state, self, state_file
             raise
+
+    def _record_and_preflight_model_endpoints(
+        self,
+        *,
+        context: dict[str, Any],
+        active_models: list[Any],
+        pipeline_state: dict[str, Any],
+        state_file: Path,
+        completed_steps: set[str] | frozenset[str] = frozenset(),
+    ) -> None:
+        """Record each step's model endpoint; optionally probe them first.
+
+        ``active_models`` is the agent's plan of the models its steps call
+        (``world_understanding.agentic.model_endpoints.ActiveModel``). The
+        value-safe record always lands in the pipeline state as
+        ``model_endpoints``. The preflight runs only when
+        ``context["model_endpoint_preflight"]`` is true (the agent CLIs set it
+        by default; the library and service APIs leave it off) and only for
+        steps not in ``completed_steps``. A failed preflight is persisted as the
+        run's ``terminal_failure`` before any step runs, then re-raised.
+        """
+        from world_understanding.agentic.domain_tasks.model_provisioning import (
+            ModelProvisioningTask,
+        )
+        from world_understanding.agentic.model_endpoints import (
+            ModelEndpointPreflightError,
+            describe_model_endpoints,
+            public_endpoint_records,
+            run_model_endpoint_preflight,
+        )
+
+        # A resumed run re-probes its endpoints. A terminal failure that the
+        # preflight itself recorded is stale once that happens; a terminal
+        # failure from any pipeline step is kept.
+        stale = pipeline_state.get("terminal_failure")
+        if (
+            isinstance(stale, dict)
+            and stale.get("failed_step") == "model_endpoint_preflight"
+        ):
+            pipeline_state.pop("terminal_failure", None)
+            pipeline_state.pop("model_endpoint_preflight", None)
+            context_failure = context.get("terminal_failure")
+            if (
+                isinstance(context_failure, dict)
+                and context_failure.get("failed_step") == "model_endpoint_preflight"
+            ):
+                context.pop("terminal_failure", None)
+        records = describe_model_endpoints(active_models)
+        pipeline_state["model_endpoints"] = public_endpoint_records(records)
+        if context.get("model_endpoint_preflight"):
+            pending = [r for r in records if r["step"] not in completed_steps]
+            provisioning = ModelProvisioningTask()
+            try:
+                pipeline_state["model_endpoint_preflight"] = (
+                    run_model_endpoint_preflight(
+                        pending,
+                        create_vlm=provisioning.create_vlm,
+                        create_llm=provisioning._create_llm,
+                    )
+                )
+            except ModelEndpointPreflightError as error:
+                logger.error("%s", error)
+                status = dict(error.status)
+                # The working-directory path is user-configured and may carry
+                # credential material; the state file sits in that directory,
+                # so only its name is recorded.
+                status["checkpoint_file"] = state_file.name
+                pipeline_state["model_endpoint_preflight"] = [status]
+                pipeline_state["terminal_failure"] = status
+                context["terminal_failure"] = status
+                context["pipeline_state"] = "failed"
+                self._save_checkpoint(pipeline_state, state_file)
+                raise
+            context[UNAVAILABLE_OPTIONAL_MODELS_KEY] = [
+                (use["step"], use["section"])
+                for result in pipeline_state["model_endpoint_preflight"]
+                if result.get("outcome") == "optional_unavailable"
+                for use in result.get("unavailable_for", ())
+            ]
+        self._save_checkpoint(pipeline_state, state_file)
+
+    @staticmethod
+    def _without_unavailable_optional_models(
+        step_name: str, step_config: dict[str, Any], context: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        """Drop optional model sections the preflight found unavailable.
+
+        The step then provisions no such model and takes its fallback (the
+        parsing LLM falls back to the VLM) instead of retrying a dead endpoint.
+        ``step_config`` must be the step's per-run copy.
+        """
+        for step, section in context.get(UNAVAILABLE_OPTIONAL_MODELS_KEY, ()):
+            if step == step_name and step_config.pop(section, None) is not None:
+                logger.warning(
+                    "%s runs without its optional %s model: the startup "
+                    "preflight found its endpoint unavailable",
+                    step_name,
+                    section,
+                )
+        return step_config
 
     def _log_pipeline_started(self, context: dict[str, Any], steps: list[str]) -> None:
         """Log pipeline start banner.

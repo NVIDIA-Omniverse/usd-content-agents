@@ -130,6 +130,7 @@ the container and defaults to GPU `0`.
 | `MA_MAX_ACTIVE_SESSIONS` | Max concurrent pipelines. Source fallback: `3`; service image override: `8`; local Docker Compose override: `1`. Invalid or negative values fall back to `3`; `0` permits no active executions. |
 | `MA_MAX_RENDER_NUM_WORKERS` | Max accepted render worker override. Service default: `32`; local Docker Compose default: `1` |
 | `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` | Process-wide render request cap. Service default: unset/disabled; local Docker Compose default: `1` |
+| `WU_NIM_HOSTED_MAX_CONCURRENT_REQUESTS` | Process-wide cap on synchronous hosted NIM (`integrate.api.nvidia.com`, `ai.api.nvidia.com`) model requests. Default: `4`; `0` or a negative value disables it |
 
 ## Custom Materials
 

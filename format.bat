@@ -1,4 +1,6 @@
 @echo off
+REM SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+REM SPDX-License-Identifier: Apache-2.0
 setlocal EnableExtensions EnableDelayedExpansion
 
 REM format.bat - Windows-native formatter/linter runner (no bash/sh)

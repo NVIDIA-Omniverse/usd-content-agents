@@ -3258,11 +3258,6 @@ _OVRTX_DEFAULT_HDRI_RELATIVE_PATH = (
     / "textures"
     / _OVRTX_DEFAULT_HDRI_FILENAME
 )
-_BUNDLED_LEGACY_HDRI_PATH = _world_understanding_resource_path(
-    "data",
-    "env_maps",
-    "SmartMaterials_Environment_with_Lights.exr",
-)
 _OVRTX_MOVED_HDRI_NEGATIVE_CACHE_SECONDS = 60.0
 _OVRTX_MOVED_HDRI_CACHE: dict[Path, tuple[float, tuple[Path, ...]]] = {}
 _OVRTX_MOVED_HDRI_RELATIVE_CANDIDATES = (
@@ -3519,16 +3514,6 @@ def _stage_has_lights(stage: "Usd.Stage") -> bool:
     )
 
 
-def _is_bundled_legacy_hdri(hdri_asset: str | None) -> bool:
-    """True when ``hdri_asset`` is the bundled legacy EXR."""
-    if not hdri_asset or not _is_local_asset_path(hdri_asset):
-        return False
-    return _paths_equal(
-        _local_asset_path(hdri_asset).expanduser(),
-        _BUNDLED_LEGACY_HDRI_PATH.expanduser(),
-    )
-
-
 def _is_bundled_default_hdri(hdri_asset: str | None) -> bool:
     """True when ``hdri_asset`` is the repo-bundled active default HDRI."""
     if not hdri_asset or not _is_local_asset_path(hdri_asset):
@@ -3578,9 +3563,8 @@ def _resolve_default_hdri_intensity(
     Reads ``WU_OVRTX_DEFAULT_HDRI_INTENSITY`` env var (float); falls back
     to 600.0 for the bundled studio HDRI and compatibility OVRTX-packaged
     StinsonBeach HDRI paths. Explicit HDRI overrides, even when they share
-    the same basename, and explicitly selected bundled legacy EXR assets
-    keep the historical 1.0 fallback unless the operator sets
-    ``WU_OVRTX_DEFAULT_HDRI_INTENSITY``.
+    the same basename, keep the historical 1.0 fallback unless the operator
+    sets ``WU_OVRTX_DEFAULT_HDRI_INTENSITY``.
     """
     val = os.environ.get("WU_OVRTX_DEFAULT_HDRI_INTENSITY", "").strip()
     hdri_override = os.environ.get("WU_OVRTX_DEFAULT_HDRI", "").strip()
@@ -3589,8 +3573,6 @@ def _resolve_default_hdri_intensity(
         effective_hdri_asset
     ) or _is_ovrtx_packaged_default_hdri(effective_hdri_asset, venv_dir):
         fallback_intensity = _DEFAULT_HDRI_INTENSITY
-    elif _is_bundled_legacy_hdri(effective_hdri_asset):
-        fallback_intensity = _CUSTOM_HDRI_DEFAULT_INTENSITY
     elif hdri_override:
         fallback_intensity = _CUSTOM_HDRI_DEFAULT_INTENSITY
     else:

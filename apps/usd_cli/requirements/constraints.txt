@@ -27,7 +27,7 @@ hatchling==1.27.0
 # Runtime transitive closure for the supported extras.
 annotated-doc==0.0.4
 annotated-types==0.7.0
-anyio==4.13.0
+anyio==4.14.2
 certifi==2026.5.20
 click==8.4.1
 h11==0.16.0

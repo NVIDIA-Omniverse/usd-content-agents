@@ -59,7 +59,7 @@ Health check.
   "status": "healthy",
   "service": "Texture Agent Service",
   "auth_enforced": false,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "build": {
     "commit_sha": null,
     "image_tag": null,

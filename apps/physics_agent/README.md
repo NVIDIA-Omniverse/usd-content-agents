@@ -61,6 +61,12 @@ source .venv/bin/activate
 physics-agent run apps/physics_agent/configs/lightbulb.yaml
 ```
 
+Before the first step, `run` sends one short request to each distinct model
+endpoint the pipeline will call and stops, before any rendering, if an endpoint
+does not answer within its deadline. Set `WU_MODEL_ENDPOINT_PREFLIGHT=0` to skip
+that check. Hosted model clients default to a 300-second request deadline when a
+model section sets no `timeout` (`WU_MODEL_REQUEST_TIMEOUT_SECONDS`).
+
 ## Where outputs land
 
 Every run writes into a single **working directory** placed next to the config file. By default the directory is `.{session_id}` (a hidden folder), where `session_id` comes from `project.session_id` in the config. To override the directory name, set `project.working_dir` to a simple child path of the config directory — e.g. `working_dir: ".my_run"` — without `..` segments.

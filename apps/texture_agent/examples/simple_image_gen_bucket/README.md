@@ -3,17 +3,10 @@
 This example runs the Texture Agent CLI on the public SimReady cleaning bucket
 asset using the lightweight `simple_image_gen` backend.
 
-Reference outputs:
-
-![Reference simple image-gen bucket render](reference_render.png)
-
-![Reference simple image-gen bucket albedo](reference_albedo.png)
-
-![Reference simple image-gen bucket ORM](reference_orm.png)
-
-The exact generated details vary by provider and model. The pass criteria below
-focus on reproducible pipeline behavior: one scoped material target, albedo and
-ORM outputs, a textured USD, and a final render.
+The exact generated details vary by provider and model, so this example does not
+ship reference images. The pass criteria below focus on reproducible pipeline
+behavior: one scoped material target, albedo and ORM outputs, a textured USD,
+and a final render.
 
 ## End-To-End Checklist
 
@@ -54,7 +47,9 @@ export RENDER_ENDPOINT=http://localhost:8001
 ## Download the Bucket Asset
 
 The source asset is the public SimReady cleaning bucket from the Hugging Face
-SimReady Warehouse dataset.
+SimReady Warehouse dataset, which NVIDIA publishes under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). This repository does
+not redistribute it.
 
 ```bash
 source .venv/bin/activate
@@ -218,44 +213,27 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 work_root = Path(".data/texture_agent_examples/simple_bucket/work")
-example_dir = Path("apps/texture_agent/examples/simple_image_gen_bucket")
 material = "opaque__metal__cleaning_bucket_a"
 rows = [
-    (
-        "final render",
-        example_dir / "reference_render.png",
-        work_root / "renders/render_0_0_0.png",
-    ),
-    (
-        "albedo",
-        example_dir / "reference_albedo.png",
-        work_root / f"textures/{material}_albedo.png",
-    ),
-    (
-        "ORM",
-        example_dir / "reference_orm.png",
-        work_root / f"textures/{material}_orm.png",
-    ),
+    ("final render", work_root / "renders/render_0_0_0.png"),
+    ("albedo", work_root / f"textures/{material}_albedo.png"),
+    ("ORM", work_root / f"textures/{material}_orm.png"),
 ]
 
-missing = [str(path) for _, *paths in rows for path in paths if not path.is_file()]
+missing = [str(path) for _, path in rows if not path.is_file()]
 if missing:
     raise SystemExit("missing evidence files:\n" + "\n".join(missing))
 
 cell_w, cell_h, label_h = 420, 300, 34
-sheet = Image.new("RGB", (cell_w * 2, label_h + len(rows) * (cell_h + label_h)), "white")
+sheet = Image.new("RGB", (cell_w * len(rows), cell_h + label_h), "white")
 draw = ImageDraw.Draw(sheet)
-draw.text((12, 8), "reference", fill="black")
-draw.text((cell_w + 12, 8), "current simple image-gen run", fill="black")
 
-for index, (label, ref_path, got_path) in enumerate(rows):
-    y = label_h + index * (cell_h + label_h)
-    draw.text((12, y + 8), label, fill="black")
-    for column, path in enumerate((ref_path, got_path)):
-        image = Image.open(path).convert("RGB")
-        image.thumbnail((cell_w - 24, cell_h - 24))
-        x = column * cell_w + (cell_w - image.width) // 2
-        sheet.paste(image, (x, y + label_h + (cell_h - image.height) // 2))
+for column, (label, path) in enumerate(rows):
+    draw.text((column * cell_w + 12, 8), label, fill="black")
+    image = Image.open(path).convert("RGB")
+    image.thumbnail((cell_w - 24, cell_h - 24))
+    x = column * cell_w + (cell_w - image.width) // 2
+    sheet.paste(image, (x, label_h + (cell_h - image.height) // 2))
 
 out = work_root / "visual_evidence_simple.png"
 sheet.save(out)
@@ -278,4 +256,4 @@ Expected:
 - when rendering is enabled, `work/renders/render_0_0_0.png` exists and shows
   the textured bucket
 - `work/visual_evidence_simple.png` shows the current render, albedo, and ORM
-  next to the checked-in references.
+  side by side.

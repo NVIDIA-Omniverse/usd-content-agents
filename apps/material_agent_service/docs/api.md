@@ -87,7 +87,7 @@ Health check. Includes backend credential readiness, image-generation readiness,
 {
   "status": "healthy",
   "service": "Material Agent Service",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "api_keys_configured": true,
   "auth_enforced": false,
   "image_gen_configured": true,
@@ -630,6 +630,19 @@ The service reads its configuration from environment variables at startup. See `
 Prediction concurrency is request-scoped through the `vlm_max_workers` form
 field. Render concurrency is controlled separately by `render_num_workers` and
 the process-wide `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` cap.
+
+Synchronous requests to hosted NIM (`integrate.api.nvidia.com` or
+`ai.api.nvidia.com`), which include
+all prediction calls, share one process-wide cap,
+`WU_NIM_HOSTED_MAX_CONCURRENT_REQUESTS` (default 4; `0` or a negative value
+disables it), however many prediction workers run. Time spent waiting for a slot,
+and retry backoff while holding one, is not covered by the request timeout. Async LangChain calls are not capped.
+HTTP 429 and 503 responses are retried up to five times with jittered
+exponential backoff (about 2 s to 32 s; `Retry-After` is honoured up to 60 s).
+Requests stay on the configured base URL even for models the LangChain SDK
+would send to `ai.api.nvidia.com/v1/gr`. A model that accepts one image per
+prompt, such as `meta/llama-3.2-11b-vision-instruct`, receives the views tiled
+into one numbered grid image.
 
 Troubleshooting:
 

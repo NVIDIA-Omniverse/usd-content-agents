@@ -159,6 +159,7 @@ from .child_launch import (
 )
 from .controlled_artifact_cli import CONTROLLED_ARTIFACT_ROOT_ENV
 from .live_view import LIVE_VIEW_CHILD_LAUNCHED_ENV, LIVE_VIEW_PROGRESS_ENV
+from .material_layer_output import publish_material_layer
 from .memory_broker import (
     MEMORY_ORIGIN_AGENT_TAG,
     MEMORY_ORIGIN_LAUNCHER_TAG,
@@ -1312,6 +1313,7 @@ class MaterialAssignConfig:
     reference_files: list[Path] | None = None
     output_dir: Path | None = None
     output_usd_path: Path | None = None
+    layer_only: bool = False
     default_output_root: Path | None = None
     runner: str = RUNNER_CODEX
     model: str | None = None
@@ -1350,6 +1352,7 @@ class MaterialAssignConfig:
     material_restore_timeout_seconds: float = DEFAULT_MATERIAL_RESTORE_TIMEOUT_SECONDS
     child_timeout_seconds: float = 1800.0
     prompt_mode: str = DEFAULT_PROMPT_MODE
+    skip_vqa: bool = False
     vqa_refinement_max_iterations: int = DEFAULT_VQA_REFINEMENT_MAX_ITERATIONS
     codex_persistent_refinement: bool = False
     memory_enabled: bool = False
@@ -1417,6 +1420,7 @@ class PhysicsApplyConfig:
     scene_tool_timeout_seconds: float = 60.0
     child_timeout_seconds: float = 1800.0
     prompt_mode: str = DEFAULT_PROMPT_MODE
+    skip_vqa: bool = False
     vqa_refinement_max_iterations: int = DEFAULT_VQA_REFINEMENT_MAX_ITERATIONS
     codex_persistent_refinement: bool = False
     additional_instructions: str | None = None
@@ -2478,6 +2482,7 @@ def run_material_assignment(config: MaterialAssignConfig) -> RunResult:
             verification_path = _write_delegated_vision_evidence_verification(
                 run_dir=run_dir,
                 receipts=delegated_vision_receipts,
+                require_final_review=not config.skip_vqa,
             )
             trace_writer.write(
                 "delegated_vision_evidence_verified",
@@ -2903,6 +2908,10 @@ def _pinned_remote_physics_render_config(
 
 
 def run_physics_apply(config: PhysicsApplyConfig) -> RunResult:
+    if config.skip_vqa and (config.tune or config.refine):
+        raise ValueError(
+            "--skip-vqa is supported for physics apply without tune/refine."
+        )
     _validate_physics_config(config)
     physics_runtime_preflight: dict[str, object] | None = None
     physics_tuning_runtime_preflight: dict[str, object] | None = None
@@ -14449,55 +14458,59 @@ def _write_delegated_vision_evidence_verification(
     *,
     run_dir: Path,
     receipts: list[DelegatedVisionEvidenceReceipt],
+    require_final_review: bool = True,
 ) -> Path:
     if not receipts:
         raise UnsafeRunArtifactError(
             "Delegated vision completed without a trusted evidence receipt."
         )
     _verify_delegated_vision_evidence(receipts)
-    final_inputs = _vqa_refinement_image_inputs(run_dir, [])
-    if not final_inputs:
-        raise UnsafeRunArtifactError(
-            "Delegated vision completed without canonical final render evidence."
-        )
-    current_final_artifacts = {
-        Path(item["path"]).resolve(): _file_digest(Path(item["path"]))
-        for item in final_inputs
-    }
-    last_receipt_artifacts = dict(receipts[-1].image_artifacts)
-    uncovered = [
-        path
-        for path, sha256 in current_final_artifacts.items()
-        if last_receipt_artifacts.get(path) != sha256
-    ]
-    if uncovered:
-        raise UnsafeRunArtifactError(
-            "Delegated vision did not review the complete canonical final render set: "
-            + ", ".join(str(path) for path in uncovered)
-        )
-    missing_render_metadata = [
-        path
-        for path in current_final_artifacts
-        if path not in receipts[-1].render_metadata_image_paths
-    ]
-    if missing_render_metadata:
-        raise UnsafeRunArtifactError(
-            "Delegated vision final evidence omitted OVRTX render metadata: "
-            + ", ".join(str(path) for path in missing_render_metadata)
-        )
-    if (
-        receipts[-1].render_metadata_path is None
-        or receipts[-1].render_metadata_sha256 is None
-    ):
-        raise UnsafeRunArtifactError(
-            "Delegated vision final evidence omitted its OVRTX metadata snapshot."
-        )
+    current_final_artifacts: dict[Path, str] = {}
+    if require_final_review:
+        final_inputs = _vqa_refinement_image_inputs(run_dir, [])
+        if not final_inputs:
+            raise UnsafeRunArtifactError(
+                "Delegated vision completed without canonical final render evidence."
+            )
+        current_final_artifacts = {
+            Path(item["path"]).resolve(): _file_digest(Path(item["path"]))
+            for item in final_inputs
+        }
+        last_receipt_artifacts = dict(receipts[-1].image_artifacts)
+        uncovered = [
+            path
+            for path, sha256 in current_final_artifacts.items()
+            if last_receipt_artifacts.get(path) != sha256
+        ]
+        if uncovered:
+            raise UnsafeRunArtifactError(
+                "Delegated vision did not review the complete canonical final render set: "
+                + ", ".join(str(path) for path in uncovered)
+            )
+        missing_render_metadata = [
+            path
+            for path in current_final_artifacts
+            if path not in receipts[-1].render_metadata_image_paths
+        ]
+        if missing_render_metadata:
+            raise UnsafeRunArtifactError(
+                "Delegated vision final evidence omitted OVRTX render metadata: "
+                + ", ".join(str(path) for path in missing_render_metadata)
+            )
+        if (
+            receipts[-1].render_metadata_path is None
+            or receipts[-1].render_metadata_sha256 is None
+        ):
+            raise UnsafeRunArtifactError(
+                "Delegated vision final evidence omitted its OVRTX metadata snapshot."
+            )
     verification_path = run_dir / "raw" / "delegated_vision_evidence.json"
     _write_private_json(
         verification_path,
         {
             "schema_version": "content-agents.delegated-vision-evidence.v1",
             "verified_at": utc_now(),
+            "final_review_status": "verified" if require_final_review else "skipped",
             "reports": [
                 {
                     "phase": receipt.phase,
@@ -14689,6 +14702,7 @@ def _build_request(
         ),
         "child_timeout_seconds": config.child_timeout_seconds,
         "prompt_mode": config.prompt_mode,
+        "skip_vqa": config.skip_vqa,
         "vqa_refinement_max_iterations": config.vqa_refinement_max_iterations,
         "live_viewer_progress": _live_viewer_progress_enabled(),
         "codex_persistent_refinement": config.codex_persistent_refinement,
@@ -14711,6 +14725,7 @@ def _build_request(
             "output_usd": str(config.output_usd_path)
             if config.output_usd_path is not None
             else None,
+            "layer_only": config.layer_only,
             "reference_images": [str(path) for path in config.reference_images],
             "reference_files": [str(path) for path in config.reference_files or []],
             "materials_yaml": str(config.materials_yaml),
@@ -17658,6 +17673,7 @@ def _physics_run_manifest_policy(config: PhysicsApplyConfig) -> dict[str, Any]:
         "simulation_sample_fps": config.simulation_sample_fps,
         "drop_height_m": config.drop_height_m,
         "fail_on_validation_error": config.fail_on_validation_error,
+        "skip_vqa": config.skip_vqa,
         "visual_validation_max_iterations": config.vqa_refinement_max_iterations,
         "input_sha256": input_hashes,
     }
@@ -18043,6 +18059,10 @@ def _build_physics_request(
     config: PhysicsApplyConfig,
     run_dir: Path,
 ) -> dict[str, object]:
+    if config.skip_vqa and (config.tune or config.refine):
+        raise ValueError(
+            "--skip-vqa is supported for physics apply without tune/refine."
+        )
     return {
         "schema_version": "content-agents.request.v1",
         "created_at": utc_now(),
@@ -18064,6 +18084,7 @@ def _build_physics_request(
         "claude_max_turns": config.claude_max_turns,
         "child_timeout_seconds": config.child_timeout_seconds,
         "prompt_mode": config.prompt_mode,
+        "skip_vqa": config.skip_vqa,
         "visual_validation_max_iterations": config.vqa_refinement_max_iterations,
         "codex_persistent_refinement": config.codex_persistent_refinement,
         "agentic_physics": _physics_agentic_contract(config),
@@ -19196,6 +19217,104 @@ def _run_physics_visual_refinement_loop(
             if finalize_record.get("render_frame_receipt_path")
             else None
         )
+        if config.skip_vqa:
+            note = (
+                "Operator selected --skip-vqa; physics visual behavior is unverified."
+            )
+            assessment_path = run_dir / "physics_behavior_assessment.json"
+            assessment = default_physics_behavior_assessment(
+                runtime_report=runtime_report_path,
+                unresolved_issue=note,
+            )
+            _write_private_json(
+                assessment_path,
+                assessment.model_dump(mode="json"),
+                within=run_dir,
+            )
+            payload = _load_bounded_json_object(validation_path, within=run_dir)
+            if payload is None:
+                raise RuntimeError("Physics runtime validation evidence is missing.")
+            evidence = ValidationEvidence.model_validate(payload)
+            runtime_passed = (
+                finalize_record.get("success") is True
+                and evidence.sim_ready_status == "pass"
+                and runtime_report_path is not None
+                and config.run_simulation
+                and config.simulation_engine != "fake"
+            )
+            evidence = merge_physics_behavior_assessment(
+                evidence,
+                assessment,
+                assessment_path=assessment_path,
+            )
+            for check in evidence.checks:
+                if check.name == "simulation_visual_review":
+                    check.summary = note
+                    check.metadata["assessment_status"] = "skipped"
+            skipped_descriptions = {
+                "physics_behavior_assessment": (
+                    "Unreviewed default assessment; visual review was skipped."
+                ),
+                "runtime_report": (
+                    "Runtime metrics retained without visual review of rendered frames."
+                ),
+            }
+            for artifacts in [
+                evidence.evidence_artifacts,
+                *(check.evidence_artifacts for check in evidence.checks),
+            ]:
+                for artifact in artifacts:
+                    if artifact.kind in skipped_descriptions:
+                        artifact.description = skipped_descriptions[artifact.kind]
+            _write_private_json(
+                validation_path,
+                evidence.model_dump(mode="json"),
+                within=run_dir,
+            )
+            history.update(status="skipped", stop_reason=note)
+            _write_private_json(history_path, history, within=run_dir)
+            assignments_file = run_dir / "physics_assignments.json"
+            assignments_intact = (
+                run_state.get("assignments_sha256") is not None
+                and _bounded_record_sha256(assignments_file)
+                == run_state["assignments_sha256"]
+            )
+            if not assignments_intact:
+                run_state["authoring_complete"] = False
+                run_state["assignments_sha256"] = None
+            _update_physics_assignments_after_visual(
+                run_dir=run_dir,
+                assessment_path=assessment_path,
+                rendered_frames=[],
+                validation_status=evidence.sim_ready_status,
+                vomp_result=vomp_baseline.result if vomp_baseline is not None else None,
+            )
+            if assignments_intact:
+                run_state["assignments_sha256"] = _bounded_record_sha256(
+                    assignments_file
+                )
+            _write_physics_final_summary(
+                run_dir=run_dir,
+                validation_status=evidence.sim_ready_status,
+                assessment_path=assessment_path,
+                validation_evidence_path=validation_path,
+                runtime_report_path=runtime_report_path,
+                rendered_frames=[],
+                vomp_result_path=(
+                    Path(str(finalize_record["vomp_result_path"]))
+                    if finalize_record.get("vomp_result_path")
+                    else None
+                ),
+                vomp_result=vomp_baseline.result if vomp_baseline is not None else None,
+            )
+            trace_writer.write(
+                "physics_visual_review_skipped",
+                phase="visual validation",
+                summary=note,
+                artifacts=[str(assessment_path), str(history_path)],
+                data={"status": "skipped", "runtime_passed": runtime_passed},
+            )
+            return (0 if runtime_passed else 1), session_id
         visual_evidence_attestation = _capture_physics_visual_evidence_attestation(
             run_dir=run_dir,
             validation_path=validation_path,
@@ -25646,6 +25765,20 @@ def _validate_config(config: MaterialAssignConfig) -> None:
             )
     if config.output_usd_path is not None and not config.preflight:
         raise ValueError("--output-usd requires material preflight.")
+    if config.layer_only and config.output_usd_path is None:
+        raise ValueError("--layer-only requires --output-usd.")
+    if (
+        config.layer_only
+        and config.output_usd_path is not None
+        and config.output_usd_path.suffix.lower() not in {".usd", ".usda", ".usdc"}
+    ):
+        raise ValueError("--layer-only output must use .usd, .usda, or .usdc.")
+    if (
+        config.layer_only
+        and config.output_usd_path is not None
+        and config.output_usd_path.resolve() == config.materials_usd.resolve()
+    ):
+        raise ValueError("--output-usd must differ from the material library USD.")
     if (
         config.output_usd_path is not None
         and config.output_usd_path.resolve() == config.usd_path.resolve()
@@ -28050,6 +28183,15 @@ def _run_material_post_apply_review_turn(
 ) -> int:
     """Run one fresh, tool-free VQA turn and bind its semantics mechanically."""
 
+    if config.skip_vqa:
+        trace_writer.write(
+            "material_post_apply_review_skipped",
+            phase="vqa review",
+            summary="Operator explicitly skipped Material VQA; visual quality is unverified.",
+            data={"status": "skipped", "skip_vqa": True},
+        )
+        return 0
+
     if _material_run_has_zero_candidates(run_dir):
         trace_writer.write(
             "material_post_apply_review_skipped",
@@ -28399,6 +28541,9 @@ def _run_vqa_refinement_loop(
     memory_broker: AgentMemoryBroker | None = None,
     workflow_usd_cli_session: WorkflowUsdCliSession | None = None,
 ) -> int:
+    if config.skip_vqa:
+        return 0
+
     from world_understanding.optimization import RefinementLoop
 
     max_iterations = config.vqa_refinement_max_iterations
@@ -30209,7 +30354,7 @@ def _restore_materialized_output(
     preflight_packet: dict[str, Any] | None,
     trace_writer: TraceWriter,
 ) -> MaterializedOutputResult:
-    """Publish the validated usd-cli materialization to the requested path."""
+    """Publish the validated material output to the requested path."""
 
     del preflight_packet
     if config.output_usd_path is None:
@@ -30219,8 +30364,25 @@ def _restore_materialized_output(
         raise RuntimeError(f"usd-cli did not produce {source_path}.")
     output_path = config.output_usd_path.resolve()
     _validate_materialized_usd_output(source_path)
-    _publish_materialized_output(source_path, output_path)
-    _validate_materialized_usd_output(output_path)
+    if config.layer_only:
+        assignment_data = _load_json(run_dir / "assignments.json", default=None)
+        if not isinstance(assignment_data, dict) or not isinstance(
+            assignment_data.get("assignments"), list
+        ):
+            raise RuntimeError("Layer-only output requires canonical assignments.json.")
+        publish_material_layer(
+            input_usd_path=config.usd_path,
+            materials_usd_path=config.materials_usd,
+            output_usd_path=output_path,
+            assignments=assignment_data["assignments"],
+            source_aliases=_material_restore_aliases_by_source_path(run_dir),
+            candidate_path_space=_material_restore_candidate_path_space(run_dir),
+            publish_output=_publish_materialized_output,
+            validate_output=_validate_materialized_usd_output,
+        )
+    else:
+        _publish_materialized_output(source_path, output_path)
+        _validate_materialized_usd_output(output_path)
 
     assignments = _load_json(run_dir / "assignments.json", default={})
     groups: object = []
@@ -30278,6 +30440,7 @@ def _restore_materialized_output(
             "output_path": str(output_path),
             "source_sha256": _file_digest(source_path),
             "output_sha256": _file_digest(output_path),
+            "layer_only": config.layer_only,
             "restored_source_prim_paths": restored_source_prim_paths,
             "uncovered_assignment_groups": uncovered_groups,
         },
@@ -30286,7 +30449,11 @@ def _restore_materialized_output(
     trace_writer.write(
         "material_output_published",
         phase="material output",
-        summary="Published the validated usd-cli materialization.",
+        summary=(
+            "Published the material layer over the source USD."
+            if config.layer_only
+            else "Published the validated usd-cli materialization."
+        ),
         artifacts=[str(output_path), str(publication_path), str(binding_audit_path)],
         data={
             "restored_source_prim_paths": restored_source_prim_paths,
@@ -30634,11 +30801,17 @@ def _link_materialized_output_backup(
     return backup_name
 
 
-def _publish_materialized_output(source_path: Path, output_path: Path) -> None:
+def _publish_materialized_output(
+    source_path: Path,
+    output_path: Path,
+    validate_staged: Callable[[Path], None] | None = None,
+) -> None:
     """Atomically publish a confined usd-cli result from the parent process."""
 
     if os.name != "posix":
-        _publish_materialized_output_windows(source_path, output_path)
+        _publish_materialized_output_windows(
+            source_path, output_path, validate_staged=validate_staged
+        )
         return
 
     with _anchored_materialized_output_parent(output_path) as (
@@ -30663,6 +30836,8 @@ def _publish_materialized_output(source_path: Path, output_path: Path) -> None:
                         logical_output_parent=lexical_output_path.parent,
                     )
                 _validate_materialized_usd_output(scratch_path)
+                if validate_staged is not None:
+                    validate_staged(scratch_path)
                 temporary_name, temporary_fd, temporary_identity = (
                     _write_anchored_materialized_output_temp(
                         parent_fd=parent_fd,
@@ -30826,7 +31001,12 @@ def _publish_materialized_output(source_path: Path, output_path: Path) -> None:
             )
 
 
-def _publish_materialized_output_windows(source_path: Path, output_path: Path) -> None:
+def _publish_materialized_output_windows(
+    source_path: Path,
+    output_path: Path,
+    *,
+    validate_staged: Callable[[Path], None] | None = None,
+) -> None:
     """Atomically publish through pinned native-Windows directory handles."""
 
     with _anchored_materialized_output_parent(output_path) as (
@@ -30848,6 +31028,8 @@ def _publish_materialized_output_windows(source_path: Path, output_path: Path) -
                     logical_output_parent=lexical_output_path.parent,
                 )
             _validate_materialized_usd_output(scratch_path)
+            if validate_staged is not None:
+                validate_staged(scratch_path)
             validate_parent()
             with scratch_path.open("rb") as source:
                 source_metadata = os.fstat(source.fileno())
@@ -35293,11 +35475,31 @@ def _valid_vqa_issue(
     )
 
 
+def _skipped_material_visual_quality() -> dict[str, Any]:
+    """No perceptual pass claim: authoring checks remain independently required."""
+    return {
+        "schema_version": MATERIAL_VQA_SCHEMA_VERSION,
+        "status": "skipped",
+        "checked_views": [],
+        "reference_images": [],
+        "reference_files": [],
+        "issues_found": [],
+        "issues_fixed": [],
+        "unresolved_issues": [
+            "Material VQA explicitly skipped; visual quality is unverified."
+        ],
+        "assessment_notes": "Operator selected --skip-vqa. No visual assessment was performed.",
+    }
+
+
 def _valid_usd_cli_visual_quality(
     payload: dict[str, Any] | None,
     *,
     run_dir: Path | None = None,
+    allow_skipped: bool = False,
 ) -> bool:
+    if payload is not None and payload.get("status") == "skipped":
+        return allow_skipped and payload == _skipped_material_visual_quality()
     if (
         payload is None
         or payload.get("schema_version") != MATERIAL_VQA_SCHEMA_VERSION
@@ -36663,6 +36865,7 @@ def _usd_cli_missing_contract_artifacts(
             _valid_usd_cli_visual_quality(
                 _load_bounded_json_object(visual_quality_path, within=run_dir),
                 run_dir=run_dir,
+                allow_skipped=config is not None and config.skip_vqa,
             ),
         ),
     )
@@ -37619,7 +37822,9 @@ def _materialize_usd_cli_canonical_artifacts(
     final_render_paths = _usd_cli_final_render_paths(run_dir)
     review_path = run_dir / "raw" / "material_post_apply_review.json"
     visual_quality = (
-        _zero_candidate_visual_quality(config)
+        _skipped_material_visual_quality()
+        if config.skip_vqa
+        else _zero_candidate_visual_quality(config)
         if zero_candidate_run
         else _canonical_vqa_from_post_apply_review(
             config=config,
@@ -37627,7 +37832,9 @@ def _materialize_usd_cli_canonical_artifacts(
             output_digest=output_digest,
         )
     )
-    post_apply_review_accepted = zero_candidate_run or visual_quality is not None
+    post_apply_review_accepted = not config.skip_vqa and (
+        zero_candidate_run or visual_quality is not None
+    )
     existing_visual_quality = _load_bounded_json_object(
         run_dir / "visual_quality_assessment.json",
         within=run_dir,

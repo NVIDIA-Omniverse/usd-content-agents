@@ -285,7 +285,7 @@ def test_lfs_determinism_check_uses_isolated_source_copies() -> None:
     assert "(hydrated_source / LFS_FIXTURE_RELATIVE).write_bytes(materialized)" in check
     assert "LFS_FIXTURE.write_bytes" not in check
     assert "assert _git_status() == original_status" in check
-    assert "final_stat.st_mtime_ns" in check
+    assert "LFS_FIXTURE.read_bytes" not in check
 
 
 def test_valid_minimal_archives_pass_inventory_and_license_checks(

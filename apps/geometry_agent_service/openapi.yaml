@@ -4,7 +4,7 @@ info:
   description: Public geometry source intake, provider orchestration, validation,
     repair, and evidence handoff over content-addressed artifacts.
   # Generated from the installed service version; tests enforce VERSION.md lockstep.
-  version: 0.6.0
+  version: 0.6.1
 paths:
   /api/health:
     get:

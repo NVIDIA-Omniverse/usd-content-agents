@@ -1,0 +1,13 @@
+Content Agents
+Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+The source code in this repository is licensed under the Apache License,
+Version 2.0; see LICENSE.
+
+Bundled asset files (USD scenes, textures, images, environment maps, and
+material archives) are listed with their sources and terms in
+ASSET_NOTICES.md. Assets that come from other distributions keep their
+original terms and are not relicensed by the Apache License, Version 2.0.
+
+Third-party software and its license texts are listed in
+THIRD_PARTY_NOTICE.md and its platform-specific supplements.

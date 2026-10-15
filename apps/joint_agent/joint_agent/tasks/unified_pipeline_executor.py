@@ -36,6 +36,7 @@ from joint_agent.functions.articulation_candidates import (
     infer_articulation_candidates,
     load_predictions_jsonl,
 )
+from joint_agent.functions.model_endpoints import joint_active_models
 from joint_agent.functions.provider_response_conformance import (
     PROVIDER_RESPONSE_CHECKPOINT_CALLBACK_KEY,
     ProviderResponseConformanceTerminalError,
@@ -199,6 +200,18 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
             context.pop("articulation_topology_reconciliation_status", None)
             context.pop("provider_response_conformance_status", None)
             context.pop("terminal_failure", None)
+
+        self._record_and_preflight_model_endpoints(
+            context=context,
+            active_models=joint_active_models(steps_to_run, step_configs),
+            pipeline_state=pipeline_state,
+            state_file=state_file,
+            completed_steps=(
+                frozenset(pipeline_state.get("completed_steps", ()))
+                if resume
+                else frozenset()
+            ),
+        )
 
         safe_session_id = safe_diagnostic_text(session_id)
         safe_project_name = safe_diagnostic_text(project_name)
@@ -434,6 +447,9 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         # never mutate the shared step_configs mapping because API callers can
         # run multiple pipelines concurrently with different credentials.
         step_config = self._prepare_runtime_config(step_config)
+        step_config = self._without_unavailable_optional_models(
+            step_name, step_config, context
+        )
 
         # Auto-wire outputs from previous steps if needed
         step_outputs = pipeline_state.get("step_outputs", {})

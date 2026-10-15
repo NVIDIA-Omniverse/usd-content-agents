@@ -1772,6 +1772,15 @@ def _add_assign_args(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--layer-only",
+        action="store_true",
+        help=(
+            "Publish material bindings in a USD layer that sublayers the original "
+            "--usd asset. Requires --output-usd and the materials extra. The "
+            "source USD must remain accessible to consumers."
+        ),
+    )
+    parser.add_argument(
         "--repo-root",
         type=Path,
         default=None,
@@ -1797,7 +1806,7 @@ def _add_assign_args(parser: argparse.ArgumentParser) -> None:
         default=os.getenv("CONTENT_AGENT_CODEX_RESPONSES_URL"),
         help=(
             "Exact custom Codex Responses endpoint URL ending in /responses. "
-            "Use this for NVIDIA Inference Hub or another Responses-compatible "
+            "Use this for a Responses-compatible "
             "provider; it cannot be combined with --codex-base-url."
         ),
     )
@@ -2156,6 +2165,11 @@ def _add_assign_args(parser: argparse.ArgumentParser) -> None:
             "Maximum total VQA review/refinement iterations, including the "
             "initial child final review pass. Defaults to 3."
         ),
+    )
+    parser.add_argument(
+        "--skip-vqa",
+        action="store_true",
+        help="Explicitly skip initial and refinement VQA; retain authoring checks and report visual quality as unverified.",
     )
     parser.add_argument(
         "--no-vqa-refinement",
@@ -3086,6 +3100,11 @@ def _add_physics_apply_args(parser: argparse.ArgumentParser) -> None:
         help="Skill-routed child prompt shape.",
     )
     parser.add_argument(
+        "--skip-vqa",
+        action="store_true",
+        help="Skip physics visual review; require passing runtime validation and report unverified visuals.",
+    )
+    parser.add_argument(
         "--visual-validation-max-iterations",
         "--vqa-refinement-max-iterations",
         dest="vqa_refinement_max_iterations",
@@ -3835,6 +3854,7 @@ def _handle_materials_assign(args: argparse.Namespace) -> int:
         output_usd_path=args.output_usd.expanduser().resolve()
         if args.output_usd is not None
         else None,
+        layer_only=args.layer_only,
         default_output_root=Path.cwd().resolve(),
         runner=args.runner,
         model=args.model,
@@ -3871,6 +3891,7 @@ def _handle_materials_assign(args: argparse.Namespace) -> int:
         material_restore_timeout_seconds=args.material_restore_timeout,
         child_timeout_seconds=args.child_timeout,
         prompt_mode=prompt_mode,
+        skip_vqa=args.skip_vqa,
         vqa_refinement_max_iterations=args.vqa_refinement_max_iterations,
         codex_persistent_refinement=args.codex_persistent_refinement,
         memory_enabled=args.memory,
@@ -4852,6 +4873,14 @@ def _physics_vomp_config_from_args(
 
 
 def _handle_physics_apply(args: argparse.Namespace) -> int:
+    if args.deterministic_workflow and args.skip_vqa:
+        print(
+            "--skip-vqa requires the default long-running workflow; "
+            "remove --direct-executor.",
+            file=sys.stderr,
+        )
+        return 2
+
     if getattr(args, "used_deterministic_workflow_alias", False):
         print(
             "WARNING: --deterministic-workflow is deprecated; "
@@ -4958,6 +4987,7 @@ def _handle_physics_apply(args: argparse.Namespace) -> int:
                 scene_tool_timeout_seconds=args.scene_tool_timeout,
                 child_timeout_seconds=args.child_timeout,
                 prompt_mode=args.prompt_mode,
+                skip_vqa=args.skip_vqa,
                 vqa_refinement_max_iterations=args.vqa_refinement_max_iterations,
                 codex_persistent_refinement=args.codex_persistent_refinement,
                 additional_instructions=additional_instructions,

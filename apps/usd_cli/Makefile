@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
 .PHONY: install docs check-docs test quality check
 
 # Add the component toolchain to the shared Content Agents environment.

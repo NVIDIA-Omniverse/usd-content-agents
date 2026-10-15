@@ -30,6 +30,8 @@ from world_understanding.utils.model_timeout import (
     raise_for_terminal_vlm_timeout_result,
 )
 
+from physics_agent.functions.model_endpoints import physics_active_models
+
 logger = logging.getLogger(__name__)
 
 
@@ -195,6 +197,17 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         state_file = Path(working_dir) / ".pipeline_state.json"
         pipeline_state = self._initialize_pipeline_state(context, resume)
         reject_terminal_pipeline_resume(pipeline_state, resume=bool(resume))
+        self._record_and_preflight_model_endpoints(
+            context=context,
+            active_models=physics_active_models(steps_to_run, step_configs),
+            pipeline_state=pipeline_state,
+            state_file=state_file,
+            completed_steps=(
+                frozenset(pipeline_state.get("completed_steps", ()))
+                if resume
+                else frozenset()
+            ),
+        )
 
         safe_session_id = safe_diagnostic_text(session_id)
         safe_project_name = safe_diagnostic_text(project_name)
@@ -375,6 +388,9 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         # never mutate the shared step_configs mapping because API callers can
         # run multiple pipelines concurrently with different credentials.
         step_config = self._prepare_runtime_config(step_config)
+        step_config = self._without_unavailable_optional_models(
+            step_name, step_config, context
+        )
 
         # Auto-wire outputs from previous steps if needed
         step_outputs = pipeline_state.get("step_outputs", {})

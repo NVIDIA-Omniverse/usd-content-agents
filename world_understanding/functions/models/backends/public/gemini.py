@@ -11,10 +11,14 @@ from world_understanding.functions.models.backends.registry import (
     register_image_gen_backend,
     register_vlm_backend,
 )
+from world_understanding.functions.models.request_timeout import (
+    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+)
 from world_understanding.utils.credentials import get_env_api_key_for_backend
 
 _DEFAULT_GEMINI_MODEL = "gemini-3-pro-preview"
-_DEFAULT_TIMEOUT_SECONDS = 120.0
+# Shared hosted-model deadline; WU_MODEL_REQUEST_TIMEOUT_SECONDS.
+_DEFAULT_TIMEOUT_SECONDS = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
 
 
 def create_gemini_chat(
@@ -24,6 +28,7 @@ def create_gemini_chat(
     top_p: float | None = None,
     max_tokens: int | None = None,
     streaming: bool = False,
+    timeout: float | None = _DEFAULT_TIMEOUT_SECONDS,
     **kwargs: Any,
 ) -> BaseChatModel:
     """Create Gemini chat model."""
@@ -52,7 +57,7 @@ def create_gemini_chat(
         model=model or _DEFAULT_GEMINI_MODEL,
         google_api_key=api_key,
         streaming=streaming,
-        timeout=_DEFAULT_TIMEOUT_SECONDS,
+        timeout=timeout,
         **chat_kwargs,
     )
 

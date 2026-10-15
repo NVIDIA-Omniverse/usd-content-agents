@@ -57,6 +57,8 @@ SAMPLE_ASSETS = Path(
         str(REPO_ROOT / "sample_assets" / "simready"),
     )
 )
+#: Internal-only regression fixtures (absent from public staging).
+INTERNAL_FIXTURES = REPO_ROOT / "internal" / "example_tasks"
 
 
 # ── assets under test ─────────────────────────────────────────────────────────────
@@ -195,13 +197,14 @@ def _make_project(root: Path, renderer: str | None = None, remote_url: str | Non
     # project in a throwaway temp dir but reads scenes from the checked-in sample
     # assets and writes fixtures under pytest's temp root, so both must be
     # declared or every request is refused as outside the sandbox.
-    # SAMPLE_ASSETS.parent: not every sample scene lives under simready/ — the
-    # instanced Siemens PCB sits at the sample_assets/ root, and at 51 MB it is read
-    # in place rather than copied into each project.
+    # INTERNAL_FIXTURES: the internal-only instanced Siemens PCB (51 MB) is read in
+    # place rather than copied into each project. Public staging drops internal/,
+    # so the root is declared only where it exists.
     env["USD_CLI_SERVER_ALLOWED_ROOTS"] = os.pathsep.join(
         dict.fromkeys(
             str(Path(p).resolve())
             for p in (root, root.parent, SAMPLE_ASSETS, SAMPLE_ASSETS.parent,
+                      *([INTERNAL_FIXTURES] if INTERNAL_FIXTURES.is_dir() else []),
                       tempfile.gettempdir())
         )
     )

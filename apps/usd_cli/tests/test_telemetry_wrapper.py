@@ -12,6 +12,7 @@ from __future__ import annotations
 import http.server
 import json
 import os
+import shlex
 import stat
 import subprocess
 import sys
@@ -405,7 +406,7 @@ def test_file_rotation(fake_cli, tmp_path):
 
 
 @pytest.mark.skipif(not Path("/proc/self/stat").is_file(), reason="requires procfs")
-def test_action_lock_serializes_distinct_parent_shells(fake_cli, tmp_path):
+def test_action_lock_preserves_identified_action_group_lifetime(fake_cli, tmp_path):
     log = tmp_path / "tel.jsonl"
     lock = tmp_path / "agent-action.lock.json"
     environment = {
@@ -416,11 +417,17 @@ def test_action_lock_serializes_distinct_parent_shells(fake_cli, tmp_path):
         "USD_CLI_TEL_ACTION_LOCK": str(lock),
         "USD_CLI_TEL_ACTION_LOCK_TIMEOUT": "5",
     }
+    # Simulate an identified action group using the persistent outer shell.
+    bootstrap = (
+        "import os; from usd_telemetry import main; "
+        "main._outer_pid_namespace_process_group = os.getppid; main.run()"
+    )
+    command = shlex.join([sys.executable, "-c", bootstrap])
     first = subprocess.Popen(
         [
             "/bin/bash",
             "-c",
-            f"{sys.executable} -m usd_telemetry snapshot --sleep; sleep 0.4",
+            f"{command} snapshot --sleep; sleep 0.4",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -434,7 +441,7 @@ def test_action_lock_serializes_distinct_parent_shells(fake_cli, tmp_path):
 
     started = time.monotonic()
     second = subprocess.run(
-        ["/bin/bash", "-c", f"{sys.executable} -m usd_telemetry render"],
+        ["/bin/bash", "-c", f"{command} render"],
         capture_output=True,
         text=True,
         env=environment,
@@ -760,3 +767,139 @@ def test_resolve_target_applies_windows_pathext(
 
     assert resolved is not None
     assert os.path.samefile(resolved, real_cli)
+
+
+@pytest.mark.parametrize("group_pid", [None, 4242])
+def test_action_owner_preserves_group_and_uses_wrapper_fallback(monkeypatch, group_pid):
+    monkeypatch.setattr(
+        telemetry_main, "_outer_pid_namespace_process_group", lambda: group_pid
+    )
+    monkeypatch.setattr(telemetry_main, "_process_start_token", lambda pid: str(pid))
+    owner = telemetry_main._action_owner()
+    assert owner["pid"] == (os.getpid() if group_pid is None else group_pid)
+    assert owner["scope"] == (
+        "wrapper_process" if group_pid is None else "outer_process_group"
+    )
+
+
+@pytest.mark.parametrize(
+    "scope", ["wrapper_process", "outer_process_group", "parent_process", None]
+)
+@pytest.mark.parametrize("token", ["live", "stale", None])
+def test_pid_one_lease_requires_wrapper_scope_and_live_token(monkeypatch, scope, token):
+    monkeypatch.setattr(telemetry_main, "_process_start_token", lambda pid: "live")
+    owner = {"pid": 1, "scope": scope, "start_token": token}
+    assert telemetry_main._live_action_owner(owner) == (
+        scope == "wrapper_process" and token == "live"
+    )
+
+
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="Uses Linux process lifetime tokens"
+)
+@pytest.mark.parametrize("first_exit", [0, 3])
+def test_wrapper_fallback_releases_after_command_with_parent_alive(
+    fake_cli, tmp_path, first_exit
+):
+    lock = tmp_path / "action.lock.json"
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(SRC),
+        "USD_CLI_TEL_TARGET": str(fake_cli),
+        "USD_CLI_TEL_FILE": str(tmp_path / "telemetry.jsonl"),
+        "USD_CLI_TEL_ACTION_LOCK": str(lock),
+        "USD_CLI_TEL_ACTION_LOCK_TIMEOUT": "1",
+    }
+    # Force the direct-launch fallback, independently of the test host's PID namespace.
+    bootstrap = (
+        "from usd_telemetry import main; "
+        "main._outer_pid_namespace_process_group = lambda: None; main.run()"
+    )
+    first = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            bootstrap,
+            "snapshot",
+            *(["--fail"] if first_exit else []),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert first.returncode == first_exit, first.stderr
+    owner = json.loads(lock.read_text())
+    assert owner["scope"] == "wrapper_process"
+    assert owner["pid"] != os.getpid()
+    assert not telemetry_main._live_action_owner(owner)
+    # A subsequent sandbox action has a different owner even though its agent parent lives.
+    next_bootstrap = (
+        "import os; from usd_telemetry import main; "
+        "main._outer_pid_namespace_process_group = os.getpid; main.run()"
+    )
+    second = subprocess.run(
+        [sys.executable, "-c", next_bootstrap, "snapshot"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert second.returncode == 0, second.stderr
+    assert "payload:snapshot" in second.stdout
+
+
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="Uses Linux process lifetime tokens"
+)
+def test_fallback_lease_serializes_live_commands_and_recovers_owner_exit(tmp_path):
+    lock = tmp_path / "action.lock.json"
+    bootstrap = """
+import sys
+from pathlib import Path
+from usd_telemetry import main
+main._outer_pid_namespace_process_group = lambda: None
+print('attempting', flush=True)
+main._acquire_action_lease(Path(sys.argv[1]), timeout_seconds=5)
+print('acquired', flush=True)
+sys.stdin.readline()
+"""
+    env = {**os.environ, "PYTHONPATH": str(SRC)}
+    processes = []
+    try:
+        first = subprocess.Popen(
+            [sys.executable, "-c", bootstrap, str(lock)],
+            env=env,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        processes.append(first)
+        assert first.stdout.readline().strip() == "attempting"
+        assert first.stdout.readline().strip() == "acquired"
+        second = subprocess.Popen(
+            [sys.executable, "-c", bootstrap, str(lock)],
+            env=env,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        processes.append(second)
+        assert second.stdout.readline().strip() == "attempting"
+        with pytest.raises(subprocess.TimeoutExpired):
+            second.communicate(timeout=0.2)
+        assert json.loads(lock.read_text())["pid"] == first.pid
+        # Abrupt owner exit must also permit recovery without deleting the lease manually.
+        first.kill()
+        first.communicate(timeout=5)
+        stdout, stderr = second.communicate(timeout=5)
+        assert second.returncode == 0, stderr
+        assert "acquired" in stdout
+        assert json.loads(lock.read_text())["pid"] == second.pid
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=5)

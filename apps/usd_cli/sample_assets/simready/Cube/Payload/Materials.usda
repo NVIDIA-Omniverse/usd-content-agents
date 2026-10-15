@@ -1,7 +1,9 @@
 #usda 1.0
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
 (
     customLayerData = {
-        string creator = "GTC26 OBJ to USD Converter"
+        string creator = "usd-cli scripts/generate_sample_cube.py"
     }
     defaultPrim = "cube"
     kilogramsPerUnit = 1

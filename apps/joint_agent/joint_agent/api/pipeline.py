@@ -84,6 +84,8 @@ class PipelineInput:
     event_listener: EventListener | None = None
     cancel_checker: Callable[[], bool] | None = None
     source_config_path: Path | None = None
+    # Last, so existing positional construction keeps its meaning.
+    model_endpoint_preflight: bool = False
 
     def __post_init__(self) -> None:
         """Validate inputs."""
@@ -213,6 +215,7 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
             "clean": params.clean,
             "verbose": params.verbose,
             "event_listener": listener,
+            "model_endpoint_preflight": params.model_endpoint_preflight,
         }
         if params.cancel_checker is not None:
             initial_context["cancel_checker"] = params.cancel_checker

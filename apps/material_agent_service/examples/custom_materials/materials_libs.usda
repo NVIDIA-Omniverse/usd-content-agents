@@ -39,11 +39,6 @@
         }
     }
     defaultPrim = "World"
-    doc = """Generated from Composed Stage of root layer 
-
-
-Generated from Composed Stage of root layer omniverse://content.ov.nvidia.com/Projects/Materials/SmartMaterials/Single_Assets/materials/20_Materials.usd
-"""
     endTimeCode = 1000
     metersPerUnit = 1
     startTimeCode = 1

@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1.19
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
 FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517 AS geometry-agent-build
 
 ARG APP_VERSION=unknown

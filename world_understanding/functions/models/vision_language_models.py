@@ -6,6 +6,7 @@ import asyncio
 import logging
 import math
 import os
+import re
 import tempfile
 from abc import ABC, abstractmethod
 from concurrent.futures import CancelledError
@@ -17,6 +18,13 @@ from PIL import Image as PILImage
 from requests.exceptions import Timeout as RequestsTimeout
 
 from world_understanding.functions.models.nim_timeout import _apply_nim_chat_timeout
+from world_understanding.functions.models.nim_transport import (
+    _configure_nim_chat_transport,
+    canonical_endpoint,
+)
+from world_understanding.functions.models.request_timeout import (
+    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+)
 from world_understanding.functions.models.token_limits import (
     ensure_model_output_token_budget,
     normalize_openai_token_kwargs,
@@ -45,7 +53,8 @@ _DEFAULT_GEMINI_MODEL = "gemini-3-pro-preview"
 _DEFAULT_GRADIO_API_NAME = "/process_media"
 # No default endpoint — callers must pass `endpoint=...` for the gradio backend.
 _DEFAULT_GRADIO_ENDPOINT = ""
-_DEFAULT_TIMEOUT_SECONDS = 120.0
+# Shared hosted-model deadline; WU_MODEL_REQUEST_TIMEOUT_SECONDS.
+_DEFAULT_TIMEOUT_SECONDS = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
 _GRADIO_CANCEL_SETTLE_TIMEOUT_SECONDS = 1.0
 _DEFAULT_MAX_TOKENS = None
 _DEFAULT_TEMPERATURE = None
@@ -77,6 +86,82 @@ def _invoke_nim_chat_model(
         # exhausts its deadline, while requests raises its own Timeout type for
         # a transport deadline. Neither proves that remote work stopped.
         raise NonRetryableVLMTimeoutError(NON_RETRYABLE_VLM_TIMEOUT_MESSAGE) from None
+
+
+_NIM_IMAGE_LIMIT_PATTERN = re.compile(r"At most (\d+) image\(s\) may be provided")
+# Image limits per (endpoint URL, model), learned from NIM rejections. A
+# self-hosted NIM sets its own NIM_MAX_IMAGES_PER_PROMPT. Hosted Llama 3.2
+# Vision is seeded (one image per prompt): otherwise every
+# concurrent first request would send a rejected multi-image prompt.
+_HOSTED_NIM_CHAT_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+_nim_image_limits: dict[tuple[str, str], int] = {
+    (_HOSTED_NIM_CHAT_URL, "meta/llama-3.2-11b-vision-instruct"): 1,
+    (_HOSTED_NIM_CHAT_URL, "meta/llama-3.2-90b-vision-instruct"): 1,
+}
+_NIM_GRID_MAX_SIDE = 1536
+
+
+def _tile_images(images: list[PILImage.Image]) -> PILImage.Image:
+    """Tile images into one grid numbered left to right, then top to bottom."""
+    from PIL import ImageDraw, ImageFont
+
+    cols = math.ceil(math.sqrt(len(images)))
+    rows = math.ceil(len(images) / cols)
+    cell = _NIM_GRID_MAX_SIDE // cols
+    grid = PILImage.new("RGB", (cols * cell, rows * cell), "white")
+    draw = ImageDraw.Draw(grid)
+    font = ImageFont.load_default(size=max(16, cell // 12))
+    for index, image in enumerate(images):
+        tile = image.convert("RGBA")
+        tile.thumbnail((cell, cell))
+        x, y = (index % cols) * cell, (index // cols) * cell
+        offset = (x + (cell - tile.width) // 2, y + (cell - tile.height) // 2)
+        grid.paste(tile, offset, tile)  # transparent pixels show the white grid
+        draw.text(
+            (x + 8, y + 8),
+            str(index + 1),
+            fill="red",
+            font=font,
+            stroke_width=2,
+            stroke_fill="white",
+        )
+    return grid
+
+
+def _tile_image_segments(
+    segments: list[str | PILImage.Image],
+) -> list[str | PILImage.Image]:
+    """Replace the images in a prompt with one numbered grid image."""
+    images = [segment for segment in segments if not isinstance(segment, str)]
+    tiled: list[str | PILImage.Image] = []
+    number = 0
+    for segment in segments:
+        if isinstance(segment, str):
+            tiled.append(segment)
+            continue
+        number += 1
+        if number == 1:
+            tiled.append(
+                f"The next image is a grid of {len(images)} numbered tiles; "
+                "tile N is image N."
+            )
+            tiled.append(_tile_images(images))
+        tiled.append(f"(Image {number} is tile {number}.)")
+    return tiled
+
+
+def _nim_message_content(
+    segments: list[str | PILImage.Image],
+) -> list[str | dict[Any, Any]]:
+    return [
+        {"type": "text", "text": segment}
+        if isinstance(segment, str)
+        else {
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{image_to_base64(segment)}"},
+        }
+        for segment in segments
+    ]
 
 
 class BaseVisionLanguageModel(ABC):
@@ -1315,6 +1400,7 @@ class NvidiaNIMVLM(BaseVisionLanguageModel):
             timeout_s,
             label="NvidiaNIMVLM",
         )
+        _configure_nim_chat_transport(self.chat_model, label="NvidiaNIMVLM")
 
     @traced_vlm(name="vlm.generate", system="nim", operation="generate")
     def generate(
@@ -1327,18 +1413,6 @@ class NvidiaNIMVLM(BaseVisionLanguageModel):
         **kwargs: Any,
     ) -> str:
         """Generate response using NVIDIA NIM."""
-        from langchain_core.messages import HumanMessage, SystemMessage
-
-        # Build content
-        content: list[dict[str, Any]] = []
-
-        # Add text prompt
-        content.append({"type": "text", "text": prompt})
-
-        # Debug logging for images
-        import logging
-
-        logger = logging.getLogger(__name__)
         if images is not None:
             logger.debug(
                 f"NvidiaNIMVLM.generate received {len(images)} images (type: {type(images).__name__})"
@@ -1346,62 +1420,11 @@ class NvidiaNIMVLM(BaseVisionLanguageModel):
         else:
             logger.warning("NvidiaNIMVLM.generate received images=None")
 
-        # Add images if provided
-        if images:
-            for image in images:
-                pil_image = self._load_image(image)
-                base64_image = image_to_base64(pil_image)
-                content.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{base64_image}"},
-                    }
-                )
-
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=content if images else prompt),
-        ]
-
-        # Set temperature and max_tokens if provided
-        invoke_kwargs = {}
-        if temperature is not None:
-            invoke_kwargs["temperature"] = temperature
-
-        # Handle max_tokens for NIM models:
-        # NIM uses max_tokens (not max_completion_tokens). ChatNVIDIA's built-in
-        # default is cleared at construction; pass max_tokens per-call for thread safety.
-        effective_max_tokens = kwargs.get("max_completion_tokens")
-        if effective_max_tokens is None:
-            effective_max_tokens = kwargs.get("max_tokens")
-        if effective_max_tokens is None:
-            effective_max_tokens = max_tokens
-        if effective_max_tokens is not None:
-            invoke_kwargs["max_tokens"] = ensure_model_output_token_budget(
-                self._model_name,
-                effective_max_tokens,
-            )
-
-        # Add remaining kwargs (excluding max_tokens and max_completion_tokens which we handled)
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens"):
-                invoke_kwargs[key] = value
-
-        # Remove None values - they shouldn't be passed to the API
-        invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
-
-        response = _invoke_nim_chat_model(
-            self.chat_model,
-            messages,
-            invoke_kwargs,
+        segments: list[str | PILImage.Image] = [prompt]
+        segments.extend(self._load_image(image) for image in images or [])
+        return self._invoke_segments(
+            system_prompt, segments, temperature, max_tokens, kwargs
         )
-
-        # Track token usage
-        self._last_token_usage = TokenUsage.from_langchain_response(
-            response, model_name=self._model_name, invocation_type="vlm"
-        )
-
-        return response.content  # type: ignore[return-value]
 
     def generate_with_image_caption_pairs(
         self,
@@ -1413,32 +1436,24 @@ class NvidiaNIMVLM(BaseVisionLanguageModel):
         **kwargs: Any,
     ) -> str:
         """Generate response from image-caption pairs with true interleaved support."""
-        from langchain_core.messages import HumanMessage, SystemMessage
-
-        # Build content with interleaved captions and images
-        content: list[dict[str, Any]] = []
-
+        segments: list[str | PILImage.Image] = []
         for caption, image in image_caption_pairs:
-            # Add caption text
-            content.append({"type": "text", "text": caption})
+            segments.extend((caption, self._load_image(image)))
+        segments.append(final_prompt)
+        return self._invoke_segments(
+            system_prompt, segments, temperature, max_tokens, kwargs
+        )
 
-            # Add image
-            pil_image = self._load_image(image)
-            base64_image = image_to_base64(pil_image)
-            content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{base64_image}"},
-                }
-            )
-
-        # Add final prompt
-        content.append({"type": "text", "text": final_prompt})
-
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=content),
-        ]
+    def _invoke_segments(
+        self,
+        system_prompt: str,
+        segments: list[str | PILImage.Image],
+        temperature: float | None,
+        max_tokens: int | None,
+        kwargs: dict[str, Any],
+    ) -> str:
+        """Invoke ChatNVIDIA, tiling images when the model limits images per prompt."""
+        from langchain_core.messages import HumanMessage, SystemMessage
 
         # Set temperature and max_tokens if provided
         invoke_kwargs = {}
@@ -1467,11 +1482,43 @@ class NvidiaNIMVLM(BaseVisionLanguageModel):
         # Remove None values - they shouldn't be passed to the API
         invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
 
-        response = _invoke_nim_chat_model(
-            self.chat_model,
-            messages,
-            invoke_kwargs,
+        image_count = sum(not isinstance(segment, str) for segment in segments)
+        client = getattr(self.chat_model, "_client", None)
+        limit_key = (
+            canonical_endpoint(str(getattr(client, "infer_url", ""))),
+            self._model_name,
         )
+        limit = _nim_image_limits.get(limit_key)
+        tiled = limit is not None and image_count > limit
+        while True:
+            parts = _tile_image_segments(segments) if tiled else segments
+            content: str | list[str | dict[Any, Any]] = (
+                _nim_message_content(parts)
+                if image_count
+                else "".join(part for part in parts if isinstance(part, str))
+            )
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=content),
+            ]
+            try:
+                response = _invoke_nim_chat_model(
+                    self.chat_model, messages, invoke_kwargs
+                )
+                break
+            except Exception as error:
+                match = _NIM_IMAGE_LIMIT_PATTERN.search(str(error))
+                if tiled or match is None or image_count <= int(match.group(1)):
+                    raise
+                _nim_image_limits[limit_key] = int(match.group(1))
+                logger.warning(
+                    "%s accepts at most %s image(s) per prompt; tiling %d images "
+                    "into one grid image",
+                    self._model_name,
+                    match.group(1),
+                    image_count,
+                )
+                tiled = True
 
         # Track token usage
         self._last_token_usage = TokenUsage.from_langchain_response(

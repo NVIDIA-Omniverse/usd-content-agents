@@ -1801,7 +1801,29 @@ function copyRegularCodexStateFile(sourcePath, destinationPath) {
   fs.chmodSync(destinationPath, 0o600);
 }
 
-export function resolveCodexExecutable() {
+export function resolveCodexExecutable(sourceEnv = process.env) {
+  // Operator-owned launcher configuration, never a child-authored request field.
+  // Keep the package-local pin as the default and fail closed on bad overrides.
+  const override = sourceEnv.CONTENT_WORKFLOW_CODEX_EXECUTABLE;
+  if (override !== undefined) {
+    if (typeof override !== "string" || !path.isAbsolute(override)) {
+      throw new Error("CONTENT_WORKFLOW_CODEX_EXECUTABLE must be an absolute executable path");
+    }
+    let executable;
+    try {
+      executable = fs.realpathSync(override);
+      if (!fs.statSync(executable).isFile()) {
+        throw new Error("not a regular file");
+      }
+      fs.accessSync(executable, fs.constants.X_OK);
+    } catch (error) {
+      throw new Error("CONTENT_WORKFLOW_CODEX_EXECUTABLE is not an executable file", {
+        cause: error,
+      });
+    }
+    process.stderr.write(`Using operator-selected Codex executable: ${executable}\n`);
+    return executable;
+  }
   let packageJsonPath;
   try {
     packageJsonPath = moduleRequire.resolve("@openai/codex/package.json");

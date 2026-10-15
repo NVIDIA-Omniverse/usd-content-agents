@@ -5,7 +5,7 @@ info:
     Fixed pipeline REST API for VLM-based material assignment to 3D USD
     objects. This v0.6 interface does not invoke the default agentic Content
     Workflow.
-  version: "0.6.0"
+  version: "0.6.1"
 servers:
   - url: http://localhost:8000
     description: Local development server

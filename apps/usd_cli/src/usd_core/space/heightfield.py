@@ -476,9 +476,9 @@ def invert_free_kernel(
             # interior, not placeable free space. The comparison is between the
             # down-facing contact face of the layer below and the BOTTOM face of the
             # layer above — the two surfaces that actually bound this gap. Without it the detector offers
-            # the inside of a sealed box: on the shipped `simready/Cardbox`, a
-            # query for a 5 cm object inside the closed carton returns 1 region
-            # with this test removed and 0 with it in place.
+            # the inside of a sealed box: on a closed carton asset, a query for a
+            # 5 cm object inside it returned 1 region with this test removed and
+            # 0 with it in place.
             #
             # Object identity is the right granularity *because of how containers
             # are authored*. A rack, a cabinet, a shelving unit is a set of part

@@ -21,6 +21,9 @@ from world_understanding.functions.models.backends.public import anthropic, gemi
 from world_understanding.functions.models.backends.public import (
     openai as openai_backend,
 )
+from world_understanding.functions.models.request_timeout import (
+    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+)
 from world_understanding.utils import credentials
 
 
@@ -63,7 +66,7 @@ def test_anthropic_chat_and_vlm_factories(monkeypatch: pytest.MonkeyPatch) -> No
         "model_name": "claude-opus-4-6",
         "api_key": "anthropic-key",
         "streaming": True,
-        "timeout": 120.0,
+        "timeout": DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
         "temperature": 0.2,
         "top_p": 0.9,
         "max_tokens": 123,
@@ -106,7 +109,7 @@ def test_openai_chat_and_vlm_factory_edges(
     sol_chat = openai_backend.create_openai_chat(
         api_key="openai-key",
         model="openai/openai/gpt-5.6-sol",
-        base_url="https://inference-api.nvidia.com/v1",
+        base_url="https://inference.example/v1",
         temperature=0.1,
         top_p=0.4,
         max_tokens=512,
@@ -116,11 +119,11 @@ def test_openai_chat_and_vlm_factory_edges(
         "model": "openai/openai/gpt-5.6-sol",
         "api_key": "openai-key",
         "streaming": False,
-        "timeout": 120.0,
+        "timeout": DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
         "max_completion_tokens": 16_384,
         "reasoning_effort": "xhigh",
         "use_responses_api": True,
-        "base_url": "https://inference-api.nvidia.com/v1",
+        "base_url": "https://inference.example/v1",
     }
 
     vlm = openai_backend.create_openai_vlm(api_key="openai-key")
@@ -130,7 +133,7 @@ def test_openai_chat_and_vlm_factory_edges(
     sol_vlm = openai_backend.create_openai_vlm(
         api_key="openai-key",
         model="openai/openai/gpt-5.6-sol",
-        base_url="https://inference-api.nvidia.com/v1",
+        base_url="https://inference.example/v1",
         max_tokens=512,
         timeout=9,
     )
@@ -346,6 +349,36 @@ def test_nim_vlm_and_image_generation_factories(
     assert image_model.kwargs == {"api_key": "nim-key", "model": "image-model"}
 
 
+@pytest.mark.parametrize(
+    ("factory", "sdk_module", "sdk_class"),
+    [
+        ("anthropic", "langchain_anthropic", "ChatAnthropic"),
+        ("gemini", "langchain_google_genai", "ChatGoogleGenerativeAI"),
+    ],
+)
+@pytest.mark.parametrize("timeout", [7.0, 600.0, None])
+def test_chat_factories_pass_an_explicit_model_timeout_once(
+    monkeypatch: pytest.MonkeyPatch,
+    factory: str,
+    sdk_module: str,
+    sdk_class: str,
+    timeout: float | None,
+) -> None:
+    """A model section's `timeout` must reach the SDK once, not collide."""
+    monkeypatch.setitem(
+        sys.modules, sdk_module, SimpleNamespace(**{sdk_class: CapturingModel})
+    )
+    create = (
+        anthropic.create_anthropic_chat
+        if factory == "anthropic"
+        else gemini.create_gemini_chat
+    )
+
+    chat = create(api_key="key", timeout=timeout)
+
+    assert chat.kwargs["timeout"] == timeout
+
+
 def test_gemini_chat_optional_sampling_kwargs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -368,7 +401,7 @@ def test_gemini_chat_optional_sampling_kwargs(
         "model": "gemini-3-pro-preview",
         "google_api_key": "gemini-key",
         "streaming": False,
-        "timeout": 120.0,
+        "timeout": DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
         "temperature": 0.3,
         "top_p": 0.8,
         "max_tokens": 321,

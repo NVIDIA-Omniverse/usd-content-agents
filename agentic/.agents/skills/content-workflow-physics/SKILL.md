@@ -320,3 +320,12 @@ repair rules in `content_agent_workflows.physics`.
 - `references/physics-policy.md`
 - `references/output-artifacts.md`
 - `references/runtime-validation.md`
+
+## Explicit visual-review opt-out
+
+For an operator-requested smoke E2E, `physics apply --skip-vqa` skips the
+visual-review turns after deterministic finalization. It still requires real
+simulation to pass; failed or unavailable runtime validation remains blocking.
+The visual history records `skipped`, and canonical evidence is conditional
+with visual behavior unverified. This option is not supported with tune/refine.
+Preserve the warning when handing the authored USD to downstream validation.

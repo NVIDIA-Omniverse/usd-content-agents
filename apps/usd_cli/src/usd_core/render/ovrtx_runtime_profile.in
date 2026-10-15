@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
 # Exact isolated OVRTX render-daemon runtime, provisioned by
 # usd_core/render/ovrtx.py::_provision_venv from the hash-pinned lock compiled
 # out of this profile (pylock.ovrtx-runtime.toml, installed with

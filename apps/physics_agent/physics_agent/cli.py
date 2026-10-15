@@ -23,6 +23,9 @@ from world_understanding.agentic.cli import (
 from world_understanding.agentic.cli.console import EncodingSafeTextIO
 from world_understanding.agentic.config import validate_selected_model_credentials
 from world_understanding.agentic.events import get_listener
+from world_understanding.agentic.model_endpoints import (
+    model_endpoint_preflight_enabled,
+)
 from world_understanding.utils.credentials import (
     path_is_file_with_safe_diagnostics,
     redact_sensitive_config,
@@ -1839,6 +1842,9 @@ def run(
             dry_run=False,
             clean=clean,
             verbose=False,  # Logging already set up
+            # Probe each model endpoint before the first step;
+            # WU_MODEL_ENDPOINT_PREFLIGHT=0 turns it off.
+            model_endpoint_preflight=model_endpoint_preflight_enabled(True),
             event_listener=cli_listener,
         )
 

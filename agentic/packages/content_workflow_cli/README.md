@@ -175,6 +175,25 @@ Requirements](#child-runner-security-requirements) before starting a workflow.
      --output-dir runs/content-workflow-cli/example-codex
    ```
 
+   To publish a non-destructive material layer over the original USD, install
+   `content-workflow-cli[materials]` and run:
+
+   ```bash
+   content-workflow-cli materials assign \
+     --usd path/to/asset.usdc \
+     --materials-yaml path/to/materials.yaml \
+     --output-usd path/to/materials.usda \
+     --layer-only
+   ```
+
+   The output root layer sublayers the original `--usd` file and
+   contains the accepted material bindings without copying its geometry. Keep
+   the source USD and its dependencies accessible when moving or opening the
+   output layer. Existing source appearance on unassigned prims remains
+   composed. The workflow still uses a flat internal copy for rendering and
+   review. This option applies to `materials assign` (and its `materials apply`
+   alias); `scene run` has a separate output contract.
+
    Large scenes use the same public launcher with a scene-level command:
 
    ```bash

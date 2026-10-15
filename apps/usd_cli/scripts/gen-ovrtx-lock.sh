@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
 # Regenerate the hash-pinned OVRTX runtime lock (PEP 751) that
 # usd_core/render/ovrtx.py::_provision_venv installs from, then mark every
 # artifact-digest line for secret scanners.

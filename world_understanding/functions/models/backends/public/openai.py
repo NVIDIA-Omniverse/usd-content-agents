@@ -12,6 +12,9 @@ from world_understanding.functions.models.backends.registry import (
     register_image_gen_backend,
     register_vlm_backend,
 )
+from world_understanding.functions.models.request_timeout import (
+    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+)
 from world_understanding.functions.models.token_limits import (
     model_reasoning_effort_default,
     model_uses_openai_responses_api,
@@ -20,7 +23,8 @@ from world_understanding.functions.models.token_limits import (
 from world_understanding.utils.credentials import get_openai_api_key_for_base_url
 
 _DEFAULT_OPENAI_MODEL = "gpt-5.4"
-_DEFAULT_TIMEOUT_SECONDS = 120.0
+# Shared hosted-model deadline; WU_MODEL_REQUEST_TIMEOUT_SECONDS.
+_DEFAULT_TIMEOUT_SECONDS = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
 
 
 def _resolve_base_url(explicit: str | None = None) -> str | None:
@@ -29,7 +33,7 @@ def _resolve_base_url(explicit: str | None = None) -> str | None:
     langchain-openai's ``ChatOpenAI`` only reads the legacy ``OPENAI_API_BASE``
     env var, while the modern openai SDK (and most of our CI / docker-compose
     envs) use ``OPENAI_BASE_URL``. Accept either so callers that point at an
-    OpenAI-compatible endpoint (e.g. NVIDIA's inference-api.nvidia.com) don't
+    OpenAI-compatible endpoint (e.g. inference.example) don't
     silently fall back to api.openai.com.
     """
     if explicit:

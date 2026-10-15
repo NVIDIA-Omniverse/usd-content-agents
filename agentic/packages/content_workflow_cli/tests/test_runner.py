@@ -2733,7 +2733,7 @@ def test_restore_materialized_output_reads_canonical_assignment_groups(
     )
 
     result = runner._restore_materialized_output(
-        config=SimpleNamespace(output_usd_path=output_path),
+        config=SimpleNamespace(output_usd_path=output_path, layer_only=False),
         run_dir=run_dir,
         preflight_packet=None,
         trace_writer=TraceWriter(run_dir),
@@ -2816,7 +2816,7 @@ def test_restore_materialized_output_reads_source_space_prim_paths(
     )
 
     result = runner._restore_materialized_output(
-        config=SimpleNamespace(output_usd_path=output_path),
+        config=SimpleNamespace(output_usd_path=output_path, layer_only=False),
         run_dir=run_dir,
         preflight_packet=None,
         trace_writer=TraceWriter(run_dir),
@@ -7831,6 +7831,49 @@ def test_delegated_vision_verification_binds_every_final_render(
         assert verification_path.stat().st_mode & stat.S_IWRITE
     else:
         assert stat.S_IMODE(verification_path.stat().st_mode) == 0o600
+
+
+@pytest.mark.parametrize("require_final_review", [False, True])
+def test_delegated_vision_initial_receipt_with_skipped_vqa(
+    tmp_path: Path, require_final_review: bool
+) -> None:
+    source = tmp_path / "source.usda"
+    source.write_bytes(b"source")
+    report = tmp_path / "initial.json"
+    report.write_text("{}", encoding="utf-8")
+    receipt = runner.DelegatedVisionEvidenceReceipt(
+        phase="initial",
+        report_path=report,
+        report_sha256=runner._file_digest(report),
+        evidence_sha256="evidence",
+        source_usd_path=source,
+        source_usd_sha256=runner._file_digest(source),
+        image_artifacts=(),
+        render_metadata_image_paths=(),
+        render_metadata_path=None,
+        render_metadata_sha256=None,
+    )
+    kwargs = dict(
+        run_dir=tmp_path,
+        receipts=[receipt],
+        require_final_review=require_final_review,
+    )
+    if require_final_review:
+        with pytest.raises(UnsafeRunArtifactError, match="final render evidence"):
+            runner._write_delegated_vision_evidence_verification(**kwargs)
+        return
+    path = runner._write_delegated_vision_evidence_verification(**kwargs)
+    evidence = json.loads(path.read_text(encoding="utf-8"))
+    assert evidence["final_review_status"] == "skipped"
+    assert evidence["canonical_final_renders"] == []
+    assert evidence["reports"][0]["report_sha256"] == receipt.report_sha256
+    report.write_text("tampered", encoding="utf-8")
+    with pytest.raises(UnsafeRunArtifactError, match="report changed"):
+        runner._write_delegated_vision_evidence_verification(**kwargs)
+    with pytest.raises(UnsafeRunArtifactError, match="trusted evidence receipt"):
+        runner._write_delegated_vision_evidence_verification(
+            run_dir=tmp_path, receipts=[], require_final_review=False
+        )
 
 
 def test_vision_runtime_instructions_contain_untrusted_backticks() -> None:
@@ -32898,8 +32941,10 @@ def test_run_material_assignment_distinguishes_restore_and_status_failures(
         assert annotation_event["event_type"] == "error"
 
 
+@pytest.mark.parametrize("skip_vqa", [False, True])
 def test_delegated_evidence_gate_runs_before_materialized_restore(
     tmp_path: Path,
+    skip_vqa: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     inputs = _write_usd_cli_material_inputs(tmp_path)
@@ -32915,6 +32960,7 @@ def test_delegated_evidence_gate_runs_before_materialized_restore(
         return 0
 
     def reject_evidence(**_kwargs: object) -> Path:
+        assert _kwargs["require_final_review"] is (not skip_vqa)
         call_order.append("verify")
         raise UnsafeRunArtifactError("final evidence mismatch")
 
@@ -32966,6 +33012,7 @@ def test_delegated_evidence_gate_runs_before_materialized_restore(
                 tmp_path,
                 inputs,
                 output_dir=run_dir,
+                skip_vqa=skip_vqa,
                 output_usd_path=output_usd,
                 vision_backend="test_vision_backend",
                 vision_model="test_vision_model",
@@ -33669,3 +33716,329 @@ def test_create_private_raw_dir_rejects_symlink(tmp_path) -> None:
     (run_dir / "raw").write_text("not a directory")
     with pytest.raises(RuntimeError, match="unsafe usd-cli raw artifact path"):
         runner._create_private_raw_dir(run_dir)
+
+
+def test_codex_bridge_operator_executable_override(tmp_path: Path) -> None:
+    bridge_uri = Path(runner.__file__).with_name("codex_sdk_bridge.mjs").as_uri()
+    executable = tmp_path / "operator codex"
+    executable.write_text("#!/bin/sh\nprintf 'operator-selected'\n", encoding="utf-8")
+    executable.chmod(0o755)
+    link = tmp_path / "codex-link"
+    link.symlink_to(executable)
+    script = f"""
+        import {{ resolveCodexExecutable }} from {json.dumps(bridge_uri)};
+        import {{ execFileSync }} from "node:child_process";
+        const selected = resolveCodexExecutable({{
+          CONTENT_WORKFLOW_CODEX_EXECUTABLE: {json.dumps(str(link))}
+        }});
+        console.log(JSON.stringify({{ selected, output: execFileSync(selected, [], {{encoding: "utf8"}}) }}));
+    """
+    result = subprocess.run(
+        [_node(), "--input-type=module", "-e", script],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert json.loads(result.stdout) == {
+        "selected": str(executable),
+        "output": "operator-selected",
+    }
+    assert "operator-selected Codex executable" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "invalid", ["", "codex", "missing", "directory", "not-executable"]
+)
+def test_codex_bridge_rejects_bad_executable_override(
+    tmp_path: Path, invalid: str
+) -> None:
+    bridge_uri = Path(runner.__file__).with_name("codex_sdk_bridge.mjs").as_uri()
+    candidate = tmp_path / invalid
+    if invalid == "directory":
+        candidate.mkdir()
+    elif invalid == "not-executable":
+        candidate.write_text("not executable", encoding="utf-8")
+        candidate.chmod(0o600)
+    value = invalid if invalid in {"", "codex"} else str(candidate)
+    script = f"""
+        import {{ resolveCodexExecutable }} from {json.dumps(bridge_uri)};
+        resolveCodexExecutable({{CONTENT_WORKFLOW_CODEX_EXECUTABLE: {json.dumps(value)}}});
+    """
+    result = subprocess.run(
+        [_node(), "--input-type=module", "-e", script],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode != 0
+    assert "CONTENT_WORKFLOW_CODEX_EXECUTABLE" in result.stderr
+
+
+def test_codex_bridge_override_reaches_sanitized_bridge_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTENT_WORKFLOW_CODEX_EXECUTABLE", "/operator/bin/codex")
+    assert (
+        runner._child_agent_environment()["CONTENT_WORKFLOW_CODEX_EXECUTABLE"]
+        == "/operator/bin/codex"
+    )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX package executable resolution")
+def test_codex_bridge_default_still_uses_package_pin(tmp_path: Path) -> None:
+    # Resolve against an isolated package fixture, not a developer's npm install.
+    bridge_path = tmp_path / "codex_sdk_bridge.mjs"
+    shutil.copyfile(Path(runner.__file__).with_name(bridge_path.name), bridge_path)
+    package = tmp_path / "node_modules" / "@openai" / "codex"
+    package.mkdir(parents=True)
+    (package / "package.json").write_text(
+        json.dumps({"name": "@openai/codex", "bin": {"codex": "codex.mjs"}})
+    )
+    executable = package / "codex.mjs"
+    executable.write_text("#!/usr/bin/env node\n")
+    executable.chmod(0o700)
+    bridge_uri = bridge_path.as_uri()
+    script = f"""
+        import {{ resolveCodexExecutable }} from {json.dumps(bridge_uri)};
+        const selected = resolveCodexExecutable({{}});
+        console.log(selected);
+    """
+    result = subprocess.run(
+        [_node(), "--input-type=module", "-e", script],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert Path(result.stdout.strip()) == executable.resolve()
+
+
+def test_material_skip_vqa_keeps_authoring_contract(tmp_path: Path) -> None:
+    inputs = _write_usd_cli_material_inputs(tmp_path)
+    config = replace(_usd_cli_material_assign_config(tmp_path, inputs), skip_vqa=True)
+    run_dir = config.output_dir
+    assert run_dir is not None
+    _write_usd_cli_child_artifacts(run_dir)
+    skipped = runner._skipped_material_visual_quality()
+    (run_dir / "visual_quality_assessment.json").write_text(json.dumps(skipped))
+    assert not runner._valid_usd_cli_visual_quality(skipped, run_dir=run_dir)
+    assert runner._valid_usd_cli_visual_quality(
+        skipped, run_dir=run_dir, allow_skipped=True
+    )
+    forged = {**skipped, "checked_views": ["pretend-review.png"]}
+    assert not runner._valid_usd_cli_visual_quality(
+        forged, run_dir=run_dir, allow_skipped=True
+    )
+    vqa_path = str(run_dir / "visual_quality_assessment.json")
+    assert vqa_path in runner._usd_cli_missing_contract_artifacts(
+        run_dir, config=replace(config, skip_vqa=False)
+    )
+    assert vqa_path not in runner._usd_cli_missing_contract_artifacts(
+        run_dir, config=config
+    )
+    (run_dir / "raw" / "binding_audit.json").unlink(missing_ok=True)
+    assert str(
+        run_dir / "raw" / "binding_audit.json"
+    ) in runner._usd_cli_missing_contract_artifacts(run_dir, config=config)
+
+
+def test_material_skip_vqa_never_launches_review(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    inputs = _write_usd_cli_material_inputs(tmp_path)
+    config = replace(_usd_cli_material_assign_config(tmp_path, inputs), skip_vqa=True)
+    run_dir = config.output_dir
+    assert run_dir is not None
+    run_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(
+        runner,
+        "_write_material_vqa_review_packet",
+        lambda **kwargs: pytest.fail("VQA packet requested despite skip"),
+    )
+    trace = TraceWriter(run_dir)
+    assert (
+        runner._run_material_post_apply_review_turn(
+            config=config, run_dir=run_dir, trace_writer=trace, review_iteration=1
+        )
+        == 0
+    )
+    assert (
+        runner._run_vqa_refinement_loop(
+            config=config,
+            run_dir=run_dir,
+            request={},
+            preflight_packet=None,
+            trace_writer=trace,
+            initial_child_output_path=run_dir / "child.log",
+            initial_child_final_path=run_dir / "final.md",
+            prompt_image_inputs=[],
+        )
+        == 0
+    )
+
+
+def test_material_skip_vqa_canonical_status_is_unverified(tmp_path: Path) -> None:
+    inputs = _write_usd_cli_material_inputs(tmp_path)
+    config = replace(_usd_cli_material_assign_config(tmp_path, inputs), skip_vqa=True)
+    run_dir = config.output_dir
+    assert run_dir is not None
+    _write_usd_cli_child_artifacts(run_dir)
+    trace = TraceWriter(run_dir)
+    runner._materialize_usd_cli_canonical_artifacts(
+        config=config, run_dir=run_dir, trace_writer=trace, child_returncode=0
+    )
+    vqa = json.loads((run_dir / "visual_quality_assessment.json").read_text())
+    assert vqa["status"] == "skipped"
+    assert vqa["checked_views"] == []
+    evidence = runner._build_usd_cli_validation_evidence(
+        config=config, run_dir=run_dir, missing_artifacts=[], trace_writer=trace
+    )
+    assert evidence["sim_ready_status"] == "conditional"
+    assert evidence["warnings"]
+
+
+@pytest.mark.parametrize("runtime_status", ["pass", "fail", "conditional"])
+@pytest.mark.parametrize("with_vomp", [False, True])
+def test_physics_skip_vqa_requires_passing_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    runtime_status: str,
+    with_vomp: bool,
+) -> None:
+    run_dir = tmp_path / "run"
+    (run_dir / "raw").mkdir(parents=True)
+    evidence = physics_validation_evidence(
+        asset="asset.usda",
+        target_runtime="ovphysx",
+        physics_properties_status="pass",
+        runtime_loadability_status="pass",
+        no_explosions_status="pass",
+    )
+    evidence.sim_ready_status = runtime_status
+    evidence_path = run_dir / "validation_evidence.json"
+    evidence_path.write_text(evidence.model_dump_json())
+    runtime_path = run_dir / "runtime.json"
+    runtime_path.write_text("{}")
+    assignments_path = run_dir / "physics_assignments.json"
+    assignments_path.write_text(json.dumps({"decisions": [{"prim_path": "/Mug"}]}))
+    run_state = {
+        "assignments_sha256": runner._bounded_record_sha256(assignments_path),
+        "authoring_complete": True,
+    }
+    original_digest = run_state["assignments_sha256"]
+    vomp_payload = {
+        "target_prim_path": "/Mug",
+        "provenance_path": str(run_dir / "raw" / "provenance.json"),
+    }
+    vomp_result = SimpleNamespace(
+        **vomp_payload,
+        model_dump=lambda **_kwargs: vomp_payload,
+    )
+    monkeypatch.setattr(
+        runner,
+        "_capture_finalized_physics_vomp_baseline",
+        lambda **_kwargs: SimpleNamespace(result=vomp_result),
+    )
+    calls = []
+
+    def finalize(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {
+            "success": runtime_status != "fail",
+            "validation_status": runtime_status,
+            "validation_evidence_path": str(evidence_path),
+            "simulation_report_path": str(runtime_path),
+            "rendered_frames": [],
+            "vomp_result_path": str(run_dir / "raw" / "vomp-result.json")
+            if with_vomp
+            else None,
+        }
+
+    monkeypatch.setattr(runner, "_finalize_physics_once", finalize)
+    monkeypatch.setattr(
+        runner, "_authored_collision_approximation", lambda *_args: "convexHull"
+    )
+    monkeypatch.setattr(
+        runner, "_run_child_agent", lambda **_kwargs: pytest.fail("VQA ran")
+    )
+    code, _ = runner._run_physics_visual_refinement_loop(
+        config=PhysicsApplyConfig(
+            repo_root=tmp_path,
+            usd_path=tmp_path / "asset.usda",
+            skip_vqa=True,
+            vomp_mass=SimpleNamespace() if with_vomp else None,
+        ),
+        run_dir=run_dir,
+        inspection_pin=None,
+        session_id="test",
+        trace_writer=TraceWriter(run_dir),
+        scene_service=None,
+        usd_cli_session=None,
+        run_state=run_state,
+    )
+    assert len(calls) == 1
+    assert code == (0 if runtime_status == "pass" else 1)
+    payload = json.loads(evidence_path.read_text())
+    assert payload["sim_ready_status"] == (
+        "fail" if runtime_status == "fail" else "conditional"
+    )
+    assert "unverified" in str(payload["warnings"])
+    for artifacts in [
+        payload["evidence_artifacts"],
+        next(
+            check["evidence_artifacts"]
+            for check in payload["checks"]
+            if check["name"] == "simulation_visual_review"
+        ),
+    ]:
+        descriptions = {
+            artifact["kind"]: artifact["description"] for artifact in artifacts
+        }
+        assert "Unreviewed" in descriptions["physics_behavior_assessment"]
+        assert "without visual review" in descriptions["runtime_report"]
+    history = json.loads(
+        (run_dir / "raw/physics_visual_validation_history.json").read_text()
+    )
+    assert history["status"] == "skipped"
+    assessment = json.loads((run_dir / "physics_behavior_assessment.json").read_text())
+    assert assessment["checked_views"] == []
+    assert assessment["status"] == "unresolved_issues"
+    assignments = json.loads(assignments_path.read_text())
+    assert assignments["validation_status"] == payload["sim_ready_status"]
+    assert assignments["physics_behavior_assessment"] == str(
+        run_dir / "physics_behavior_assessment.json"
+    )
+    assert assignments["visual_validation_frames"] == []
+    assert assignments["decisions"] == [{"prim_path": "/Mug"}]
+    assert assignments["vomp_mass"] == (vomp_payload if with_vomp else None)
+    assert run_state["authoring_complete"] is True
+    assert run_state["assignments_sha256"] != original_digest
+    assert run_state["assignments_sha256"] == runner._bounded_record_sha256(
+        assignments_path
+    )
+    summary = (run_dir / "final_summary.md").read_text()
+    if with_vomp:
+        assert "Mass-property provider: `vomp`" in summary
+        assert vomp_payload["provenance_path"] in summary
+        assert str(run_dir / "raw" / "vomp-result.json") in summary
+
+
+@pytest.mark.parametrize("option", ["tune", "refine"])
+def test_physics_skip_vqa_rejects_tuning(
+    tmp_path: Path, option: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = PhysicsApplyConfig(
+        repo_root=tmp_path, usd_path=tmp_path / "asset.usda", skip_vqa=True
+    )
+    config = replace(config, **{option: True})
+    with pytest.raises(ValueError, match="without tune/refine"):
+        runner._build_physics_request(config, tmp_path / "run")
+    monkeypatch.setattr(
+        runner,
+        "_validate_physics_config",
+        lambda *_args: pytest.fail("Run validation/preparation started"),
+    )
+    with pytest.raises(ValueError, match="without tune/refine"):
+        runner.run_physics_apply(config)

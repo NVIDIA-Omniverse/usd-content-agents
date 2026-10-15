@@ -440,7 +440,7 @@ def test_bounded_usd_cli_subprocess_timeout_kills_descendant(tmp_path: Path) -> 
                     .rsplit(")", 1)[1]
                     .split()[0]
                 )
-            except FileNotFoundError:
+            except (FileNotFoundError, ProcessLookupError):
                 break
             if state == "Z":
                 break

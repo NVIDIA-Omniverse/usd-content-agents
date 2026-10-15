@@ -26,9 +26,9 @@ Variables:
     USD_CLI_TEL_ATTRS          Extra span attributes, "k=v,k2=v2" (e.g. a
                                workflow run id). Recorded verbatim on every span.
     USD_CLI_TEL_ACTION_LOCK    Optional filesystem lease used to serialize
-                               higher-level agent shell actions. Consecutive
-                               wrapper calls from the same parent process share
-                               the lease until that parent exits.
+                               identified outer action groups. Without an action
+                               group, each wrapper holds the lease only for its
+                               own lifetime (command-level serialization).
     USD_CLI_TEL_ACTION_LOCK_TIMEOUT
                                Maximum seconds to wait for another live action
                                owner (default: 3600).

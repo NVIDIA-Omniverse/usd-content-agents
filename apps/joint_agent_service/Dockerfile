@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
 # Joint Agent Service Dockerfile
 # Uses NVIDIA CUDA base for GPU-accelerated rendering (OvRTX, Warp)
 # Ubuntu 24.04 ships Python 3.12 natively — no deadsnakes PPA needed

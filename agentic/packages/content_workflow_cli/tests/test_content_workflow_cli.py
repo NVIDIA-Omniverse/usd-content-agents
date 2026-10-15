@@ -1116,7 +1116,7 @@ def test_materials_assign_help_documents_custom_responses_endpoint(
 
     help_text = capsys.readouterr().out
     assert "--codex-responses-url CODEX_RESPONSES_URL" in help_text
-    assert "NVIDIA Inference Hub" in help_text
+    assert "Responses-compatible" in help_text
 
 
 @pytest.mark.parametrize(

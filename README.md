@@ -61,10 +61,9 @@ validation, and render evidence.
 
 ![UR10 SimReady teaser](assets/images/simready_teaser_ur10.gif)
 
-![KUKA arm SimReady teaser](assets/images/simready_teaser_kuka_arm.gif)
-
 These additional SimReady examples follow individual assets from gray input
-through material assignment, texture generation, and physics simulation.
+through material assignment, texture generation, and physics simulation. Their
+source assets and terms are listed in [`ASSET_NOTICES.md`](ASSET_NOTICES.md).
 
 </details>
 
@@ -560,14 +559,20 @@ guidance is in `AGENTS.md`.
 
 ### License, Security, and Contributions
 
-USD Content Agents is licensed under the [Apache License 2.0](LICENSE).
+USD Content Agents is licensed under the [Apache License 2.0](LICENSE); see
+[`NOTICE`](NOTICE) for the notices that accompany it.
 Third-party terms are documented in [`THIRD_PARTY_NOTICE.md`](THIRD_PARTY_NOTICE.md)
 and the platform-specific [`THIRD_PARTY_NOTICE_OVPHYSX.md`](THIRD_PARTY_NOTICE_OVPHYSX.md)
 and [`THIRD_PARTY_NOTICE_OVPHYSX_WINDOWS.md`](THIRD_PARTY_NOTICE_OVPHYSX_WINDOWS.md)
-supplements.
+supplements. Every bundled asset file (USD scenes, textures, images,
+environment maps, and material archives), with its source and terms, is listed
+in [`ASSET_NOTICES.md`](ASSET_NOTICES.md).
 
 Report potential vulnerabilities through the private process described in
 [`SECURITY.md`](SECURITY.md), not through a public issue.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the current contribution policy
 and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for community expectations.
+
+For OVRTX and ovstage acquisition, runtime packaging, and license scope, see
+[OVRTX dependency distribution](docs/dependency_distribution.md).

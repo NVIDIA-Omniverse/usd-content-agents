@@ -10,9 +10,13 @@ from world_understanding.functions.models.backends.registry import (
     register_chat_backend,
     register_vlm_backend,
 )
+from world_understanding.functions.models.request_timeout import (
+    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+)
 
 _DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-6"
-_DEFAULT_TIMEOUT_SECONDS = 120.0
+# Shared hosted-model deadline; WU_MODEL_REQUEST_TIMEOUT_SECONDS.
+_DEFAULT_TIMEOUT_SECONDS = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
 
 
 def create_anthropic_chat(
@@ -22,6 +26,7 @@ def create_anthropic_chat(
     top_p: float | None = None,
     max_tokens: int | None = None,
     streaming: bool = False,
+    timeout: float | None = _DEFAULT_TIMEOUT_SECONDS,
     **kwargs: Any,
 ) -> BaseChatModel:
     """Create Anthropic chat model."""
@@ -46,7 +51,7 @@ def create_anthropic_chat(
         model_name=model or _DEFAULT_ANTHROPIC_MODEL,
         api_key=api_key,  # type: ignore[arg-type]
         streaming=streaming,
-        timeout=_DEFAULT_TIMEOUT_SECONDS,
+        timeout=timeout,
         **chat_kwargs,
     )
 

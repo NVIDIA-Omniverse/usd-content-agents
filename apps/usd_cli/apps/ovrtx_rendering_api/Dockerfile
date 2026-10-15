@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
 # Managed Content Agents OVRTX adapter. Needs an NVIDIA RTX GPU at runtime.
 # Supply an immutable CUDA base, for example
 # nvidia/cuda:12.6.3-runtime-ubuntu24.04@sha256:<approved digest>.

@@ -209,7 +209,7 @@ info:
     \ Dockerfile                  # Service image\n\u251C\u2500\u2500 openapi.yaml\
     \                # API specification\n\u2514\u2500\u2500 pyproject.toml      \
     \        # Install metadata\n```\n"
-  version: 0.6.0
+  version: 0.6.1
 paths:
   /pipeline/upload-usd:
     post:

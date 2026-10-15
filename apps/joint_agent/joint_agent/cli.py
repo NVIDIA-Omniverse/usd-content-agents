@@ -979,6 +979,10 @@ def run(
 
         # Execute unified pipeline using API
         try:
+            from world_understanding.agentic.model_endpoints import (
+                model_endpoint_preflight_enabled,
+            )
+
             from joint_agent.api import PipelineInput, run_pipeline
 
             logger.info("Creating unified pipeline workflow")
@@ -1001,6 +1005,9 @@ def run(
                 dry_run=False,
                 clean=clean,
                 verbose=False,  # Logging already set up
+                # Probe each model endpoint before the first step;
+                # WU_MODEL_ENDPOINT_PREFLIGHT=0 turns it off.
+                model_endpoint_preflight=model_endpoint_preflight_enabled(True),
                 event_listener=cli_listener,
             )
 

@@ -4046,24 +4046,14 @@ class TestEnsureLights:
         with pytest.raises(RuntimeError, match="Default OVRTX HDRI"):
             render_ovrtx._resolve_default_hdri(require_exists=True)
 
-    def test_explicit_bundled_hdri_uses_legacy_intensity(self, monkeypatch, tmp_path):
-        """An explicitly selected legacy EXR should not inherit StinsonBeach's multiplier."""
-        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
-        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", raising=False)
-
-        from world_understanding.functions.graphics import render_ovrtx
-
-        bundled_hdri = tmp_path / "bundled.exr"
-        bundled_hdri.write_bytes(b"fake-exr")
-        monkeypatch.setattr(render_ovrtx, "_BUNDLED_LEGACY_HDRI_PATH", bundled_hdri)
-
-        assert render_ovrtx._resolve_default_hdri_intensity(str(bundled_hdri)) == 1.0
-
-    def test_legacy_hdri_intensity_fallback_normalizes_when_resolve_fails(
+    def test_bundled_hdri_intensity_fallback_normalizes_when_resolve_fails(
         self, monkeypatch, tmp_path
     ):
-        """The resolve() fallback should compare normalized absolute paths."""
-        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
+        """The resolve() fallback should compare normalized absolute paths.
+
+        An override that names the bundled map keeps its 600 multiplier; any
+        other override falls back to 1.0, so a failed comparison is visible.
+        """
         monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", raising=False)
 
         from world_understanding.functions.graphics import render_ovrtx
@@ -4072,7 +4062,7 @@ class TestEnsureLights:
         bundled_hdri.parent.mkdir()
         bundled_hdri.write_bytes(b"fake-exr")
         equivalent_path = bundled_hdri.parent / ".." / "assets" / bundled_hdri.name
-        monkeypatch.setattr(render_ovrtx, "_BUNDLED_LEGACY_HDRI_PATH", bundled_hdri)
+        monkeypatch.setattr(render_ovrtx, "_BUNDLED_DEFAULT_HDRI_PATH", bundled_hdri)
 
         original_resolve = Path.resolve
 
@@ -4082,8 +4072,9 @@ class TestEnsureLights:
             return original_resolve(self, *args, **kwargs)
 
         monkeypatch.setattr(Path, "resolve", fake_resolve)
+        monkeypatch.setenv("WU_OVRTX_DEFAULT_HDRI", str(equivalent_path))
 
-        assert render_ovrtx._resolve_default_hdri_intensity(str(equivalent_path)) == 1.0
+        assert render_ovrtx._resolve_default_hdri_intensity() == 600.0
 
     def test_default_hdri_moved_texture_negative_lookup_is_cached(
         self, monkeypatch, tmp_path

@@ -70,8 +70,8 @@ _LICENSE_MANIFEST = BackendLicenseManifest(
         "sha256:8e0cb662ca1a9865a195d8fc6a7c64224fd8edeebfed9c266417a3afc7d3a59f"
     ),
     components=(
-        LicenseComponent("sdf-tools", "0.6.0", "Apache-2.0", DependencyScope.RUNTIME, True),
-        LicenseComponent("openvdb-runtime", "0.6.0", "Apache-2.0", DependencyScope.RUNTIME, True),
+        LicenseComponent("sdf-tools", "0.6.1", "Apache-2.0", DependencyScope.RUNTIME, True),
+        LicenseComponent("openvdb-runtime", "0.6.1", "Apache-2.0", DependencyScope.RUNTIME, True),
         LicenseComponent("OpenVDB", "13.0.0", "Apache-2.0", DependencyScope.BUNDLED, True),
         LicenseComponent(
             "OpenEXR Half",

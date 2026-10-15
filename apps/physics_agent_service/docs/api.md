@@ -67,7 +67,7 @@ Returns service info and a map of all available endpoints.
 ```json
 {
   "service": "Physics Agent Service",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "docs": "/docs",
   "health": "/health",
   "api": {
@@ -125,7 +125,7 @@ Health check.
 {
   "status": "healthy",
   "service": "Physics Agent Service",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "api_keys_configured": true,
   "auth_enforced": false,
   "max_active_sessions": 1,

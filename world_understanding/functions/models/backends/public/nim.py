@@ -12,6 +12,12 @@ from world_understanding.functions.models.backends.registry import (
     register_vlm_backend,
 )
 from world_understanding.functions.models.nim_timeout import _apply_nim_chat_timeout
+from world_understanding.functions.models.nim_transport import (
+    _configure_nim_chat_transport,
+)
+from world_understanding.functions.models.request_timeout import (
+    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+)
 from world_understanding.functions.models.token_limits import (
     ensure_model_output_token_budget,
     model_output_token_floor,
@@ -19,7 +25,8 @@ from world_understanding.functions.models.token_limits import (
 from world_understanding.utils.credentials import get_nim_api_key_for_base_url
 
 _DEFAULT_NIM_MODEL = "moonshotai/kimi-k3"
-_DEFAULT_TIMEOUT_SECONDS = 120.0
+# Shared hosted-model deadline; WU_MODEL_REQUEST_TIMEOUT_SECONDS.
+_DEFAULT_TIMEOUT_SECONDS = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
 
 
 def _normalize_nim_output_token_kwargs(
@@ -137,6 +144,7 @@ def create_nim_chat(
         **chat_kwargs,
     )
     _apply_nim_chat_timeout(chat_model, timeout, label="create_nim_chat")
+    _configure_nim_chat_transport(chat_model, label="create_nim_chat")
     return chat_model
 
 

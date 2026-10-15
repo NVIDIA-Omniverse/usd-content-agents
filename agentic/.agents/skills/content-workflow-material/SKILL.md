@@ -271,3 +271,13 @@ recall and do not claim that memory influenced the result.
 - `references/material-policy.md`
 - `references/output-artifacts.md`
 - `references/iterative-vqa-refinement.md`
+
+### Explicit VQA opt-out
+
+When the operator explicitly requests an E2E smoke run without perceptual
+validation, `materials assign --skip-vqa` skips both post-apply VQA and its
+refinement turns. Saved-output, source integrity, material coverage and binding
+checks still apply. The wrapper records `visual_quality_assessment.status=skipped`
+and conditional validation with a visual-quality-unverified warning. This is
+not a visual pass. Preserve that warning in downstream workflow reports. The
+default remains full VQA; `--no-vqa-refinement` alone does not skip initial VQA.

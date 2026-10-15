@@ -88,6 +88,8 @@ class PipelineInput:
     verbose: bool = False
     event_listener: EventListener | None = None
     cancel_event: CancellationSignal | None = None
+    # Last, so existing positional construction keeps its meaning.
+    model_endpoint_preflight: bool = False
 
     def __post_init__(self) -> None:
         """Validate inputs."""
@@ -201,6 +203,7 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
             "clean": params.clean,
             "verbose": params.verbose,
             "event_listener": listener,
+            "model_endpoint_preflight": params.model_endpoint_preflight,
         }
         if params.cancel_event is not None:
             initial_context["cancel_event"] = params.cancel_event

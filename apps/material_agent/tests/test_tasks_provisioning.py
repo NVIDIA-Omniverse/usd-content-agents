@@ -191,7 +191,7 @@ class TestModelProvisioningTask:
                 "vlm": {
                     "backend": "nim",
                     "model": "hosted-vlm",
-                    "base_url": "https://inference-api.nvidia.com/v1",
+                    "base_url": "https://integrate.api.nvidia.com/v1",
                 }
             }
         }
@@ -200,7 +200,7 @@ class TestModelProvisioningTask:
 
         call_kwargs = mock_create_vlm.call_args[1]
         assert call_kwargs["api_key"] == "secret_key"
-        assert call_kwargs["base_url"] == "https://inference-api.nvidia.com/v1"
+        assert call_kwargs["base_url"] == "https://integrate.api.nvidia.com/v1"
 
     @patch.dict(os.environ, {"MA_NIM_API_KEY": "not-used"}, clear=True)
     def test_hosted_nim_vlm_rejects_placeholder_api_key(self):

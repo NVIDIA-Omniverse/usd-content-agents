@@ -8,8 +8,8 @@ canonical input for the `physics-agent refine` bounce-flow demo at
 ## Provenance
 
 - **Source asset**: Isaac SimReady `Tire_B01/sm_wheelAssembly_tire_b01_01.usd`
-  (NVIDIA Omniverse Isaac SimReady assets — refer to your Isaac
-  SimReady distribution for license terms).
+  (NVIDIA Omniverse Isaac SimReady assets). Licensed under CC BY 4.0, not the
+  repository's Apache-2.0; see [`ASSET_NOTICES.md`](../../../../../ASSET_NOTICES.md).
 - **Materialization pipeline**: `material-agent run` was invoked on the
   source SimReady asset using the in-tree
   `apps/material_agent/configs/unified_example.yaml`-derived recipe.

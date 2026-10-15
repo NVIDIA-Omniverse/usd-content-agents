@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
 # Regenerate docs/cli-reference.md straight from the live Typer CLI, so the command
 # reference can never drift from the code. The CI component gate runs this and fails if
 # the committed copy is stale.

@@ -16,6 +16,9 @@ from world_understanding.functions.models.chat_models import (
     create_echo_chat_model,
     create_nim_chat_model,
 )
+from world_understanding.functions.models.request_timeout import (
+    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+)
 
 
 class TestEchoChatModel:
@@ -229,8 +232,8 @@ class TestNIMChatModel:
             "model": "custom-model",
             "nvidia_api_key": "test_key",
         }
-        assert sync_client.timeout == 120.0
-        assert async_client.timeout == 120.0
+        assert sync_client.timeout == DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
+        assert async_client.timeout == DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
 
     @pytest.mark.parametrize(
         ("has_sync_client", "has_async_client", "expect_warning"),
@@ -368,7 +371,7 @@ class TestCreateChatModel:
         with pytest.raises(ValueError, match="API key is required"):
             create_chat_model(
                 backend="nim",
-                base_url="https://inference-api.nvidia.com/v1",
+                base_url="https://integrate.api.nvidia.com/v1",
             )
         mock_nvidia.assert_not_called()
 

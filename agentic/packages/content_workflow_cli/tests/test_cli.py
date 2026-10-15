@@ -1362,3 +1362,52 @@ def test_physics_apply_tune_failure_points_at_tuning_report(
     assert "tuning failed: sweep budget exhausted" in err
     assert "physics_agentic_tuning_result.json" in err
     assert "finalize report at" not in err
+
+
+def test_material_skip_vqa_is_explicit_and_defaults_off() -> None:
+    parser = cli.build_parser()
+    args = [
+        "materials",
+        "assign",
+        "--usd",
+        "asset.usd",
+        "--materials-yaml",
+        "materials.yaml",
+    ]
+    assert parser.parse_args(args).skip_vqa is False
+    assert parser.parse_args([*args, "--skip-vqa"]).skip_vqa is True
+    assert parser.parse_args([*args, "--no-vqa-refinement"]).skip_vqa is False
+
+
+def test_physics_skip_vqa_defaults_off() -> None:
+    parser = cli.build_parser()
+    args = ["physics", "apply", "--usd", "asset.usda", "--output-dir", "run"]
+    assert parser.parse_args(args).skip_vqa is False
+    assert parser.parse_args([*args, "--skip-vqa"]).skip_vqa is True
+
+
+@pytest.mark.parametrize(
+    "executor_flag", ["--direct-executor", "--deterministic-workflow"]
+)
+def test_physics_skip_vqa_rejects_direct_executor(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], executor_flag: str
+) -> None:
+    output = tmp_path / "out"
+    code = main(
+        [
+            "physics",
+            "apply",
+            "--usd",
+            str(tmp_path / "asset.usda"),
+            "--output-dir",
+            str(output),
+            "--skip-vqa",
+            executor_flag,
+        ]
+    )
+    assert code == 2
+    assert (
+        "--skip-vqa requires the default long-running workflow"
+        in capsys.readouterr().err
+    )
+    assert not output.exists()

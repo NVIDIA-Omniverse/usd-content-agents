@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from PIL import Image as PILImage
 from requests.exceptions import Timeout as RequestsTimeout
 
 from world_understanding.functions.models import vision_language_models as vlm_module
@@ -553,3 +554,146 @@ def test_reasoning_effort_respects_backend_capabilities(
         )
         is None
     )
+
+
+_IMAGE_LIMIT_ERROR = (
+    "[400] {'message': 'At most 1 image(s) may be provided in one prompt. None'}"
+)
+
+
+class _ImageLimitedChatNVIDIA:
+    """Fake Llama 3.2 Vision: hosted accepts one image, self-hosted several."""
+
+    def __init__(self, base_url: str = "https://integrate.api.nvidia.com/v1", **_: Any):
+        self.max_tokens = None
+        self._client = SimpleNamespace(infer_url=f"{base_url}/chat/completions")
+        self.calls: list[list[dict[str, Any]]] = []
+
+    def invoke(self, messages: Any, **_kwargs: Any) -> Any:
+        from langchain_core.messages import AIMessage
+
+        content = messages[-1].content
+        self.calls.append(content)
+        hosted = "integrate.api.nvidia.com" in self._client.infer_url
+        if hosted and sum(part["type"] == "image_url" for part in content) > 1:
+            raise Exception(_IMAGE_LIMIT_ERROR)
+        return AIMessage(content="metal")
+
+
+@pytest.mark.parametrize(
+    "invocation", ["generate", "generate_with_image_caption_pairs"]
+)
+def test_nvidia_nim_vlm_tiles_images_for_single_image_models(
+    monkeypatch: pytest.MonkeyPatch, invocation: str
+) -> None:
+    monkeypatch.setitem(
+        sys.modules,
+        "langchain_nvidia_ai_endpoints",
+        SimpleNamespace(ChatNVIDIA=_ImageLimitedChatNVIDIA),
+    )
+    monkeypatch.setattr(vlm_module, "_nim_image_limits", {})
+    vlm = NvidiaNIMVLM(api_key="test-key", model="meta/llama-3.2-11b-vision-instruct")
+    images = [PILImage.new("RGB", (64, 32), color) for color in ("red", "blue")]
+
+    def run() -> str:
+        if invocation == "generate":
+            return vlm.generate("Which material?", images=images)
+        return vlm.generate_with_image_caption_pairs(
+            [("composition view", images[0]), ("prim only view", images[1])],
+            "Which material?",
+        )
+
+    assert run() == "metal"
+    assert run() == "metal"
+
+    rejected, tiled, learned = vlm.chat_model.calls
+    assert sum(part["type"] == "image_url" for part in rejected) == 2
+    assert tiled == learned
+    assert [part["type"] for part in tiled].count("image_url") == 1
+    texts = [part["text"] for part in tiled if part["type"] == "text"]
+    assert "grid of 2 numbered tiles" in " ".join(texts)
+    if invocation == "generate_with_image_caption_pairs":
+        assert texts == [
+            "composition view",
+            "The next image is a grid of 2 numbered tiles; tile N is image N.",
+            "(Image 1 is tile 1.)",
+            "prim only view",
+            "(Image 2 is tile 2.)",
+            "Which material?",
+        ]
+    assert vlm_module._nim_image_limits == {
+        (
+            "https://integrate.api.nvidia.com/v1/chat/completions",
+            "meta/llama-3.2-11b-vision-instruct",
+        ): 1
+    }
+
+    self_hosted = NvidiaNIMVLM(
+        api_key="test-key",
+        model="meta/llama-3.2-11b-vision-instruct",
+        base_url="http://localhost:8000/v1",
+    )
+    assert self_hosted.generate("Which material?", images=images) == "metal"
+    (untiled,) = self_hosted.chat_model.calls
+    assert [part["type"] for part in untiled].count("image_url") == 2
+
+
+@pytest.mark.parametrize(
+    "endpoint_url",
+    ["https://integrate.api.nvidia.com/v1", "https://INTEGRATE.api.nvidia.com:443/v1/"],
+)
+def test_hosted_llama_vision_is_tiled_from_the_first_request(
+    monkeypatch: pytest.MonkeyPatch, endpoint_url: str
+) -> None:
+    """Concurrent first requests must not each spend a rejected prompt."""
+    monkeypatch.setitem(
+        sys.modules,
+        "langchain_nvidia_ai_endpoints",
+        SimpleNamespace(ChatNVIDIA=_ImageLimitedChatNVIDIA),
+    )
+    monkeypatch.setattr(
+        vlm_module, "_nim_image_limits", dict(vlm_module._nim_image_limits)
+    )
+    vlm = NvidiaNIMVLM(
+        api_key="test-key",
+        model="meta/llama-3.2-11b-vision-instruct",
+        base_url=endpoint_url.rstrip("/"),
+    )
+    images = [PILImage.new("RGB", (16, 16), color) for color in ("red", "blue")]
+
+    assert vlm.generate("Which material?", images=images) == "metal"
+
+    (only_call,) = vlm.chat_model.calls
+    assert [part["type"] for part in only_call].count("image_url") == 1
+
+
+def test_nim_image_grid_composites_transparent_views_onto_white() -> None:
+    transparent = PILImage.new("RGBA", (64, 64), (0, 0, 0, 0))
+
+    grid = vlm_module._tile_images([transparent, transparent])
+
+    assert grid.size == (1536, 768)
+    assert grid.getpixel((384, 384)) == (255, 255, 255)
+
+
+def test_nvidia_nim_vlm_does_not_retry_other_bad_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class RejectingChatNVIDIA(_ImageLimitedChatNVIDIA):
+        def invoke(self, messages: Any, **_kwargs: Any) -> Any:
+            self.calls.append(messages[-1].content)
+            raise Exception("[400] invalid request")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "langchain_nvidia_ai_endpoints",
+        SimpleNamespace(ChatNVIDIA=RejectingChatNVIDIA),
+    )
+    monkeypatch.setattr(vlm_module, "_nim_image_limits", {})
+    vlm = NvidiaNIMVLM(api_key="test-key")
+
+    with pytest.raises(Exception, match="invalid request"):
+        vlm.generate("prompt", images=[PILImage.new("RGB", (8, 8))] * 2)
+
+    assert len(vlm.chat_model.calls) == 1
+    assert vlm_module._nim_image_limits == {}

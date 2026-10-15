@@ -38,6 +38,22 @@ lower OpenAI-family provider caps are applied at the final request boundary, so
 the override can reduce a request but cannot force a request above its model's
 supported output limit.
 
+Hosted endpoints can queue a request silently for minutes before generation
+starts, and occasionally never serve it. Every hosted VLM and chat client in
+the repository therefore defaults to a 300-second request deadline when a
+model section sets no `timeout` (`WU_MODEL_REQUEST_TIMEOUT_SECONDS` changes
+that default for all agents). Before the first step, `joint-agent run` sends
+one short request to each distinct model endpoint the run will call and stops
+with a `model_endpoint_preflight` terminal failure, before any rendering, if an
+endpoint does not answer within its deadline. Set
+`WU_MODEL_ENDPOINT_PREFLIGHT=0` to skip that check. The prediction parsing
+LLM (`predict.llm`) is optional: if it cannot be built or does not answer, it
+is recorded as `optional_unavailable` and `predict` runs without it, parsing
+with the VLM. The endpoint each step
+uses (backend, model, host, deadline) is recorded as `model_endpoints` in
+`.pipeline_state.json`. To use a different OpenAI-compatible endpoint, set
+`backend: openai`, `base_url` and `api_key_env` in each step's model section.
+
 For supported structured Stage 2 inputs, successful publication guarantees
 that the package opens and readback matches the accepted joint graph. This is a
 package-integrity guarantee, not a guarantee that model-inferred joints are

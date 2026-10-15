@@ -137,6 +137,12 @@ MA_LLM_BACKEND=openai
 MA_LLM_MODEL=example-vlm-model
 ```
 
+Hosted model clients wait up to 300 seconds for a response unless a model
+section sets `timeout` (`WU_MODEL_REQUEST_TIMEOUT_SECONDS` changes the
+default). Hosted NIM requests share one process-wide cap,
+`WU_NIM_HOSTED_MAX_CONCURRENT_REQUESTS` (default 4), and back off on HTTP 429
+and 503.
+
 ### Rendering Backends
 
 Material preview, per-prim dataset, and final-render steps use the same backend

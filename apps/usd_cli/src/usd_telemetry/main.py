@@ -104,13 +104,15 @@ def _process_start_token(pid: int) -> str | None:
 
 
 def _action_owner() -> dict[str, object]:
-    """Identify the shell process that owns one agent command execution."""
+    """Identify the action group, or this wrapper for command-level locking."""
 
     pid = _outer_pid_namespace_process_group()
     scope = "outer_process_group"
     if pid is None:
-        pid = os.getppid()
-        scope = "parent_process"
+        # The parent may be a long-lived agent rather than an action shell.
+        # Keep the fallback lease scoped to this command, not that agent.
+        pid = os.getpid()
+        scope = "wrapper_process"
     return {
         "pid": pid,
         "start_token": _process_start_token(pid),
@@ -125,7 +127,7 @@ def _outer_pid_namespace_process_group() -> int | None:
     that namespace the wrapper's parent is PID 1 for every action, while the
     first ``NSpgid`` value remains the distinct host process-group leader for
     the outer sandbox. Use it only when ``NSpid`` proves that nesting exists;
-    ordinary local shells retain the parent-process fallback.
+    ordinary local execution uses the wrapper-process fallback.
     """
 
     try:
@@ -153,7 +155,9 @@ def _live_action_owner(value: object) -> bool:
         return False
     pid = value.get("pid")
     token = value.get("start_token")
-    if not isinstance(pid, int) or pid <= 1 or not isinstance(token, str):
+    if not isinstance(pid, int) or pid < 1 or not isinstance(token, str):
+        return False
+    if pid == 1 and value.get("scope") != "wrapper_process":
         return False
     return _process_start_token(pid) == token
 
@@ -207,9 +211,10 @@ def _acquire_action_lease(path: Path, *, timeout_seconds: float) -> None:
     usd-cli's daemon serializes individual commands within a session. An agent
     can still launch two shell tool calls concurrently, though, allowing a
     many-command edit loop to interleave with save or render. This lightweight
-    lease remains owned by the wrapper's parent shell after each individual
-    wrapper process exits. A competing shell waits until that owner exits,
-    while the same shell can issue any number of consecutive usd-cli calls.
+    lease remains owned by the outer action group when one is identifiable.
+    Otherwise it belongs to this wrapper and serializes only one command;
+    the next wrapper reclaims it after this process exits. A long-lived agent
+    parent must never retain ownership between commands.
     """
 
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -8,8 +8,8 @@ public input for a two-stage Material Agent and Physics Agent refinement QA flow
 
 - **Source asset**:
   `s3://omniverse-content-production/Assets/Isaac/6.0/Isaac/SimReady/Industrial/Warehouse/Containers/Container_Gray_C04`
-  (NVIDIA Omniverse Isaac SimReady assets - refer to your Isaac SimReady
-  distribution for license terms).
+  (NVIDIA Omniverse Isaac SimReady assets). Licensed under CC BY 4.0, not the
+  repository's Apache-2.0; see [`ASSET_NOTICES.md`](../../../../../ASSET_NOTICES.md).
 - **Source USD**: `sm_container_gray_c04_01.usd`.
 - **Materialization date**: 2026-07-09.
 - **Normalization**: the source lid and body were deinstanced, normalized into

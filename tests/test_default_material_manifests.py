@@ -90,6 +90,17 @@ def _assert_manifest_bindings_resolve_to_materials(manifest_path: Path) -> None:
     assert missing == []
 
 
+def _assert_dependency_closed(library_path: Path) -> None:
+    _layers, assets, unresolved = UsdUtils.ComputeAllDependencies(str(library_path))
+    assert list(assets) == [], (
+        f"{library_path} has resolved external USD assets: {sorted(map(str, assets))}"
+    )
+    assert list(unresolved) == [], (
+        f"{library_path} has unresolved USD dependencies: "
+        f"{sorted(map(str, unresolved))}"
+    )
+
+
 @pytest.mark.parametrize(
     "manifest_path",
     DEFAULT_MANIFEST_PATHS,
@@ -108,15 +119,7 @@ def test_default_material_libraries_are_dependency_closed_and_synchronized() -> 
     assert library_paths[0].read_bytes() == library_paths[1].read_bytes()
 
     for library_path in library_paths:
-        _layers, assets, unresolved = UsdUtils.ComputeAllDependencies(str(library_path))
-        assert list(assets) == [], (
-            f"{library_path} has resolved external USD assets: "
-            f"{sorted(map(str, assets))}"
-        )
-        assert list(unresolved) == [], (
-            f"{library_path} has unresolved USD dependencies: "
-            f"{sorted(map(str, unresolved))}"
-        )
+        _assert_dependency_closed(library_path)
 
 
 def test_service_default_materials_zip_bindings_resolve_to_materials(
@@ -144,4 +147,5 @@ def test_service_default_materials_zip_bindings_resolve_to_materials(
     service_library_path, service_entries = _manifest_data(service_manifest_path)
     zip_library_path, zip_entries = _manifest_data(zip_manifest_path)
     assert zip_entries == service_entries
+    _assert_dependency_closed(zip_library_path)
     assert _material_paths(zip_library_path) == _material_paths(service_library_path)

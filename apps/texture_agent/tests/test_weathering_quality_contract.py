@@ -54,7 +54,7 @@ def test_weathering_benchmark_uses_pinned_public_fixture_identities() -> None:
             "kind": "repository_file",
             "path": "apps/texture_agent/data/examples/ladder/sources/usd/ladder.usd",
             "sha256": (
-                "be8ff3bf74539c422b9a5051c7adf42e139717f946acf8ca796346eecb1960b2"
+                "dd2aef4acf68142d0c76e9573c99b572d1d1e69590d463f377b7e83e6bca9d02"
             ),
         },
     }

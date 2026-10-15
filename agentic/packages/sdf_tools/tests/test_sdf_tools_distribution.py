@@ -131,7 +131,7 @@ def test_backend_policy_admits_exact_driver_entry_point() -> None:
                         "269d161c20805ece17bc1bdfd6530ccb63c66383d1dadfe73b3533aa45a703b9"
                     ),
                     "openvdb_runtime/sdf_backend.py": (
-                        "888ecd21ac9abdff43cf02baa718daf2bbf9acdf8f2c29c3178e7958fa2f6db8"
+                        "fe59a287cd2eda772ba113bf2a9fe209f75d9b2df02250e47ca1e828aa1dc226"
                     ),
                     "openvdb_runtime/topology.py": (
                         "ba99181ebbaf8f22b4df6e410936fbac5725187488555f84ddb18406e30df69f"
@@ -145,11 +145,11 @@ def test_backend_policy_admits_exact_driver_entry_point() -> None:
                 "entry_point": "openvdb_runtime.sdf_backend:sdf_backend_extension",
                 "entry_point_module_path": "openvdb_runtime/sdf_backend.py",
                 "entry_point_module_sha256": (
-                    "888ecd21ac9abdff43cf02baa718daf2bbf9acdf8f2c29c3178e7958fa2f6db8"
+                    "fe59a287cd2eda772ba113bf2a9fe209f75d9b2df02250e47ca1e828aa1dc226"
                 ),
                 "implementation_version": "openvdb-runtime-13.0.0+wu.3",
                 "license_manifest_sha256": (
-                    "1b3402e56da598b491f249c6a06179a1d7747da5362ce3a482ed4c146b93a4d2"
+                    "23d13cb13f5c9738ba97e59a7207af6618abca3086f920a7a61be41d101e9a38"
                 ),
                 "native_closure_attestation": (
                     "sha256:8e0cb662ca1a9865a195d8fc6a7c64224fd8edeebfed9c266417a3afc7d3a59f"

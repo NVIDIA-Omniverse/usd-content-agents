@@ -1,0 +1,62 @@
+{
+  "schema_version": "ladder-reference-renders.v1",
+  "purpose": "Material reference images rendered from the repository's ladder model; they replace third-party product photographs.",
+  "source_usd": "apps/texture_agent/data/examples/ladder/sources/usd/ladder.usd",
+  "source_usd_sha256": "dd2aef4acf68142d0c76e9573c99b572d1d1e69590d463f377b7e83e6bca9d02",
+  "render_command": "usd-cli render --photoreal --res 1024x1024 --mode quality --orbit 2 --azimuth 35 --elevation 15",
+  "renderer": {
+    "backend": "remote",
+    "transport": "OVRTX rendering API (protocol 3)",
+    "ovrtx": "0.4.1.364340",
+    "ovstage": "0.1.1.355824"
+  },
+  "conversion": "RGB JPEG, quality 95, Pillow",
+  "views": [
+    {
+      "image": "ladder_reference_1.jpeg",
+      "image_sha256": "364b9f8dd25986083363c41c6baad926ee7e7286c99ecb26928ec3a62db348cd",
+      "render_png_sha256": "c77fedeae460fbbbe20fbe96e1efc8af8c50423dfea1983789faa628d2e78207",
+      "camera_pos": [
+        396.987,
+        277.974,
+        239.002
+      ],
+      "camera_dir": [
+        -0.791,
+        -0.554,
+        -0.259
+      ],
+      "ovrtx_render_mode": "pt",
+      "ovrtx_num_sensor_updates": 500,
+      "active_aov": "LdrColor",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": 3,
+        "status": "alive"
+      }
+    },
+    {
+      "image": "ladder_reference_2.jpeg",
+      "image_sha256": "04401e5fda434729df49a6a51217d0a7b977fb297796f4dd28f03333f0f451bf",
+      "render_png_sha256": "21a146f2d99290866145550e8f6e50c45cc791fc80cfcf941579fc62e0c041a2",
+      "camera_pos": [
+        -396.987,
+        -277.974,
+        239.002
+      ],
+      "camera_dir": [
+        0.791,
+        0.554,
+        -0.259
+      ],
+      "ovrtx_render_mode": "pt",
+      "ovrtx_num_sensor_updates": 500,
+      "active_aov": "LdrColor",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": 3,
+        "status": "alive"
+      }
+    }
+  ]
+}

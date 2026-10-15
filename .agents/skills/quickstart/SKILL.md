@@ -180,6 +180,21 @@ launch Codex or Claude, omit Node/npm SDK setup. On Linux/WSL2:
 ./scripts/setup_content_agent.sh --without-child-runners
 ```
 
+To use an already-installed newer Codex CLI with the pinned SDK, explicitly
+select its absolute path before running auth checks or workflows:
+
+```bash
+export CONTENT_WORKFLOW_CODEX_EXECUTABLE="$(command -v codex)"
+"$CONTENT_WORKFLOW_CODEX_EXECUTABLE" --version
+content-workflow-cli auth status --sandbox-smoke
+```
+
+The bridge otherwise uses its package-local locked Codex CLI, even when `codex`
+on `PATH` is newer. Invalid overrides fail without fallback. This option does
+not install/update the CLI or change the selected model, SDK, sandbox or tool
+policies. Validate the selected model in an actual workflow; the auth smoke
+alone does not prove model compatibility. Unset the variable to restore the pin.
+
 If authentication is missing:
 
 ```bash

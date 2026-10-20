@@ -301,7 +301,7 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
             "enabled": False,
             "llm_judge": {
                 "backend": "nim",
-                "model": "moonshotai/kimi-k3",
+                "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
                 "temperature": 0.7,
                 "max_tokens": 1024,
             },

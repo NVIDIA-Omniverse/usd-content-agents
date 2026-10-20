@@ -1084,9 +1084,12 @@ def _configure_apply_step(
             )
         return
 
-    steps_config["apply"]["layer_only"] = layer_only
+    # UnifiedConfigLoadingTask auto-wires these values from the top-level
+    # output section, replacing any values set directly on steps.apply.
+    output_config = pipeline_config.setdefault("output", {})
+    output_config["layer_only"] = layer_only
     if layer_only:
-        steps_config["apply"]["flatten_output"] = False
+        output_config["flatten_output"] = False
         logger.info("%s: layer-only mode enabled", request_context)
 
 

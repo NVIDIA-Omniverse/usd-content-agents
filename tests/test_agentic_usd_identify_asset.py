@@ -38,7 +38,7 @@ def test_identify_asset_forwards_vlm_reasoning_config(tmp_path) -> None:
         "vlm": vlm,
         "vlm_config": {
             "backend": "nim",
-            "model": "moonshotai/kimi-k3",
+            "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
             "temperature": 1.0,
             "max_tokens": 2048,
             "reasoning_effort": "max",

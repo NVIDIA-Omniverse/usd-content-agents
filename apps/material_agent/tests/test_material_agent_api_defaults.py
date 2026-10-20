@@ -87,9 +87,9 @@ class TestPredictDefaults:
         assert "llm" in PREDICT_DEFAULTS
         assert PREDICT_DEFAULTS["vlm"]["backend"] == DEFAULT_VLM_BACKEND
         assert PREDICT_DEFAULTS["vlm"]["model"] == DEFAULT_VLM_MODEL
-        assert DEFAULT_VLM_MODEL == "moonshotai/kimi-k3"
+        assert DEFAULT_VLM_MODEL == "nvidia/nemotron-3.5-super-vl-120b-a12b"
         assert DEFAULT_VLM_JUDGE_MODEL == DEFAULT_VLM_MODEL
-        assert DEFAULT_LLM_MODEL == "moonshotai/kimi-k3"
+        assert DEFAULT_LLM_MODEL == "nvidia/nemotron-3.5-super-vl-120b-a12b"
         assert DEFAULT_JUDGE_MODEL == DEFAULT_LLM_MODEL
         assert DEFAULT_VLM_REASONING_EFFORT == "max"
         assert PREDICT_DEFAULTS["vlm"]["reasoning_effort"] == "max"

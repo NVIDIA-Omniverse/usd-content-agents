@@ -218,7 +218,7 @@ steps:
       # To use Anthropic: backend: anthropic, model: claude-sonnet-4-20250514
       # To use Gemini: backend: gemini, model: gemini-2.5-pro
       backend: nim
-      model: moonshotai/kimi-k3
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
       temperature: 0.3
       max_tokens: 4096
     max_workers: 64

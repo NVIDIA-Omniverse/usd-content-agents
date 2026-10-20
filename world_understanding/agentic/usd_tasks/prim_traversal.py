@@ -3236,12 +3236,17 @@ class USDPrimTraversalAndRenderingTask(Task):
                 array_size = sensor_array.size
                 reshaped = False
 
-                for num_channels in [1, 3, 4]:
-                    pixels_with_channels = array_size // num_channels
-                    sqrt_size = int(np.sqrt(pixels_with_channels))
+                # Prefer the requested render size; fall back to a square guess.
+                candidate_shapes = [
+                    (image_height, image_width, num_channels)
+                    for num_channels in (1, 3, 4)
+                ]
+                for num_channels in (1, 3, 4):
+                    sqrt_size = int(np.sqrt(array_size // num_channels))
+                    candidate_shapes.append((sqrt_size, sqrt_size, num_channels))
 
-                    if sqrt_size * sqrt_size * num_channels == array_size:
-                        actual_height = actual_width = sqrt_size
+                for actual_height, actual_width, num_channels in candidate_shapes:
+                    if actual_height * actual_width * num_channels == array_size:
                         if num_channels == 1:
                             sensor_array = sensor_array.reshape(
                                 actual_height, actual_width
@@ -3252,12 +3257,6 @@ class USDPrimTraversalAndRenderingTask(Task):
                             )
                         reshaped = True
                         break
-
-                if not reshaped:
-                    expected_size = image_height * image_width
-                    if array_size == expected_size:
-                        sensor_array = sensor_array.reshape(image_height, image_width)
-                        reshaped = True
 
                 if not reshaped:
                     listener.warning(
@@ -3277,6 +3276,12 @@ class USDPrimTraversalAndRenderingTask(Task):
             return None
 
         if sensor_name in ("depth", "linear_depth"):
+            if sensor_array.ndim != 2:
+                listener.warning(
+                    f"Depth sensor {sensor_name} has shape {sensor_array.shape}, "
+                    "expected 2-D. Skipping."
+                )
+                return None
             finite_mask = np.isfinite(sensor_array)
             if np.any(finite_mask):
                 finite_values = sensor_array[finite_mask]

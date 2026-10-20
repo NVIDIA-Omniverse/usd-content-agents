@@ -1324,9 +1324,15 @@ async def test_artifacts_output_and_final_render_paths(tmp_path: Path) -> None:
 
     _write(session_dir / "output" / "scene_with_materials.usd", "#usda 1.0")
     assert isinstance(await artifacts_router.download_output_usd(session_id), Response)
+    assert isinstance(
+        await artifacts_router.download_applied_output_usd(session_id), Response
+    )
     (session_dir / "output" / "scene_with_materials.usd").unlink()
     with pytest.raises(HTTPException) as exc_info:
         await artifacts_router.download_output_usd(session_id)
+    _expect_http(404, exc_info)
+    with pytest.raises(HTTPException) as exc_info:
+        await artifacts_router.download_applied_output_usd(session_id)
     _expect_http(404, exc_info)
 
     _write(session_dir / "output" / "scene_with_materials.png", PNG_BYTES)

@@ -248,11 +248,11 @@ def test_joint_public_config_surface_is_one_byoa_rigger_template() -> None:
     assert "max_concurrent_requests" not in steps["build_dataset_usd"]["renderer"]
     assert steps["analyze_structure"]["llm"] == {
         "backend": "nim",
-        "model": "moonshotai/kimi-k3",
+        "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
     }
     assert steps["predict"]["vlm"] == {
         "backend": "nim",
-        "model": "moonshotai/kimi-k3",
+        "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
     }
     assert steps["predict"]["completion_retries"] == 3
     assert steps["build_dataset_prepare_dataset"]["prompt_profile"] == (
@@ -273,7 +273,7 @@ def test_joint_public_config_surface_is_one_byoa_rigger_template() -> None:
         },
         "vlm": {
             "backend": "nim",
-            "model": "moonshotai/kimi-k3",
+            "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
         },
     }
     apply_step = steps["apply_joint_rigger"]

@@ -35,7 +35,7 @@ dependencies:
     # OpenAI-compatible /v1 endpoint for material and physics VLM calls.
     endpoint: ""
     backend: nim
-    model: moonshotai/kimi-k3
+    model: nvidia/nemotron-3.5-super-vl-120b-a12b
     # Optional: lower this for small self-hosted models with short context.
     # max_tokens: 512
 
@@ -45,7 +45,7 @@ dependencies:
     # OpenAI-compatible /v1 endpoint for material and texture text LLM calls.
     endpoint: ""
     backend: nim
-    model: moonshotai/kimi-k3
+    model: nvidia/nemotron-3.5-super-vl-120b-a12b
     # max_tokens: 512
 
   image_gen:

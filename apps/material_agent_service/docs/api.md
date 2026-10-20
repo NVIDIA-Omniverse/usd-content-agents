@@ -87,7 +87,7 @@ Health check. Includes backend credential readiness, image-generation readiness,
 {
   "status": "healthy",
   "service": "Material Agent Service",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "api_keys_configured": true,
   "auth_enforced": false,
   "image_gen_configured": true,
@@ -304,6 +304,17 @@ All artifact endpoints require the corresponding pipeline step to have completed
 ### `GET /artifacts/{session_id}/output`
 
 Download the output USD file with materials applied.
+
+**Response** `200` — `application/octet-stream`
+
+### `GET /artifacts/{session_id}/output-applied`
+
+Download the USD written by the apply step, even when rendering also produced a
+flat copy. To receive a material layer that sublayers the original uploaded USD,
+submit `layer_only=true` and `optimize_usd=false` with `POST /pipeline`, then
+download this artifact after the apply step completes. The sublayer path must
+remain accessible to the USD consumer; downloading this file alone does not
+bundle the source geometry.
 
 **Response** `200` — `application/octet-stream`
 
@@ -637,8 +648,14 @@ all prediction calls, share one process-wide cap,
 `WU_NIM_HOSTED_MAX_CONCURRENT_REQUESTS` (default 4; `0` or a negative value
 disables it), however many prediction workers run. Time spent waiting for a slot,
 and retry backoff while holding one, is not covered by the request timeout. Async LangChain calls are not capped.
-HTTP 429 and 503 responses are retried up to five times with jittered
-exponential backoff (about 2 s to 32 s; `Retry-After` is honoured up to 60 s).
+HTTP 429, 500, 502, 503 and 504 responses are retried up to five times with
+jittered exponential backoff (about 2 s to 32 s; `Retry-After` is honoured up
+to 60 s). With the default request timeout, each attempt reads for at most
+`WU_NIM_ATTEMPT_TIMEOUT_SECONDS` (default 180); an explicit `timeout` applies
+to every attempt as is. A hung attempt is retried up to twice. HTTP 202 polling keeps the whole request timeout (600 s for NIM
+unless `timeout` or `WU_MODEL_REQUEST_TIMEOUT_SECONDS` is set). A request
+accepted with HTTP 202 is not sent again, and a stream is retried only before
+its first byte.
 Requests stay on the configured base URL even for models the LangChain SDK
 would send to `ai.api.nvidia.com/v1/gr`. A model that accepts one image per
 prompt, such as `meta/llama-3.2-11b-vision-instruct`, receives the views tiled

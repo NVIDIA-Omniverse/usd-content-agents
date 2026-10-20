@@ -141,7 +141,9 @@ Hosted model clients wait up to 300 seconds for a response unless a model
 section sets `timeout` (`WU_MODEL_REQUEST_TIMEOUT_SECONDS` changes the
 default). Hosted NIM requests share one process-wide cap,
 `WU_NIM_HOSTED_MAX_CONCURRENT_REQUESTS` (default 4), and back off on HTTP 429
-and 503.
+and 503. They also retry HTTP 500, 502 and 504, and a request that hangs for
+`WU_NIM_ATTEMPT_TIMEOUT_SECONDS` (default 180) gets up to three attempts.
+Hosted NIM clients default to a 600-second deadline.
 
 ### Rendering Backends
 
@@ -209,7 +211,7 @@ recipes are not part of the refinement contract. A source can also identify an
 existing OpenPBR MaterialX or UsdPreviewSurface material with `source_usd` and
 `material_prim_path`. That path clones and edits the authored graph without
 mutating the source or invoking material-graph generation. These public
-examples use `nim` with `moonshotai/kimi-k3`; their scalar inputs require no
+examples use `nim` with `nvidia/nemotron-3.5-super-vl-120b-a12b`; their scalar inputs require no
 Texture Variation endpoint:
 
 ```bash
@@ -365,7 +367,7 @@ steps:
   predict:
     vlm:
       backend: nim                  # or: openai, anthropic, gemini
-      model: moonshotai/kimi-k3     # model from your chosen provider
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b     # model from your chosen provider
 
   render:
     backend: ovrtx

@@ -154,7 +154,7 @@ the first four steps. Probe it first with `wu chat` — same backend-resolution
 as the pipeline's predict step:
 
 ```bash
-wu chat "hi" --backend nim --model moonshotai/kimi-k3 --max-tokens 8
+wu chat "hi" --backend nim --model nvidia/nemotron-3.5-super-vl-120b-a12b --max-tokens 8
 ```
 
 If you get a response, the key works. If you get `403 Forbidden`, the key is

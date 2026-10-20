@@ -130,7 +130,7 @@ Service configuration is loaded from environment variables at startup. Key setti
 | `ANTHROPIC_API_KEY` | Required if using `anthropic` backend |
 | `GOOGLE_API_KEY` | Required if using `gemini` backend |
 | `PA_VLM_BACKEND` | Default: `nim` |
-| `PA_VLM_MODEL` | Default: `moonshotai/kimi-k3` |
+| `PA_VLM_MODEL` | Default: `nvidia/nemotron-3.5-super-vl-120b-a12b` |
 | `PA_TUNE_BACKEND` | Optional `/tune` prompt interpreter backend override; falls back to `PA_REFINE_BACKEND`, then `PA_VLM_BACKEND` |
 | `PA_TUNE_MODEL` | Optional `/tune` prompt interpreter model override; falls back to `PA_REFINE_MODEL`, then `PA_VLM_MODEL` |
 | `PA_TUNE_REASONING_EFFORT` | Optional `/tune` reasoning override; falls back to refine/VLM settings and model defaults |

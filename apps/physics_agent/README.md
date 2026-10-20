@@ -65,7 +65,9 @@ Before the first step, `run` sends one short request to each distinct model
 endpoint the pipeline will call and stops, before any rendering, if an endpoint
 does not answer within its deadline. Set `WU_MODEL_ENDPOINT_PREFLIGHT=0` to skip
 that check. Hosted model clients default to a 300-second request deadline when a
-model section sets no `timeout` (`WU_MODEL_REQUEST_TIMEOUT_SECONDS`).
+model section sets no `timeout` (`WU_MODEL_REQUEST_TIMEOUT_SECONDS`). Hosted NVIDIA NIM clients default to a 600-second deadline instead. They
+also retry HTTP 500, 502 and 504 responses, and a request that hangs for
+`WU_NIM_ATTEMPT_TIMEOUT_SECONDS` (default 180) gets up to three attempts.
 
 ## Where outputs land
 
@@ -163,7 +165,7 @@ input:
 predict:
   vlm:
     backend: nim                    # or: openai, anthropic, gemini
-    model: moonshotai/kimi-k3
+    model: nvidia/nemotron-3.5-super-vl-120b-a12b
 ```
 
 Paths in config files are relative to the config file's directory.

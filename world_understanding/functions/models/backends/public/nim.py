@@ -14,9 +14,7 @@ from world_understanding.functions.models.backends.registry import (
 from world_understanding.functions.models.nim_timeout import _apply_nim_chat_timeout
 from world_understanding.functions.models.nim_transport import (
     _configure_nim_chat_transport,
-)
-from world_understanding.functions.models.request_timeout import (
-    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+    default_nim_request_timeout,
 )
 from world_understanding.functions.models.token_limits import (
     ensure_model_output_token_budget,
@@ -24,9 +22,7 @@ from world_understanding.functions.models.token_limits import (
 )
 from world_understanding.utils.credentials import get_nim_api_key_for_base_url
 
-_DEFAULT_NIM_MODEL = "moonshotai/kimi-k3"
-# Shared hosted-model deadline; WU_MODEL_REQUEST_TIMEOUT_SECONDS.
-_DEFAULT_TIMEOUT_SECONDS = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
+_DEFAULT_NIM_MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
 
 def _normalize_nim_output_token_kwargs(
@@ -91,7 +87,7 @@ def create_nim_chat(
     top_p: float | None = None,
     max_tokens: int | None = None,
     streaming: bool = False,
-    timeout: float | None = _DEFAULT_TIMEOUT_SECONDS,
+    timeout: float | None = None,
     **kwargs: Any,
 ) -> BaseChatModel:
     """Create NVIDIA NIM chat model."""
@@ -143,8 +139,15 @@ def create_nim_chat(
         **ctor_kwargs,
         **chat_kwargs,
     )
+    # An explicit timeout is the read limit for every hosted attempt.
+    explicit_timeout = timeout is not None
+    if timeout is None:
+        # Hosted NIM: 600 s, so retried attempts fit; self-hosted NIM: 300 s.
+        timeout = default_nim_request_timeout(kwargs.get("base_url"))
     _apply_nim_chat_timeout(chat_model, timeout, label="create_nim_chat")
-    _configure_nim_chat_transport(chat_model, label="create_nim_chat")
+    _configure_nim_chat_transport(
+        chat_model, label="create_nim_chat", explicit_timeout=explicit_timeout
+    )
     return chat_model
 
 

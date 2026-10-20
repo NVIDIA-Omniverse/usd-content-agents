@@ -59,7 +59,7 @@ Health check.
   "status": "healthy",
   "service": "Texture Agent Service",
   "auth_enforced": false,
-  "version": "0.6.1",
+  "version": "0.6.2",
   "build": {
     "commit_sha": null,
     "image_tag": null,
@@ -615,7 +615,7 @@ service README rather than duplicated in this service API table.
 | `TA_IMAGE_GEN_BASE_URL` | — | Override image-gen base URL; used by the multi-gpu overlay to route at the local FLUX sidecar. |
 | `TA_IMAGE_GEN_API_KEY` | — | Endpoint-specific image-gen key. The multi-gpu overlay sets `not-used` for the local FLUX sidecar and overrides service-local env files. |
 | `TA_LLM_BACKEND` | `nim` | LLM backend for auto-prompt generation. |
-| `TA_LLM_MODEL` | `moonshotai/kimi-k3` | LLM model. |
+| `TA_LLM_MODEL` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | LLM model. |
 | `TA_LLM_REASONING_EFFORT` | model default | Optional auto-prompt reasoning override. |
 | `TA_LLM_BASE_URL` | — | Override LLM base URL; set by the overlay when running `--profile llm`. |
 | `TA_TEXTURE_SIZE` | `1024` | Output texture resolution. |

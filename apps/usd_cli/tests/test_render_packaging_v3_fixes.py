@@ -304,7 +304,11 @@ def test_default_light_rig_matches_workbench_studio_hdri(monkeypatch):
     assert "float inputs:intensity = 600.0" in lights
     assert 'token inputs:texture:format = "latlong"' in lights
     assert f"asset inputs:texture:file = @{hdri}@" in lights
-    assert "custom bool visibleInPrimaryRay = 0" in lights
+    # visibleInPrimaryRay=0 must NOT be authored: in the qualified ovrtx
+    # 0.4.1.364340 runtime it suppresses the DomeLight's contribution to
+    # every ray (not just primary/camera visibility), so a lightless asset
+    # renders fully black despite this rig being present.
+    assert "visibleInPrimaryRay" not in lights
     assert "DistantLight" not in lights
     assert "KeyLight" not in lights
     assert "FillLight" not in lights
@@ -382,6 +386,22 @@ def test_factory_passes_the_512_default_to_the_backend(caplog):
         backend._check_estimate(600 * 1024 * 1024, 3, "scene")
     warned = [r for r in caplog.records if "proceeding anyway" in r.getMessage()]
     assert len(warned) == 1 and "600.0 MB" in warned[0].getMessage()
+
+
+def test_factory_passes_active_cuda_gpus_to_the_ovrtx_backend():
+    from usd_core.config import Config
+    from usd_core.render.factory import make_backend
+
+    cfg = Config()
+    cfg.render["renderer"] = "ovrtx"
+    cfg.render["ovrtx_active_cuda_gpus"] = "0"
+    backend = make_backend(cfg)
+    assert backend._active_cuda_gpus == "0"
+
+    cfg2 = Config()
+    cfg2.render["renderer"] = "ovrtx"
+    backend2 = make_backend(cfg2)
+    assert backend2._active_cuda_gpus == ""
 
 
 def test_zero_still_means_unlimited():

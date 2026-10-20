@@ -22,4 +22,4 @@ ovrtx==0.4.1.364340
 ovstage==0.1.1.355824
 warp-lang==1.16.0
 numpy==2.4.6
-pillow==12.3.0
+pillow==13.0.0

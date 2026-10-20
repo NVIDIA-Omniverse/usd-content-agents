@@ -68,7 +68,17 @@ def test_records_use_the_agent_resolved_config_and_the_effective_deadline(
     assert as_given[0]["endpoint_host"] == "integrate.api.nvidia.com"
     assert provisioned[0]["endpoint_host"] == "nim.override.example"
     assert as_given[0]["timeout_seconds"] == (
+        request_timeout.DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS
+    )
+    assert provisioned[0]["timeout_seconds"] == (
         request_timeout.DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
+    )
+    # An empty base URL means the default hosted endpoint.
+    blank = describe_model_endpoints(
+        [ActiveModel("s", "vlm", "vlm", {**raw, "base_url": ""})]
+    )
+    assert blank[0]["timeout_seconds"] == (
+        request_timeout.DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS
     )
     public = public_endpoint_records(as_given)
     assert all(not key.startswith("_") for key in public[0])
@@ -425,13 +435,22 @@ def test_hosted_clients_share_one_default_deadline() -> None:
     from world_understanding.functions.models.backends.public import (
         anthropic,
         gemini,
-        nim,
         openai,
+    )
+    from world_understanding.functions.models.nim_transport import (
+        default_nim_request_timeout,
     )
 
     shared = request_timeout.DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
-    for module in (vision_language_models, nim, openai, anthropic, gemini):
+    for module in (vision_language_models, openai, anthropic, gemini):
         assert module._DEFAULT_TIMEOUT_SECONDS == shared
+    # Hosted NIM gets a longer deadline so its bounded retries fit inside it;
+    # self-hosted NIM keeps the shared one.
+    hosted = request_timeout.DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS
+    assert default_nim_request_timeout(None) == hosted
+    assert default_nim_request_timeout("") == hosted
+    assert default_nim_request_timeout("https://integrate.api.nvidia.com/v1") == hosted
+    assert default_nim_request_timeout("http://localhost:8000/v1") == shared
 
 
 def test_default_deadline_covers_the_measured_nim_queue(
@@ -443,10 +462,12 @@ def test_default_deadline_covers_the_measured_nim_queue(
     reloaded = importlib.reload(request_timeout)
     # Public NIM returned the first byte after 123-211 s on 24 Sep 2026.
     assert reloaded.DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS == 300.0
+    assert reloaded.DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS == 600.0
     monkeypatch.setenv(request_timeout.MODEL_REQUEST_TIMEOUT_ENV, "90")
-    assert (
-        importlib.reload(request_timeout).DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS == 90.0
-    )
+    reloaded = importlib.reload(request_timeout)
+    assert reloaded.DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS == 90.0
+    # The shared override also wins over the hosted NIM default.
+    assert reloaded.DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS == 90.0
     monkeypatch.setenv(request_timeout.MODEL_REQUEST_TIMEOUT_ENV, "not-a-number")
     assert (
         importlib.reload(request_timeout).DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS == 300.0

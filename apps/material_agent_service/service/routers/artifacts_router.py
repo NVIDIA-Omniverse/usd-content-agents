@@ -417,6 +417,30 @@ async def download_output_usd(session_id: str):
     )
 
 
+@router.get("/{session_id}/output-applied")
+async def download_applied_output_usd(session_id: str):
+    """Download the apply step's USD, without selecting the render's flat copy."""
+    manager = get_session_manager()
+    if not await manager.session_exists(session_id):
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    metadata = await manager.get_session_metadata(session_id)
+    if artifact_is_valid(metadata, "applied_output_usd"):
+        session_dir = manager.get_session_dir(session_id)
+        response = await _try_serve_file_with_fallback(
+            manager,
+            session_id,
+            "output/scene_with_materials.usd",
+            session_dir / "output" / "scene_with_materials.usd",
+            filename="scene_with_materials.usd",
+            artifact="applied_output_usd",
+        )
+        if response:
+            return response
+
+    raise HTTPException(status_code=404, detail="Applied output USD not available")
+
+
 @router.api_route("/{session_id}/final-render", methods=["GET", "HEAD"])
 async def download_final_render(session_id: str):
     """Download final render image (output USD with materials applied).

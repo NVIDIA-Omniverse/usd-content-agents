@@ -32,7 +32,7 @@ def test_generate_manifest_input_uses_public_vlm_defaults():
     params = GenerateManifestInput(usd_file=Path("scene.usd"), output_dir=Path("out"))
 
     assert params.vlm_backend == "nim"
-    assert params.vlm_model == "moonshotai/kimi-k3"
+    assert params.vlm_model == "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
 
 # ---------------------------------------------------------------------------

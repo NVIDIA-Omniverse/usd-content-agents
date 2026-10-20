@@ -298,6 +298,22 @@ def test_process_sensor_array_variants() -> None:
         task._process_sensor_array(depth, "depth", 2, 2, "/World/Cube", listener).mode
         == "L"
     )
+    # 4x3 = 12 values also factor as a 2x2x3 square; the render size wins.
+    non_square_depth = task._process_sensor_array(
+        np.arange(12, dtype=np.float32), "depth", 4, 3, "/World/Cube", listener
+    )
+    assert (non_square_depth.mode, non_square_depth.size) == ("L", (4, 3))
+    assert (
+        task._process_sensor_array(
+            np.zeros((2, 2, 3), dtype=np.float32),
+            "depth",
+            2,
+            2,
+            "/World/Cube",
+            listener,
+        )
+        is None
+    )
     flat_rgb = np.arange(12, dtype=np.uint8)
     assert task._process_sensor_array(
         flat_rgb, "rgb", 2, 2, "/World/Cube", listener

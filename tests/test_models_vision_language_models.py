@@ -176,7 +176,7 @@ def test_nvidia_nim_vlm_warns_when_timeout_cannot_be_applied(
     assert "NvidiaNIMVLM could not apply timeout=42.0" in caplog.text
 
 
-def test_nvidia_nim_vlm_uses_kimi_k3_by_default(
+def test_nvidia_nim_vlm_uses_nemotron_super_vl_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, Any] = {}
@@ -196,7 +196,7 @@ def test_nvidia_nim_vlm_uses_kimi_k3_by_default(
 
     NvidiaNIMVLM(api_key="test-key")
 
-    assert captured["model"] == "moonshotai/kimi-k3"
+    assert captured["model"] == "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
 
 @pytest.mark.parametrize("error_type", [TimeoutError, RequestsTimeout])
@@ -324,10 +324,24 @@ def test_sol_output_budget_leaves_room_for_xhigh_reasoning() -> None:
     }
 
 
-def test_kimi_k3_output_budget_leaves_room_for_reasoning() -> None:
-    assert model_output_token_floor("moonshotai/kimi-k3") == 16_384
-    assert ensure_model_output_token_budget("kimi-k3", 512) == 16_384
-    assert ensure_model_output_token_budget("kimi-k3", 24_576) == 24_576
+_NEMOTRON_SUPER_VL_IDS = (
+    "nvidia/nemotron-3.5-super-vl-120b-a12b",
+    "nvidia/nvidia/nemotron-3.5-super-vl",
+)
+
+
+@pytest.mark.parametrize("model_name", _NEMOTRON_SUPER_VL_IDS)
+def test_nemotron_super_vl_output_budget_leaves_room_for_reasoning(
+    model_name: str,
+) -> None:
+    assert model_output_token_floor(model_name) == 16_384
+    assert ensure_model_output_token_budget(model_name, 512) == 16_384
+    assert ensure_model_output_token_budget(model_name, 24_576) == 24_576
+    assert model_reasoning_effort_default(model_name) == "max"
+    for interface in ("chat", "vlm"):
+        assert backend_supports_reasoning_effort(
+            "nim", model_name=model_name, interface=interface
+        )
     assert ensure_model_output_token_budget("other-nim-model", 512) == 512
 
 
@@ -454,7 +468,6 @@ def test_model_reasoning_effort_default_uses_sol_ceiling() -> None:
         == "xhigh"
     )
     assert model_reasoning_effort_default("gpt-5.5", fallback="high") == "high"
-    assert model_reasoning_effort_default("moonshotai/kimi-k3") == "max"
     assert model_uses_openai_responses_api("openai/openai/gpt-5.6-sol")
     assert not model_uses_openai_responses_api("gpt-5.5")
 
@@ -481,7 +494,7 @@ def test_reasoning_effort_respects_backend_capabilities(
     assert not backend_supports_reasoning_effort("nim")
     assert backend_supports_reasoning_effort(
         "nim",
-        model_name="moonshotai/kimi-k3",
+        model_name="nvidia/nemotron-3.5-super-vl-120b-a12b",
     )
     assert not backend_supports_reasoning_effort(
         "nim",
@@ -489,7 +502,7 @@ def test_reasoning_effort_respects_backend_capabilities(
     )
     assert backend_supports_reasoning_effort(
         "nim",
-        model_name="moonshotai/kimi-k3",
+        model_name="nvidia/nemotron-3.5-super-vl-120b-a12b",
         interface="chat",
     )
     assert not backend_supports_reasoning_effort("missing-backend")
@@ -526,14 +539,14 @@ def test_reasoning_effort_respects_backend_capabilities(
     assert (
         resolve_reasoning_effort_for_backend(
             "nim",
-            "moonshotai/kimi-k3",
+            "nvidia/nemotron-3.5-super-vl-120b-a12b",
         )
         == "max"
     )
     assert (
         resolve_reasoning_effort_for_backend(
             "nim",
-            "moonshotai/kimi-k3",
+            "nvidia/nemotron-3.5-super-vl-120b-a12b",
             interface="chat",
         )
         == "max"
@@ -541,7 +554,7 @@ def test_reasoning_effort_respects_backend_capabilities(
     assert (
         resolve_reasoning_effort_for_backend(
             "nim",
-            "moonshotai/kimi-k3",
+            "nvidia/nemotron-3.5-super-vl-120b-a12b",
             explicit="low",
         )
         == "low"

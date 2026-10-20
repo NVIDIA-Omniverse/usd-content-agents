@@ -27,10 +27,10 @@ export NVIDIA_API_KEY="YOUR_NVIDIA_API_KEY"
 export RENDER_ENDPOINT="http://renderer.example:8000"
 ```
 
-The public template defaults to `nim`, `moonshotai/kimi-k3`, and remote
+The public template defaults to `nim`, `nvidia/nemotron-3.5-super-vl-120b-a12b`, and remote
 rendering through `RENDER_ENDPOINT`.
-Joint uses Kimi-K3 for both text-only `analyze_structure` hierarchy analysis
-and multimodal prediction or topology-adjudication calls.
+Joint uses Nemotron 3.5 Super VL for both text-only `analyze_structure`
+hierarchy analysis and multimodal prediction or topology-adjudication calls.
 
 The prediction VLM requests up to 24,576 output tokens by default. Set
 `JA_VLM_MAX_TOKENS` to override that default for CLI/config-driven runs. Known
@@ -42,7 +42,9 @@ Hosted endpoints can queue a request silently for minutes before generation
 starts, and occasionally never serve it. Every hosted VLM and chat client in
 the repository therefore defaults to a 300-second request deadline when a
 model section sets no `timeout` (`WU_MODEL_REQUEST_TIMEOUT_SECONDS` changes
-that default for all agents). Before the first step, `joint-agent run` sends
+that default for all agents). Hosted NVIDIA NIM clients default to a 600-second deadline instead. They
+also retry HTTP 500, 502 and 504 responses, and a request that hangs for
+`WU_NIM_ATTEMPT_TIMEOUT_SECONDS` (default 180) gets up to three attempts. Before the first step, `joint-agent run` sends
 one short request to each distinct model endpoint the run will call and stops
 with a `model_endpoint_preflight` terminal failure, before any rendering, if an
 endpoint does not answer within its deadline. Set

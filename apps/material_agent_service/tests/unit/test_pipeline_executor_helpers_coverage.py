@@ -713,7 +713,8 @@ def test_pipeline_step_injection_and_session_config(
     pipeline_router._configure_apply_step(
         apply_config, layer_only=True, request_context="test"
     )
-    assert apply_config["steps"]["apply"]["flatten_output"] is False
+    assert apply_config["output"] == {"layer_only": True, "flatten_output": False}
+    assert "layer_only" not in apply_config["steps"]["apply"]
 
     config = pipeline_router._cluster_session_config_from_step_config(
         enabled=True,

@@ -3451,7 +3451,7 @@ def generate_manifest(
     vlm_model: Annotated[
         str | None,
         typer.Option("--vlm-model", help="VLM model name"),
-    ] = "moonshotai/kimi-k3",
+    ] = "nvidia/nemotron-3.5-super-vl-120b-a12b",
     vlm_workers: Annotated[
         int,
         typer.Option("--vlm-workers", help="Number of parallel VLM workers"),

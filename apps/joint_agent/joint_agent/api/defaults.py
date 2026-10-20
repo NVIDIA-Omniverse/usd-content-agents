@@ -87,7 +87,9 @@ DEFAULT_USD_PRIM_WARNING_THRESHOLD = 1000
 # ============================================================================
 
 DEFAULT_VLM_BACKEND = os.environ.get("JA_VLM_BACKEND", "nim")
-DEFAULT_VLM_MODEL = os.environ.get("JA_VLM_MODEL", "moonshotai/kimi-k3")
+DEFAULT_VLM_MODEL = os.environ.get(
+    "JA_VLM_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b"
+)
 DEFAULT_VLM_TEMPERATURE = 1.0
 DEFAULT_VLM_MAX_TOKENS = parse_int_env(
     "JA_VLM_MAX_TOKENS", 24576, minimum=1, logger=logger
@@ -102,7 +104,9 @@ DEFAULT_VLM_MAX_WORKERS = 64
 DEFAULT_PREDICTION_COMPLETION_RETRIES = 3
 
 DEFAULT_LLM_BACKEND = os.environ.get("JA_LLM_BACKEND", "nim")
-DEFAULT_LLM_MODEL = os.environ.get("JA_LLM_MODEL", "moonshotai/kimi-k3")
+DEFAULT_LLM_MODEL = os.environ.get(
+    "JA_LLM_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b"
+)
 DEFAULT_LLM_TEMPERATURE = 0.1
 DEFAULT_LLM_MAX_TOKENS = 512
 DEFAULT_LLM_REASONING_EFFORT = resolve_reasoning_effort_for_backend(
@@ -618,10 +622,10 @@ def apply_defaults(config: dict[str, Any], defaults: dict[str, Any]) -> dict[str
         Config with defaults applied
 
     Example:
-        >>> user_config = {"vlm": {"model": "moonshotai/kimi-k3"}}
+        >>> user_config = {"vlm": {"model": "nvidia/nemotron-3.5-super-vl-120b-a12b"}}
         >>> full_config = apply_defaults(user_config, PREDICT_DEFAULTS)
         >>> # Result:
-        >>> # {"vlm": {"model": "moonshotai/kimi-k3",
+        >>> # {"vlm": {"model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
         >>> #          "backend": "nim", ...}}
     """
     result = config.copy()

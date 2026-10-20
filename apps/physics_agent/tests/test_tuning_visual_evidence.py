@@ -269,14 +269,16 @@ def test_default_judge_vlm_filters_reasoning_effort_for_nim(
     assert "reasoning_effort" not in captured
 
 
-def test_default_judge_vlm_keeps_reasoning_effort_for_kimi_k3(
+def test_default_judge_vlm_keeps_reasoning_effort_for_nemotron_super_vl(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from physics_agent.api import defaults
 
     captured: dict[str, object] = {}
     monkeypatch.setattr(defaults, "DEFAULT_VLM_BACKEND", "nim")
-    monkeypatch.setattr(defaults, "DEFAULT_VLM_MODEL", "moonshotai/kimi-k3")
+    monkeypatch.setattr(
+        defaults, "DEFAULT_VLM_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b"
+    )
     monkeypatch.setattr(defaults, "DEFAULT_VLM_TEMPERATURE", 1.0)
     monkeypatch.setattr(defaults, "DEFAULT_VLM_MAX_TOKENS", 24576)
     monkeypatch.setattr(defaults, "DEFAULT_VLM_REASONING_EFFORT", "max")
@@ -291,7 +293,7 @@ def test_default_judge_vlm_keeps_reasoning_effort_for_kimi_k3(
 
     resolve_default_judge_vlm()
 
-    assert captured["model"] == "moonshotai/kimi-k3"
+    assert captured["model"] == "nvidia/nemotron-3.5-super-vl-120b-a12b"
     assert captured["reasoning_effort"] == "max"
 
 

@@ -157,19 +157,19 @@ def test_sol_vlm_defaults_to_xhigh_reasoning(
         importlib.reload(defaults)
 
 
-def test_kimi_k3_nim_vlm_defaults_to_max_reasoning(
+def test_nemotron_super_vl_nim_vlm_defaults_to_max_reasoning(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     try:
         with monkeypatch.context() as environment:
             environment.setenv("PA_VLM_BACKEND", "nim")
-            environment.setenv("PA_VLM_MODEL", "moonshotai/kimi-k3")
+            environment.setenv("PA_VLM_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b")
             environment.delenv("PA_VLM_REASONING_EFFORT", raising=False)
             reloaded_defaults = importlib.reload(defaults)
 
             assert reloaded_defaults.DEFAULT_VLM_REASONING_EFFORT == "max"
             assert reloaded_defaults.PREDICT_DEFAULTS["vlm"]["model"] == (
-                "moonshotai/kimi-k3"
+                "nvidia/nemotron-3.5-super-vl-120b-a12b"
             )
             assert (
                 reloaded_defaults.PREDICT_DEFAULTS["vlm"]["reasoning_effort"] == "max"
@@ -188,7 +188,7 @@ def test_predict_model_override_re_resolves_reasoning_effort() -> None:
         {
             "vlm": {
                 "backend": "nim",
-                "model": "moonshotai/kimi-k3",
+                "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
                 "reasoning_effort": "low",
             }
         }

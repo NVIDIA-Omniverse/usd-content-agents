@@ -234,7 +234,7 @@ async def vlm(config: VLMToolConfig, builder: Builder) -> Any:
                 if not api_key:
                     return "Error: NVIDIA_API_KEY environment variable not set"
                 if not model:
-                    model = "moonshotai/kimi-k3"
+                    model = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
             # Create VLM instance using the new create_vlm function
             try:

@@ -14,4 +14,4 @@ warp-lang @ https://pypi.nvidia.com/warp-lang/warp_lang-1.16.0-py3-none-manylinu
 warp-lang @ https://pypi.nvidia.com/warp-lang/warp_lang-1.16.0-py3-none-manylinux_2_34_aarch64.whl#sha256=d4715171bd6821436b82293d774c9a082ace08215c189572b4348d1e48fb8ee8 ; platform_machine == 'aarch64'
 warp-lang @ https://pypi.nvidia.com/warp-lang/warp_lang-1.16.0-py3-none-win_amd64.whl#sha256=8690c9096e0a271985339d4aa4b37675e7d62852620ca861ac032dc85b124542 ; platform_machine == 'AMD64'
 numpy==2.2.6
-pillow==12.3.0
+pillow==13.0.0

@@ -19,12 +19,17 @@ _MODEL_SNAPSHOT_SUFFIX = re.compile(r"(?:\d{8}|\d{4}-\d{2}-\d{2})\Z")
 _GPT5_DEPLOYMENT_ALIAS = re.compile(r"(?:^|[^a-z0-9])gpt-5(?:$|[^a-z0-9])")
 _MODEL_REASONING_EFFORT_DEFAULTS = {
     "gpt-5.6-sol": "xhigh",
-    "kimi-k3": "max",
+    # Nemotron 3.5 Super VL is published under two model-ID leaves; both
+    # carry the same policy.
+    "nemotron-3.5-super-vl-120b-a12b": "max",
+    "nemotron-3.5-super-vl": "max",
 }
 _MODEL_REASONING_EFFORT_CAPABILITIES = frozenset(
     {
-        ("nim", "chat", "kimi-k3"),
-        ("nim", "vlm", "kimi-k3"),
+        ("nim", "chat", "nemotron-3.5-super-vl-120b-a12b"),
+        ("nim", "vlm", "nemotron-3.5-super-vl-120b-a12b"),
+        ("nim", "chat", "nemotron-3.5-super-vl"),
+        ("nim", "vlm", "nemotron-3.5-super-vl"),
     }
 )
 _MODEL_OUTPUT_TOKEN_FLOORS = {
@@ -32,10 +37,11 @@ _MODEL_OUTPUT_TOKEN_FLOORS = {
     # Existing agents commonly request 256-2048 visible tokens, which can leave
     # no room for text at xhigh reasoning effort.
     "gpt-5.6-sol": 16_384,
-    # Kimi-K3 always reasons, and its reasoning plus visible response share the
-    # NIM max_tokens budget. Preserve room for structured output when compact
-    # agent calls retain historical 512-4096 token limits.
-    "kimi-k3": 16_384,
+    # Nemotron 3.5 Super VL always reasons, and its reasoning plus visible
+    # response share the NIM max_tokens budget. Preserve room for structured
+    # output when compact agent calls retain historical 512-4096 token limits.
+    "nemotron-3.5-super-vl-120b-a12b": 16_384,
+    "nemotron-3.5-super-vl": 16_384,
 }
 _OPENAI_RESPONSES_API_MODELS = frozenset({"gpt-5.6-sol"})
 _MAX_TOKENS_KEY = "max_tokens"

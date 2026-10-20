@@ -32,6 +32,9 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Literal, NamedTuple
 from urllib.parse import urlparse
 
+from world_understanding.functions.models.nim_transport import (
+    default_nim_request_timeout,
+)
 from world_understanding.functions.models.request_timeout import (
     DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
 )
@@ -200,6 +203,14 @@ def resolve_provisioned_model_config(
     return apply_llm_nim_env_override(dict(config))
 
 
+def _default_timeout_seconds(config: Mapping[str, Any], backend: str) -> float:
+    """The deadline a client built from ``config`` uses when none is set."""
+    if backend == "nim":
+        url = route_url(config, backend)
+        return default_nim_request_timeout(url if isinstance(url, str) else None)
+    return DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
+
+
 def describe_model_endpoints(
     active_models: Iterable[ActiveModel],
 ) -> list[dict[str, Any]]:
@@ -224,7 +235,7 @@ def describe_model_endpoints(
                 "preflight": "startup" if model.probe_at_startup else "deferred",
                 "required": model.required,
                 "timeout_seconds": resolved.get(
-                    "timeout", DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
+                    "timeout", _default_timeout_seconds(resolved, backend)
                 ),
                 "_config": resolved,
                 "_route": _route_identity(resolved),

@@ -289,7 +289,7 @@ def build_env(config: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
     if is_enabled(vlm):
         vlm_base_url = model_base_url(vlm)
         vlm_backend = backend(vlm, "nim")
-        vlm_model = model(vlm, "moonshotai/kimi-k3")
+        vlm_model = model(vlm, "nvidia/nemotron-3.5-super-vl-120b-a12b")
         env["MA_VLM_BACKEND"] = vlm_backend
         env["PA_VLM_BACKEND"] = vlm_backend
         env["MA_VLM_MODEL"] = vlm_model
@@ -317,7 +317,7 @@ def build_env(config: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
     if is_enabled(llm):
         llm_base_url = model_base_url(llm)
         llm_backend = backend(llm, "nim")
-        llm_model = model(llm, "moonshotai/kimi-k3")
+        llm_model = model(llm, "nvidia/nemotron-3.5-super-vl-120b-a12b")
         env["MA_LLM_BACKEND"] = llm_backend
         env["TA_LLM_BACKEND"] = llm_backend
         env["MA_LLM_MODEL"] = llm_model

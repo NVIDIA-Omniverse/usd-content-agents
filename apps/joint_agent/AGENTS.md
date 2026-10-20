@@ -26,7 +26,7 @@ joint-agent run my_joint_asset.yaml --dry-run
 joint-agent run my_joint_asset.yaml
 ```
 
-The template uses `nim`, `moonshotai/kimi-k3`, and remote rendering for Linux
+The template uses `nim`, `nvidia/nemotron-3.5-super-vl-120b-a12b`, and remote rendering for Linux
 runs. On WSL2, the root `warp` extra above supplies the required Warp/Newton
 runtime; set both `steps.identify_asset.renderer.backend` and
 `steps.build_dataset_usd.renderer.backend` to `warp` as required by the support

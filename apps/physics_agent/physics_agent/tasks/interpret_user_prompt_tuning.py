@@ -72,7 +72,7 @@ logger = logging.getLogger(__name__)
 # Public fallback model + backend per #51 spec. Service deployments override
 # these with PA_TUNE_*, PA_REFINE_*, or PA_VLM_* environment settings so
 # prompt-only /tune uses the same internal model backend as the service.
-_DEFAULT_CHAT_MODEL_NAME = "moonshotai/kimi-k3"
+_DEFAULT_CHAT_MODEL_NAME = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 _DEFAULT_CHAT_BACKEND = "nim"
 
 
@@ -756,7 +756,7 @@ def infer_scenario_from_prompt(
             wins on every key conflict. The interpreter only fills gaps the
             user's config did not specify. Must be a dict if provided.
         chat_model: Optional pre-built chat model instance. When ``None`` the
-            project default (``moonshotai/kimi-k3`` on the ``nim``
+            project default (``nvidia/nemotron-3.5-super-vl-120b-a12b`` on the ``nim``
             backend) is resolved via
             :func:`world_understanding.functions.models.chat_models.create_chat_model`.
         audit_dir: Optional directory. When set, the post-merge final dict

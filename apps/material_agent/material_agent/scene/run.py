@@ -51,7 +51,7 @@ class SubAssetHarnessConfig:
     render_mode: Literal["remote"] = "remote"
     inference_mode: Literal["vlm"] = "vlm"
     vlm_backend: str = "nim"
-    vlm_model: str = "moonshotai/kimi-k3"
+    vlm_model: str = "nvidia/nemotron-3.5-super-vl-120b-a12b"
     max_iterations: int = 1
     max_rendered_prims: int | None = None
     apply_source_mode: Literal["copy", "overlay"] = "copy"

@@ -182,7 +182,7 @@ def test_nat_register_cv_vlm_paths(
     )
     info = asyncio.run(_function_info(module, "vlm", "VLMToolConfig"))
     assert asyncio.run(info.fn(str(image_path), "describe")) == "caption"
-    assert create_calls[-1]["model"] == "moonshotai/kimi-k3"
+    assert create_calls[-1]["model"] == "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
     monkeypatch.setattr(
         models_module,

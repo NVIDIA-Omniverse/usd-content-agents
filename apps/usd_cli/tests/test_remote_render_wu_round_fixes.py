@@ -403,7 +403,7 @@ def test_ensure_ready_allows_install_render_path_does_not(monkeypatch):
 
     class FakeDaemon:
         def __init__(self, venv_dir, log_level="warn", auto_install=False,
-                     block_install=True):
+                     block_install=True, active_cuda_gpus=""):
             seen.append((auto_install, block_install))
 
         def alive(self):

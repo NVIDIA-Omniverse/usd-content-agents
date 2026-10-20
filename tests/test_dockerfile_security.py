@@ -377,12 +377,12 @@ def _assert_secure_pillow_pin(path: Path, content: str) -> None:
     ]
     assert versions, (
         f"{path.name} does not explicitly pin Pillow. Image scans require "
-        "Pillow >= 12.3.0 for the isolated OVRTX runtime."
+        "Pillow >= 13.0.0 for the isolated OVRTX runtime."
     )
     for version in versions:
-        assert version >= Version("12.3.0"), (
+        assert version >= Version("13.0.0"), (
             f"{path.name} pins Pillow {version}; image scans require Pillow "
-            ">= 12.3.0 for the isolated OVRTX runtime."
+            ">= 13.0.0 for the isolated OVRTX runtime."
         )
 
 
@@ -428,7 +428,7 @@ def test_secure_pillow_pin_accepts_inline_comments() -> None:
     _assert_secure_pillow_pin(
         Path("requirements.txt"),
         "# Historical vulnerable pin: pillow==12.1.1\n"
-        "pillow==12.3.0  # image scan floor\n",
+        "pillow==13.0.0  # image scan floor\n",
     )
 
 
@@ -864,7 +864,7 @@ def test_usd_cli_ovrtx_image_prebuilt_runtimes_are_ready_for_nonroot_runtime(
         ("ovstage", "0.1.1.355824"),
         ("warp-lang", "1.16.0"),
         ("numpy", "2.4.6"),
-        ("pillow", "12.3.0"),
+        ("pillow", "13.0.0"),
     ):
         assert f"'{package}': '{version}'" in content
 
@@ -1007,4 +1007,4 @@ def test_ovrtx_runtime_lock_pillow_pin_is_not_vulnerable() -> None:
         if package["name"] == "pillow"
     ]
     assert pillow_versions
-    assert all(version >= Version("12.3.0") for version in pillow_versions)
+    assert all(version >= Version("13.0.0") for version in pillow_versions)

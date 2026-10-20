@@ -91,7 +91,7 @@ DEFAULT_USD_PRIM_WARNING_THRESHOLD = 1000
 # ============================================================================
 
 DEFAULT_VLM_BACKEND = "nim"
-DEFAULT_VLM_MODEL = "moonshotai/kimi-k3"
+DEFAULT_VLM_MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 DEFAULT_VLM_TEMPERATURE = 1.0
 DEFAULT_VLM_MAX_TOKENS = 24576
 DEFAULT_VLM_REASONING_EFFORT = resolve_reasoning_effort_for_backend(
@@ -102,7 +102,7 @@ DEFAULT_VLM_REASONING_EFFORT = resolve_reasoning_effort_for_backend(
 DEFAULT_VLM_MAX_WORKERS = 64
 
 DEFAULT_LLM_BACKEND = "nim"
-DEFAULT_LLM_MODEL = "moonshotai/kimi-k3"
+DEFAULT_LLM_MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 DEFAULT_LLM_TEMPERATURE = 0.1
 DEFAULT_LLM_MAX_TOKENS = 512
 
@@ -127,11 +127,11 @@ DEFAULT_CLUSTER_COMPLEXITY_THRESHOLDS = {
     "high": [0.08, 1.0, 0.90],
 }
 
-# Text-only benchmark/evaluation judge defaults use the same qualified Kimi-K3
-# NIM model. Visual judging falls back to the VLM default unless a dedicated
+# Text-only benchmark/evaluation judge defaults use the same Nemotron 3.5 Super
+# VL NIM model. Visual judging falls back to the VLM default unless a dedicated
 # judge VLM is set.
 DEFAULT_JUDGE_BACKEND = "nim"
-DEFAULT_JUDGE_MODEL = "moonshotai/kimi-k3"
+DEFAULT_JUDGE_MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 DEFAULT_JUDGE_TEMPERATURE = 0.1
 DEFAULT_JUDGE_MAX_TOKENS = 2048
 

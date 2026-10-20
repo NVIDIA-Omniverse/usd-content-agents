@@ -11,7 +11,7 @@ have the same mental model across agents.
 # ============================================================================
 
 DEFAULT_LLM_BACKEND: str = "nim"
-DEFAULT_LLM_MODEL: str = "moonshotai/kimi-k3"
+DEFAULT_LLM_MODEL: str = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 DEFAULT_LLM_TEMPERATURE: float = 0.7
 # Sized for a multi-material JSON response. Verbose instruct models
 # (observed with cosmos-reason2-8b during sidecar testing) produce

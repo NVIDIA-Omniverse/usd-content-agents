@@ -167,7 +167,7 @@ Lock: [`world_understanding/functions/graphics/pylock.ovrtx-runtime.toml`](world
 | numpy | 2.2.6 | BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 | 3 SHA-256 artifacts | [numpy homepage](https://pypi.org/project/numpy/) |
 | ovrtx | 0.4.1.364340 | LicenseRef-NvidiaProprietary | 3 SHA-256 artifacts | [ovrtx homepage](https://pypi.org/project/ovrtx/) |
 | ovstage | 0.1.1.355824 | LicenseRef-NvidiaProprietary | 3 SHA-256 artifacts | [ovstage homepage](https://pypi.org/project/ovstage/) |
-| pillow | 12.3.0 | MIT-CMU | 3 SHA-256 artifacts | [pillow homepage](https://pypi.org/project/pillow/) |
+| pillow | 13.0.0 | MIT-CMU | 3 SHA-256 artifacts | [pillow homepage](https://pypi.org/project/pillow/) |
 | warp-lang | 1.16.0 | Apache-2.0 | 3 SHA-256 artifacts | [warp-lang homepage](https://pypi.org/project/warp-lang/) |
 
 #### Bundled legal files: ovrtx 0.4.1.364340
@@ -14070,7 +14070,7 @@ Packages declared as runtime dependencies by the public staged `pyproject.toml` 
 | opentelemetry-instrumentation-logging | 0.65b0 | Apache-2.0 | [opentelemetry-instrumentation-logging homepage](https://pypi.org/project/opentelemetry-instrumentation-logging/) |
 | opentelemetry-instrumentation-requests | 0.65b0 | Apache-2.0 | [opentelemetry-instrumentation-requests homepage](https://pypi.org/project/opentelemetry-instrumentation-requests/) |
 | opentelemetry-sdk | 1.44.0 | Apache-2.0 | [opentelemetry-sdk homepage](https://pypi.org/project/opentelemetry-sdk/) |
-| pillow | 12.3.0 | MIT-CMU | [pillow homepage](https://pypi.org/project/pillow/) |
+| pillow | 13.0.0 | MIT-CMU | [pillow homepage](https://pypi.org/project/pillow/) |
 | protobuf | 6.33.6 | 3-Clause BSD License | [protobuf homepage](https://developers.google.com/protocol-buffers/) |
 | pyasn1 | 0.6.4 | BSD-2-Clause | [pyasn1 homepage](https://pypi.org/project/pyasn1/) |
 | pydantic | 2.13.4 | MIT | [pydantic homepage](https://pypi.org/project/pydantic/) |
@@ -14104,7 +14104,7 @@ Packages pulled in indirectly by the direct dependencies above (339 total). The 
 |---------|---------|---------|-------------|----------|
 | aiobotocore | 2.25.1 | Apache-2.0 | `aioboto3`, `fsspec`, `opentelemetry-instrumentation-botocore` | [aiobotocore homepage](https://pypi.org/project/aiobotocore/) |
 | aiohappyeyeballs | 2.7.1 | PSF-2.0 | `aiohttp` | [aiohappyeyeballs homepage](https://pypi.org/project/aiohappyeyeballs/) |
-| aiohttp | 3.14.3 | Apache-2.0 AND MIT | `aiobotocore`, `aiohttp-retry`, `anthropic` (+7 more) | [aiohttp homepage](https://pypi.org/project/aiohttp/) |
+| aiohttp | 3.14.5 | Apache-2.0 AND MIT | `aiobotocore`, `aiohttp-retry`, `anthropic` (+7 more) | [aiohttp homepage](https://pypi.org/project/aiohttp/) |
 | aiohttp-retry | 2.9.1 | MIT | `usd_search_client` | [aiohttp-retry homepage](https://github.com/inyutin/aiohttp_retry) |
 | aioitertools | 0.13.0 | MIT | `aiobotocore` | [aioitertools homepage](https://pypi.org/project/aioitertools/) |
 | aiosignal | 1.4.0 | Apache 2.0 | `aiohttp` | [aiosignal homepage](https://github.com/aio-libs/aiosignal) |
@@ -14440,7 +14440,7 @@ Packages pulled in indirectly by the direct dependencies above (339 total). The 
 | websockets | 15.0.1 | BSD-3-Clause | `google-genai`, `gradio_client`, `langsmith` (+3 more) | [websockets homepage](https://pypi.org/project/websockets/) |
 | wrapt | 1.17.3 | BSD | `aiobotocore`, `langsmith`, `opentelemetry-instrumentation` (+1 more) | [wrapt homepage](https://github.com/GrahamDumpleton/wrapt) |
 | xxhash | 4.0.1 | BSD-2-Clause | `langsmith`, `trimesh` | [xxhash homepage](https://github.com/ifduyue/python-xxhash) |
-| yarl | 1.24.5 | Apache-2.0 | `aiohttp`, `fsspec` | [yarl homepage](https://github.com/aio-libs/yarl) |
+| yarl | 1.25.1 | Apache-2.0 | `aiohttp`, `fsspec` | [yarl homepage](https://github.com/aio-libs/yarl) |
 
 ## Detailed License Information
 
@@ -15411,7 +15411,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ### aiohttp
 
-- **Version**: 3.14.3
+- **Version**: 3.14.5
 - **License**: Apache-2.0 AND MIT
 - **Homepage**: https://pypi.org/project/aiohttp/
 - **Summary**: Async http client/server framework (asyncio)
@@ -45526,7 +45526,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### pillow
 
-- **Version**: 12.3.0
+- **Version**: 13.0.0
 - **License**: MIT-CMU
 - **Homepage**: https://pypi.org/project/pillow/
 - **Repository**: https://github.com/python-pillow/Pillow
@@ -60229,7 +60229,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### yarl
 
-- **Version**: 1.24.5
+- **Version**: 1.25.1
 - **License**: Apache-2.0
 - **Homepage**: https://github.com/aio-libs/yarl
 - **Author**: Andrew Svetlov

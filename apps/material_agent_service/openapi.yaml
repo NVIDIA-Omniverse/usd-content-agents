@@ -5,7 +5,7 @@ info:
     Fixed pipeline REST API for VLM-based material assignment to 3D USD
     objects. This v0.6 interface does not invoke the default agentic Content
     Workflow.
-  version: "0.6.1"
+  version: "0.6.2"
 servers:
   - url: http://localhost:8000
     description: Local development server
@@ -518,6 +518,24 @@ paths:
             application/octet-stream:
               schema: { type: string, format: binary }
         "404": { description: File not available }
+
+  /artifacts/{session_id}/output-applied:
+    get:
+      summary: Download the apply step USD without selecting the flat render copy
+      operationId: downloadAppliedOutput
+      tags: [artifacts]
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Apply step USD file
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "404": { description: Applied output not available }
 
   /artifacts/{session_id}/final-render:
     get:

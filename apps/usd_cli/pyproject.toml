@@ -13,7 +13,7 @@ license = "Apache-2.0"
 # usd_core drives USD directly (pxr); the containing Content Agents environment
 # supplies the compatible pxr provider. Isolated artifact tests use the `usd` extra.
 # NumPy backs camera/spatial math and Pillow writes image artifacts.
-dependencies = ["numpy>=1.24,<3", "pillow>=10,<13"]
+dependencies = ["numpy>=1.24,<3", "pillow>=13.0.0"]
 
 [project.optional-dependencies]
 # zstandard: optional zstd wire compression for remote renders (plan Phase 0) —

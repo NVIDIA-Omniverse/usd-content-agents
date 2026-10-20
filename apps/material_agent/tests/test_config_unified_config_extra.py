@@ -108,7 +108,7 @@ def test_step_model_override_re_resolves_reasoning_effort() -> None:
         {
             "vlm": {
                 "backend": "nim",
-                "model": "moonshotai/kimi-k3",
+                "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
                 "reasoning_effort": "low",
             }
         },

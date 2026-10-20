@@ -66,7 +66,9 @@ DEFAULT_USD_PRIM_WARNING_THRESHOLD = 1000
 # ============================================================================
 
 DEFAULT_VLM_BACKEND = os.environ.get("PA_VLM_BACKEND", "nim")
-DEFAULT_VLM_MODEL = os.environ.get("PA_VLM_MODEL", "moonshotai/kimi-k3")
+DEFAULT_VLM_MODEL = os.environ.get(
+    "PA_VLM_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b"
+)
 DEFAULT_VLM_TEMPERATURE = parse_float_env(
     "PA_VLM_TEMPERATURE", 1.0, minimum=0.0, maximum=2.0, logger=logger
 )

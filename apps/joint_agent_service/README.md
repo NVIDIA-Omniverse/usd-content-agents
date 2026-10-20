@@ -21,7 +21,7 @@ docker compose --env-file .env \
   -f apps/joint_agent_service/docker-compose.yml up --build
 ```
 
-The public service defaults to `nim`, `moonshotai/kimi-k3`, and remote
+The public service defaults to `nim`, `nvidia/nemotron-3.5-super-vl-120b-a12b`, and remote
 rendering through `RENDER_ENDPOINT`. Uploads have no fixed size cap by default;
 operators can set a positive `JA_MAX_UPLOAD_SIZE_MB` guard.
 

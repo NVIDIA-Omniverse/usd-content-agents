@@ -1,3 +1,38 @@
+# Content Agents 0.6.2 (20 Oct 2026)
+
+Native Windows execution is unsupported in the 0.6 release. On a Windows
+host, run the supported workflow inside WSL2.
+
+## Changed
+
+- The default hosted model for VLM and LLM calls is now
+  `nvidia/nemotron-3.5-super-vl-120b-a12b`. It replaces `moonshotai/kimi-k3`,
+  which hosted NVIDIA NIM has retired.
+
+## Fixed
+
+- The Material Agent REST service honors `layer_only` output. Pipeline jobs
+  keep the material layer unflattened, and
+  `/artifacts/{session_id}/output-applied` downloads the applied layer instead
+  of the flattened render copy.
+- usd-cli OVRTX rendering no longer produces black images when
+  `CUDA_VISIBLE_DEVICES` is set or when a scene relies on the default dome
+  light. The optional `render.ovrtx_active_cuda_gpus` setting pins rendering
+  to specific GPUs explicitly.
+- Hosted NVIDIA NIM requests that hang or fail with HTTP 500, 502 or 504 are
+  retried. With the default timeout, each attempt reads at most
+  `WU_NIM_ATTEMPT_TIMEOUT_SECONDS` (default 180 s); an explicit `timeout`
+  applies to every attempt as is. A hung request gets up to three attempts,
+  and hosted NIM clients default to a 600-second request timeout. A request the
+  endpoint has accepted with HTTP 202 is never sent twice.
+- Remote-render sensor buffers with a non-square render size, such as a
+  640x480 depth buffer, are reshaped to the requested size instead of a
+  guessed square, which produced a misshaped depth image.
+- Raised aiohttp to 3.14.5 in the locked installs (constraint floor 3.14.4)
+  to clear CVE-2026-111064, CVE-2026-111063 and GHSA-2g87-pp6c-29x5.
+- Raised Pillow to 13.0.0 to clear BDSA-2026-37854, BDSA-2026-37841 and
+  BDSA-2026-37860.
+
 # Content Agents 0.6.1 (15 Oct 2026)
 
 Native Windows execution is unsupported in the 0.6 release. On a Windows

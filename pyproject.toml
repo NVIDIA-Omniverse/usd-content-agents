@@ -19,7 +19,7 @@ dependencies = [
     "numpy>=2.3,<3.0.0",
     "scikit-learn==1.7.2",
     "scipy==1.16.1",
-    "pillow>=12.1.1,<13.0.0",
+    "pillow>=13.0.0",
     "aiofiles==24.1.0",
     "httpx>=0.27.0",
     # Floor lifted for GHSA-gc5v-m9x4-r6x2 (temp file reuse in
@@ -181,7 +181,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.6.1"
+fallback-version = "0.6.2"
 from-file = { source = "VERSION.md" }
 
 [tool.hatch.version]
@@ -195,9 +195,10 @@ source = "uv-dynamic-versioning"
 constraint-dependencies = [
     "anthropic==0.104.1",
     # Floors lifted for source-scan findings in transitive dependencies:
-    # aiohttp request/body/cookie handling advisories and cryptography wheels
-    # bundling vulnerable OpenSSL.
-    "aiohttp>=3.14.1",
+    # aiohttp request/body/cookie handling advisories (3.14.4 fixes the missing
+    # initial request timeout, CVE-2026-111064, and unbounded memory/CPU use,
+    # GHSA-2g87-pp6c-29x5) and cryptography wheels bundling vulnerable OpenSSL.
+    "aiohttp>=3.14.4",
     "cryptography>=48.0.1",
     "idna==3.16",
     # huggingface-hub 2.x moved to httpx2, whose fixed releases for

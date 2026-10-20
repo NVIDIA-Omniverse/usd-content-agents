@@ -56,7 +56,7 @@ RUN python -m pip install --no-cache-dir --upgrade \
         "pydantic>=2.11,<3.0.0" \
         "uvicorn[standard]>=0.34.0,<1.0.0" \
         "python-dotenv==1.2.2" \
-        "Pillow>=12.1.1,<13.0.0" \
+        "Pillow>=13.0.0" \
         "numpy>=2.3,<3.0.0" \
         "usd-exchange>=2.3,<3" \
     && python -c "from pxr import Usd, UsdGeom, UsdShade"

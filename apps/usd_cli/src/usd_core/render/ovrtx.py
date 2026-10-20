@@ -360,7 +360,16 @@ def _default_hdri_intensity() -> float:
 
 
 def _build_default_lights_usda(intensity: float) -> str:
-    """Build the original Content Workbench studio dome-light overlay."""
+    """Build the original Content Workbench studio dome-light overlay.
+
+    Deliberately omits ``visibleInPrimaryRay = 0``: in the qualified ovrtx
+    0.4.1.364340 runtime that attribute suppresses the DomeLight's
+    contribution to every ray, not just primary/camera visibility, so a
+    lightless asset renders fully black (valid, nonzero alpha — the
+    readiness probe's non-empty check does not catch it). The dome is
+    visible in the background of the render instead, which is preferable to
+    a silently unlit scene.
+    """
     hdri_asset = _default_hdri_path()
     return (
         "#usda 1.0\n"
@@ -375,7 +384,6 @@ def _build_default_lights_usda(intensity: float) -> str:
         f"        float inputs:intensity = {float(intensity)}\n"
         '        token inputs:texture:format = "latlong"\n'
         f"        asset inputs:texture:file = @{hdri_asset}@\n"
-        "        custom bool visibleInPrimaryRay = 0\n"
         "    }\n"
         "}\n"
     )
@@ -2242,7 +2250,35 @@ wp.init()
 # Construct only after Warp has initialized, but still before the ready event.
 # fd 1 is already redirected, so native constructor banners cannot corrupt the
 # JSON-lines protocol.
-_renderer = ovrtx.Renderer()
+#
+# USD_CLI_OVRTX_ACTIVE_CUDA_GPUS is set explicitly by _OvRTXDaemon from its
+# active_cuda_gpus constructor argument, never inherited from the caller's
+# environment (unlike the CUDA_VISIBLE_DEVICES var this daemon strips) -- a
+# host with a GPU that omni.rtx cannot render on needs a supported way to
+# pin the worker to a working device.
+_active_cuda_gpus = os.environ.get("USD_CLI_OVRTX_ACTIVE_CUDA_GPUS", "").strip()
+if _active_cuda_gpus:
+    _renderer = ovrtx.Renderer(
+        config=ovrtx.RendererConfig(active_cuda_gpus=_active_cuda_gpus)
+    )
+else:
+    _renderer = ovrtx.Renderer()
+
+def _first_cuda_ordinal(spec):
+    """First CUDA ordinal of an ovrtx active_cuda_gpus spec ("1" / "1,0"), else 0."""
+    for token in str(spec or "").split(","):
+        token = token.strip()
+        if token.isdigit():
+            return int(token)
+    return 0
+
+def _observation_device():
+    # The Warp stream handed to output.map(sync_stream=...) and used for the
+    # reduction kernels must live on the device OVRTX renders to. With no pin
+    # that is CUDA ordinal 0 (the default omni.rtx device); with a pin it is the
+    # first listed GPU, since CUDA_VISIBLE_DEVICES is stripped and both OVRTX
+    # and Warp see the same CUDA enumeration.
+    return wp.get_device("cuda:%d" % _first_cuda_ordinal(_active_cuda_gpus))
 
 @wp.kernel
 def _reduce_f32(values: wp.array(dtype=wp.float32), valid: wp.array(dtype=wp.int32),
@@ -2557,7 +2593,7 @@ def _observe_request(renderer, req, ordinal):
     if len(artifact_paths) != len(req["cameras"]):
         raise RuntimeError("artifact-path records and cameras disagree")
     updates = _sensor_updates(req)
-    stream = wp.Stream(device=wp.get_device("cuda:0"))
+    stream = wp.Stream(device=_observation_device())
     manifest = []
     for cam, product, paths in zip(
         req["cameras"], req["product_paths"], artifact_paths, strict=True
@@ -2680,13 +2716,14 @@ _DAEMON_REGISTRY: dict[tuple, "_OvRTXDaemon"] = {}
 
 
 def _shared_daemon(venv_dir: Path, log_level: str, auto_install: bool,
-                   block_install: bool) -> "_OvRTXDaemon":
-    key = (str(Path(venv_dir).resolve()), log_level)
+                   block_install: bool, active_cuda_gpus: str = "") -> "_OvRTXDaemon":
+    key = (str(Path(venv_dir).resolve()), log_level, active_cuda_gpus)
     with _DAEMON_REGISTRY_LOCK:
         d = _DAEMON_REGISTRY.get(key)
         if d is not None and d.alive():
             return d
-        d = _OvRTXDaemon(venv_dir, log_level, auto_install, block_install)
+        d = _OvRTXDaemon(venv_dir, log_level, auto_install, block_install,
+                         active_cuda_gpus=active_cuda_gpus)
         _DAEMON_REGISTRY[key] = d
         return d
 
@@ -2709,10 +2746,28 @@ def close_shared_daemons() -> None:
 
 class _OvRTXDaemon:
     def __init__(self, venv_dir: Path, log_level: str = "warn",
-                 auto_install: bool = False, block_install: bool = True):
+                 auto_install: bool = False, block_install: bool = True,
+                 active_cuda_gpus: str = ""):
         self._py = _ovrtx_python(venv_dir, auto_install, block=block_install)
         env = dict(os.environ)
         env.pop("PYTHONPATH", None)  # keep the app's pxr bindings out of the ovrtx venv
+        # omni.rtx's CUDA device enumeration does not match CUDA's own, so an
+        # inherited CUDA_VISIBLE_DEVICES makes the daemon skip every GPU
+        # ("Skipping NVIDIA graphics device because the matching CUDA device
+        # could not be found") and silently render black — the readiness
+        # probe still reports ready because it only checks the output is
+        # non-empty. omni.rtx's own startup log warns against setting this
+        # variable; the daemon must not inherit it from the parent process.
+        env.pop("CUDA_VISIBLE_DEVICES", None)
+        # Multi-GPU hosts can have a device omni.rtx cannot render on at all
+        # (observed: one GPU in a pair renders fully black on every frame,
+        # independent of the CUDA_VISIBLE_DEVICES bug above). Pin explicitly
+        # via config when the caller opts in; set here (not inherited from
+        # the OS env) so it never silently re-triggers that same class of bug.
+        if active_cuda_gpus:
+            env["USD_CLI_OVRTX_ACTIVE_CUDA_GPUS"] = active_cuda_gpus
+        else:
+            env.pop("USD_CLI_OVRTX_ACTIVE_CUDA_GPUS", None)
         env.setdefault("DISPLAY", ":0")
         env["OVRTX_LOG_LEVEL"] = log_level
         env["USD_CLI_OVRTX_PARENT_PID"] = str(os.getpid())
@@ -2869,7 +2924,7 @@ class OvRTXRenderBackend:
 
     def __init__(self, venv_dir: Path | None = None, num_sensor_updates: int = 64,
                  render_mode: str = "", log_level: str = "warn",
-                 auto_install: bool = False):
+                 auto_install: bool = False, active_cuda_gpus: str = ""):
         self._venv_dir = Path(venv_dir) if venv_dir else DEFAULT_VENV
         self._num_sensor_updates = _validated_sensor_updates(num_sensor_updates)
         # "" => derive from the per-call fast/quality mode; else pin an explicit rt1/rt2/pt.
@@ -2878,6 +2933,11 @@ class OvRTXRenderBackend:
         # Whether a missing ovrtx venv may be pip-provisioned (~2.5 GB download) at
         # render time; render.ovrtx_auto_install, default false (see _ovrtx_python).
         self._auto_install = auto_install
+        # Explicit CUDA device pin (e.g. "0"), for hosts where omni.rtx cannot
+        # render on every visible GPU; render.ovrtx_active_cuda_gpus, default
+        # "" (no pin, matches prior behavior). See _OvRTXDaemon for why this
+        # must be threaded explicitly rather than left to env inheritance.
+        self._active_cuda_gpus = active_cuda_gpus
         self._daemon: _OvRTXDaemon | None = None
 
     def _ensure_daemon(self, allow_install: bool | None = None,
@@ -2892,7 +2952,8 @@ class OvRTXRenderBackend:
             # once per project daemon, not once per render
             self._daemon = _shared_daemon(self._venv_dir, self._log_level,
                                           auto_install=allow,
-                                          block_install=block_install)
+                                          block_install=block_install,
+                                          active_cuda_gpus=self._active_cuda_gpus)
         return self._daemon
 
     def runtime_identity(self) -> dict:

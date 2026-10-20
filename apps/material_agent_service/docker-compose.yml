@@ -72,9 +72,9 @@ services:
       # Default: NVIDIA NIM (build.nvidia.com) with NVIDIA_API_KEY
       # Override via .env to use OpenAI, Anthropic, Gemini, or custom endpoints
       - MA_VLM_BACKEND=${MA_VLM_BACKEND:-nim}
-      - MA_VLM_MODEL=${MA_VLM_MODEL:-moonshotai/kimi-k3}
+      - MA_VLM_MODEL=${MA_VLM_MODEL:-nvidia/nemotron-3.5-super-vl-120b-a12b}
       - MA_LLM_BACKEND=${MA_LLM_BACKEND:-nim}
-      - MA_LLM_MODEL=${MA_LLM_MODEL:-moonshotai/kimi-k3}
+      - MA_LLM_MODEL=${MA_LLM_MODEL:-nvidia/nemotron-3.5-super-vl-120b-a12b}
 
       # Interactive generated reference images. Default uses the public Gemini
       # backend with GOOGLE_API_KEY; override in .env for OpenAI or NIM.

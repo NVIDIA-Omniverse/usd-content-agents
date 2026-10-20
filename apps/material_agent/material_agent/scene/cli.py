@@ -313,7 +313,7 @@ def analyze(
             # Default LLM config if not explicitly configured
             llm_config = {
                 "backend": "nim",
-                "model": "moonshotai/kimi-k3",
+                "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
                 "temperature": 0.1,
                 "max_tokens": 256,
             }
@@ -1214,7 +1214,7 @@ def _run_cmd_legacy(
         llm_section = analyze_opts.get("llm")
         llm_config = llm_section or {
             "backend": "nim",
-            "model": "moonshotai/kimi-k3",
+            "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
             "temperature": 0.1,
             "max_tokens": 256,
         }

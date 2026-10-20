@@ -405,8 +405,8 @@ async def test_main_endpoints_and_entrypoint(
 
     vlm_models = (await main_module.get_vlm_models())["models"]
     assert vlm_models[0] == {
-        "value": "nim/moonshotai/kimi-k3",
-        "label": "Kimi K3 (Default)",
+        "value": "nim/nvidia/nemotron-3.5-super-vl-120b-a12b",
+        "label": "Nemotron 3.5 Super VL (Default)",
         "is_default": True,
     }
     assert any(model["value"] == "nim/nvidia/cosmos-reason2-8b" for model in vlm_models)

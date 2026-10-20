@@ -16,6 +16,14 @@ URL, bounds concurrent synchronous requests per process (each slot is held
 for the whole request, including 202 polling and streaming), retries 429/503
 with jittered exponential backoff (honouring ``Retry-After`` when sent), and
 polls 202 responses once per second. Self-hosted NIM endpoints are untouched.
+
+Hosted endpoints also hang or fail fast on a minority of requests. The same
+retry policy therefore retries HTTP 500/502/504 and
+read timeouts. When the client uses the default deadline, each POST attempt
+reads for at most ``WU_NIM_ATTEMPT_TIMEOUT_SECONDS`` so that a hang can be
+retried; a timeout the caller chose is never shortened and applies to every
+attempt. Completions have no side effects, so a repeated request costs tokens
+only. 202 polling keeps the client's whole timeout.
 """
 
 import contextlib
@@ -31,8 +39,14 @@ from urllib.parse import urlparse
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.exceptions import InvalidHeader
+from urllib3.exceptions import InvalidHeader, MaxRetryError, ReadTimeoutError
 from urllib3.util.retry import Retry
+
+from world_understanding.functions.models.request_timeout import (
+    DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS,
+    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+)
+from world_understanding.utils.environment import parse_float_env
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +57,9 @@ _POLL_INTERVAL_SECONDS = 1.0
 
 MAX_CONCURRENCY_ENV = "WU_NIM_HOSTED_MAX_CONCURRENT_REQUESTS"
 DEFAULT_MAX_CONCURRENCY = 4
+
+ATTEMPT_TIMEOUT_ENV = "WU_NIM_ATTEMPT_TIMEOUT_SECONDS"
+DEFAULT_ATTEMPT_TIMEOUT_SECONDS = 180.0
 
 
 class _HostedRetry(Retry):
@@ -67,17 +84,19 @@ class _HostedRetry(Retry):
         return None if retry_after is None else min(retry_after, self.backoff_max)
 
 
-# Only refusals are retried here: 429 and 503 (and, by urllib3's rule, 413 with
-# Retry-After) mean the service turned the request away. Read errors, connection resets, 500, 502 and 504 do not prove
-# that remote work stopped, so they stay with the callers' own policy; read=False
-# re-raises a read timeout as requests' ReadTimeout, which callers never retry.
+# 429 and 503 (and, by urllib3's rule, 413 with Retry-After) mean the service
+# turned the request away. Hosted chat completions also hang or fail fast with
+# 500, 502 or 504; they have no side effects, so those statuses
+# and up to two read timeouts are retried too. A final 5xx comes back as the
+# response, so the SDK raises its usual error; an exhausted read stays a
+# ReadTimeout (see _HostedAdapter), which callers never retry.
 _HOSTED_RETRY = _HostedRetry(
     total=5,
     connect=2,
-    read=False,
+    read=2,
     other=0,
     status=5,
-    status_forcelist=(429, 503),
+    status_forcelist=(429, 500, 502, 503, 504),
     allowed_methods=None,
     backoff_factor=2.0,
     backoff_jitter=2.0,
@@ -166,11 +185,81 @@ def _slot_bounded_client_type(client_type: type) -> type:
         return _slot_bounded_types[client_type]
 
 
-def _hosted_session(verify: bool | str) -> requests.Session:
+def _attempt_timeout_seconds() -> float:
+    return parse_float_env(
+        ATTEMPT_TIMEOUT_ENV,
+        DEFAULT_ATTEMPT_TIMEOUT_SECONDS,
+        minimum=10.0,
+        maximum=3600.0,
+        logger=logger,
+    )
+
+
+def _bounded_timeout(timeout: Any, limit: float) -> tuple[float, float]:
+    """Cap a requests timeout (number, pair or None) at ``limit`` seconds."""
+    connect, read = timeout if isinstance(timeout, tuple) else (timeout, timeout)
+    return (
+        limit if connect is None else min(float(connect), limit),
+        limit if read is None else min(float(read), limit),
+    )
+
+
+class _HostedAdapter(HTTPAdapter):
+    """Bound each POST attempt; keep an exhausted read a ReadTimeout.
+
+    The SDK passes its one ``timeout`` to the POST and to every 202 poll. With
+    the default deadline only the POST is capped, so a hung attempt can be
+    retried while polling keeps the whole budget. An explicit caller timeout is
+    left as is for every attempt. requests reports retries exhausted by read
+    timeouts as a ConnectionError; restore ReadTimeout so timeouts stay
+    terminal for callers.
+    """
+
+    def __init__(self, *args: Any, explicit_timeout: bool = False, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.explicit_timeout = explicit_timeout
+
+    def send(
+        self, request: requests.PreparedRequest, *args: Any, **kwargs: Any
+    ) -> requests.Response:
+        if request.method == "POST" and not self.explicit_timeout:
+            kwargs["timeout"] = _bounded_timeout(
+                kwargs.get("timeout"), _attempt_timeout_seconds()
+            )
+        try:
+            return super().send(request, *args, **kwargs)
+        except requests.exceptions.ConnectionError as error:
+            exhausted = error.args[0] if error.args else None
+            if isinstance(exhausted, MaxRetryError) and isinstance(
+                exhausted.reason, ReadTimeoutError
+            ):
+                raise requests.exceptions.ReadTimeout(
+                    exhausted, request=request
+                ) from error
+            raise
+
+
+def _hosted_session(
+    verify: bool | str, *, explicit_timeout: bool = False
+) -> requests.Session:
     session = requests.Session()
     session.verify = verify
-    session.mount("https://", HTTPAdapter(max_retries=_HOSTED_RETRY))
+    session.mount(
+        "https://",
+        _HostedAdapter(max_retries=_HOSTED_RETRY, explicit_timeout=explicit_timeout),
+    )
     return session
+
+
+def default_nim_request_timeout(base_url: str | None) -> float:
+    """Return the NIM request deadline used when the caller sets none.
+
+    Hosted NIM retries hung attempts inside a longer deadline; self-hosted
+    endpoints get one attempt and keep the shared hosted-model default.
+    """
+    if not base_url or hosted_nim_host(base_url):
+        return DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS
+    return DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
 
 
 def hosted_nim_host(base_url: str | None) -> str | None:
@@ -194,8 +283,14 @@ def canonical_endpoint(url: str) -> str:
     return f"{scheme}://{netloc}{parts.path.rstrip('/')}"
 
 
-def _configure_nim_chat_transport(chat_model: Any, *, label: str) -> None:
-    """Apply the hosted NIM transport policy to a ChatNVIDIA instance."""
+def _configure_nim_chat_transport(
+    chat_model: Any, *, label: str, explicit_timeout: bool = False
+) -> None:
+    """Apply the hosted NIM transport policy to a ChatNVIDIA instance.
+
+    ``explicit_timeout`` says the caller chose the client timeout, so hosted
+    attempts read for that whole timeout instead of the attempt cap.
+    """
     for client_attr in ("_client", "_async_client"):
         client: Any = getattr(chat_model, client_attr, None)
         base_url = getattr(client, "base_url", None)
@@ -223,6 +318,6 @@ def _configure_nim_chat_transport(chat_model: Any, *, label: str) -> None:
         if client_attr == "_client":
             # The async client uses aiohttp; NvidiaNIMVLM only calls the sync one.
             client.get_session_fn = functools.partial(
-                _hosted_session, client.verify_ssl
+                _hosted_session, client.verify_ssl, explicit_timeout=explicit_timeout
             )
             client.__class__ = _slot_bounded_client_type(type(client))

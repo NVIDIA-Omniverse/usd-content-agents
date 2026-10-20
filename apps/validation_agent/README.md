@@ -152,7 +152,7 @@ policy:
   visual_evidence_mode: canonical_usd
   look_right_vlm:
     backend: nim
-    model: moonshotai/kimi-k3
+    model: nvidia/nemotron-3.5-super-vl-120b-a12b
   reference_image_paths:
     - reference.png
 project:

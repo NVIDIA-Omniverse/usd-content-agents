@@ -21,6 +21,7 @@ from world_understanding.functions.models.nim_timeout import _apply_nim_chat_tim
 from world_understanding.functions.models.nim_transport import (
     _configure_nim_chat_transport,
     canonical_endpoint,
+    default_nim_request_timeout,
 )
 from world_understanding.functions.models.request_timeout import (
     DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Default configurations
-_DEFAULT_NIM_VLM_MODEL = "moonshotai/kimi-k3"
+_DEFAULT_NIM_VLM_MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 _DEFAULT_AZURE_VLM_MODEL = "gpt-5"
 _DEFAULT_OPENAI_MODEL = "gpt-5.4"
 _DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-6"
@@ -1362,15 +1363,18 @@ class NvidiaNIMVLM(BaseVisionLanguageModel):
         self,
         api_key: str,
         model: str | None = None,
-        timeout: float = _DEFAULT_TIMEOUT_SECONDS,
+        timeout: float | None = None,
         **kwargs: Any,
     ):
         """Initialize NVIDIA NIM VLM.
 
         Args:
             api_key: NVIDIA API key
-            model: Model name (defaults to moonshotai/kimi-k3)
-            timeout: Request timeout in seconds
+            model: Model name (defaults to nvidia/nemotron-3.5-super-vl-120b-a12b)
+            timeout: Request deadline in seconds. Defaults to the hosted NIM
+                deadline for NVIDIA-hosted endpoints and the shared model
+                deadline otherwise. An explicit timeout is the read limit for
+                every hosted attempt.
             **kwargs: Additional configuration options
         """
         super().__init__()  # Initialize token tracking
@@ -1383,6 +1387,9 @@ class NvidiaNIMVLM(BaseVisionLanguageModel):
             ) from e
 
         self._model_name = model or _DEFAULT_NIM_VLM_MODEL
+        explicit_timeout = timeout is not None
+        if timeout is None:
+            timeout = default_nim_request_timeout(kwargs.get("base_url"))
         timeout_s = self._normalize_request_timeout(timeout, label="NvidiaNIMVLM")
         self.chat_model = ChatNVIDIA(
             model=self._model_name,
@@ -1400,7 +1407,9 @@ class NvidiaNIMVLM(BaseVisionLanguageModel):
             timeout_s,
             label="NvidiaNIMVLM",
         )
-        _configure_nim_chat_transport(self.chat_model, label="NvidiaNIMVLM")
+        _configure_nim_chat_transport(
+            self.chat_model, label="NvidiaNIMVLM", explicit_timeout=explicit_timeout
+        )
 
     @traced_vlm(name="vlm.generate", system="nim", operation="generate")
     def generate(

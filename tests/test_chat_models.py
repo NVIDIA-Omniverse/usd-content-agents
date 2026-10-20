@@ -17,7 +17,7 @@ from world_understanding.functions.models.chat_models import (
     create_nim_chat_model,
 )
 from world_understanding.functions.models.request_timeout import (
-    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
+    DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS,
 )
 
 
@@ -232,8 +232,9 @@ class TestNIMChatModel:
             "model": "custom-model",
             "nvidia_api_key": "test_key",
         }
-        assert sync_client.timeout == DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
-        assert async_client.timeout == DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
+        # No base_url means the hosted endpoint and its longer deadline.
+        assert sync_client.timeout == DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS
+        assert async_client.timeout == DEFAULT_HOSTED_NIM_REQUEST_TIMEOUT_SECONDS
 
     @pytest.mark.parametrize(
         ("has_sync_client", "has_async_client", "expect_warning"),

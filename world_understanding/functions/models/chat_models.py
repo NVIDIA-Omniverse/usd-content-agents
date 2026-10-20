@@ -18,7 +18,7 @@ from world_understanding.utils.credentials import (
 )
 
 # Default configurations
-_DEFAULT_NIM_MODEL = "moonshotai/kimi-k3"
+_DEFAULT_NIM_MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
 
 class EchoChatModel(BaseChatModel):

@@ -1,7 +1,7 @@
 # Tested component constraints. Update intentionally with dependency/security review.
 usd-core==26.8
 numpy==2.4.6
-pillow==12.3.0
+pillow==13.0.0
 typer==0.26.7
 httpx==0.28.1
 fastapi==0.136.3

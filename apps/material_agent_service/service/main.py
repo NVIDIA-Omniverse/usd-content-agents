@@ -628,8 +628,8 @@ async def get_vlm_models():
     """Return available VLM models for the UI dropdown."""
     models = [
         {
-            "value": "nim/moonshotai/kimi-k3",
-            "label": "Kimi K3 (Default)",
+            "value": "nim/nvidia/nemotron-3.5-super-vl-120b-a12b",
+            "label": "Nemotron 3.5 Super VL (Default)",
             "is_default": True,
         },
         {

@@ -46,7 +46,7 @@ def test_runtime_lock_is_used_with_hash_enforcement() -> None:
         "numpy": "2.2.6",
         "ovrtx": "0.4.1.364340",
         "ovstage": "0.1.1.355824",
-        "pillow": "12.3.0",
+        "pillow": "13.0.0",
         "warp-lang": "1.16.0",
     }
     assert all(

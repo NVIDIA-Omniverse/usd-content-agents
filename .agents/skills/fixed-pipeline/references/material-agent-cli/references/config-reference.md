@@ -120,7 +120,7 @@ steps:
   predict:
     vlm:
       backend: nim
-      model: moonshotai/kimi-k3
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
 
   apply: {}
 

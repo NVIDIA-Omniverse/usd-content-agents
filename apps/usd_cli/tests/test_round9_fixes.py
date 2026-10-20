@@ -359,7 +359,7 @@ def test_ovrtx_daemon_shared_across_backend_constructions(tmp_path, monkeypatch)
 
     class FakeDaemon:
         def __init__(self, venv_dir, log_level="warn", auto_install=False,
-                     block_install=True):
+                     block_install=True, active_cuda_gpus=""):
             spawned.append(self)
             self._proc = type("P", (), {"poll": staticmethod(lambda: None)})()
 
@@ -476,6 +476,137 @@ def test_ovrtx_worker_is_bound_to_project_daemon_lifetime(tmp_path, monkeypatch)
         assert "os.getppid() != expected_parent" in ovrtx_mod._DAEMON_SCRIPT
     finally:
         daemon.close()
+
+
+def test_ovrtx_daemon_does_not_inherit_cuda_visible_devices(
+    tmp_path, monkeypatch
+):
+    """An inherited CUDA_VISIBLE_DEVICES makes omni.rtx skip every GPU and
+    render fully black (valid, nonzero alpha) -- the daemon must never pass
+    it through to the worker subprocess, regardless of the caller's env.
+    """
+    import io
+    import json
+
+    from usd_core.render import ovrtx as ovrtx_mod
+
+    captured = {}
+    ready = {
+        "status": "ready",
+        "runtime_versions": dict(ovrtx_mod._QUALIFIED_WORKER_RUNTIME_VERSIONS),
+    }
+
+    class FakeProcess:
+        def __init__(self, command, **kwargs):
+            captured["env"] = kwargs["env"]
+            self.stdin = io.StringIO()
+            self.stdout = io.StringIO(json.dumps(ready) + "\n")
+            self._returncode = None
+
+        def poll(self):
+            return self._returncode
+
+        def wait(self, timeout=None):
+            self._returncode = 0
+            return 0
+
+        def kill(self):
+            self._returncode = -9
+
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "1")
+    monkeypatch.setattr(ovrtx_mod, "_ovrtx_python", lambda *args, **kwargs: "python")
+    monkeypatch.setattr(ovrtx_mod.subprocess, "Popen", FakeProcess)
+
+    daemon = ovrtx_mod._OvRTXDaemon(tmp_path / "venv")
+    try:
+        assert "CUDA_VISIBLE_DEVICES" not in captured["env"]
+    finally:
+        daemon.close()
+
+
+def test_ovrtx_daemon_sets_active_cuda_gpus_explicitly(tmp_path, monkeypatch):
+    """active_cuda_gpus is the supported pin for a host with a GPU omni.rtx
+    cannot render on at all -- it must reach the worker subprocess when the
+    caller opts in, and never be set (not even to an inherited stale value)
+    when they do not.
+    """
+    import io
+    import json
+
+    from usd_core.render import ovrtx as ovrtx_mod
+
+    captured = {}
+    ready = {
+        "status": "ready",
+        "runtime_versions": dict(ovrtx_mod._QUALIFIED_WORKER_RUNTIME_VERSIONS),
+    }
+
+    class FakeProcess:
+        def __init__(self, command, **kwargs):
+            captured["env"] = kwargs["env"]
+            self.stdin = io.StringIO()
+            self.stdout = io.StringIO(json.dumps(ready) + "\n")
+            self._returncode = None
+
+        def poll(self):
+            return self._returncode
+
+        def wait(self, timeout=None):
+            self._returncode = 0
+            return 0
+
+        def kill(self):
+            self._returncode = -9
+
+    monkeypatch.setattr(ovrtx_mod, "_ovrtx_python", lambda *args, **kwargs: "python")
+    monkeypatch.setattr(ovrtx_mod.subprocess, "Popen", FakeProcess)
+
+    daemon = ovrtx_mod._OvRTXDaemon(tmp_path / "venv", active_cuda_gpus="0")
+    try:
+        assert captured["env"]["USD_CLI_OVRTX_ACTIVE_CUDA_GPUS"] == "0"
+    finally:
+        daemon.close()
+
+    # An unset caller-env leftover must not leak through when not opted in.
+    monkeypatch.setenv("USD_CLI_OVRTX_ACTIVE_CUDA_GPUS", "1")
+    daemon2 = ovrtx_mod._OvRTXDaemon(tmp_path / "venv2")
+    try:
+        assert "USD_CLI_OVRTX_ACTIVE_CUDA_GPUS" not in captured["env"]
+    finally:
+        daemon2.close()
+
+
+def test_ovrtx_worker_observes_on_the_pinned_cuda_device():
+    """With active_cuda_gpus pinning OVRTX to GPU N, the Warp stream used to
+    sync the CUDA map and run the reduction kernels must be on cuda:N too,
+    not hard-wired to cuda:0 (a cross-device sync_stream can fail).
+    """
+    import ast
+
+    from usd_core.render import ovrtx as ovrtx_mod
+
+    script = ovrtx_mod._DAEMON_SCRIPT
+    assert 'wp.Stream(device=_observation_device())' in script
+    assert 'wp.get_device("cuda:0")' not in script
+
+    tree = ast.parse(script)
+    helpers = [
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name in {"_first_cuda_ordinal", "_observation_device"}
+    ]
+    assert {n.name for n in helpers} == {"_first_cuda_ordinal", "_observation_device"}
+
+    class FakeWarp:
+        @staticmethod
+        def get_device(name):
+            return name
+
+    for pin, expected in [("", "cuda:0"), ("0", "cuda:0"), ("1", "cuda:1"),
+                          (" 1,0 ", "cuda:1"), ("bogus", "cuda:0")]:
+        ns = {"wp": FakeWarp, "_active_cuda_gpus": pin}
+        exec(compile(ast.Module(body=helpers, type_ignores=[]), "<worker>", "exec"), ns)
+        assert ns["_observation_device"]() == expected, pin
 
 
 def test_ovrtx_daemon_rejects_unqualified_worker_runtime(tmp_path, monkeypatch):

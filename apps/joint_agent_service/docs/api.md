@@ -59,7 +59,7 @@ Returns service info and a map of all available endpoints.
 ```json
 {
   "service": "Joint Agent Service",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "docs": "/docs",
   "health": "/health",
   "api": {
@@ -96,7 +96,7 @@ Health check.
 {
   "status": "healthy",
   "service": "Joint Agent Service",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "api_keys_configured": true,
   "auth_enforced": false,
   "max_active_sessions": 1,
@@ -876,11 +876,11 @@ request authorization.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `JA_VLM_BACKEND` | `nim` | VLM inference backend |
-| `JA_VLM_MODEL` | `moonshotai/kimi-k3` | VLM model identifier |
+| `JA_VLM_MODEL` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | VLM model identifier |
 | `JA_VLM_TEMPERATURE` | `1.0` | VLM sampling temperature |
 | `JA_VLM_MAX_WORKERS` | `64` | Maximum concurrent prediction VLM requests per pipeline. NVCF staging deployments default to `4`. |
 | `JA_LLM_BACKEND` | `nim` | Structure-analysis LLM backend |
-| `JA_LLM_MODEL` | `moonshotai/kimi-k3` | Structure-analysis LLM model |
+| `JA_LLM_MODEL` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | Structure-analysis LLM model |
 | `JA_LLM_REASONING_EFFORT` | model default | Optional structure-analysis reasoning override |
 | `JA_RENDER_BACKEND` | `remote` | Rendering backend: `remote`, `warp`, `ovrtx`, or `mock`. Remote rendering resolves through `RENDER_ENDPOINT`; mock is test-only. |
 

@@ -67,7 +67,7 @@ Returns service info and a map of all available endpoints.
 ```json
 {
   "service": "Physics Agent Service",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "docs": "/docs",
   "health": "/health",
   "api": {
@@ -125,7 +125,7 @@ Health check.
 {
   "status": "healthy",
   "service": "Physics Agent Service",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "api_keys_configured": true,
   "auth_enforced": false,
   "max_active_sessions": 1,
@@ -1657,7 +1657,7 @@ request authorization.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PA_VLM_BACKEND` | `nim` | VLM inference backend |
-| `PA_VLM_MODEL` | `moonshotai/kimi-k3` | VLM model identifier |
+| `PA_VLM_MODEL` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | VLM model identifier |
 | `PA_VLM_TEMPERATURE` | `1.0` | VLM sampling temperature |
 | `PA_TUNE_BACKEND` | unset; falls back to `PA_REFINE_BACKEND`, then `PA_VLM_BACKEND` | Optional `/tune` prompt-to-scenario interpreter backend override |
 | `PA_TUNE_MODEL` | unset; falls back to `PA_REFINE_MODEL`, then `PA_VLM_MODEL` or the deployment default | Optional `/tune` prompt-to-scenario interpreter model override |

@@ -240,7 +240,7 @@ config = {
     "predict": {
         "vlm": {
             "backend": "nim",                    # REQUIRED
-            "model": "moonshotai/kimi-k3",       # REQUIRED
+            "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",       # REQUIRED
         },
     },
     "input": {

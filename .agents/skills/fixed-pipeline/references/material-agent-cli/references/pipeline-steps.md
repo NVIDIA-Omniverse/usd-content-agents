@@ -85,7 +85,7 @@ steps:
     enabled: true
     vlm:
       backend: nim
-      model: moonshotai/kimi-k3
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
 ```
 
 **Output:** `{working_dir}/identification/identification.json` plus an
@@ -219,13 +219,13 @@ steps:
   predict:
     vlm:
       backend: nim                   # nim (default), openai, anthropic, gemini
-      model: moonshotai/kimi-k3
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
       temperature: 1.0
       max_completion_tokens: 24576
     max_workers: 16                 # Parallel inference workers
     llm:                            # Optional LLM for post-processing
       backend: nim
-      model: moonshotai/kimi-k3
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
     report:
       image_max_size: 256
 ```
@@ -270,8 +270,8 @@ exclusive with `predict`.
 steps:
   benchmark:
     enabled: true
-    vlm: { backend: nim, model: moonshotai/kimi-k3 }
-    llm_judge: { backend: nim, model: moonshotai/kimi-k3 }
+    vlm: { backend: nim, model: nvidia/nemotron-3.5-super-vl-120b-a12b }
+    llm_judge: { backend: nim, model: nvidia/nemotron-3.5-super-vl-120b-a12b }
     max_workers: 64
 ```
 
@@ -289,7 +289,7 @@ steps:
     enabled: true
     llm:
       backend: nim
-      model: moonshotai/kimi-k3
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
 ```
 
 **Output:** Updated prediction records for downstream `harmonize_predictions`,
@@ -307,7 +307,7 @@ steps:
     enabled: true
     llm:
       backend: nim
-      model: moonshotai/kimi-k3
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
 ```
 
 **Output:** Harmonized predictions for downstream material application.
@@ -347,7 +347,7 @@ steps:
     enabled: true
     llm_judge:
       backend: nim
-      model: moonshotai/kimi-k3
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
     success_threshold: 4.0
     generate_html_report: true
 ```

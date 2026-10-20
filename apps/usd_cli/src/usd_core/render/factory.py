@@ -76,6 +76,7 @@ def make_backend(config: Config) -> RenderBackend:
             log_level=str(config.render.get("ovrtx_log_level", "warn")),
             auto_install=str(config.render.get("ovrtx_auto_install", False)).lower()
             in ("true", "1", "yes"),
+            active_cuda_gpus=str(config.render.get("ovrtx_active_cuda_gpus", "") or ""),
         )
     if renderer == "remote":
         from usd_core.config import resolve_render_backends

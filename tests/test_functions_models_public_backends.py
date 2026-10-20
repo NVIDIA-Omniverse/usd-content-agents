@@ -178,7 +178,7 @@ def test_nim_chat_factory_builds_model_and_applies_timeout(
     )
 
     assert chat.kwargs == {
-        "model": "moonshotai/kimi-k3",
+        "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
         "nvidia_api_key": "nim-key",
         "streaming": True,
         "temperature": 0.2,
@@ -189,7 +189,7 @@ def test_nim_chat_factory_builds_model_and_applies_timeout(
     assert applied_timeouts == [(chat, 9, "create_nim_chat")]
 
 
-def test_kimi_k3_nim_chat_applies_budget_at_payload_edge(
+def test_nemotron_super_vl_nim_chat_applies_budget_at_payload_edge(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[dict[str, Any]] = []
@@ -215,7 +215,7 @@ def test_kimi_k3_nim_chat_applies_budget_at_payload_edge(
 
     chat = nim.create_nim_chat(api_key="nim-key", max_tokens=512)
 
-    assert chat.constructor_kwargs["model"] == "moonshotai/kimi-k3"
+    assert chat.constructor_kwargs["model"] == "nvidia/nemotron-3.5-super-vl-120b-a12b"
     assert chat.constructor_kwargs["max_tokens"] == 16_384
     assert not hasattr(chat, "model")
     assert (
@@ -250,7 +250,7 @@ def test_kimi_k3_nim_chat_applies_budget_at_payload_edge(
     assert calls[-1]["max_tokens"] == 2048
 
 
-def test_nim_1_4_3_applies_implicit_and_aliased_k3_budgets() -> None:
+def test_nim_1_4_3_applies_implicit_and_aliased_nemotron_super_vl_budgets() -> None:
     """Exercise the request-budget hook against the locked real SDK class."""
     from langchain_core.messages import HumanMessage
     from langchain_nvidia_ai_endpoints import ChatNVIDIA

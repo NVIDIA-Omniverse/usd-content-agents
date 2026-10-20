@@ -18,7 +18,7 @@ dependencies = [
     "numpy>=2.3,<3.0.0",
     "sdf-tools",
     "physics-agent",
-    "pillow>=12.1.1,<13.0.0",
+    "pillow>=13.0.0",
     "pydantic>=2.11,<3.0.0",
     "PyYAML>=6.0,<7",
     "requests>=2.32,<3",

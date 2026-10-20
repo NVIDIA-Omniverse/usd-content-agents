@@ -115,9 +115,9 @@ the container and defaults to GPU `0`.
 | `ANTHROPIC_API_KEY` | Required if using `anthropic` backend |
 | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Required if using `gemini` backend |
 | `MA_VLM_BACKEND` | Default: `nim` |
-| `MA_VLM_MODEL` | Default: `moonshotai/kimi-k3` |
+| `MA_VLM_MODEL` | Default: `nvidia/nemotron-3.5-super-vl-120b-a12b` |
 | `MA_LLM_BACKEND` | Default: `nim` |
-| `MA_LLM_MODEL` | Default: `moonshotai/kimi-k3` |
+| `MA_LLM_MODEL` | Default: `nvidia/nemotron-3.5-super-vl-120b-a12b` |
 | `MA_IMAGE_GEN_BACKEND` | Shared image-generation backend for generated reference images and generated material-library textures (default: `gemini`) |
 | `MA_IMAGE_GEN_MODEL` | Optional shared image-generation model override |
 | `MA_IMAGE_GEN_BASE_URL` | Optional shared image-generation API base URL |
@@ -131,6 +131,8 @@ the container and defaults to GPU `0`.
 | `MA_MAX_RENDER_NUM_WORKERS` | Max accepted render worker override. Service default: `32`; local Docker Compose default: `1` |
 | `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` | Process-wide render request cap. Service default: unset/disabled; local Docker Compose default: `1` |
 | `WU_NIM_HOSTED_MAX_CONCURRENT_REQUESTS` | Process-wide cap on synchronous hosted NIM (`integrate.api.nvidia.com`, `ai.api.nvidia.com`) model requests. Default: `4`; `0` or a negative value disables it |
+| `WU_NIM_ATTEMPT_TIMEOUT_SECONDS` | Read timeout for one hosted NIM request attempt when no explicit `timeout` is set; a hung attempt is retried up to twice. Default: `180` (range `10` to `3600`) |
+| `WU_MODEL_REQUEST_TIMEOUT_SECONDS` | Request timeout for hosted model clients when a model section sets none. Default: `600` for hosted NIM, `300` for other providers |
 
 ## Custom Materials
 

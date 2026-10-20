@@ -662,7 +662,7 @@ def test_checked_in_configs_pass_real_contract_validation(
         "appearance_prompt": refinement.goal.appearance_prompt
     }
     assert refinement.judge.vlm["backend"] == "nim"
-    assert refinement.judge.vlm["model"] == "moonshotai/kimi-k3"
+    assert refinement.judge.vlm["model"] == "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
 
 def test_refinement_examples_use_one_shared_appearance_goal() -> None:
